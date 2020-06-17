@@ -69,13 +69,14 @@ uint64_t intsum_ot_sender(IO *io,uint32_t *shares, bool *valid, int n, int num_b
 
     for(int i = 0; i < n; i++){
         uint32_t num = shares[i];
-        std::cout << "Share : " << num << " num bits " << num_bits << std::endl;
+        std::cout << "Share : " << num << "  valid " << valid[i] << std::endl;
+        // std::cout << "Valid : " << valid[i] << " num bits " << num_bits << std::endl;
         for(int j = 0; j < num_bits; j++){
-            std::cout << num%2 << std::endl;
+            // std::cout << num%2 << std::endl;
             bool_shares[i*num_bits + j] = num%2;
             bool_valid[i*num_bits + j] = valid[i];
             r[i*num_bits+j] = r[i*num_bits+j];
-            std::cout << "r[" << j << "] : " << r[j] << std::endl;
+            // std::cout << "r[" << j << "] : " << r[j] << std::endl;
             num = num >> 1;
         }
     }

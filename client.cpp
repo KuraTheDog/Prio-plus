@@ -14,8 +14,11 @@
 
 #include "bitsum.h"
 
-#define SERVER0_IP "127.0.0.1"
-#define SERVER1_IP "127.0.0.1"
+#define SERVER0_IP "34.207.237.175"
+#define SERVER1_IP "54.188.50.231"
+
+// #define SERVER0_IP "127.0.0.1"
+// #define SERVER1_IP "127.0.0.1"
 
 std::string pub_key_to_hex(uint64_t *key){
     std::stringstream ss;
@@ -59,12 +62,12 @@ int main(int argc, char** argv){
 
     inet_pton(AF_INET,SERVER0_IP,&server0.sin_addr);
     inet_pton(AF_INET,SERVER1_IP,&server1.sin_addr);
-
+    std::cout << "Connecting to server 0" << std::endl;
     if(connect(sockfd0,(sockaddr*)&server0,sizeof(server0)) < 0){
         std::cerr << "Can't connect to server0" << std::endl;
         exit(EXIT_FAILURE);
     }
-
+    std::cout << "Connecting to server 1" << std::endl;
     if(connect(sockfd1,(sockaddr*)&server1,sizeof(server1)) < 0){
         std::cerr << "Can't connect to server1" << std::endl;
         exit(EXIT_FAILURE);
@@ -153,7 +156,8 @@ int main(int argc, char** argv){
             memcpy(intshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
             intshare1.val = shares1[i];
             memcpy(intshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
-
+            std::cout << pub_key_to_hex((uint64_t*)&b[i]) << endl;
+            
             int s1 = send(sockfd0,(void *)&intshare0,sizeof(intshare0),0);
             int s2 = send(sockfd1,(void *)&intshare1,sizeof(intshare1),0);
         }

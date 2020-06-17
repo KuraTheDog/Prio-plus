@@ -204,6 +204,7 @@ int main(int argc, char** argv){
             std::cerr << "Received " << msg.num_of_inputs << " shares" << std::endl;
 
             if(server_num == 1){
+                sleep(2);
                 pid_t pid = fork();
                 if(pid > 0){
                     initMsg msg;
