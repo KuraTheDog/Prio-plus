@@ -13,7 +13,7 @@
 #include "bitsum.h"
 
 #define SERVER0_IP "127.0.0.1"
-
+#define SERVER1_IP "127.0.0.1"
 
 std::vector<BitShare> bitshares;
 std::unordered_map<std::string,int> bitshare_map;
@@ -137,7 +137,7 @@ int main(int argc, char** argv){
                     }
                     NetIO *io;
 
-                    io = new NetIO("127.0.0.1",60051);
+                    io = new NetIO(SERVER0_IP,60051);
                     uint64_t b = bitsum_ot_receiver<NetIO,OTNP>(io,&shares[0],bitshares.size());
                     std::cout << "From receiver: " << b << std::endl;
                 }
@@ -233,8 +233,9 @@ int main(int argc, char** argv){
                     }
                     NetIO *io;
 
-                    io = new NetIO("127.0.0.1",60051);
+                    io = new NetIO(SERVER0_IP,60051);
                     uint64_t b = intsum_ot_receiver<NetIO,OTNP>(io,&shares[0],intshares.size(),num_bits);
+                    send(sockfd_init,&b,sizeof(uint64_t),0);
                     std::cout << "From receiver: " << b << std::endl;
                 }
             }
@@ -263,7 +264,11 @@ int main(int argc, char** argv){
             
             io = new NetIO(nullptr,60051);
             uint64_t a = intsum_ot_sender<NetIO,OTNP>(io,&shares[0],&valid[0],num_ots,num_bits);
+            uint64_t b;
+            recv(newsockfd,(void*)&b,sizeof(uint64_t),0);
             std::cout << "From sender: " << a<< std::endl;
+            uint64_t aggr = a + b;
+            std::cout << "Ans : " << aggr << std::endl;
             long long t = time_from(start);
             std::cout << "Time taken : " << t << std::endl;
             delete[] shares;

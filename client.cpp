@@ -14,7 +14,8 @@
 
 #include "bitsum.h"
 
-#define SERVER_IP "127.0.0.1"
+#define SERVER0_IP "127.0.0.1"
+#define SERVER1_IP "127.0.0.1"
 
 std::string pub_key_to_hex(uint64_t *key){
     std::stringstream ss;
@@ -56,8 +57,8 @@ int main(int argc, char** argv){
     server0.sin_family = AF_INET;
     server1.sin_family = AF_INET;
 
-    inet_pton(AF_INET,SERVER_IP,&server0.sin_addr);
-    inet_pton(AF_INET,SERVER_IP,&server1.sin_addr);
+    inet_pton(AF_INET,SERVER0_IP,&server0.sin_addr);
+    inet_pton(AF_INET,SERVER1_IP,&server1.sin_addr);
 
     if(connect(sockfd0,(sockaddr*)&server0,sizeof(server0)) < 0){
         std::cerr << "Can't connect to server0" << std::endl;

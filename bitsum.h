@@ -62,9 +62,9 @@ uint64_t intsum_ot_sender(IO *io,uint32_t *shares, bool *valid, int n, int num_b
     bool bool_valid[n*num_bits];
     uint64_t b0[n*num_bits];
     uint64_t b1[n*num_bits];
-    uint32_t r[n*num_bits];
+    uint64_t r[n*num_bits];
     uint64_t sum = 0;
-    prg.random_data(r,n*num_bits*sizeof(uint32_t));
+    prg.random_data(r,n*num_bits*sizeof(uint64_t));
     uint64_t mod = 1 << num_bits;
 
     for(int i = 0; i < n; i++){
@@ -113,7 +113,7 @@ uint64_t intsum_ot_sender(IO *io,uint32_t *shares, bool *valid, int n, int num_b
 
     for(int i = 0; i < n; i++){
         if(valid[i]){
-            uint32_t local_share = 0;
+            uint64_t local_share = 0;
             for(int j = i*num_bits; j < (i+1)*num_bits; j++)
                 local_share += r[j];
 
