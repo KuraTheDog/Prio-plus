@@ -14,8 +14,8 @@
 
 #include "bitsum.h"
 
-#define SERVER0_IP "34.207.237.175"
-#define SERVER1_IP "54.188.50.231"
+#define SERVER0_IP "52.91.132.239"
+#define SERVER1_IP "34.209.244.29"
 
 // #define SERVER0_IP "127.0.0.1"
 // #define SERVER1_IP "127.0.0.1"
@@ -93,13 +93,14 @@ int main(int argc, char** argv){
         int ans = 0;
         for(int i = 0; i < numreqs; i++){
             BitShare bitshare0,bitshare1;
-            memcpy(bitshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            std::string pk_str = pub_key_to_hex((uint64_t*)&b[i]);
+            memcpy(bitshare0.pk,&pk_str.c_str()[0],32);
             bitshare0.val = shares0[i];
-            memcpy(bitshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(bitshare0.signature,&pk_str.c_str()[0],32);
 
-            memcpy(bitshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(bitshare1.pk,&pk_str.c_str()[0],32);
             bitshare1.val = shares1[i];
-            memcpy(bitshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(bitshare1.signature,&pk_str.c_str()[0],32);
 
             int s1 = send(sockfd0,(void *)&bitshare0,sizeof(bitshare0),0);
             int s2 = send(sockfd1,(void *)&bitshare1,sizeof(bitshare1),0);
@@ -157,7 +158,7 @@ int main(int argc, char** argv){
             intshare1.val = shares1[i];
             memcpy(intshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
             std::cout << pub_key_to_hex((uint64_t*)&b[i]) << endl;
-            
+
             int s1 = send(sockfd0,(void *)&intshare0,sizeof(intshare0),0);
             int s2 = send(sockfd1,(void *)&intshare1,sizeof(intshare1),0);
         }

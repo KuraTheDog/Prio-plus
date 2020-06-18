@@ -12,8 +12,11 @@
 #include "types.h"
 #include "bitsum.h"
 
-#define SERVER0_IP "127.0.0.1"
-#define SERVER1_IP "127.0.0.1"
+// #define SERVER0_IP "127.0.0.1"
+// #define SERVER1_IP "127.0.0.1"
+
+#define SERVER0_IP "52.91.132.239"
+#define SERVER1_IP "34.209.244.29"
 
 std::vector<BitShare> bitshares;
 std::unordered_map<std::string,int> bitshare_map;
@@ -88,8 +91,9 @@ int main(int argc, char** argv){
             bool *shares = new bool[msg.num_of_inputs];
             bool *valid = new bool[msg.num_of_inputs];
             for(int i = 0; i < msg.num_of_inputs; i++){
-
-                bytes_read = recv(newsockfd,(void*)&bitshare,sizeof(BitShare),0);
+                bytes_read = 0;
+                while(bytes_read < sizeof(BitShare))
+                    bytes_read += recv(newsockfd,(void*)&bitshare+bytes_read,sizeof(BitShare)-bytes_read,0);
                 std::string pk(bitshare.pk,bitshare.pk+32);
                 if(bitshare_map.find(pk) != bitshare_map.end())
                     continue;
@@ -153,7 +157,9 @@ int main(int argc, char** argv){
             bool *valid = new bool[msg.num_of_inputs];
             for(int i = 0; i < msg.num_of_inputs; i++){
                 char pk[32];
-                bytes_read = recv(newsockfd,(void*)&pk[0],32,0);
+                bytes_read = 0;
+                while(bytes_read < 32)
+                    bytes_read += recv(newsockfd,(void*)&pk[0]+bytes_read,32-bytes_read,0);
                 std::string pk_str(pk,pk+32);
 
                 if(bitshare_map.find(pk_str) == bitshare_map.end()){
@@ -185,7 +191,11 @@ int main(int argc, char** argv){
             bool *valid = new bool[num_ots];
 
             for(int i = 0; i < msg.num_of_inputs; i++){
-                bytes_read = recv(newsockfd,(void*)&intshare,sizeof(IntShare),0);
+                bytes_read = 0;
+                while(bytes_read < sizeof(IntShare)){
+                    bytes_read += recv(newsockfd,(void*)&intshare+bytes_read,sizeof(IntShare)-bytes_read,0);
+                }
+                // bytes_read = recv(newsockfd,(void*)&intshare,sizeof(IntShare),0);
                 std::string pk(intshare.pk,intshare.pk+32);
 
                 
@@ -250,7 +260,9 @@ int main(int argc, char** argv){
             bool *valid = new bool[msg.num_of_inputs];
             for(int i = 0; i < msg.num_of_inputs; i++){
                 char pk[32];
-                bytes_read = recv(newsockfd,(void*)&pk[0],32,0);
+                bytes_read = 0;
+                while(bytes_read < 32)
+                    bytes_read += recv(newsockfd,(void*)&pk[0]+bytes_read,32-bytes_read,0);
                 std::string pk_str(pk,pk+32);
 
                 if(intshare_map.find(pk_str) == intshare_map.end()){
@@ -266,7 +278,9 @@ int main(int argc, char** argv){
             io = new NetIO(nullptr,60051);
             uint64_t a = intsum_ot_sender<NetIO,OTNP>(io,&shares[0],&valid[0],num_ots,num_bits);
             uint64_t b;
-            recv(newsockfd,(void*)&b,sizeof(uint64_t),0);
+            bytes_read = 0;
+            while(bytes_read < sizeof(uint64_t))
+                bytes_read += recv(newsockfd,(void*)&b+bytes_read,sizeof(uint64_t)-bytes_read,0);
             std::cout << "From sender: " << a<< std::endl;
             uint64_t aggr = a + b;
             std::cout << "Ans : " << aggr << std::endl;
