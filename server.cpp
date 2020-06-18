@@ -176,6 +176,7 @@ int main(int argc, char** argv){
             io = new NetIO(nullptr,60051);
             uint64_t a = bitsum_ot_sender<NetIO,OTNP>(io,&shares[0],&valid[0],num_ots);
             std::cout << "From sender: " << a<< std::endl;
+            uint64_t b;
             bytes_read = 0;
             while(bytes_read < sizeof(uint64_t))
                 bytes_read += recv(newsockfd,(char*)&b+bytes_read,sizeof(uint64_t)-bytes_read,0);
