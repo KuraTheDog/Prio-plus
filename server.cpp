@@ -93,7 +93,7 @@ int main(int argc, char** argv){
             for(int i = 0; i < msg.num_of_inputs; i++){
                 bytes_read = 0;
                 while(bytes_read < sizeof(BitShare))
-                    bytes_read += recv(newsockfd,(void*)&bitshare+bytes_read,sizeof(BitShare)-bytes_read,0);
+                    bytes_read += recv(newsockfd,(char*)&bitshare+bytes_read,sizeof(BitShare)-bytes_read,0);
                 std::string pk(bitshare.pk,bitshare.pk+32);
                 if(bitshare_map.find(pk) != bitshare_map.end())
                     continue;
@@ -144,6 +144,7 @@ int main(int argc, char** argv){
                     io = new NetIO(SERVER0_IP,60051);
                     uint64_t b = bitsum_ot_receiver<NetIO,OTNP>(io,&shares[0],bitshares.size());
                     std::cout << "From receiver: " << b << std::endl;
+                    send(sockfd_init,&b,sizeof(uint64_t),0);
                 }
             }
             delete[] valid;
@@ -159,7 +160,7 @@ int main(int argc, char** argv){
                 char pk[32];
                 bytes_read = 0;
                 while(bytes_read < 32)
-                    bytes_read += recv(newsockfd,(void*)&pk[0]+bytes_read,32-bytes_read,0);
+                    bytes_read += recv(newsockfd,(char*)&pk[0]+bytes_read,32-bytes_read,0);
                 std::string pk_str(pk,pk+32);
 
                 if(bitshare_map.find(pk_str) == bitshare_map.end()){
@@ -175,6 +176,11 @@ int main(int argc, char** argv){
             io = new NetIO(nullptr,60051);
             uint64_t a = bitsum_ot_sender<NetIO,OTNP>(io,&shares[0],&valid[0],num_ots);
             std::cout << "From sender: " << a<< std::endl;
+            bytes_read = 0;
+            while(bytes_read < sizeof(uint64_t))
+                bytes_read += recv(newsockfd,(char*)&b+bytes_read,sizeof(uint64_t)-bytes_read,0);
+            uint64_t aggr = a + b;
+            std::cout << "Ans : " << aggr << std::endl;
             long long t = time_from(start);
             std::cout << "Time taken : " << t << std::endl;
             delete[] shares;
@@ -193,9 +199,9 @@ int main(int argc, char** argv){
             for(int i = 0; i < msg.num_of_inputs; i++){
                 bytes_read = 0;
                 while(bytes_read < sizeof(IntShare)){
-                    bytes_read += recv(newsockfd,(void*)&intshare+bytes_read,sizeof(IntShare)-bytes_read,0);
+                    bytes_read += recv(newsockfd,(char*)&intshare+bytes_read,sizeof(IntShare)-bytes_read,0);
                 }
-                // bytes_read = recv(newsockfd,(void*)&intshare,sizeof(IntShare),0);
+                // bytes_read = recv(newsockfd,(char*)&intshare,sizeof(IntShare),0);
                 std::string pk(intshare.pk,intshare.pk+32);
 
                 
@@ -262,7 +268,7 @@ int main(int argc, char** argv){
                 char pk[32];
                 bytes_read = 0;
                 while(bytes_read < 32)
-                    bytes_read += recv(newsockfd,(void*)&pk[0]+bytes_read,32-bytes_read,0);
+                    bytes_read += recv(newsockfd,(char*)&pk[0]+bytes_read,32-bytes_read,0);
                 std::string pk_str(pk,pk+32);
 
                 if(intshare_map.find(pk_str) == intshare_map.end()){
@@ -280,7 +286,7 @@ int main(int argc, char** argv){
             uint64_t b;
             bytes_read = 0;
             while(bytes_read < sizeof(uint64_t))
-                bytes_read += recv(newsockfd,(void*)&b+bytes_read,sizeof(uint64_t)-bytes_read,0);
+                bytes_read += recv(newsockfd,(char*)&b+bytes_read,sizeof(uint64_t)-bytes_read,0);
             std::cout << "From sender: " << a<< std::endl;
             uint64_t aggr = a + b;
             std::cout << "Ans : " << aggr << std::endl;
