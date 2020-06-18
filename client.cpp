@@ -14,11 +14,11 @@
 
 #include "bitsum.h"
 
-// #define SERVER0_IP "52.91.132.239"
-// #define SERVER1_IP "34.209.244.29"
+#define SERVER0_IP "52.91.132.239"
+#define SERVER1_IP "34.209.244.29"
 
-#define SERVER0_IP "127.0.0.1"
-#define SERVER1_IP "127.0.0.1"
+// #define SERVER0_IP "127.0.0.1"
+// #define SERVER1_IP "127.0.0.1"
 
 std::string pub_key_to_hex(uint64_t *key){
     std::stringstream ss;
