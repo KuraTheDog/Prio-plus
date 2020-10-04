@@ -14,11 +14,11 @@
 
 #include "bitsum.h"
 
-// #define SERVER0_IP "54.196.32.190"
-// #define SERVER1_IP "54.187.97.97"
+#define SERVER0_IP "54.160.77.201"
+#define SERVER1_IP "18.236.67.163"
 
-#define SERVER0_IP "127.0.0.1"
-#define SERVER1_IP "127.0.0.1"
+// #define SERVER0_IP "127.0.0.1"
+// #define SERVER1_IP "127.0.0.1"
 
 
 uint64_t max_int;
