@@ -69,7 +69,7 @@ uint64_t intsum_ot_sender(IO *io,uint32_t *shares, bool *valid, int n, int num_b
 
     for(int i = 0; i < n; i++){
         uint32_t num = shares[i];
-        std::cout << "Share : " << num << "  valid " << valid[i] << std::endl;
+        // std::cout << "Share : " << num << "  valid " << valid[i] << std::endl;
         // std::cout << "Valid : " << valid[i] << " num bits " << num_bits << std::endl;
         for(int j = 0; j < num_bits; j++){
             // std::cout << num%2 << std::endl;
@@ -84,9 +84,9 @@ uint64_t intsum_ot_sender(IO *io,uint32_t *shares, bool *valid, int n, int num_b
     for(int i = 0; i < n; i++){
         for(int j = 0; j < num_bits; j++){
             b0[i*num_bits+j] = ((bool_shares[i*num_bits+j])*(1<<(j)) - r[i*num_bits+j]);
-            std::cout << "b0[" << j << "] = " << b0[i*num_bits+j] << std::endl;
+            // std::cout << "b0[" << j << "] = " << b0[i*num_bits+j] << std::endl;
             b1[i*num_bits+j] = ((1 - bool_shares[i*num_bits+j])*(1<<(j)) - r[i*num_bits+j]);
-            std::cout << "b1[" << j << "] = " << b1[i*num_bits+j] << std::endl;
+            // std::cout << "b1[" << j << "] = " << b1[i*num_bits+j] << std::endl;
         }
     }
 
@@ -160,7 +160,7 @@ uint64_t intsum_ot_receiver(IO *io, uint32_t *shares, int n, int num_bits){
 
     for(int i = 0; i < n; i++){
         uint32_t num = shares[i];
-        std::cout << "Share : " << num << " num bits " << num_bits << std::endl;
+        // std::cout << "Share : " << num << " num bits " << num_bits << std::endl;
         for(int j = 0; j < num_bits; j++){
             bool_shares[i*num_bits + j] = num%2;
             num = num >> 1;
@@ -182,10 +182,45 @@ uint64_t intsum_ot_receiver(IO *io, uint32_t *shares, int n, int num_bits){
             for(int j = 0; j < num_bits; j++){
                 uint64_t *p = (uint64_t*)&r[i*num_bits+j];
                 sum += p[1];
-                std::cout << p[1] << endl;
+                // std::cout << p[1] << endl;
             }
         }  
     }
 
     return sum;
+}
+
+template <typename IO, template <typename> class T>
+vector<uint64_t> maxop_ot_sender(IO *io,uint32_t *shares, bool *valid, int n, int B){
+    uint32_t* arr = new uint32_t[n];
+    vector<uint64_t> ans;
+
+    for(int i = 0; i <= B; i++){
+        for(int j = 0; j < n; j++){
+            arr[j] = shares[j*(B+1) + i]; 
+            // std::cout << j*(B+1) + i << "  " << arr[j] << "  ";
+        }
+        // std::cout << endl;
+        int a = intsum_ot_sender<IO,T>(io,arr,valid,n,32);
+        ans.push_back(a);
+    }
+
+    return ans;
+}
+
+template <typename IO, template <typename> class T>
+vector<uint64_t> maxop_ot_receiver(IO *io, uint32_t *shares, int n, int B){
+    uint32_t* arr = new uint32_t[n];
+    vector<uint64_t> ans;
+
+    for(int i = 0; i <= B; i++){
+        for(int j = 0; j < n; j++){
+            arr[j] = shares[j*(B+1) + i];
+        }
+
+        int b = intsum_ot_receiver<IO,T>(io,arr,n,32);
+        ans.push_back(b);
+    }
+    
+    return ans;
 }
