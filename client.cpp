@@ -14,8 +14,8 @@
 
 #include "bitsum.h"
 
-#define SERVER0_IP "54.160.77.201"
-#define SERVER1_IP "18.236.67.163"
+#define SERVER0_IP "52.87.230.64"
+#define SERVER1_IP "54.213.189.18"
 
 // #define SERVER0_IP "127.0.0.1"
 // #define SERVER1_IP "127.0.0.1"
@@ -213,14 +213,14 @@ int main(int argc, char** argv){
         prg.random_data(shares0, numreqs*sizeof(uint32_t));
 
         for(int i = 0; i < numreqs; i++){
-            values[i] = values[i]&1; // Take the parity as the real value
+            values[i] = 1; // Take the parity as the real value
             
         }
 
         for(int i = 0; i < numreqs; i++){   // encode step. x_i = 1 -> enc(x_i) = 0 else enc(x_i) = r
-            // if(values[i] == 1){
+            if(values[i] == 1){
                 encoded_values[i] = 0;
-            // }
+            }
         }
 
         for(int i = 0; i < numreqs; i++)            // Share splitting. Same as int sum. Sum of shares = encoded value
@@ -283,7 +283,7 @@ int main(int argc, char** argv){
 
         for(int i = 0; i < numreqs; i++){   // encode step. x_i = 1 -> enc(x_i) = 0 else enc(x_i) = r
             if(values[i] == 0){
-                encoded_values[i] = 0;
+                encoded_values[i] = 1;
             }
         }
 
@@ -354,7 +354,7 @@ int main(int argc, char** argv){
 
         for(int i = 0; i < numreqs; i++){
             MaxShare maxshare0, maxshare1;
-            values[i] = values[i]%(B+1);
+            values[i] = 10%(B+1);
             std::cout << values[i] << std::endl;
             prg.random_data(or_encoded_array, (B+1)*sizeof(uint32_t));
             prg.random_data(shares0, (B+1)*sizeof(uint32_t));
@@ -363,7 +363,7 @@ int main(int argc, char** argv){
 
             for(int j = 0; j <= msg.max_inp ; j++){
                 shares1[j] = shares0[j] ^ or_encoded_array[j];
-                // std::cout << shares0[j] << "   " << shares1[j] << endl;
+                std::cout << shares0[j] << "   " << shares1[j] << endl;
             }
 
             memcpy(maxshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
