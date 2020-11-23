@@ -4,8 +4,6 @@ struct BitShare{
     char signature[32];
 };
 
-
-
 struct IntShare{
     char pk[32];
     unsigned int val;
