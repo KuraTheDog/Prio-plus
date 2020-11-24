@@ -17,6 +17,63 @@ void clear_constants() {
     flint_randclear(seed);
 }
 
+void init_fmpz_array(fmpz_t *arr, int N){
+    for(int i = 0; i < N; i++)
+        fmpz_init(arr[i]);
+}
+
+void set_zero_fmpz_array(fmpz_t* arr, int N){
+    for(int i = 0; i < N; i++)
+        fmpz_set_ui(arr[i],0);
+}
+
+void new_fmpz_array(fmpz_t** arr, int N){
+    fmpz_t* out = (fmpz_t*) malloc(N * sizeof(fmpz_t));
+    init_fmpz_array(out,N);
+    set_zero_fmpz_array(out,N);
+    *arr = out;
+}
+
+void clear_fmpz_array(fmpz_t* arr, int N){
+    for(int i = 0; i < N; i++)
+        fmpz_clear(arr[i]);
+}
+
+void copy_fmpz_array(fmpz_t* dest, fmpz_t* src, int N){
+    for(int i = 0; i < N; i++)
+        fmpz_set(dest[i],src[i]);
+}
+
+void init_roots(int N) {
+
+    roots = (fmpz_t *) malloc(N* sizeof(fmpz_t));
+    invroots = (fmpz_t *) malloc(N* sizeof(fmpz_t));
+
+    init_fmpz_array(roots, N);
+    init_fmpz_array(invroots, N);
+
+
+    int step_size = (1 << twoOrder)/N;
+    fmpz_t g_, ginv_;
+    fmpz_init(g_);
+    fmpz_init(ginv_);
+
+    fmpz_invmod(ginv_,Int_Gen,Int_Modulus);
+
+    fmpz_pow_ui(g_,Int_Gen,step_size);
+    fmpz_pow_ui(ginv_,ginv_,step_size);
+    fmpz_set_ui(roots[0],1);
+    fmpz_set_ui(invroots[0],1);
+
+    for(int i = 1; i < N; i++){
+        fmpz_mul(roots[i],roots[i-1],g_);
+        fmpz_mul(invroots[i],roots[i-1],ginv_);
+
+        fmpz_mod(roots[i],roots[i],Int_Modulus);
+        fmpz_mod(invroots[i],invroots[i],Int_Modulus);
+    }
+
+}
 
 enum GateType {
     Gate_Input,
@@ -155,7 +212,7 @@ int NextPowerofTwo(int n){
     return ans;
 }
 
-void share_polynomials(Circuit* circuit, fmpz_t** poly){
+void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
     auto mulgates = circuit->MulGates();
 
     int n = mulgates.size() + 1;
@@ -187,8 +244,45 @@ void share_polynomials(Circuit* circuit, fmpz_t** poly){
         fmpz_zero(pointsG[i]);
     }
 
-    fmpz_t *polyF = fft_interpolate(Int_Modulus,N,)
+    if(roots == nullptr){
+        init_roots(N);
+    }
 
+    fmpz_t *polyF = fft_interpolate(Int_Modulus,N,invroots,pointsF,true);
+    fmpz_t *polyG = fft_interpolate(Int_Modulus,N,invroots,pointsG,true);
+
+    fmpz_t *paddedF, *paddedG;
+
+    new_fmpz_array(&paddedF,2*N);
+    new_fmpz_array(&paddedG,2*N);
+
+    copy_fmpz_array(paddedF, polyF, N);
+    copy_fmpz_array(paddedG, polyG, N);
+
+    clear_fmpz_array(polyF, N);
+    clear_fmpz_array(polyG, N);
+
+    fmpz_t *evalsF = fft_interpolate(Int_Modulus,2*N,roots,paddedF,false);
+    fmpz_t *evalsG = fft_interpolate(Int_Modulus,2*N,roots,paddedG,false);
+
+    fmpz_t* h_points;
+    new_fmpz_array(&h_points,N);
+    
+    int j = 0;
+
+    for(int i = 1; i < 2*N-1; i+=2){
+        fmpz_mul(h_points[j],evalsF[i],evalsG[i]);
+        fmpz_mod(h_points[j],h_points[j], Int_Modulus);
+        SplitShare(h_points[j],p0->h_points[j],p1->h_points[j]);
+        j++;
+    }
+
+    SplitShare(pointsF[0],p0->f0_s,p1->f0_s);
+    SplitShare(pointsG[0],p0->g0_s,p1->g0_s);
+    SplitShare(h0,p0->h0_s,p1->h0_s);
+
+    int num_wire_shares = 0;
+    circuit->GetWireShares(&p0->WireShares,&p1->WireShares,num_wire_shares);
 
 }
 

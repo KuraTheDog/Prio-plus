@@ -19,6 +19,12 @@ struct CorShare {
     fmpz_t shareE;
 };
 
+struct client_packet {
+    fmpz_t* WireShares;
+    fmpz_t f0_s, g0_s, h0_s;
+    fmpz_t* h_points;
+};
+
 struct BeaverTriple {
     fmpz_t A;
     fmpz_t B;
@@ -59,8 +65,6 @@ struct ClientSubmission {
     fmpz_t* vals;
     BeaverTripleShare triple;
 };
-
-
 
 fmpz_t* SplitShare(fmpz_t val) {
     fmpz_t* ans = (fmpz_t*) malloc(2*sizeof(fmpz_t));
