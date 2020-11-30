@@ -23,7 +23,7 @@ extern "C" {
   #include "flint/ulong_extras.h"
 };
 
-#include "../circuit.h"
+#include "../client.h"
 
 int main(int argc, char* argv[])
 {
@@ -38,6 +38,11 @@ int main(int argc, char* argv[])
   fmpz_set_si(inp[1],81);
 
   std::cout << var_circuit->Eval(inp) << std::endl;
+  ClientPacket p0, p1;
+  
+  share_polynomials(var_circuit,p0,p1);
+
+
   clear_constants();
   return 0;
 }

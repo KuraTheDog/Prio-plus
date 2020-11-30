@@ -29,4 +29,6 @@ void init_constants();
 
 void clear_constants();
 
+void init_client_packet(ClientPacket &p, int N);
+
 #endif
