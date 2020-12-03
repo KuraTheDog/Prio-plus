@@ -159,7 +159,7 @@ int main(int argc, char** argv){
         delete[] real_vals;
     }
 
-    if(protocol == "INTSUM"){
+    else if(protocol == "INTSUM"){
         emp::block *b = new block[numreqs];
         uint32_t *shares0 = new uint32_t[numreqs];
         uint32_t *shares1 = new uint32_t[numreqs];
@@ -215,7 +215,7 @@ int main(int argc, char** argv){
 
     }
 
-    if(protocol == "ANDOP"){
+    else if(protocol == "ANDOP"){
         std::cout << "Uploading all and shares. " << numreqs << std::endl;
         emp::block *b = new block[numreqs];
 
@@ -281,7 +281,7 @@ int main(int argc, char** argv){
         delete[] b;
     }
 
-    if(protocol == "OROP"){
+    else if(protocol == "OROP"){
         emp::block *b = new block[numreqs];
 
         uint32_t *values = new uint32_t[numreqs];
@@ -344,7 +344,7 @@ int main(int argc, char** argv){
         delete[] b;
     }
 
-    if(protocol == "MAXOP"){
+    else if(protocol == "MAXOP"){
         initMsg msg;
         msg.num_of_inputs = numreqs;
         msg.type = MAX_OP;
@@ -409,6 +409,10 @@ int main(int argc, char** argv){
         delete[] or_encoded_array;
         delete[] b;
 
+    }
+
+    else {
+        std::cout << "Unrecognized protocol: " << protocol << std::endl;
     }
 
     return 0;
