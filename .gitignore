@@ -3,3 +3,4 @@ CMakeFiles/
 Makefile
 bin/
 cmake_install.cmake
+test/a.out
