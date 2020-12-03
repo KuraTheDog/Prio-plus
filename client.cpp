@@ -12,13 +12,13 @@
 
 #include "types.h"
 
-#include "bitsum.h"
+#include "proto.h"
 
-#define SERVER0_IP "52.87.230.64"
-#define SERVER1_IP "54.213.189.18"
+// #define SERVER0_IP "52.87.230.64"
+// #define SERVER1_IP "54.213.189.18"
 
-// #define SERVER0_IP "127.0.0.1"
-// #define SERVER1_IP "127.0.0.1"
+#define SERVER0_IP "127.0.0.1"
+#define SERVER1_IP "127.0.0.1"
 
 
 uint64_t max_int;
