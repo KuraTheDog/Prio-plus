@@ -1,3 +1,8 @@
+/*
+Oblivious Transfer code.
+For BITSUM and INTSUM.
+*/
+
 #include <emp-ot/emp-ot.h>
 #include <emp-tool/emp-tool.h>
 #include <iostream>

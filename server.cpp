@@ -8,7 +8,6 @@
 #include <unordered_map>
 #include <string>
 
-
 #include "types.h"
 #include "proto.h"
 
@@ -17,6 +16,12 @@
 
 // #define SERVER0_IP "52.87.230.64"
 // #define SERVER1_IP "54.213.189.18"
+
+/*
+shares: list of shares
+share_map: map of pk -> val
+share_valid_map: map of pk -> validity
+*/
 
 std::vector<BitShare> bitshares;
 std::unordered_map<std::string,int> bitshare_map;
@@ -77,9 +82,9 @@ int main(int argc, char** argv){
         std::cout << "Usage: ./bin/server server_num(0/1) this_port other_server_port INT_SUM_MAX_bits" << endl;
     }
 
-    int server_num = atoi(argv[1]);
-    int port = atoi(argv[2]);
-    int other_port = atoi(argv[3]);
+    int server_num = atoi(argv[1]);  // Server # 1 or # 2
+    int port = atoi(argv[2]);        // port of this server
+    int other_port = atoi(argv[3]);  // port of the other server
 
     int sockfd, newsockfd;
 
@@ -97,22 +102,23 @@ int main(int argc, char** argv){
             exit(EXIT_FAILURE);
         }
         
+        // Get an initMsg
         initMsg msg;
-
         int bytes_read;
-
         bytes_read = recv(newsockfd,(void *)&msg,sizeof(initMsg),0);
         
         if(msg.type == BIT_SUM){
-            BitShare bitshare;
-            int num_ots = msg.num_of_inputs;
-            bool *shares = new bool[msg.num_of_inputs];
-            bool *valid = new bool[msg.num_of_inputs];
+            BitShare bitshare;  // Single share buffer
+            int num_ots = msg.num_of_inputs;  // OT per client
+            bool *shares = new bool[msg.num_of_inputs];  // shares per client
+            bool *valid = new bool[msg.num_of_inputs];  // validity per client
             for(int i = 0; i < msg.num_of_inputs; i++){
+                // read in client's share
                 bytes_read = 0;
                 while(bytes_read < sizeof(BitShare))
                     bytes_read += recv(newsockfd,(char*)&bitshare+bytes_read,sizeof(BitShare)-bytes_read,0);
                 std::string pk(bitshare.pk,bitshare.pk+32);
+                // public key already seen, duplicate, so skip over.
                 if(bitshare_map.find(pk) != bitshare_map.end())
                     continue;
                 bitshares.push_back(bitshare);
@@ -170,7 +176,7 @@ int main(int argc, char** argv){
         }
 
         if(msg.type == INIT_BIT_SUM){
-            auto start = clock_start();
+            auto start = clock_start();  // for benchmark
             int num_ots = msg.num_of_inputs;
             bool *shares = new bool[msg.num_of_inputs];
             bool *valid = new bool[msg.num_of_inputs];
