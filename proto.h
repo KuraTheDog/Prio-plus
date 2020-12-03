@@ -3,7 +3,28 @@
 #include <iostream>
 using namespace emp;
 
-template <typename IO, template <typename> class T>
+// template <typename IO>
+// uint64_t bitsum_ot_sender(IO *io,bool *shares, bool *valid, int n);
+
+// template <typename IO>
+// uint64_t intsum_ot_sender(IO *io,uint32_t *shares, bool *valid, int n, int num_bits);
+
+// template <typename IO>
+// uint64_t bitsum_ot_receiver(IO *io,bool *shares, int n);
+
+// template <typename IO>
+// uint64_t intsum_ot_receiver(IO *io, uint32_t *shares, int n, int num_bits);
+
+// template <typename IO>
+// vector<uint64_t> maxop_ot_sender(IO *io,uint32_t *shares, bool *valid, int n, int B);
+
+// template <typename IO>
+// vector<uint64_t> maxop_ot_receiver(IO *io, uint32_t *shares, int n, int B);
+
+
+
+
+template <typename IO>
 uint64_t bitsum_ot_sender(IO *io,bool *shares, bool *valid, int n){
     PRG prg(fix_key);
 
@@ -38,7 +59,7 @@ uint64_t bitsum_ot_sender(IO *io,bool *shares, bool *valid, int n){
 
     io->sync();
     auto start = clock_start();
-    T<IO> *ot = new T<IO>(io);
+    IKNP<IO> *ot = new IKNP<IO>(io);
     ot->send(b0_ot, b1_ot, n);
     io->flush();
     long long t = time_from(start);
@@ -54,7 +75,7 @@ uint64_t bitsum_ot_sender(IO *io,bool *shares, bool *valid, int n){
     return sum;
 }
 
-template <typename IO, template <typename> class T>
+template <typename IO>
 uint64_t intsum_ot_sender(IO *io,uint32_t *shares, bool *valid, int n, int num_bits){
     PRG prg(fix_key);
 
@@ -104,7 +125,7 @@ uint64_t intsum_ot_sender(IO *io,uint32_t *shares, bool *valid, int n, int num_b
 
     io->sync();
     auto start = clock_start();
-    T<IO> *ot = new T<IO>(io);
+    IKNP<IO> *ot = new IKNP<IO>(io);
     ot->send(b0_ot, b1_ot, n*num_bits);
     io->flush();
     long long t = time_from(start);
@@ -126,7 +147,7 @@ uint64_t intsum_ot_sender(IO *io,uint32_t *shares, bool *valid, int n, int num_b
     return sum;
 }
 
-template <typename IO, template <typename> class T>
+template <typename IO>
 uint64_t bitsum_ot_receiver(IO *io,bool *shares, int n){
 
     block *r = new block[n];
@@ -134,7 +155,7 @@ uint64_t bitsum_ot_receiver(IO *io,bool *shares, int n){
     uint64_t sum = 0;
     io->sync();
     auto start = clock_start();
-    T<IO> *ot = new T<IO>(io);
+    IKNP<IO> *ot = new IKNP<IO>(io);
     ot->recv(r, shares, n);
     io->flush();
     long long t = time_from(start);
@@ -150,9 +171,7 @@ uint64_t bitsum_ot_receiver(IO *io,bool *shares, int n){
     return sum;
 }
 
-
-
-template <typename IO, template <typename> class T>
+template <typename IO>
 uint64_t intsum_ot_receiver(IO *io, uint32_t *shares, int n, int num_bits){
 
     block *r = new block[n*num_bits];
@@ -171,7 +190,7 @@ uint64_t intsum_ot_receiver(IO *io, uint32_t *shares, int n, int num_bits){
     uint64_t sum = 0;
     io->sync();
     auto start = clock_start();
-    T<IO> *ot = new T<IO>(io);
+    IKNP<IO> *ot = new IKNP<IO>(io);
     ot->recv(r, bool_shares, n*num_bits);
     io->flush();
     long long t = time_from(start);
@@ -190,37 +209,37 @@ uint64_t intsum_ot_receiver(IO *io, uint32_t *shares, int n, int num_bits){
     return sum;
 }
 
-template <typename IO, template <typename> class T>
-vector<uint64_t> maxop_ot_sender(IO *io,uint32_t *shares, bool *valid, int n, int B){
-    uint32_t* arr = new uint32_t[n];
-    vector<uint64_t> ans;
+// template <typename IO>
+// vector<uint64_t> maxop_ot_sender(IO *io,uint32_t *shares, bool *valid, int n, int B){
+//     uint32_t* arr = new uint32_t[n];
+//     vector<uint64_t> ans;
 
-    for(int i = 0; i <= B; i++){
-        for(int j = 0; j < n; j++){
-            arr[j] = shares[j*(B+1) + i]; 
-            // std::cout << j*(B+1) + i << "  " << arr[j] << "  ";
-        }
-        // std::cout << endl;
-        int a = intsum_ot_sender<IO,T>(io,arr,valid,n,32);
-        ans.push_back(a);
-    }
+//     for(int i = 0; i <= B; i++){
+//         for(int j = 0; j < n; j++){
+//             arr[j] = shares[j*(B+1) + i]; 
+//             // std::cout << j*(B+1) + i << "  " << arr[j] << "  ";
+//         }
+//         // std::cout << endl;
+//         int a = intsum_ot_sender<IO,T>(io,arr,valid,n,32);
+//         ans.push_back(a);
+//     }
 
-    return ans;
-}
+//     return ans;
+// }
 
-template <typename IO, template <typename> class T>
-vector<uint64_t> maxop_ot_receiver(IO *io, uint32_t *shares, int n, int B){
-    uint32_t* arr = new uint32_t[n];
-    vector<uint64_t> ans;
+// template <typename IO>
+// vector<uint64_t> maxop_ot_receiver(IO *io, uint32_t *shares, int n, int B){
+//     uint32_t* arr = new uint32_t[n];
+//     vector<uint64_t> ans;
 
-    for(int i = 0; i <= B; i++){
-        for(int j = 0; j < n; j++){
-            arr[j] = shares[j*(B+1) + i];
-        }
+//     for(int i = 0; i <= B; i++){
+//         for(int j = 0; j < n; j++){
+//             arr[j] = shares[j*(B+1) + i];
+//         }
 
-        int b = intsum_ot_receiver<IO,T>(io,arr,n,32);
-        ans.push_back(b);
-    }
+//         int b = intsum_ot_receiver<IO,T>(io,arr,n,32);
+//         ans.push_back(b);
+//     }
     
-    return ans;
-}
+//     return ans;
+// }
