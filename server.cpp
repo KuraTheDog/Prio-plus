@@ -160,7 +160,7 @@ int main(int argc, char** argv){
                     NetIO *io;
 
                     io = new NetIO(SERVER0_IP,60051);
-                    uint64_t b = bitsum_ot_receiver<NetIO>(io,&shares[0],bitshares.size());
+                    uint64_t b = bitsum_ot_receiver(io,&shares[0],bitshares.size());
                     std::cout << "From receiver: " << b << std::endl;
                     send(sockfd_init,&b,sizeof(uint64_t),0);
                 }
@@ -192,7 +192,7 @@ int main(int argc, char** argv){
             NetIO *io;
             
             io = new NetIO(nullptr,60051);
-            uint64_t a = bitsum_ot_sender<NetIO>(io,&shares[0],&valid[0],num_ots);
+            uint64_t a = bitsum_ot_sender(io,&shares[0],&valid[0],num_ots);
             std::cout << "From sender: " << a<< std::endl;
             uint64_t b;
             bytes_read = 0;
@@ -270,7 +270,7 @@ int main(int argc, char** argv){
                     NetIO *io;
 
                     io = new NetIO(SERVER0_IP,60051);
-                    uint64_t b = intsum_ot_receiver<NetIO>(io,&shares[0],intshares.size(),num_bits);
+                    uint64_t b = intsum_ot_receiver(io,&shares[0],intshares.size(),num_bits);
                     send(sockfd_init,&b,sizeof(uint64_t),0);
                     std::cout << "From receiver: " << b << std::endl;
                 }
@@ -302,7 +302,7 @@ int main(int argc, char** argv){
             NetIO *io;
             
             io = new NetIO(nullptr,60051);
-            uint64_t a = intsum_ot_sender<NetIO>(io,&shares[0],&valid[0],num_ots,num_bits);
+            uint64_t a = intsum_ot_sender(io,&shares[0],&valid[0],num_ots,num_bits);
             uint64_t b;
             bytes_read = 0;
             while(bytes_read < sizeof(uint64_t))
@@ -679,13 +679,12 @@ int main(int argc, char** argv){
             // std::cout << a.size() << " " << B+1 << endl;
             uint32_t* b = new uint32_t[B+1];
             
-            // std::cout << "Hello" << endl;
             for(int j = 0; j <= B; j++){
                 bytes_read = 0;
                 while(bytes_read < sizeof(uint32_t))
                     bytes_read += recv(newsockfd,(char*)&(b[j])+bytes_read,sizeof(uint32_t)-bytes_read,0);
             }
-            // std::cout << "Hello 2" << endl;
+            
             for(int i = B; i >= 0; i--){
                 std::cout << a[i] << " " << b[i] << std::endl;
                 a[i] = a[i]^b[i];

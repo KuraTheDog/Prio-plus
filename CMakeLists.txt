@@ -18,7 +18,7 @@ include_directories(${EMP-TOOL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 # Targets greeter_[async_](client|server)
 foreach(_target
   server client)
-  add_executable(${_target} "${_target}.cpp")
+  add_executable(${_target} "${_target}.cpp" "proto.cpp")
   target_link_libraries(${_target}
     ${OPENSSL_LIBRARIES}
     ${Boost_LIBRARIES}
