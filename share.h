@@ -20,6 +20,7 @@ struct CorShare {
 };
 
 struct client_packet {
+    size_t N;  // length of WireShares and h_points
     fmpz_t* WireShares;
     fmpz_t f0_s;
     fmpz_t g0_s;
@@ -83,6 +84,10 @@ fmpz_t* SplitShare(fmpz_t val) {
 
 void init_client_packet(ClientPacket &p, int N){
     p = new client_packet();
+
+    p->N = N;
+
+    new_fmpz_array(&p->WireShares, N);
     
     fmpz_init(p->f0_s);
     fmpz_init(p->g0_s);
