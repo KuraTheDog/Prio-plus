@@ -1,13 +1,38 @@
 /* 
 For sending fmtp_t objects over sockets.
 
-Send: takes in socket to write to, and object to send. 
-Rec: takes in socket to read from, and blank object to overwrite.
+Uses fdopen to use built in fmpz functions to send/recieve via files.
 
-In case of success, returns a positive number. In case of failure, returns a non-positive number.
-Returns first failing instantly on fail, otherwise on success returns final ret.
+ShareSender: Sends over the socket.
+ShareReciever: Recieves over the socket. Takes as argument the variable to set.
 
-TODO: move this to net_share.cpp. Currently has linker issues when attempted.
+E.g. 
+
+client: 
+    ShareSender share_sender(socket);
+    // produce number and trip somehow.
+    share_sender.fmpz(number);
+    share_sender.BeaverTriple(trip);
+    ...
+
+server: 
+    ShareReciever share_reciever(socket);
+    ...
+    fmpz_t number;  // create new var to set
+    share_reciever.fmpz(number);
+    BeaverTriple* trip = new BeaverTriple();  // create new var to set
+    share_reciever.BeaverTriple(trip);
+    // now use number and trip
+    ...
+
+See test/test_net_share.cpp for a full example.
+
+All send/recieve return positive on success, negative on failure.
+Specifically, on first failure returns, and on success returns last success.
+
+TODO: move this to net_share.cpp? Currently has linker issues when attempted.
+
+TODO: client_packet is currently bugged. Needs more testing.
 
 TODO: maybe hide/delete/comment out ones we don't use.
 */
@@ -23,158 +48,178 @@ extern "C" {
     #include "flint/fmpz.h"
 };
 
-int send_fmpz(int sockfd, fmpz_t x) {
-    FILE* file = fdopen(sockfd, "w");
-    int ret = fmpz_out_raw(file, x);
-    fclose(file);
-    return ret;
-}
+class ShareSender {
+    int sockfd;
+    FILE* file;
 
-int rec_fmpz(int sockfd, fmpz_t x) {
-    FILE* file = fdopen(sockfd, "r");
-    int ret = fmpz_inp_raw(x, file);
-    fclose(file);
-    return ret;
-}
-
-int send_Cor(int sockfd, Cor *x) {
-    FILE* file = fdopen(sockfd, "w");
-    int ret = fmpz_out_raw(file, x->D);
-    if (ret < 0) return ret;
-    ret = fmpz_out_raw(file, x->E);
-    fclose(file);
-    return ret;
-}
-
-int rec_Cor(int sockfd, Cor *x) {
-    FILE* file = fdopen(sockfd, "r");
-    int ret = fmpz_inp_raw(x->D, file);
-    if (ret < 0) return ret;
-    ret = fmpz_inp_raw(x->E, file);
-    fclose(file);
-    return ret;
-}
-
-int send_CorShare(int sockfd, Cor *x) {
-    FILE* file = fdopen(sockfd, "w");
-    int ret = fmpz_out_raw(file, x->D);
-    if (ret < 0) return ret;
-    ret = fmpz_out_raw(file, x->E);
-    fclose(file);
-    return ret;
-}
-
-int rec_CorShare(int sockfd, Cor *x) {
-    FILE* file = fdopen(sockfd, "r");
-    int ret = fmpz_inp_raw(x->D, file);
-    if (ret < 0) return ret;
-    ret = fmpz_inp_raw(x->E, file);
-    fclose(file);
-    return ret;
-}
-
-// Note: This is different from a ClientPacket
-int send_client_packet(int sockfd, client_packet *x) {
-    FILE* file = fdopen(sockfd, "w");
-    int N = x->N;
-    int32_t conv_N = htonl(N);
-    int ret = send(sockfd, &conv_N, sizeof(conv_N), 0);
-    if (ret < 0) return ret;
-
-    int i;
-    for (i = 0; i < N; i++) {
-        ret = fmpz_out_raw(file, x->WireShares[i]);
-        if (ret < 0) return ret;
+    int send_fmpz(fmpz_t x){
+        return fmpz_out_raw(file, x);
     }
 
-    ret = fmpz_out_raw(file, x->f0_s);
-    if (ret < 0) return ret;
-    ret = fmpz_out_raw(file, x->g0_s);
-    if (ret < 0) return ret;
-    ret = fmpz_out_raw(file, x->h0_s);
-    if (ret < 0) return ret;
-
-    for (i = 0; i < N; i++) {
-        ret = fmpz_out_raw(file, x->h_points[i]);
-        if (ret < 0) return ret;
-    }
-    return ret;
-}
-
-// Note: This is different from a ClientPacket
-int rec_client_packet(int sockfd, client_packet *x) {
-    FILE* file = fdopen(sockfd, "r");
-    int i, N, recv_N = 0;
-    int ret = recv(sockfd, &recv_N, sizeof(recv_N), 0);
-    if (ret < 0) return ret;
-    N = ntohl(recv_N);
-    x->N = N;
-
-    new_fmpz_array(&x->WireShares, N);
-    for (i = 0; i < N; i++) {
-        ret = fmpz_inp_raw(x->WireShares[i], file);
-        if (ret < 0) return ret;
+    int send_int(int x){
+        int32_t conv_x = htonl(x);
+        return send(sockfd, &conv_x, sizeof(conv_x), 0);
     }
 
-    ret = fmpz_inp_raw(x->f0_s, file);
-    if (ret < 0) return ret;
-    ret = fmpz_inp_raw(x->g0_s, file);
-    if (ret < 0) return ret;
-    ret = fmpz_inp_raw(x->h0_s, file);
-    if (ret < 0) return ret;
+public: 
 
-    new_fmpz_array(&x->h_points, N);
-    for (i = 0; i < N; i++) {
-        ret = fmpz_inp_raw(x->h_points[i], file);
-        if (ret < 0) return ret;
+    ShareSender(int sockfd) {
+        this->sockfd = sockfd;
+        file = fdopen(sockfd, "w");
     }
-    return ret;
-}
 
-int send_BeaverTriple(int sockfd, BeaverTriple *x) {
-    FILE* file = fdopen(sockfd, "w");
-    int ret = fmpz_out_raw(file, x->A);
-    if (ret < 0) return ret;
-    ret = fmpz_out_raw(file, x->B);
-    if (ret < 0) return ret;
-    ret = fmpz_out_raw(file, x->C);
-    fclose(file);
-    // return 1;
-    return ret;
-}
+    ~ShareSender() {
+        fclose(file);
+    }
 
-int rec_BeaverTriple(int sockfd, BeaverTriple *x) {
-    FILE* file = fdopen(sockfd, "r");
-    int ret = fmpz_inp_raw(x->A, file);
-    if (ret < 0) return ret;
-    ret = fmpz_inp_raw(x->B, file);
-    if (ret < 0) return ret;
-    ret = fmpz_inp_raw(x->C, file);
-    fclose(file);
-    return ret;
-    // return 1;
-}
+    int fmpz(fmpz_t x) {
+        int ret = send_fmpz(x);
+        return ret;
+    }
 
-int send_BeaverTripleShare(int sockfd, BeaverTripleShare *x) {
-    FILE* file = fdopen(sockfd, "w");
-    int ret = fmpz_out_raw(file, x->shareA);
-    if (ret < 0) return ret;
-    ret = fmpz_out_raw(file, x->shareB);
-    if (ret < 0) return ret;
-    ret = fmpz_out_raw(file, x->shareC);
-    fclose(file);
-    return ret;
-}
+    int Cor(Cor *x) {
+        int ret = send_fmpz(x->D);
+        if (ret < 0) return ret;
+        return send_fmpz(x->E);
+    }
 
-int rec_BeaverTripleShare(int sockfd, BeaverTripleShare *x) {
-    FILE* file = fdopen(sockfd, "r");
-    int ret = fmpz_inp_raw(x->shareA, file);
-    if (ret < 0) return ret;
-    ret = fmpz_inp_raw(x->shareB, file);
-    if (ret < 0) return ret;
-    ret = fmpz_inp_raw(x->shareC, file);
-    fclose(file);
-    return ret;
-}
+    int CorShare(CorShare *x) {
+        int ret = send_fmpz(x->shareD);
+        if (ret < 0) return ret;
+        return send_fmpz(x->shareE);
+    }
+
+    // Note: This is different from a ClientPacket
+    // TODO: client_packet is currently bugged. Needs more testing.
+    int client_packet(client_packet *x) {
+        int N = x->N;
+        int ret = send_int(N);
+        if (ret < 0) return ret;
+
+        int i;
+        for (i = 0; i < N; i++) {
+            ret = send_fmpz(x->WireShares[i]);
+            if (ret < 0) return ret;
+        }
+
+        ret = send_fmpz(x->f0_s);
+        if (ret < 0) return ret;
+        ret = send_fmpz(x->g0_s);
+        if (ret < 0) return ret;
+        ret = send_fmpz(x->h0_s);
+        if (ret < 0) return ret;
+
+        for (i = 0; i < N; i++) {
+            ret = send_fmpz(x->h_points[i]);
+            if (ret < 0) return ret;
+        }
+        return ret;
+    }
+
+    int BeaverTriple(BeaverTriple *x) {
+        int ret = send_fmpz(x->A);
+        if (ret < 0) return ret;
+        ret = send_fmpz(x->B);
+        if (ret < 0) return ret;
+        return send_fmpz(x->C);
+    }
+
+    int BeaverTripleShare(BeaverTripleShare *x) {
+        int ret = send_fmpz(x->shareA);
+        if (ret < 0) return ret;
+        ret = send_fmpz(x->shareB);
+        if (ret < 0) return ret;
+        return send_fmpz(x->shareC);
+    }
+};
+
+class ShareReciever {
+    int sockfd;
+    FILE* file;
+
+    int recv_fmpz(fmpz_t x){
+        return fmpz_inp_raw(x, file);
+    }
+
+    int recv_int(int& x) {
+        int recv_x = 0;
+        int ret = recv(sockfd, &recv_x, sizeof(recv_x), 0);
+        if (ret < 0) return ret;
+        x = ntohl(recv_x);
+        return ret;
+    }
+
+public: 
+
+    ShareReciever(int sockfd) {
+        this->sockfd = sockfd;
+        file = fdopen(sockfd, "r");
+    }
+
+    ~ShareReciever() {
+        fclose(file);
+    }
+
+    int fmpz(fmpz_t x) {
+        return recv_fmpz(x);
+    }
+
+    int Cor(Cor *x) {
+        int ret = recv_fmpz(x->D);
+        if (ret < 0) return ret;
+        return recv_fmpz(x->E);
+    }
+
+    int CorShare(CorShare *x) {
+        int ret = recv_fmpz(x->shareD);
+        if (ret < 0) return ret;
+        return recv_fmpz(x->shareE);
+    }
+
+    // Note: This is different from a ClientPacket
+    // TODO: client_packet is currently bugged. Needs more testing.
+    int client_packet(client_packet *x) {
+        int i, N;
+        int ret = recv_int(N);
+        if (ret < 0) return ret;
+        x->N = N;
+
+        new_fmpz_array(&x->WireShares, N);
+        for (i = 0; i < N; i++) {
+            ret = recv_fmpz(x->WireShares[i]);
+            if (ret < 0) return ret;
+        }
+
+        ret = recv_fmpz(x->f0_s);
+        if (ret < 0) return ret;
+        ret = recv_fmpz(x->g0_s);
+        if (ret < 0) return ret;
+        ret = recv_fmpz(x->h0_s);
+        if (ret < 0) return ret;
+
+        new_fmpz_array(&x->h_points, N);
+        for (i = 0; i < N; i++) {
+            ret = recv_fmpz(x->h_points[i]);
+            if (ret < 0) return ret;
+        }
+        return ret;
+    }
+
+    int BeaverTriple(BeaverTriple *x) {
+        int ret = recv_fmpz(x->A);
+        if (ret < 0) return ret;
+        ret = recv_fmpz(x->B);
+        if (ret < 0) return ret;
+        return recv_fmpz(x->C);
+    }
+
+    int BeaverTripleShare(BeaverTripleShare *x) {
+        int ret = recv_fmpz(x->shareA);
+        if (ret < 0) return ret;
+        ret = recv_fmpz(x->shareB);
+        if (ret < 0) return ret;
+        return recv_fmpz(x->shareC);
+    }
+};
 
 #endif
