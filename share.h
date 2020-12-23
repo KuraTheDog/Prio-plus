@@ -6,7 +6,8 @@
 #include <iostream>
 #include <gmpxx.h>
 
-#include "prio.h"
+#include "circuit.h"
+
 
 struct Cor {
     fmpz_t D;
