@@ -9,10 +9,8 @@
 
 void 
 precomp_x_init(precomp_x_t *pre_x,
-  const precomp_t *pre, char *xIn)
+  const precomp_t *pre, fmpz_t x)
 {
-  fmpz_t x;
-  fmpz_init_from_gostr(x, xIn);
 
   fmpz_init(pre_x->modulus);
   fmpz_set(pre_x->modulus, pre->modulus);
@@ -67,7 +65,6 @@ precomp_x_init(precomp_x_t *pre_x,
 
   fmpz_clear(tmp); 
   fmpz_clear(prod); 
-  fmpz_clear(x);
 }
 
 void
@@ -84,23 +81,20 @@ precomp_x_clear(precomp_x_t *pre_x)
   fmpz_clear(pre_x->modulus);
 }
 
-char *precomp_x_eval(precomp_x_t *pre_x, char **yValues)
+void precomp_x_eval(precomp_x_t *pre_x, fmpz_t *yValues, fmpz_t out)
 {
-  if (pre_x->short_x >= 0) {
-    char *tmp = yValues[pre_x->short_x];
-    char *out = safe_malloc(strlen(tmp) * sizeof(char));
-    strcpy(out, tmp);
-    return out;
-  }
-
-  fmpz_t out;
   fmpz_init(out);
+  if (pre_x->short_x >= 0) {
+    fmpz_set(out, yValues[pre_x->short_x]);
+    return;
+  }
+  
   fmpz_set_ui(out, 0);
 
   fmpz_t tmp;
   fmpz_init(tmp);
   for (int i = 0; i < pre_x->n_points; i++) {
-    fmpz_set_str(tmp, yValues[i], 16);
+    fmpz_set(tmp, yValues[i]);
     fmpz_mul(tmp, tmp, pre_x->coeffs[i]);
     fmpz_mod(tmp, tmp, pre_x->modulus);
 
@@ -109,8 +103,6 @@ char *precomp_x_eval(precomp_x_t *pre_x, char **yValues)
   }
   fmpz_clear(tmp);
   
-  char *outstr = fmpz_get_str(NULL, 16, out);
-  fmpz_clear(out);
-  return outstr;
+  return out;
 }
 

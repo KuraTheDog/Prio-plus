@@ -182,8 +182,8 @@ struct Circuit {
             }
         }
 
-        fmpz_t* forServer0 = (fmpz_t *) malloc(sizeof(fmpz_t));
-        fmpz_t* forServer1 = (fmpz_t *) malloc(sizeof(fmpz_t));
+        fmpz_t* forServer0 = (fmpz_t *) malloc(n*sizeof(fmpz_t));
+        fmpz_t* forServer1 = (fmpz_t *) malloc(n*sizeof(fmpz_t));
 
         for(int i = 0; i < n; i++){
             fmpz_init(forServer0[i]);
@@ -200,6 +200,48 @@ struct Circuit {
         }
 
         *shares0 = forServer0; *shares1 = forServer1;
+    }
+
+    void ImportWires(ClientPacket p, int server_num){
+        int n = 0;
+        for(auto gate : gates){
+            if(gate->type == Gate_Input or gate->type == Gate_Mul){
+                n++;
+            }
+        }
+        int i = 0;
+
+
+        for(auto gate : gates){
+            switch (gate->type)
+            {
+            case Gate_Input:
+                fmpz_set(gate->WireValue,p->WireShares[i]);
+                i++;
+                break;
+            case Gate_Add:
+                fmpz_add(gate->WireValue,gate->ParentL->WireValue,gate->ParentR->WireValue);
+                fmpz_mod(gate->WireValue,gate->WireValue,Int_Modulus);
+                break;
+            case Gate_Mul:
+                fmpz_set(gate->WireValue,p->WireShares[i]);
+                i++;
+                break;
+            case Gate_AddConst:
+                if(server_num == 0)
+                    fmpz_add(gate->WireValue,gate->ParentL->WireValue,gate->Constant);
+                else
+                    fmpz_set(gate->WireValue,gate->ParentL->WireValue);
+                fmpz_mod(gate->WireValue,gate->WireValue,Int_Modulus);
+                break;
+            case Gate_MulConst:
+                fmpz_mul(gate->WireValue,gate->ParentL->WireValue,gate->Constant);
+                fmpz_mod(gate->WireValue,gate->WireValue,Int_Modulus);
+                break;
+            default:
+                break;
+            }
+        }
     }
 };
 

@@ -21,16 +21,16 @@ struct precomp_s {
 typedef struct tree_s tree_t;
 typedef struct precomp_s precomp_t;
 
-void poly_batch_precomp_init(struct precomp_s *pre, char *modIn, 
-    int n_points, char **pointsXin);
+void poly_batch_precomp_init(struct precomp_s *pre, fmpz_t modIn, 
+    int n_points, fmpz_t *pointsXin);
 void poly_batch_precomp_clear(struct precomp_s *pre);
 
 void poly_batch_init(fmpz_mod_poly_t poly, struct precomp_s *pre);
 void poly_batch_clear(fmpz_mod_poly_t poly);
 
-void poly_batch_interpolate(fmpz_mod_poly_t poly, struct precomp_s *pre, char **pointsYin);
+void poly_batch_interpolate(fmpz_mod_poly_t poly, struct precomp_s *pre, fmpz_t *pointsYin);
 
-char *poly_batch_evaluate_once(fmpz_mod_poly_t poly, char *xIn);
-char *poly_batch_evaluate(fmpz_mod_poly_t poly, int n_points, char **pointsXin);
+void poly_batch_evaluate_once(fmpz_mod_poly_t poly, fmpz_t xIn, fmpz_t out);
+fmpz_t *poly_batch_evaluate(fmpz_mod_poly_t poly, int n_points, fmpz_t *pointsXin);
 
 #endif

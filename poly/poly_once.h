@@ -13,9 +13,9 @@ typedef struct {
 } precomp_x_t;
 
 void precomp_x_init(precomp_x_t *pre_x,
-  const precomp_t *pre, char *xIn);
+  const precomp_t *pre, fmpz_t x);
 void precomp_x_clear(precomp_x_t *pre_x);
 
-char *precomp_x_eval(precomp_x_t *pre_x, char **yValues);
+void precomp_x_eval(precomp_x_t *pre_x, fmpz_t *yValues, fmpz_t out);
 
 #endif

@@ -32,31 +32,28 @@ poly_batch_clear(fmpz_mod_poly_t poly)
   fmpz_mod_poly_clear(poly);
 }
 
-char *
-poly_batch_evaluate_once(fmpz_mod_poly_t poly, char *xIn)
+void
+poly_batch_evaluate_once(fmpz_mod_poly_t poly, fmpz_t x, fmpz_t out)
 {
-  fmpz_t x;
-  fmpz_init_from_gostr(x, xIn);
-
   fmpz_t y;
   fmpz_init(y);
 
   fmpz_mod_poly_evaluate_fmpz(y, poly, x);
-  char *out = fmpz_get_str(NULL, 16, y);
+  fmpz_set(out,y);
 
-  fmpz_clear(x);
+  // fmpz_clear(x);
   fmpz_clear(y);
 
-  return out;
 }
 
-char *
-poly_batch_evaluate(fmpz_mod_poly_t poly, int n_points, char **pointsXin)
+fmpz_t *
+poly_batch_evaluate(fmpz_mod_poly_t poly, int n_points, fmpz_t *pointsXin)
 {
   fmpz_t xs[n_points];
-  fmpz_t ys[n_points];
+  fmpz_t *ys = (fmpz_t*) malloc(sizeof(fmpz_t) *n_points);;
   for (int i = 0; i < n_points; i++) {
-    fmpz_init_from_gostr(xs[i], pointsXin[i]);
+    fmpz_init(xs[i]);
+    fmpz_set(xs[i], pointsXin[i]);
     fmpz_init(ys[i]);
   }
 
@@ -66,12 +63,12 @@ poly_batch_evaluate(fmpz_mod_poly_t poly, int n_points, char **pointsXin)
     fmpz_clear(xs[i]);
   }
 
-  return fmpz_array_to_str(n_points, ys);
+  return ys;
 }
 
 
 void
-poly_batch_interpolate(fmpz_mod_poly_t poly, struct precomp_s *pre, char **pointsYin)
+poly_batch_interpolate(fmpz_mod_poly_t poly, struct precomp_s *pre, fmpz_t *pointsYin)
 {
   // We use the algorithm from:
   //    "Modern Computer Algebra"
@@ -80,7 +77,8 @@ poly_batch_interpolate(fmpz_mod_poly_t poly, struct precomp_s *pre, char **point
   fmpz_t pointsY[pre->n_points];
 
   for (int i = 0; i < pre->n_points; i++) {
-    fmpz_init_from_gostr(pointsY[i], pointsYin[i]);
+    fmpz_init(pointsY[i]);
+    fmpz_set(pointsY[i], pointsYin[i]);
   }
 
   fast_interpolate(poly, pre, pointsY);
@@ -166,14 +164,15 @@ static void c_precomp_init(struct precomp_s *pre, const fmpz_t modulus,
 }
 
 void 
-poly_batch_precomp_init(struct precomp_s *pre, char *modIn, 
-    int n_points, char **pointsXin)
+poly_batch_precomp_init(struct precomp_s *pre, fmpz_t modIn, 
+    int n_points, fmpz_t *pointsXin)
 {
-  fmpz_init_from_gostr(pre->modulus, modIn);
+  fmpz_set(pre->modulus, modIn);
 
   fmpz_t pointsX[n_points];
   for (int i = 0; i < n_points; i++) {
-    fmpz_init_from_gostr(pointsX[i], pointsXin[i]);
+    fmpz_init(pointsX[i]);
+    fmpz_set(pointsX[i], pointsXin[i]);
   }
 
   c_precomp_init(pre, pre->modulus, n_points, pointsX);
