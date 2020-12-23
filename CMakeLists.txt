@@ -12,7 +12,7 @@ endif()
 include(cmake/common.cmake)
 # include(cmake/source_of_randomness.cmake)
 # include(cmake/threading.cmake)
-find_package(emp-tool REQUIRED)
+find_package(EMP-TOOL REQUIRED)
 include_directories(${EMP-TOOL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
 # Targets greeter_[async_](client|server)
