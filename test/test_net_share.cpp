@@ -15,7 +15,8 @@ Note: fmpz_print seems to append an extra digit, which seems to the # of digits 
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-# include "../net_share.h"
+#include "../net_share.h"
+#include "../fmpz_utils.h"
 
 int PORT = 8888;
 

@@ -1,6 +1,7 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
+#include "fmpz_utils.h"
 #include "prio.h"
 #include "poly/fft.h"
 #include "circuit.h"

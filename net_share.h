@@ -41,6 +41,7 @@ TODO: maybe hide/delete/comment out ones we don't use.
 #define NET_SHARE_H
 
 #include <stdio.h>
+#include "fmpz_utils.h"
 #include "share.h"
 
 extern "C" {
