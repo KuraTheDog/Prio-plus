@@ -3,9 +3,12 @@
 
 #include "circuit.h"
 #include "fmpz_utils.h"
-#include "poly/fft.h"
 #include "prio.h"
 #include "share.h"
+
+extern "C" {
+    #include "poly/fft.h"
+}
 
 void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
     auto mulgates = circuit->MulGates();

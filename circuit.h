@@ -3,7 +3,10 @@
 
 #include "fmpz_utils.h"
 #include "prio.h"
-#include "poly/fft.h"
+
+extern "C" {
+    #include "poly/fft.h"
+}
 
 fmpz_t Int_Modulus;
 fmpz_t Int_Gen;
