@@ -1,9 +1,10 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#include "prio.h"
-#include "poly/fft.h"
 #include "circuit.h"
+#include "fmpz_utils.cpp"
+#include "poly/fft.h"
+#include "prio.h"
 #include "share.h"
 
 void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){

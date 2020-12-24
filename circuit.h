@@ -1,6 +1,7 @@
 #ifndef CIRCUIT_H
 #define CIRCUIT_H
 
+#include "fmpz_utils.cpp"
 #include "prio.h"
 #include "poly/fft.h"
 
@@ -15,33 +16,6 @@ void init_constants() {
 
 void clear_constants() {
     flint_randclear(seed);
-}
-
-void init_fmpz_array(fmpz_t *arr, int N){
-    for(int i = 0; i < N; i++)
-        fmpz_init(arr[i]);
-}
-
-void set_zero_fmpz_array(fmpz_t* arr, int N){
-    for(int i = 0; i < N; i++)
-        fmpz_set_ui(arr[i],0);
-}
-
-void new_fmpz_array(fmpz_t** arr, int N){
-    fmpz_t* out = (fmpz_t*) malloc(N * sizeof(fmpz_t));
-    init_fmpz_array(out,N);
-    set_zero_fmpz_array(out,N);
-    *arr = out;
-}
-
-void clear_fmpz_array(fmpz_t* arr, int N){
-    for(int i = 0; i < N; i++)
-        fmpz_clear(arr[i]);
-}
-
-void copy_fmpz_array(fmpz_t* dest, fmpz_t* src, int N){
-    for(int i = 0; i < N; i++)
-        fmpz_set(dest[i],src[i]);
 }
 
 void init_roots(int N) {

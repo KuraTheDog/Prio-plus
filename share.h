@@ -6,7 +6,8 @@
 #include <iostream>
 #include <gmpxx.h>
 
-#include "circuit.h"
+// #include "circuit.h"
+#include "fmpz_utils.h"
 
 
 struct Cor {
