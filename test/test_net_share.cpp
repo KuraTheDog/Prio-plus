@@ -3,7 +3,7 @@ Tests out net_share.cpp
 
 Creates "sender" and "reciever", and sends a bunch of struct.h objects from sender to reciever.
 
-g++ -std=c++11 -o test_net_share test_net_share.cpp -lgmp -lflint && ./test_net_share
+g++ -std=c++11 -o test_net_share test_net_share.cpp ../fmpz_utils.cpp ../share.cpp -lgmp -lflint -g && ./test_net_share
 
 Note: fmpz_print seems to append an extra digit, which seems to the # of digits in the original number.
 */

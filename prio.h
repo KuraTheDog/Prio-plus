@@ -21,12 +21,8 @@ extern fmpz_t Int_Gen;
 extern flint_rand_t seed;
 extern fmpz_t *roots, *invroots;
 
-void SplitShare(fmpz_t val, fmpz_t A, fmpz_t B);
-
 void init_constants(); 
 
 void clear_constants();
-
-void init_client_packet(ClientPacket &p, int N);
 
 #endif
