@@ -4,3 +4,5 @@ Makefile
 bin/
 cmake_install.cmake
 test/a.out
+test/test_net_share
+test/test_net_share.dSYM/
