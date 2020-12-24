@@ -5,6 +5,13 @@
 #include "prio.h"
 #include "poly/fft.h"
 
+fmpz_t Int_Modulus;
+fmpz_t Int_Gen;
+flint_rand_t seed;
+fmpz_t *roots = nullptr, *invroots = nullptr;
+
+// TODO: move these next 3 things to a prio.cpp for initializing the globals.
+
 void init_constants() {
     fmpz_init(Int_Modulus);
     fmpz_set_str(Int_Modulus,Int_Modulus_str.c_str(),16);

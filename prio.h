@@ -14,14 +14,12 @@ extern "C" {
 
 const std::string Int_Modulus_str = "8000000000000000080001";
 const std::string Int_Gen_str = "2597c14f48d5b65ed8dcca";
-int twoOrder = 19;
+const int twoOrder = 19;
 
-fmpz_t Int_Modulus;
-fmpz_t Int_Gen;
-flint_rand_t seed;
-fmpz_t *roots = nullptr, *invroots = nullptr;
-
-typedef struct client_packet*  ClientPacket;
+extern fmpz_t Int_Modulus;
+extern fmpz_t Int_Gen;
+extern flint_rand_t seed;
+extern fmpz_t *roots, *invroots;
 
 void SplitShare(fmpz_t val, fmpz_t A, fmpz_t B);
 

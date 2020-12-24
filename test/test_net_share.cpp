@@ -130,12 +130,10 @@ void run_reciever(int newsockfd) {
 }
 
 int main(int argc, char** argv) {
-    /* Initialize prio.h constants.
+    /* Initialize prio.h globals constants.
     Mostly for Int_Modulus, for use by share.h. */
     fmpz_init(Int_Modulus);
     fmpz_set_str(Int_Modulus,Int_Modulus_str.c_str(),16);
-    fmpz_init(Int_Gen);
-    fmpz_set_str(Int_Gen,Int_Gen_str.c_str(),16);
     flint_randinit(seed);
 
     /* set up reciever */

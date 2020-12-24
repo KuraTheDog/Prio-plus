@@ -29,6 +29,8 @@ struct client_packet {
     fmpz_t* h_points;
 };
 
+typedef struct client_packet* ClientPacket;
+
 struct BeaverTriple {
     fmpz_t A;
     fmpz_t B;
@@ -69,6 +71,9 @@ struct ClientSubmission {
     fmpz_t* vals;
     BeaverTripleShare triple;
 };
+
+fmpz_t Int_Modulus;
+flint_rand_t seed;
 
 fmpz_t* SplitShare(fmpz_t val) {
     fmpz_t* ans = (fmpz_t*) malloc(2*sizeof(fmpz_t));
