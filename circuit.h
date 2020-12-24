@@ -1,7 +1,7 @@
 #ifndef CIRCUIT_H
 #define CIRCUIT_H
 
-#include "fmpz_utils.cpp"
+#include "fmpz_utils.h"
 #include "prio.h"
 #include "poly/fft.h"
 

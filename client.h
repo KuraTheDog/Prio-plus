@@ -2,7 +2,7 @@
 #define CLIENT_H
 
 #include "circuit.h"
-#include "fmpz_utils.cpp"
+#include "fmpz_utils.h"
 #include "poly/fft.h"
 #include "prio.h"
 #include "share.h"
