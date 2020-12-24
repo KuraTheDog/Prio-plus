@@ -3,14 +3,22 @@
 
 #include "fmpz_utils.h"
 #include "prio.h"
+#include "share.h"
 
 extern "C" {
     #include "poly/fft.h"
 }
 
-fmpz_t Int_Modulus;
+/*
+Globals (extern) from prio.h,
+Modulus and seed are also used (declared) in share.cpp
+If they're here too, this causes redefinition issues.
+
+Ideally, this would all be in some circuit.cpp, rather than header file, which would fix this issue from happening.
+*/
+// fmpz_t Int_Modulus;
 fmpz_t Int_Gen;
-flint_rand_t seed;
+// flint_rand_t seed;
 fmpz_t *roots = nullptr, *invroots = nullptr;
 
 // TODO: move these next 3 things to a prio.cpp for initializing the globals.
