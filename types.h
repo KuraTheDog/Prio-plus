@@ -1,3 +1,6 @@
+#ifndef TYPES_H
+#define TYPES_H
+
 struct BitShare{
     char pk[32];
     unsigned int val;
@@ -47,3 +50,4 @@ struct MaxShare{
     char signature[32];
 };
 
+#endif
