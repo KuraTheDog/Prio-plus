@@ -27,12 +27,9 @@ server:
 
 See test/test_net_share.cpp for a full example.
 
-All send/recieve return positive on success, negative on failure.
-Specifically, on first failure returns, and on success returns last success.
+Returns total bytes sent on success, or first fail return of an internal step (typically 0 or negative)
 
 TODO: move this to net_share.cpp? Currently has linker issues when attempted.
-
-TODO: client_packet is currently bugged. Needs more testing.
 
 TODO: maybe hide/delete/comment out ones we don't use.
 */
@@ -58,8 +55,13 @@ class ShareSender {
     }
 
     int send_int(int x){
-        int32_t conv_x = htonl(x);
-        return send(sockfd, &conv_x, sizeof(conv_x), 0);
+        // For consistency, just map ints to slong to fmpz, to use the same methedology.
+        fmpz_t f;
+        fmpz_init(f);
+        fmpz_set_si(f, x);
+        int ret = send_fmpz(f);
+        fmpz_clear(f);
+        return ret;
     }
 
 public: 
@@ -74,63 +76,72 @@ public:
     }
 
     int fmpz(fmpz_t x) {
-        int ret = send_fmpz(x);
-        return ret;
+        return send_fmpz(x);
     }
 
     int Cor(Cor *x) {
-        int ret = send_fmpz(x->D);
-        if (ret < 0) return ret;
-        return send_fmpz(x->E);
+        int total = 0, ret;
+        ret = send_fmpz(x->D);
+        if (ret <= 0) return ret; else total += ret;
+        ret = send_fmpz(x->E);
+        if (ret <= 0) return ret; else total += ret;
+        return total;
     }
 
     int CorShare(CorShare *x) {
-        int ret = send_fmpz(x->shareD);
-        if (ret < 0) return ret;
-        return send_fmpz(x->shareE);
+        int total = 0, ret;
+        ret = send_fmpz(x->shareD);
+        if (ret <= 0) return ret; else total += ret;
+        ret = send_fmpz(x->shareE);
+        if (ret <= 0) return ret; else total += ret;
+        return total;
     }
 
     // Note: This is different from a ClientPacket
-    // TODO: client_packet is currently bugged. Needs more testing.
     int client_packet(client_packet *x) {
-        int N = x->N;
-        int ret = send_int(N);
-        if (ret < 0) return ret;
+        int N = x->N, total = 0, ret;
+        ret = send_int(N);
+        if (ret <= 0) return ret; else total += ret;
 
         int i;
         for (i = 0; i < N; i++) {
             ret = send_fmpz(x->WireShares[i]);
-            if (ret < 0) return ret;
+            if (ret <= 0) return ret; else total += ret;
         }
 
         ret = send_fmpz(x->f0_s);
-        if (ret < 0) return ret;
+        if (ret <= 0) return ret; else total += ret;
         ret = send_fmpz(x->g0_s);
-        if (ret < 0) return ret;
+        if (ret <= 0) return ret; else total += ret;
         ret = send_fmpz(x->h0_s);
-        if (ret < 0) return ret;
+        if (ret <= 0) return ret; else total += ret;
 
         for (i = 0; i < N; i++) {
             ret = send_fmpz(x->h_points[i]);
-            if (ret < 0) return ret;
+            if (ret <= 0) return ret; else total += ret;
         }
-        return ret;
+        return total;
     }
 
     int BeaverTriple(BeaverTriple *x) {
-        int ret = send_fmpz(x->A);
-        if (ret < 0) return ret;
+        int total = 0, ret;
+        ret = send_fmpz(x->A);
+        if (ret <= 0) return ret; else total += ret;
         ret = send_fmpz(x->B);
-        if (ret < 0) return ret;
-        return send_fmpz(x->C);
+        if (ret <= 0) return ret; else total += ret;
+        ret = send_fmpz(x->C);
+        if (ret <= 0) return ret; else total += ret;
+        return total;
     }
 
     int BeaverTripleShare(BeaverTripleShare *x) {
-        int ret = send_fmpz(x->shareA);
-        if (ret < 0) return ret;
+        int total = 0, ret;
+        ret = send_fmpz(x->shareA);
+        if (ret <= 0) return ret; else total += ret;
         ret = send_fmpz(x->shareB);
-        if (ret < 0) return ret;
-        return send_fmpz(x->shareC);
+        if (ret <= 0) return ret; else total += ret;
+        ret = send_fmpz(x->shareC);
+        return total;
     }
 };
 
@@ -143,10 +154,10 @@ class ShareReciever {
     }
 
     int recv_int(int& x) {
-        int recv_x = 0;
-        int ret = recv(sockfd, &recv_x, sizeof(recv_x), 0);
-        if (ret < 0) return ret;
-        x = ntohl(recv_x);
+        fmpz_t f;
+        int ret = recv_fmpz(f);
+        x = fmpz_get_si(f);
+        fmpz_clear(f);
         return ret;
     }
 
@@ -166,60 +177,71 @@ public:
     }
 
     int Cor(Cor *x) {
-        int ret = recv_fmpz(x->D);
-        if (ret < 0) return ret;
-        return recv_fmpz(x->E);
+        int total = 0, ret;
+        ret = recv_fmpz(x->D);
+        if (ret <= 0) return ret; else total += ret;
+        ret = recv_fmpz(x->E);
+        if (ret <= 0) return ret; else total += ret;
+        return total;
     }
 
     int CorShare(CorShare *x) {
-        int ret = recv_fmpz(x->shareD);
-        if (ret < 0) return ret;
-        return recv_fmpz(x->shareE);
+        int total = 0, ret;
+        ret = recv_fmpz(x->shareD);
+        if (ret <= 0) return ret; else total += ret;
+        ret = recv_fmpz(x->shareE);
+        if (ret <= 0) return ret; else total += ret;
+        return total;
     }
 
     // Note: This is different from a ClientPacket
-    // TODO: client_packet is currently bugged. Needs more testing.
     int client_packet(client_packet *x) {
-        int i, N;
-        int ret = recv_int(N);
-        if (ret < 0) return ret;
+        int i, N, total = 0, ret;
+        ret = recv_int(N);
+        if (ret <= 0) return ret; else total += ret;
         x->N = N;
 
         new_fmpz_array(&x->WireShares, N);
         for (i = 0; i < N; i++) {
             ret = recv_fmpz(x->WireShares[i]);
-            if (ret < 0) return ret;
+            if (ret <= 0) return ret; else total += ret;
         }
 
         ret = recv_fmpz(x->f0_s);
-        if (ret < 0) return ret;
+        if (ret <= 0) return ret; else total += ret;
         ret = recv_fmpz(x->g0_s);
-        if (ret < 0) return ret;
+        if (ret <= 0) return ret; else total += ret;
         ret = recv_fmpz(x->h0_s);
-        if (ret < 0) return ret;
+        if (ret <= 0) return ret; else total += ret;
 
         new_fmpz_array(&x->h_points, N);
         for (i = 0; i < N; i++) {
             ret = recv_fmpz(x->h_points[i]);
-            if (ret < 0) return ret;
+            if (ret <= 0) return ret; else total += ret;
         }
-        return ret;
+        return total;
     }
 
     int BeaverTriple(BeaverTriple *x) {
-        int ret = recv_fmpz(x->A);
-        if (ret < 0) return ret;
+        int total = 0, ret;
+        ret = recv_fmpz(x->A);
+        if (ret <= 0) return ret; else total += ret;
         ret = recv_fmpz(x->B);
-        if (ret < 0) return ret;
-        return recv_fmpz(x->C);
+        if (ret <= 0) return ret; else total += ret;
+        ret = recv_fmpz(x->C);
+        if (ret <= 0) return ret; else total += ret;
+        return total;
     }
 
     int BeaverTripleShare(BeaverTripleShare *x) {
-        int ret = recv_fmpz(x->shareA);
-        if (ret < 0) return ret;
+        int total = 0, ret;
+        ret = recv_fmpz(x->shareA);
+        if (ret <= 0) return ret; else total += ret;
         ret = recv_fmpz(x->shareB);
-        if (ret < 0) return ret;
-        return recv_fmpz(x->shareC);
+        if (ret <= 0) return ret; else total += ret;
+        ret = recv_fmpz(x->shareC);
+        if (ret <= 0) return ret; else total += ret;
+        return total;
     }
 };
 

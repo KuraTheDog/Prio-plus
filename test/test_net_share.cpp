@@ -27,14 +27,14 @@ void error(const char *msg){
 }
 
 int init_sender() {
-    std::cout << "snd: start" << std::endl;
+    std::cout << "send: start" << std::endl;
 
     int sockfd;
     struct sockaddr_in addr;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
-        error("snd: ERROR opening socket");
+        error("send: ERROR opening socket");
 
     bzero((char *) &addr, sizeof(addr));
     addr.sin_port = htons(PORT);
@@ -48,7 +48,7 @@ int init_sender() {
 }
 
 int init_receiver() {
-    std::cout << "rec: start" << std::endl;
+    std::cout << "recv: start" << std::endl;
 
     int sockfd;
     socklen_t snd_len;
@@ -56,17 +56,17 @@ int init_receiver() {
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
-        error("rec: ERROR opening socket");
+        error("recv: ERROR opening socket");
 
     bzero((char *) &rec_addr, sizeof(rec_addr));
     rec_addr.sin_family = AF_INET;
     rec_addr.sin_addr.s_addr = INADDR_ANY;
     rec_addr.sin_port = htons(PORT);
     if (bind(sockfd, (struct sockaddr *) &rec_addr, sizeof(rec_addr)) < 0)
-        error("rec: ERROR on binding");
+        error("recv: ERROR on binding");
 
     if(listen(sockfd, 2) < 0)
-        error("rec: ERROR on listen");
+        error("recv: ERROR on listen");
     return sockfd;
 }
 
@@ -79,7 +79,7 @@ int accept_reciever(int sockfd) {
     if (newsockfd < 0)
         error("ERROR on accept");
 
-    printf("rec: got connection from %s port %d\n",
+    printf("recv: got connection from %s port %d\n",
            inet_ntoa(snd_addr.sin_addr), ntohs(snd_addr.sin_port));
     return newsockfd;
 }
@@ -87,46 +87,62 @@ int accept_reciever(int sockfd) {
 void run_sender(int sockfd) {
     ShareSender share_sender(sockfd);
 
+    int n;
     fmpz_t number;
 
     fmpz_init(number);
     fmpz_set_d(number, 12345);
-    std::cout << "send: fmpz: " << fmpz_print(number) << std::endl;
-    share_sender.fmpz(number);
+    n = share_sender.fmpz(number);
+    std::cout << "send: size = " << n << ", fmpz: " << fmpz_print(number) << std::endl;
 
     fmpz_set_str(number, "314159265358979323846264338327950", 10);
-    std::cout << "send: fmpz: " << fmpz_print(number) << std::endl;
-    share_sender.fmpz(number);
+    n = share_sender.fmpz(number);
+    std::cout << "send: size = " << n << ", fmpz: " << fmpz_print(number) << std::endl;
 
     BeaverTriple* trip = NewBeaverTriple();
-    std::cout << "send: triple: " << fmpz_print(trip->A) << ", " << fmpz_print(trip->B) << ", " << fmpz_print(trip->C) << std::endl;
-    share_sender.BeaverTriple(trip);
+    n = share_sender.BeaverTriple(trip);
+    std::cout << "send: size = " << n << ", triple: " << fmpz_print(trip->A) << ", " << fmpz_print(trip->B) << ", " << fmpz_print(trip->C) << std::endl;
 
-    // TODO: client_packet is currently bugged. Needs more testing.
-    // client_packet* packet;
-    // init_client_packet(packet, 10);
-    // std::cout << "snd: Sending packet,  N = " << packet->N << std::endl;
-    // share_sender.client_packet(packet);
+    client_packet* packet;
+    init_client_packet(packet, 42);
+    n = share_sender.client_packet(packet);
+    std::cout << "send: size = " << n << ", packet, N = " << packet->N << std::endl;
+
+    init_client_packet(packet, 12);
+    n = share_sender.client_packet(packet);
+    std::cout << "send: size = " << n << ", packet, N = " << packet->N << std::endl;
+
+    fmpz_init(number);
+    fmpz_set_d(number, 54321);
+    n = share_sender.fmpz(number);
+    std::cout << "send: size = " << n << ", fmpz: " << fmpz_print(number) << std::endl;
 }
 
 void run_reciever(int newsockfd) {
     ShareReciever share_reciever(newsockfd);
 
-    fmpz_t number;
-    share_reciever.fmpz(number);
-    std::cout << "recv: fmpz: " << fmpz_print(number) << std::endl;
+    int n;
 
-    share_reciever.fmpz(number);
-    std::cout << "recv: fmpz: " << fmpz_print(number) <<std::endl;
+    fmpz_t number;
+    n = share_reciever.fmpz(number);
+    std::cout << "recv: size = " << n << ", fmpz: " << fmpz_print(number) << std::endl;
+
+    n = share_reciever.fmpz(number);
+    std::cout << "recv: size = " << n << ", fmpz: " << fmpz_print(number) <<std::endl;
 
     BeaverTriple* trip = new BeaverTriple();
-    share_reciever.BeaverTriple(trip);
-    std::cout << "recv: triple: " << fmpz_print(trip->A) << ", " << fmpz_print(trip->B) << ", " << fmpz_print(trip->C) << std::endl;
+    n = share_reciever.BeaverTriple(trip);
+    std::cout << "recv: size = " << n << ", triple: " << fmpz_print(trip->A) << ", " << fmpz_print(trip->B) << ", " << fmpz_print(trip->C) << std::endl;
 
-    // TODO: client_packet is currently bugged. Needs more testing.
-    // client_packet* packet = new client_packet();
-    // share_reciever.client_packet(packet);
-    // std::cout << "rec: Got packet, N = " << packet->N << std::endl;
+    client_packet* packet = new client_packet();
+    n = share_reciever.client_packet(packet);
+    std::cout << "recv: size = " << n << ", packet, N = " << packet->N << std::endl;
+
+    n = share_reciever.client_packet(packet);
+    std::cout << "recv: size = " << n << ", packet, N = " << packet->N << std::endl;
+
+    n = share_reciever.fmpz(number);
+    std::cout << "recv: size = " << n << ", fmpz: " << fmpz_print(number) << std::endl;
 }
 
 int main(int argc, char** argv) {
