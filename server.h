@@ -63,8 +63,8 @@ struct Checker {
     ClientPacket req;
     Circuit *ckt;
 
-    int n;
-    int N;
+    int n;  // number of gates
+    int N;  // NextPowerofTwo(n)
 
     fmpz_t *pointsF;
     fmpz_t *pointsG;
@@ -131,7 +131,6 @@ struct Checker {
     }
 
 };
-
 
 
 #endif

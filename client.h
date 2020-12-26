@@ -17,7 +17,7 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
 
     int N = NextPowerofTwo(n);
 
-    fmpz_t pointsF[N], pointsG[N];
+    fmpz_t pointsF[N], pointsG[N];  // left and right wires of mul gates.
 
     for(int i = 0; i < N; i++){
         fmpz_init(pointsF[i]);
@@ -70,11 +70,8 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
     new_fmpz_array(&h_points,N);
     
     int j = 0;
-    std::cout << "hello" << std::endl;
     init_client_packet(p0, N);
     init_client_packet(p1, N);
-
-    std::cout << "hello" << std::endl;
 
     for(int i = 1; i < 2*N-1; i+=2){
         fmpz_mul(h_points[j],evalsF[i],evalsG[i]);
@@ -94,4 +91,5 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
     clear_fmpz_array(pointsF,N);
     clear_fmpz_array(pointsG,N);
 }
+
 #endif

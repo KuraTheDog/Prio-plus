@@ -1,6 +1,8 @@
 #ifndef SHARE_H
 #define SHARE_H
 
+#include <iostream>
+
 // For fmpz types
 #include "fmpz_utils.h"
 
@@ -21,6 +23,27 @@ struct client_packet {
     fmpz_t g0_s;
     fmpz_t h0_s;
     fmpz_t* h_points;
+
+    void print() {
+        std::cout << " N = " << N << std::endl;
+        std::cout << " WireShares = {";
+        for (int i = 0; i < N; i++) {
+            if (i > 0)
+                std::cout << ", ";
+            std::cout << fmpz_print(WireShares[i]);
+        }
+        std::cout << "}" << std::endl;
+        std::cout << " f0_s = " << f0_s << std::endl;
+        std::cout << " g0_s = " << g0_s << std::endl;
+        std::cout << " h0_s = " << h0_s << std::endl;
+        std::cout << " h_points = {";
+        for (int i = 0; i < N; i++) {
+            if (i > 0)
+                std::cout << ", ";
+            std::cout << fmpz_print(h_points[i]);
+        }
+        std::cout << "}" << std::endl;
+    }
 };
 
 typedef struct client_packet* ClientPacket;

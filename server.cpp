@@ -641,7 +641,6 @@ int main(int argc, char** argv){
                     // std::cout << "From receiver: " << b << std::endl;
                 }
             }
-
         }
 
         if(msg.type == INIT_MAX_OP){

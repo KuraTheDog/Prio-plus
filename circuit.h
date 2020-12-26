@@ -37,7 +37,6 @@ void clear_constants() {
 }
 
 void init_roots(int N) {
-
     roots = (fmpz_t *) malloc(N* sizeof(fmpz_t));
     invroots = (fmpz_t *) malloc(N* sizeof(fmpz_t));
 
@@ -64,7 +63,6 @@ void init_roots(int N) {
         fmpz_mod(roots[i],roots[i],Int_Modulus);
         fmpz_mod(invroots[i],invroots[i],Int_Modulus);
     }
-
 }
 
 enum GateType {
@@ -98,9 +96,9 @@ struct Gate {
 };
 
 struct Circuit {
-    std::vector<Gate*> gates;
-    std::vector<Gate*> outputs;
-    std::vector<Gate*> result_zero;
+    std::vector<Gate*> gates;        // All gates
+    std::vector<Gate*> outputs;      // ?
+    std::vector<Gate*> result_zero;  // Gates that must be zero for eval to pass.
 
     Circuit(){
     }
@@ -113,6 +111,7 @@ struct Circuit {
         result_zero.push_back(zerogate);
     }
 
+    // Evals circuit on the input, returns if all result_zero gates are zero.
     bool Eval(fmpz_t *inps){
         int inp_count = 0;
         std::cout << "EVAL" << std::endl;
@@ -143,7 +142,7 @@ struct Circuit {
             default:
                 break;
             }
-            std::cout << "EVAL Gate " << i << "  -  ";
+            std::cout << "  EVAL Gate " << i << "  -  ";
             fmpz_print(gates[i]->WireValue);
             std::cout << std::endl;
         }
@@ -261,8 +260,6 @@ Circuit* AndCircuits(std::vector<Circuit*>& circuits) {
 Gate* MulByNegOne(Gate* gate) {
     Gate* out = new Gate(Gate_MulConst);
 
-    std::cout << "Negone" << std::endl;
-
     fmpz_set_si(out->Constant,-1);
     fmpz_mod(out->Constant,out->Constant,Int_Modulus);
 
@@ -292,6 +289,8 @@ Circuit* CheckMul(Gate* L, Gate* R, Gate* Prod) {
     return out;
 }
 
+
+// Returns circuit for x^2 == y
 Circuit* CheckVar(){
     Gate* x = new Gate(Gate_Input);
     Gate* y = new Gate(Gate_Input);
