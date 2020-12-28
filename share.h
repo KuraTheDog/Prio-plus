@@ -16,13 +16,22 @@ struct CorShare {
     fmpz_t shareE;
 };
 
+
+/* Shares one server has for checking multiplcation gates
+   See share_polynomial.
+   Should satisfy f * g = h
+   N = NextPowerOf2(M + 1), where M is the number of mul circuits.
+
+   h_points is evaluated on 2N-th roots of unity, excluding points
+   that are also N-th roots of unity. So all odd points.
+*/
 struct client_packet {
-    size_t N;  // length of WireShares and h_points
-    fmpz_t* WireShares;
-    fmpz_t f0_s;
-    fmpz_t g0_s;
-    fmpz_t h0_s;
-    fmpz_t* h_points;
+    size_t N;            // N = length of WireShares and h_points.
+    fmpz_t* WireShares;  // share of input/mulgate (output) wires
+    fmpz_t f0_s;         // share of f(0) = pointsF[0] = u_0
+    fmpz_t g0_s;         // share of g(0) = pointsG[0] = v_0
+    fmpz_t h0_s;         // share of h(0)
+    fmpz_t* h_points;    // h evaluated on odd 2N-th roots of unity
 
     void print() {
         std::cout << " N = " << N << std::endl;
@@ -30,17 +39,17 @@ struct client_packet {
         for (int i = 0; i < N; i++) {
             if (i > 0)
                 std::cout << ", ";
-            std::cout << fmpz_print(WireShares[i]);
+            fmpz_print(WireShares[i]);
         }
         std::cout << "}" << std::endl;
-        std::cout << " f0_s = " << f0_s << std::endl;
-        std::cout << " g0_s = " << g0_s << std::endl;
-        std::cout << " h0_s = " << h0_s << std::endl;
+        std::cout << " f0_s = "; fmpz_print(f0_s); std::cout << std::endl;
+        std::cout << " g0_s = "; fmpz_print(g0_s); std::cout << std::endl;
+        std::cout << " h0_s = "; fmpz_print(h0_s); std::cout << std::endl;
         std::cout << " h_points = {";
         for (int i = 0; i < N; i++) {
             if (i > 0)
                 std::cout << ", ";
-            std::cout << fmpz_print(h_points[i]);
+            fmpz_print(h_points[i]);
         }
         std::cout << "}" << std::endl;
     }
