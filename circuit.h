@@ -58,7 +58,7 @@ void init_roots(int N) {
 
     for(int i = 1; i < N; i++){
         fmpz_mul(roots[i],roots[i-1],g_);
-        fmpz_mul(invroots[i],roots[i-1],ginv_);
+        fmpz_mul(invroots[i],invroots[i-1],ginv_);
 
         fmpz_mod(roots[i],roots[i],Int_Modulus);
         fmpz_mod(invroots[i],invroots[i],Int_Modulus);
