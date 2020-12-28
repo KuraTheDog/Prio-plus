@@ -4,8 +4,6 @@ Tests out net_share.cpp
 Creates "sender" and "reciever", and sends a bunch of struct.h objects from sender to reciever.
 
 g++ -std=c++11 -o test_net_share test_net_share.cpp ../fmpz_utils.cpp ../share.cpp -lgmp -lflint -g && ./test_net_share
-
-Note: fmpz_print seems to append an extra digit, which seems to the # of digits in the original number.
 */
 
 #include <iostream>
@@ -93,15 +91,20 @@ void run_sender(int sockfd) {
     fmpz_init(number);
     fmpz_set_d(number, 12345);
     n = share_sender.fmpz(number);
-    std::cout << "send: size = " << n << ", fmpz: " << fmpz_print(number) << std::endl;
+    std::cout << "send: size = " << n << ", fmpz: ";
+    fmpz_print(number); std::cout << std::endl;
 
     fmpz_set_str(number, "314159265358979323846264338327950", 10);
     n = share_sender.fmpz(number);
-    std::cout << "send: size = " << n << ", fmpz: " << fmpz_print(number) << std::endl;
+    std::cout << "send: size = " << n << ", fmpz: ";
+    fmpz_print(number); std::cout << std::endl;
 
     BeaverTriple* trip = NewBeaverTriple();
     n = share_sender.BeaverTriple(trip);
-    std::cout << "send: size = " << n << ", triple: " << fmpz_print(trip->A) << ", " << fmpz_print(trip->B) << ", " << fmpz_print(trip->C) << std::endl;
+    std::cout << "send: size = " << n << ", triple: ";
+    fmpz_print(trip->A); std::cout << ", ";
+    fmpz_print(trip->B); std::cout << ", ";
+    fmpz_print(trip->C) << std::endl;
 
     client_packet* packet;
     init_client_packet(packet, 42);
@@ -115,7 +118,8 @@ void run_sender(int sockfd) {
     fmpz_init(number);
     fmpz_set_d(number, 54321);
     n = share_sender.fmpz(number);
-    std::cout << "send: size = " << n << ", fmpz: " << fmpz_print(number) << std::endl;
+    std::cout << "send: size = " << n << ", fmpz: ";
+    fmpz_print(number); std::cout << std::endl;
 }
 
 void run_reciever(int newsockfd) {
@@ -125,14 +129,19 @@ void run_reciever(int newsockfd) {
 
     fmpz_t number;
     n = share_reciever.fmpz(number);
-    std::cout << "recv: size = " << n << ", fmpz: " << fmpz_print(number) << std::endl;
+    std::cout << "recv: size = " << n << ", fmpz: ";
+    fmpz_print(number); std::cout << std::endl;
 
     n = share_reciever.fmpz(number);
-    std::cout << "recv: size = " << n << ", fmpz: " << fmpz_print(number) <<std::endl;
+    std::cout << "recv: size = " << n << ", fmpz: ";
+    fmpz_print(number); std::cout << std::endl;
 
     BeaverTriple* trip = new BeaverTriple();
     n = share_reciever.BeaverTriple(trip);
-    std::cout << "recv: size = " << n << ", triple: " << fmpz_print(trip->A) << ", " << fmpz_print(trip->B) << ", " << fmpz_print(trip->C) << std::endl;
+    std::cout << "recv: size = " << << n << ", triple: ";
+    fmpz_print(trip->A); std::cout << ", ";
+    fmpz_print(trip->B); std::cout << ", ";
+    fmpz_print(trip->C) << std::endl;
 
     client_packet* packet = new client_packet();
     n = share_reciever.client_packet(packet);
@@ -142,7 +151,8 @@ void run_reciever(int newsockfd) {
     std::cout << "recv: size = " << n << ", packet, N = " << packet->N << std::endl;
 
     n = share_reciever.fmpz(number);
-    std::cout << "recv: size = " << n << ", fmpz: " << fmpz_print(number) << std::endl;
+    std::cout << "recv: size = " << n << ", fmpz: ";
+    fmpz_print(number); std::cout << std::endl;
 }
 
 int main(int argc, char** argv) {
