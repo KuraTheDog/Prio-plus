@@ -40,3 +40,17 @@ foreach(_target
     ${FLINT_LIBRARIES}
   )
 endforeach()
+
+foreach(_target
+  test_net_share)
+  add_executable(${_target} "test/${_target}.cpp" 
+                 "proto.cpp" "fmpz_utils.cpp" "share.cpp"
+                 )
+  target_link_libraries(${_target}
+    ${OPENSSL_LIBRARIES}
+    ${Boost_LIBRARIES}
+    ${GMP_LIBRARIES}
+    ${EMP-TOOL_LIBRARIES}
+    ${FLINT_LIBRARIES}
+  )
+endforeach()

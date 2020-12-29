@@ -49,8 +49,7 @@ int init_receiver() {
     std::cout << "recv: start" << std::endl;
 
     int sockfd;
-    socklen_t snd_len;
-    struct sockaddr_in snd_addr, rec_addr;
+    struct sockaddr_in rec_addr;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
@@ -104,7 +103,7 @@ void run_sender(int sockfd) {
     std::cout << "send: size = " << n << ", triple: ";
     fmpz_print(trip->A); std::cout << ", ";
     fmpz_print(trip->B); std::cout << ", ";
-    fmpz_print(trip->C) << std::endl;
+    fmpz_print(trip->C); std::cout << std::endl;
 
     client_packet* packet;
     init_client_packet(packet, 42);
@@ -138,10 +137,10 @@ void run_reciever(int newsockfd) {
 
     BeaverTriple* trip = new BeaverTriple();
     n = share_reciever.BeaverTriple(trip);
-    std::cout << "recv: size = " << << n << ", triple: ";
+    std::cout << "recv: size = " << n << ", triple: ";
     fmpz_print(trip->A); std::cout << ", ";
     fmpz_print(trip->B); std::cout << ", ";
-    fmpz_print(trip->C) << std::endl;
+    fmpz_print(trip->C); std::cout << std::endl;
 
     client_packet* packet = new client_packet();
     n = share_reciever.client_packet(packet);
