@@ -65,8 +65,10 @@ void test_CheckVar() {
 
   std::cout << "Running through validity checks" << std::endl;
 
-  Checker* checker_0 = new Checker(var_circuit, 0);
-  Checker* checker_1 = new Checker(var_circuit, 1);
+  Circuit* var_circuit0 = CheckVar();
+  Circuit* var_circuit1 = CheckVar();
+  Checker* checker_0 = new Checker(var_circuit0, 0);
+  Checker* checker_1 = new Checker(var_circuit1, 1);
 
   std::cout << "checker1 N: " << checker_1->N << std::endl;
 
