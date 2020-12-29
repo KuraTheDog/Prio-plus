@@ -213,6 +213,15 @@ struct Circuit {
         return res;
     }
 
+    int NumMulGates() {
+        int total = 0;
+        for (auto gate: this->gates) {
+            if (gate->type == Gate_Mul)
+                total += 1;
+        }
+        return total;
+    }
+
     void GetWireShares(fmpz_t** shares0, fmpz_t** shares1, int& n){
         n = 0;
         for(auto gate : gates){
