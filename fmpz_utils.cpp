@@ -27,6 +27,7 @@ void new_fmpz_array(fmpz_t** arr, int N){
 void clear_fmpz_array(fmpz_t* arr, int N){
     for(int i = 0; i < N; i++)
         fmpz_clear(arr[i]);
+    free(arr);
 }
 
 void copy_fmpz_array(fmpz_t* dest, fmpz_t* src, int N){

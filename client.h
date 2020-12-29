@@ -19,12 +19,10 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
 
     // u_t, v_t = left and right wires of mul gates.
     // want f(t) = u_t, g(t) = v(t)
-    fmpz_t pointsF[N], pointsG[N];
-
-    for(int i = 0; i < N; i++){
-        fmpz_init(pointsF[i]);
-        fmpz_init(pointsG[i]);
-    }
+    fmpz_t* pointsF;
+    fmpz_t* pointsG;
+    new_fmpz_array(&pointsF, N);
+    new_fmpz_array(&pointsG, N);
 
     fmpz_t h0;
     fmpz_init(h0);
