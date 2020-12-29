@@ -39,9 +39,8 @@ extern "C" {
 #include "../share.h"
 #include "../client.h"
 
-int main(int argc, char* argv[])
-{
-  init_constants();
+void test_CheckVar() {
+  std::cout << "Testing CheckVar Eval and share_polynomials" << std::endl;
   Circuit* var_circuit = CheckVar();  // x^2 == y
 
   fmpz_t inp[2];
@@ -53,15 +52,18 @@ int main(int argc, char* argv[])
 
   // Eval to verify 9^2 = 81
   /*
-  Gate 0: input 1 = x = 9
-  Gate 1: input 2 = y = 81
-  Gate 2: x^2 = 81
-  Gate 3: "-y" mod Int_Modulus
-  Gate 4: x^2 - y = 0, checked to be 0
+  Gate 0: input gate, x = 9
+  Gate 1: input gate, y = 81
+  Gate 2: mult gate, x^2 = 81
+  Gate 3: negation gate, "-y" mod Int_Modulus
+  Gate 4: addition gate, x^2 - y = 0, checked to be 0
   */
   bool eval = var_circuit->Eval(inp);
   std::cout << "Eval: " << eval << std::endl;
 
+  /*
+  One mult gate (#2). Next power of 2 is 2 (N).
+  */
   ClientPacket p0, p1;
   share_polynomials(var_circuit,p0,p1);
 
@@ -70,6 +72,15 @@ int main(int argc, char* argv[])
 
   std::cout << "p1" << std::endl;
   p1->print();
+
+  // TODO: check if then it's still valid in the end.
+}
+
+int main(int argc, char* argv[])
+{
+  init_constants();
+
+  test_CheckVar();
 
   clear_constants();
   return 0;
