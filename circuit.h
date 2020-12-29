@@ -29,6 +29,10 @@ void init_constants() {
     fmpz_init(Int_Gen);
     fmpz_set_str(Int_Gen,Int_Gen_str.c_str(),16);
 
+    std::cout << "Init constants: " << std::endl;
+    std::cout << "  Int_Modulus = "; fmpz_print(Int_Modulus); std::cout << std::endl;
+    std::cout << "  Int_Gen = "; fmpz_print(Int_Gen); std::cout << std::endl;
+    std::cout << "  twoOrder = " << twoOrder << std::endl;
     flint_randinit(seed);
 }
 
@@ -122,29 +126,57 @@ struct Circuit {
             case Gate_Input:
                 fmpz_set(gates[i]->WireValue,inps[inp_count]);
                 inp_count++;
+                std::cout << "  EVAL Input \tGate " << i << "  -  ";
+                fmpz_print(gates[i]->WireValue);
+                std::cout << std::endl;
                 break;
             case Gate_Add:
                 fmpz_add(gates[i]->WireValue,gates[i]->ParentL->WireValue,gates[i]->ParentR->WireValue);
                 fmpz_mod(gates[i]->WireValue,gates[i]->WireValue,Int_Modulus);
+                std::cout << "  EVAL Add \tGate " << i << "  -  ";
+                fmpz_print(gates[i]->ParentL->WireValue);
+                std::cout << ", ";
+                fmpz_print(gates[i]->ParentR->WireValue);
+                std::cout << " -> ";
+                fmpz_print(gates[i]->WireValue);
+                std::cout << std::endl;
                 break;
             case Gate_Mul:
                 fmpz_mul(gates[i]->WireValue,gates[i]->ParentL->WireValue,gates[i]->ParentR->WireValue);
                 fmpz_mod(gates[i]->WireValue,gates[i]->WireValue,Int_Modulus);
+                std::cout << "  EVAL Mul \tGate " << i << "  -  ";
+                fmpz_print(gates[i]->ParentL->WireValue);
+                std::cout << ", ";
+                fmpz_print(gates[i]->ParentR->WireValue);
+                std::cout << " -> ";
+                fmpz_print(gates[i]->WireValue);
+                std::cout << std::endl;
                 break;
             case Gate_AddConst:
                 fmpz_add(gates[i]->WireValue,gates[i]->ParentL->WireValue,gates[i]->Constant);
                 fmpz_mod(gates[i]->WireValue,gates[i]->WireValue,Int_Modulus);
+                std::cout << "  EVAL add con \tGate " << i << "  -  ";
+                fmpz_print(gates[i]->ParentL->WireValue);
+                std::cout << ", const ";
+                fmpz_print(gates[i]->Constant);
+                std::cout << " -> ";
+                fmpz_print(gates[i]->WireValue);
+                std::cout << std::endl;
                 break;
             case Gate_MulConst:
                 fmpz_mul(gates[i]->WireValue,gates[i]->ParentL->WireValue,gates[i]->Constant);
                 fmpz_mod(gates[i]->WireValue,gates[i]->WireValue,Int_Modulus);
+                std::cout << "  EVAL mul con \tGate " << i << "  -  ";
+                fmpz_print(gates[i]->ParentL->WireValue);
+                std::cout << ", const ";
+                fmpz_print(gates[i]->Constant);
+                std::cout << " -> ";
+                fmpz_print(gates[i]->WireValue);
+                std::cout << std::endl;
                 break;
             default:
                 break;
             }
-            std::cout << "  EVAL Gate " << i << "  -  ";
-            fmpz_print(gates[i]->WireValue);
-            std::cout << std::endl;
         }
         bool res = true;
 
@@ -268,6 +300,10 @@ Gate* MulByNegOne(Gate* gate) {
     return out;
 }
 
+/*
+Various VALID(*) circuits.
+*/
+
 // Returns circuit that checks L*R == Prod
 Circuit* CheckMul(Gate* L, Gate* R, Gate* Prod) {
     Circuit* out = new Circuit();
@@ -290,7 +326,7 @@ Circuit* CheckMul(Gate* L, Gate* R, Gate* Prod) {
 }
 
 
-// Returns circuit for x^2 == y
+// Returns circuit for x^2 == y. For Varience and StdDev.
 Circuit* CheckVar(){
     Gate* x = new Gate(Gate_Input);
     Gate* y = new Gate(Gate_Input);
