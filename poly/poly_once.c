@@ -102,7 +102,5 @@ void precomp_x_eval(precomp_x_t *pre_x, fmpz_t *yValues, fmpz_t out)
     fmpz_mod(out, out, pre_x->modulus);
   }
   fmpz_clear(tmp);
-  
-  return out;
 }
 
