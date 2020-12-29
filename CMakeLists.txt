@@ -42,9 +42,10 @@ foreach(_target
 endforeach()
 
 foreach(_target
-  test_net_share)
+  test_net_share test_circuit)
   add_executable(${_target} "test/${_target}.cpp" 
-                 "proto.cpp" "fmpz_utils.cpp" "share.cpp"
+                 "proto.cpp" "fmpz_utils.cpp" "share.cpp" 
+                 "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c"
                  )
   target_link_libraries(${_target}
     ${OPENSSL_LIBRARIES}

@@ -15,16 +15,6 @@
 
     Except not really
 */
-/*
-    Example execution, done in test/ directory.
-
-    gcc -c -std=c99 -o fft.o ../poly/fft.c && \
-    g++ -c -std=c++11 -o test_circuit.o test_circuit.cpp && \
-    g++ -c -std=c++11 -o fmpz_utils.o ../fmpz_utils.cpp && \
-    g++ -c -std=c++11 -o share.o ../share.cpp && \
-    g++ -o test_circuit fft.o test_circuit.o fmpz_utils.o share.o -lgmp -lflint -g && \
-    ./test_circuit
-*/
 
 #include <iostream>
 #include <gmpxx.h>
@@ -32,12 +22,12 @@
 extern "C" {
   #include "flint/flint.h"
   #include "flint/fmpz.h"
-  #include "flint/ulong_extras.h"
 };
 
 #include "../circuit.h"
 #include "../share.h"
 #include "../client.h"
+#include "../server.h"
 
 void test_CheckVar() {
   std::cout << "Testing CheckVar Eval and share_polynomials" << std::endl;
@@ -73,7 +63,33 @@ void test_CheckVar() {
   std::cout << "p1" << std::endl;
   p1->print();
 
-  // TODO: check if then it's still valid in the end.
+  std::cout << "Running through validity checks" << std::endl;
+
+  Checker* checker_0 = new Checker(var_circuit, 0);
+  Checker* checker_1 = new Checker(var_circuit, 1);
+
+  std::cout << "checker1 N: " << checker_1->N << std::endl;
+
+  checker_0->setReq(p0);
+  checker_1->setReq(p1);
+
+  CheckerPreComp* pre0 = new CheckerPreComp(var_circuit);
+  pre0->setCheckerPrecomp(inp[0]);  // TODO: what value? random?
+  checker_0->evalPoly(pre0, p0);
+
+  std::cout << "Checker 0:" << std::endl;
+  std::cout << "  evalF = "; fmpz_print(checker_0->evalF); std::cout << std::endl;
+  std::cout << "  evalG = "; fmpz_print(checker_0->evalG); std::cout << std::endl;
+  std::cout << "  evalH = "; fmpz_print(checker_0->evalH); std::cout << std::endl;
+
+  CheckerPreComp* pre1 = new CheckerPreComp(var_circuit);
+  pre1->setCheckerPrecomp(inp[0]);  // TODO: what value? random?
+  checker_1->evalPoly(pre1, p1);
+
+  std::cout << "Checker 1:" << std::endl;
+  std::cout << "  evalF = "; fmpz_print(checker_1->evalF); std::cout << std::endl;
+  std::cout << "  evalG = "; fmpz_print(checker_1->evalG); std::cout << std::endl;
+  std::cout << "  evalH = "; fmpz_print(checker_1->evalH); std::cout << std::endl;
 }
 
 int main(int argc, char* argv[])
