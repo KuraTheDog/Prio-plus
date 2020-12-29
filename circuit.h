@@ -19,7 +19,7 @@ Ideally, this would all be in some circuit.cpp, rather than header file, which w
 // fmpz_t Int_Modulus;
 fmpz_t Int_Gen;
 // flint_rand_t seed;
-fmpz_t *roots = nullptr, *invroots = nullptr;
+fmpz_t *roots = nullptr, *invroots = nullptr, *roots2 = nullptr;
 
 // TODO: move these next 3 things to a prio.cpp for initializing the globals.
 
@@ -41,24 +41,31 @@ void clear_constants() {
 }
 
 void init_roots(int N) {
-    roots = (fmpz_t *) malloc(N* sizeof(fmpz_t));
-    invroots = (fmpz_t *) malloc(N* sizeof(fmpz_t));
+    std::cout << "init_roots: " << N << std::endl;
 
-    init_fmpz_array(roots, N);
-    init_fmpz_array(invroots, N);
+    new_fmpz_array(&roots, N);
+    new_fmpz_array(&invroots, N);
+    new_fmpz_array(&roots2, 2 * N);
 
-
-    int step_size = (1 << twoOrder)/N;
-    fmpz_t g_, ginv_;
-    fmpz_init(g_);
-    fmpz_init(ginv_);
+    int step_size = (1 << twoOrder)/N;  // 2^(twoOrder - log_2 N)
+    fmpz_t g_, ginv_, ghalf_;
+    fmpz_init(g_);      // Generator (Int_Gen)
+    fmpz_init(ginv_);   // Inverse of g_
+    fmpz_init(ghalf_);  // g_^(step/2), for 2N roots.
 
     fmpz_invmod(ginv_,Int_Gen,Int_Modulus);
 
-    fmpz_pow_ui(g_,Int_Gen,step_size);
-    fmpz_pow_ui(ginv_,ginv_,step_size);
+    /*
+    N = 2^k, so stepsize = 2^(Ord - k).
+    g_ = gen^stepsize.
+    So g_^N = gen^(2^ord) = 1, by fermat little. (Actually 2^ord - 1 enough?)
+    */
+    fmpz_powm_ui(g_,Int_Gen,step_size, Int_Modulus);
+    fmpz_powm_ui(ginv_,ginv_,step_size, Int_Modulus);
+    fmpz_powm_ui(ghalf_, Int_Gen, step_size / 2, Int_Modulus);
     fmpz_set_ui(roots[0],1);
     fmpz_set_ui(invroots[0],1);
+    fmpz_set_ui(roots2[0],1);
 
     for(int i = 1; i < N; i++){
         fmpz_mul(roots[i],roots[i-1],g_);
@@ -67,6 +74,15 @@ void init_roots(int N) {
         fmpz_mod(roots[i],roots[i],Int_Modulus);
         fmpz_mod(invroots[i],invroots[i],Int_Modulus);
     }
+
+    for(int i = 1; i < 2 * N; i++){
+        fmpz_mul(roots2[i], roots2[i-1], ghalf_);
+        fmpz_mod(roots2[i],roots2[i],Int_Modulus);
+    }
+
+    fmpz_clear(g_);
+    fmpz_clear(ginv_);
+    fmpz_clear(ghalf_);
 }
 
 enum GateType {
