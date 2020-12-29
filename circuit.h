@@ -113,6 +113,10 @@ struct Gate {
         fmpz_init(WireValue);
     }
 
+    ~Gate() {
+        fmpz_clear(Constant);
+        fmpz_clear(WireValue);
+    }
 };
 
 struct Circuit {
