@@ -16,6 +16,7 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
     int n = mulgates.size() + 1;
 
     int N = NextPowerofTwo(n);
+    int NumMulInpGates = circuit->NumMulInpGates();
 
     // u_t, v_t = left and right wires of mul gates.
     // want f(t) = u_t, g(t) = v(t)
@@ -121,8 +122,8 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
     fmpz_t* h_points;
     new_fmpz_array(&h_points,N);
     
-    init_client_packet(p0, N);
-    init_client_packet(p1, N);
+    init_client_packet(p0, N, NumMulInpGates);
+    init_client_packet(p1, N, NumMulInpGates);
 
     // Send evaluations of f(r) * g(r) for all 2N-th roots of unity
     //     that aren't also N-th roots of unity

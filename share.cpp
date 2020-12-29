@@ -11,12 +11,13 @@ extern "C" {
 fmpz_t Int_Modulus;
 flint_rand_t seed;
 
-void init_client_packet(ClientPacket &p, int N){
+void init_client_packet(ClientPacket &p, int N, int NumMulInpGates){
     p = new client_packet();
 
     p->N = N;
+    p->NWires = NumMulInpGates;
 
-    new_fmpz_array(&p->WireShares, N);
+    new_fmpz_array(&p->WireShares, NumMulInpGates);
     
     fmpz_init(p->f0_s);
     fmpz_init(p->g0_s);

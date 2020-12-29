@@ -106,11 +106,11 @@ void run_sender(int sockfd) {
     fmpz_print(trip->C); std::cout << std::endl;
 
     client_packet* packet;
-    init_client_packet(packet, 42);
+    init_client_packet(packet, 42, 69);
     n = share_sender.client_packet(packet);
     std::cout << "send: size = " << n << ", packet, N = " << packet->N << std::endl;
 
-    init_client_packet(packet, 12);
+    init_client_packet(packet, 12, 123);
     n = share_sender.client_packet(packet);
     std::cout << "send: size = " << n << ", packet, N = " << packet->N << std::endl;
 

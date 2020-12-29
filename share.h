@@ -26,7 +26,8 @@ struct CorShare {
    that are also N-th roots of unity. So all odd points.
 */
 struct client_packet {
-    size_t N;            // N = length of WireShares and h_points.
+    size_t N;            // N = length of h_points = # mult gates.
+    size_t NWires;       // Num wire shares = # mult gates + # input gates
     fmpz_t* WireShares;  // share of input/mulgate (output) wires
     fmpz_t f0_s;         // share of f(0) = pointsF[0] = u_0
     fmpz_t g0_s;         // share of g(0) = pointsG[0] = v_0
@@ -35,8 +36,9 @@ struct client_packet {
 
     void print() {
         std::cout << " N = " << N << std::endl;
+        std::cout << " NWires = " << NWires << std::endl;
         std::cout << " WireShares = {";
-        for (int i = 0; i < N; i++) {
+        for (int i = 0; i < NWires; i++) {
             if (i > 0)
                 std::cout << ", ";
             fmpz_print(WireShares[i]);
@@ -98,7 +100,7 @@ struct ClientSubmission {
     BeaverTripleShare triple;
 };
 
-void init_client_packet(ClientPacket &p, int N);
+void init_client_packet(ClientPacket &p, int N, int NumMulInpGates);
 
 void SplitShare(fmpz_t val, fmpz_t A, fmpz_t B);
 
