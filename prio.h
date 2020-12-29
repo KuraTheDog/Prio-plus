@@ -18,9 +18,17 @@ extern "C" {
 // const std::string Int_Gen_str = "3a";  // 58 base 16
 // const int twoOrder = 7;
 
+// const std::string Int_Modulus_str = "8000000000080001";  // 63 bit modulus
+// const std::string Int_Gen_str = "22855fdf11374225";
+// const int twoOrder = 19;          // We have group order 2^twoOrder, for use in FFT.
+
 const std::string Int_Modulus_str = "8000000000000000080001";  // 87 bit modulus
 const std::string Int_Gen_str = "2597c14f48d5b65ed8dcca";
 const int twoOrder = 19;          // We have group order 2^twoOrder, for use in FFT.
+
+// const std::string Int_Modulus_str = "80000000000000000000080001";  // 102 bit modulus
+// const std::string Int_Gen_str = "71a9f9595f292cfd55e4c5254e";
+// const int twoOrder = 19;          // We have group order 2^twoOrder, for use in FFT.
 
 extern fmpz_t Int_Modulus;        // Large prime modulus
 extern fmpz_t Int_Gen;            // Generates subgroup order 2^twoOrder in Zp
