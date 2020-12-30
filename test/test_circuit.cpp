@@ -63,35 +63,50 @@ void test_CheckVar() {
   std::cout << "p1" << std::endl;
   p1->print();
 
-  std::cout << "Running through validity checks" << std::endl;
+  std::cout << "------ Running through validity checks" << std::endl;
+
+  fmpz_t randomX;
+  fmpz_init(randomX);
+  fmpz_randm(randomX, seed, Int_Modulus);
+  std::cout << "Random X: "; fmpz_print(randomX); std::cout << std::endl;
 
   Circuit* var_circuit0 = CheckVar();
-  Circuit* var_circuit1 = CheckVar();
   Checker* checker_0 = new Checker(var_circuit0, 0);
-  Checker* checker_1 = new Checker(var_circuit1, 1);
-
-  std::cout << "checker1 N: " << checker_1->N << std::endl;
 
   checker_0->setReq(p0);
-  checker_1->setReq(p1);
 
   CheckerPreComp* pre0 = new CheckerPreComp(var_circuit);
-  pre0->setCheckerPrecomp(inp[0]);  // TODO: what value? random?
+  pre0->setCheckerPrecomp(randomX);
   checker_0->evalPoly(pre0, p0);
 
-  std::cout << "Checker 0:" << std::endl;
-  std::cout << "  evalF = "; fmpz_print(checker_0->evalF); std::cout << std::endl;
-  std::cout << "  evalG = "; fmpz_print(checker_0->evalG); std::cout << std::endl;
-  std::cout << "  evalH = "; fmpz_print(checker_0->evalH); std::cout << std::endl;
+  std::cout << "-=-=-=-=-=-" << std::endl;
+
+  Circuit* var_circuit1 = CheckVar();
+  Checker* checker_1 = new Checker(var_circuit1, 1);
+
+  checker_1->setReq(p1);
 
   CheckerPreComp* pre1 = new CheckerPreComp(var_circuit);
-  pre1->setCheckerPrecomp(inp[0]);  // TODO: what value? random?
+  pre1->setCheckerPrecomp(randomX);
   checker_1->evalPoly(pre1, p1);
 
-  std::cout << "Checker 1:" << std::endl;
-  std::cout << "  evalF = "; fmpz_print(checker_1->evalF); std::cout << std::endl;
-  std::cout << "  evalG = "; fmpz_print(checker_1->evalG); std::cout << std::endl;
-  std::cout << "  evalH = "; fmpz_print(checker_1->evalH); std::cout << std::endl;
+  std::cout << "^v^v^ Shared validation: " << std::endl;
+  fmpz_t tmp, rgr;
+  fmpz_init(rgr);
+  fmpz_init(tmp);
+  fmpz_add(tmp, checker_0->evalF, checker_1->evalF);
+  fmpz_mod(tmp, tmp, Int_Modulus);
+  std::cout << "f(r) = "; fmpz_print(tmp); std::cout << std::endl;
+  fmpz_add(rgr, checker_0->evalG, checker_1->evalG);
+  fmpz_mod(rgr, rgr, Int_Modulus);
+  std::cout << "r * g(r) = "; fmpz_print(rgr); std::cout << std::endl;
+  fmpz_mul(tmp, tmp, rgr);
+  fmpz_mod(tmp, tmp, Int_Modulus);
+  std::cout << "r * f(r) * g(r) = "; fmpz_print(tmp); std::cout << std::endl;
+
+  fmpz_add(tmp, checker_0->evalH, checker_1->evalH);
+  fmpz_mod(tmp, tmp, Int_Modulus);
+  std::cout << "r * h(r) = "; fmpz_print(tmp); std::cout << std::endl;
 }
 
 int main(int argc, char* argv[])
