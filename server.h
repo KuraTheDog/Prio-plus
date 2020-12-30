@@ -185,7 +185,7 @@ struct Checker {
 
         // Grab odd values of h from the packet.
         int j = 0;
-        for(int i = 1; i < 2*N-1; i+=2){
+        for(int i = 1; i < 2*N+1; i+=2){
             fmpz_set(pointsH[i], pkt->h_points[j]);
             j++;
         }
@@ -196,7 +196,7 @@ struct Checker {
         fmpz_mul(evalG, evalG, pre->x);
         fmpz_mod(evalG, evalG, Int_Modulus);
         pre->x2N->Eval(pointsH, evalH);
-        fmpz_mul(evalH, evalG, pre->x);
+        fmpz_mul(evalH, evalH, pre->x);
         fmpz_mod(evalH, evalH, Int_Modulus);
     }
 };

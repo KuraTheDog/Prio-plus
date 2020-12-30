@@ -129,7 +129,7 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
     //     that aren't also N-th roots of unity
     // h_points[j] = evalF(2j + 1) * evalG(2j + 1), split into shares
     int j = 0;
-    for(int i = 1; i < 2*N-1; i+=2){
+    for(int i = 1; i < 2*N+1; i+=2){
         fmpz_mul(h_points[j],evalsF[i],evalsG[i]);
         fmpz_mod(h_points[j],h_points[j], Int_Modulus);
         SplitShare(h_points[j],p0->h_points[j],p1->h_points[j]);
