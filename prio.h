@@ -12,6 +12,15 @@ extern "C" {
   #include "flint/fmpz.h"
 };
 
+
+/* 8 ^ (2 ^ 4) = 1 mod 97 */
+// const std::string Int_Modulus_str = "61";  // 97 base 16
+// const std::string Int_Gen_str = "8";  // 8 base 16
+// const int twoOrder = 4;
+
+/* 6 ^ (2 ^ 5) = 1 mod 353 */
+/* 20 ^ (2 ^ 6) = 1 mod 577 */
+
 /* Simpler testing constants.
    58 ^ (2 ^ 7) = 1 mod 9857 */
 // const std::string Int_Modulus_str = "2681";  // 9857 base 16
