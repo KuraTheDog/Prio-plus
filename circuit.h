@@ -264,14 +264,7 @@ struct Circuit {
     }
 
     void ImportWires(ClientPacket p, int server_num){
-        int n = 0;
-        for(auto gate : gates){
-            if(gate->type == Gate_Input or gate->type == Gate_Mul){
-                n++;
-            }
-        }
         int i = 0;
-
 
         for(auto gate : gates){
             switch (gate->type)

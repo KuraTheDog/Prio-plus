@@ -41,12 +41,6 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
         fmpz_set(pointsG[i],mulgates[i-1]->ParentR->WireValue);
     }
 
-    // Zero pad the remaining
-    for(int i = n; i < N; i++){
-        fmpz_zero(pointsF[i]);
-        fmpz_zero(pointsG[i]);
-    }
-
     std::cout << " pointsF = [";
     for (int i = 0; i < N; i++) {
         if (i > 0)
@@ -74,15 +68,13 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
 
     std::cout << " polyF = [";
     for (int i = 0; i < N; i++) {
-        if (i > 0)
-            std::cout << ", ";
+        if (i > 0) std::cout << ", ";
         fmpz_print(polyF[i]);
     }
     std::cout << "]" << std::endl;
     std::cout << " polyG = [";
     for (int i = 0; i < N; i++) {
-        if (i > 0)
-            std::cout << ", ";
+        if (i > 0) std::cout << ", ";
         fmpz_print(polyG[i]);
     }
     std::cout << "]" << std::endl;
@@ -105,16 +97,14 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
 
     std::cout << " evalsF = [";
     for (int i = 0; i < 2 * N; i++) {
-        if (i > 0)
-            std::cout << ", ";
+        if (i > 0) std::cout << ", ";
         fmpz_print(evalsF[i]);
     }
     std::cout << "]" << std::endl;
 
     std::cout << " evalsG = [";
     for (int i = 0; i < 2 * N; i++) {
-        if (i > 0)
-            std::cout << ", ";
+        if (i > 0) std::cout << ", ";
         fmpz_print(evalsG[i]);
     }
     std::cout << "]" << std::endl;

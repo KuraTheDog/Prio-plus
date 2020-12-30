@@ -9,20 +9,15 @@
 extern "C" {
     #include "poly/poly_batch.h"
     #include "poly/poly_once.h"
-    #include "poly/fft.h"
 }
 
 struct BatchPoly {
     int nPoints;  // unused?
     fmpz_mod_poly_t fpoly;
 
+    // Below 2 are unused in test_circuit.
+
     fmpz_t* Eval(fmpz_t* xPointsIn, int n) {
-        std::cout << "Eval: n = " << n << std::endl << "xPointsIn = [";
-        for (int i = 0; i < n; i++) {
-            if (i > 0) std::cout << ", ";
-            fmpz_print(xPointsIn[i]);
-        }
-        std::cout << "]" << std::endl;
         return poly_batch_evaluate(fpoly, n, xPointsIn);
     }
 
@@ -160,6 +155,7 @@ struct Checker {
        Can we replace pkt with req?
     */
     void evalPoly(CheckerPreComp *pre, ClientPacket pkt){
+        std::cout << "evalPoly" << std::endl;
         std::vector<Gate*> mulgates = ckt->MulGates();
         // Get constant terms from packet
         fmpz_set(pointsF[0],pkt->f0_s);
@@ -174,13 +170,6 @@ struct Checker {
             fmpz_set(pointsG[i],mulgates[i-1]->ParentR->WireValue);
             // Set even values of h to be output wires.
             fmpz_set(pointsH[2*i],mulgates[i-1]->WireValue);
-        }
-
-        // Can probably skip, since new_fmpz_array does this.
-        for(int i = n; i < N; i++){
-            fmpz_zero(pointsF[i]);
-            fmpz_zero(pointsG[i]);
-            fmpz_zero(pointsH[2*i]);
         }
 
         // Grab odd values of h from the packet.
