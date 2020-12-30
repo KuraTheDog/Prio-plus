@@ -34,6 +34,14 @@ struct client_packet {
     fmpz_t h0_s;         // share of h(0)
     fmpz_t* h_points;    // h evaluated on odd 2N-th roots of unity
 
+    ~client_packet() {
+        fmpz_clear(f0_s);
+        fmpz_clear(g0_s);
+        fmpz_clear(h0_s);
+        clear_fmpz_array(WireShares, NWires);
+        clear_fmpz_array(h_points, N);
+    }
+
     void print() {
         std::cout << " N = " << N << std::endl;
         std::cout << " NWires = " << NWires << std::endl;
