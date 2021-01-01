@@ -144,8 +144,10 @@ struct Circuit {
     std::vector<Gate*> gates;        // All gates
     std::vector<Gate*> outputs;      // ?
     std::vector<Gate*> result_zero;  // Gates that must be zero for eval to pass.
+    int max_bits;                    // 
 
-    Circuit(){
+    Circuit(int n = 31){
+        max_bits = n;
     }
 
     void addGate(Gate* gate){
@@ -261,8 +263,9 @@ struct Circuit {
 
         int i = 0;
 
+        // deal with input gates modification as they should be XOR shared for length checks
         for(auto gate : gates) {
-            if(gate->type == Gate_Input or gate->type == Gate_Mul){
+            if(gate->type == Gate_Mul or gate->type == Gate_Input){
                 SplitShare(gate->WireValue,forServer0[i],forServer1[i]);
                 i++;
             }
@@ -272,7 +275,14 @@ struct Circuit {
     }
 
     void ImportWires(ClientPacket p, int server_num){
+        int n = 0;
+        for(auto gate : gates){
+            if(gate->type == Gate_Input or gate->type == Gate_Mul){
+                n++;
+            }
+        }
         int i = 0;
+
 
         for(auto gate : gates){
             switch (gate->type)

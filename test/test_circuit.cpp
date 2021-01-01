@@ -1,21 +1,3 @@
-/*
-    Copyright (C) 2011 Fredrik Johansson
-
-    This file is part of FLINT.
-
-    FLINT is free software: you can redistribute it and/or modify it under
-    the terms of the GNU Lesser General Public License (LGPL) as published
-    by the Free Software Foundation; either version 2.1 of the License, or
-    (at your option) any later version.  See <https://www.gnu.org/licenses/>.
-*/
-
-/*
-    Demo FLINT program for incremental multimodular reduction and
-    reconstruction using the Chinese Remainder Theorem.
-
-    Except not really
-*/
-
 #include <iostream>
 #include <gmpxx.h>
 
@@ -77,7 +59,7 @@ void test_CheckVar() {
 
   CheckerPreComp* pre0 = new CheckerPreComp(var_circuit);
   pre0->setCheckerPrecomp(randomX);
-  checker_0->evalPoly(pre0, p0);
+  // checker_0->evalPoly(pre0, p0);
 
   std::cout << "-=-=-=-=-=-" << std::endl;
 
@@ -88,7 +70,27 @@ void test_CheckVar() {
 
   CheckerPreComp* pre1 = new CheckerPreComp(var_circuit);
   pre1->setCheckerPrecomp(randomX);
-  checker_1->evalPoly(pre1, p1);
+  // checker_1->evalPoly(pre1);
+
+  auto corshare0 = checker_0->CorShareFn(pre0);
+  auto corshare1 = checker_1->CorShareFn(pre1);
+
+  auto cor0 = checker_0->CorFn(corshare0,corshare1);
+  auto cor1 = checker_1->CorFn(corshare0,corshare1);
+
+  fmpz_t out0, out1;
+  fmpz_init(out0);
+  fmpz_init(out1);
+
+  checker_0->OutShare(out0,cor0);
+  checker_1->OutShare(out1,cor1);
+
+  bool result0 = checker_0->OutputIsValid(out0,out1);
+  bool result1 = checker_1->OutputIsValid(out0,out1);
+
+  std::cout << "out0 : "; fmpz_print(out0); std::cout << ", out1 : "; fmpz_print(out1); std::cout << std::endl;  
+
+  std::cout << "Result0 : " << result0 << " , Result1 : " << result1 << std::endl;
 
   std::cout << "^v^v^ Shared validation: " << std::endl;
   fmpz_t tmp, rgr;
@@ -107,6 +109,8 @@ void test_CheckVar() {
   fmpz_add(tmp, checker_0->evalH, checker_1->evalH);
   fmpz_mod(tmp, tmp, Int_Modulus);
   std::cout << "r * h(r) = "; fmpz_print(tmp); std::cout << std::endl;
+
+
 }
 
 int main(int argc, char* argv[])

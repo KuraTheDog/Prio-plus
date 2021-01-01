@@ -160,14 +160,14 @@ struct Checker {
 
        Can we replace pkt with req?
     */
-    void evalPoly(CheckerPreComp *pre, ClientPacket pkt){
+    void evalPoly(CheckerPreComp *pre){
         std::cout << "evalPoly" << std::endl;
         std::vector<Gate*> mulgates = ckt->MulGates();
         // Get constant terms from packet
-        fmpz_set(pointsF[0],pkt->f0_s);
-        fmpz_set(pointsG[0],pkt->g0_s);
-        fmpz_set(pointsH[0],pkt->h0_s);
-
+        fmpz_set(pointsF[0],req->f0_s);
+        fmpz_set(pointsG[0],req->g0_s);
+        fmpz_set(pointsH[0],req->h0_s);
+        
         // For all multiplication triples a_i * b_i = c_i,
         //    polynomial [f(x)] has [f(i)] = [a_i]
         //    polynomial [g(x)] has [g(i)] = [b_i]
@@ -180,7 +180,7 @@ struct Checker {
 
         // Grab odd values of h from the packet.
         for(int j = 0; j < N; j++){
-            fmpz_set(pointsH[2 * j + 1], pkt->h_points[j]);
+            fmpz_set(pointsH[2 * j + 1], req->h_points[j]);
         }
 
         // set evals 
@@ -217,6 +217,114 @@ struct Checker {
         fmpz_mod(evalH, evalH, Int_Modulus);
         std::cout << "r * h(r) = "; fmpz_print(evalH); std::cout << std::endl;
     }
+
+    CorShare* CorShareFn(CheckerPreComp *pre){
+        evalPoly(pre);
+        std::cout << "CorShareFn" << std::endl;
+        auto out = new CorShare();
+
+        fmpz_sub(out->shareD, evalF,req->triple_share->shareA);
+        fmpz_mod(out->shareD, out->shareD, Int_Modulus);
+
+        fmpz_sub(out->shareE, evalG,req->triple_share->shareB);
+        fmpz_mod(out->shareE, out->shareE, Int_Modulus);
+
+        return out;
+    }
+
+    Cor* CorFn(CorShare* cs0, CorShare* cs1){
+        Cor* out = new Cor();
+        std::cout << "CorFn" << std::endl;
+        fmpz_add(out->D,cs0->shareD, cs1->shareD);
+        fmpz_mod(out->D, out->D, Int_Modulus);
+
+        fmpz_add(out->E,cs0->shareE, cs1->shareE);
+        fmpz_mod(out->E, out->E, Int_Modulus);
+
+        return out;
+    }
+
+    // To be fixed. Both servers need to use same random seed. Using constant 1 instead now.
+    void randSum(fmpz_t out, fmpz_t* arr){
+        int len = ckt->result_zero.size() + 1;
+
+        fmpz_t tmp;
+        fmpz_init(tmp);
+
+        for(int i = 0; i < len; i++){
+            // fmpz_randm(tmp,seed,Int_Modulus);
+            fmpz_set_ui(tmp,1);
+            fmpz_mul(tmp,tmp,arr[i]);
+            fmpz_mod(tmp,tmp,Int_Modulus);
+
+            fmpz_add(out,out,tmp);
+        }
+
+        fmpz_mod(out, out, Int_Modulus); 
+
+        fmpz_clear(tmp);
+    }
+
+    void OutShare(fmpz_t out, Cor* corIn) {
+        fmpz_t mulCheck;
+        fmpz_t term;
+
+        fmpz_init(mulCheck);
+        fmpz_init(term);
+
+        if(serveridx == 0){
+            fmpz_mul(mulCheck, corIn->D, corIn->E);
+            fmpz_mod(mulCheck, mulCheck, Int_Modulus);
+        }
+
+        fmpz_mul(term, corIn->D, req->triple_share->shareB);
+        fmpz_mod(term, term, Int_Modulus);
+        fmpz_add(mulCheck,mulCheck,term);
+        fmpz_mod(mulCheck,mulCheck,Int_Modulus);
+
+        fmpz_mul(term, corIn->E, req->triple_share->shareA);
+        fmpz_mod(term, term, Int_Modulus);
+        fmpz_add(mulCheck,mulCheck,term);
+        fmpz_mod(mulCheck,mulCheck,Int_Modulus);
+
+        fmpz_add(mulCheck,mulCheck,req->triple_share->shareC);
+        fmpz_mod(mulCheck,mulCheck,Int_Modulus);
+
+        fmpz_sub(mulCheck, mulCheck, evalH);
+        fmpz_mod(mulCheck,mulCheck,Int_Modulus);
+
+        fmpz_t* arr;
+        int num_zero_gates = ckt->result_zero.size();
+        new_fmpz_array(&arr,num_zero_gates+1);
+
+        fmpz_set(arr[0], mulCheck);
+
+        for(int i = 0; i < num_zero_gates; i++){
+            fmpz_set(arr[i+1],ckt->result_zero[i]->WireValue);
+        }
+
+        randSum(out, arr);
+
+        clear_fmpz_array(arr,num_zero_gates);
+        fmpz_clear(mulCheck);
+        fmpz_clear(term);
+    }
+
+    bool OutputIsValid(fmpz_t output0, fmpz_t output1){
+        fmpz_t out;
+        fmpz_init(out);
+        
+        fmpz_add(out,output0,output1);
+        fmpz_mod(out,out,Int_Modulus);
+
+        std::cout << "Final Output : "; fmpz_print(out); std::cout << std::endl;
+
+        bool ans = fmpz_is_zero(out);
+        fmpz_clear(out);
+
+        return ans;
+    }
+
 };
 
 

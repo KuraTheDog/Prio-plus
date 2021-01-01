@@ -132,6 +132,13 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
     int num_wire_shares = 0;
     circuit->GetWireShares(&p0->WireShares,&p1->WireShares,num_wire_shares);
     
+    auto triple = NewBeaverTriple();
+    auto triple_shares = BeaverTripleShares(triple);
+
+    p0->triple_share = &triple_shares[0];
+    p1->triple_share = &triple_shares[1];
+
+    delete triple;
     fmpz_clear(h0);
     fmpz_clear(h_val);
     clear_fmpz_array(pointsF,N);

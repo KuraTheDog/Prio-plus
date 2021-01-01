@@ -32,6 +32,18 @@ void SplitShare(fmpz_t val, fmpz_t A, fmpz_t B){
     fmpz_mod(B,B,Int_Modulus);
 }
 
+void SplitShare(fmpz_t val, fmpz_t A, fmpz_t B, int num_bits){
+    // num_bits < 32
+    uint32_t mod = 1 << num_bits;
+
+    fmpz_t max_val;
+    fmpz_init(max_val);
+    fmpz_set_ui(max_val, mod);
+    fmpz_randm(A,seed,max_val);
+    fmpz_xor(B,A,val);
+    fmpz_clear(max_val);
+}
+
 BeaverTriple* NewBeaverTriple() {
     BeaverTriple* out = new BeaverTriple();
 
