@@ -41,12 +41,6 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
         fmpz_set(pointsG[i],mulgates[i-1]->ParentR->WireValue);
     }
 
-    // Zero pad the remaining
-    for(int i = n; i < N; i++){
-        fmpz_zero(pointsF[i]);
-        fmpz_zero(pointsG[i]);
-    }
-
     std::cout << " pointsF = [";
     for (int i = 0; i < N; i++) {
         if (i > 0)
@@ -74,15 +68,13 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
 
     std::cout << " polyF = [";
     for (int i = 0; i < N; i++) {
-        if (i > 0)
-            std::cout << ", ";
+        if (i > 0) std::cout << ", ";
         fmpz_print(polyF[i]);
     }
     std::cout << "]" << std::endl;
     std::cout << " polyG = [";
     for (int i = 0; i < N; i++) {
-        if (i > 0)
-            std::cout << ", ";
+        if (i > 0) std::cout << ", ";
         fmpz_print(polyG[i]);
     }
     std::cout << "]" << std::endl;
@@ -105,22 +97,18 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
 
     std::cout << " evalsF = [";
     for (int i = 0; i < 2 * N; i++) {
-        if (i > 0)
-            std::cout << ", ";
+        if (i > 0) std::cout << ", ";
         fmpz_print(evalsF[i]);
     }
     std::cout << "]" << std::endl;
 
     std::cout << " evalsG = [";
     for (int i = 0; i < 2 * N; i++) {
-        if (i > 0)
-            std::cout << ", ";
+        if (i > 0) std::cout << ", ";
         fmpz_print(evalsG[i]);
     }
     std::cout << "]" << std::endl;
 
-    fmpz_t* h_points;
-    new_fmpz_array(&h_points,N);
     
     init_client_packet(p0, N, NumMulInpGates);
     init_client_packet(p1, N, NumMulInpGates);
@@ -128,12 +116,12 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
     // Send evaluations of f(r) * g(r) for all 2N-th roots of unity
     //     that aren't also N-th roots of unity
     // h_points[j] = evalF(2j + 1) * evalG(2j + 1), split into shares
-    int j = 0;
-    for(int i = 1; i < 2*N-1; i+=2){
-        fmpz_mul(h_points[j],evalsF[i],evalsG[i]);
-        fmpz_mod(h_points[j],h_points[j], Int_Modulus);
-        SplitShare(h_points[j],p0->h_points[j],p1->h_points[j]);
-        j++;
+    fmpz_t h_val;
+    fmpz_init(h_val);
+    for(int j = 0; j < N; j++){
+        fmpz_mul(h_val, evalsF[2 * j + 1], evalsG[2 * j + 1]);
+        fmpz_mod(h_val, h_val, Int_Modulus);
+        SplitShare(h_val, p0->h_points[j], p1->h_points[j]);
     }
     
     // split f(0), g(0), h(0) into shares.
@@ -145,14 +133,21 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
     int num_wire_shares = 0;
     circuit->GetWireShares(&p0->WireShares,&p1->WireShares,num_wire_shares);
     
+    auto triple = NewBeaverTriple();
+    auto triple_shares = BeaverTripleShares(triple);
+
+    p0->triple_share = &triple_shares[0];
+    p1->triple_share = &triple_shares[1];
+
+    delete triple;
     fmpz_clear(h0);
+    fmpz_clear(h_val);
     clear_fmpz_array(pointsF,N);
     clear_fmpz_array(pointsG,N);
     clear_fmpz_array(paddedF, N);
     clear_fmpz_array(paddedG, N);
     clear_fmpz_array(evalsF, 2*N);
     clear_fmpz_array(evalsG, 2*N);
-    clear_fmpz_array(h_points, N);
 }
 
 #endif

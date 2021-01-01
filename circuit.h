@@ -257,13 +257,9 @@ struct Circuit {
 
         // deal with input gates modification as they should be XOR shared for length checks
         for(auto gate : gates) {
-            if(gate->type == Gate_Mul){
+            if(gate->type == Gate_Mul or gate->type == Gate_Input){
                 SplitShare(gate->WireValue,forServer0[i],forServer1[i]);
                 i++;
-            }
-            else if(gate->type == Gate_Input){
-                SplitShare(gate->WireValue,forServer0[i],forServer1[i],max_bits);
-                i++
             }
         }
 

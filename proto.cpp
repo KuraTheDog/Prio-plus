@@ -33,11 +33,9 @@ uint64_t bitsum_ot_sender(NetIO *io,bool *shares, bool *valid, int n){
     }
 
     io->sync();
-    auto start = clock_start();
     IKNP<NetIO> *ot = new IKNP<NetIO>(io);
     ot->send(b0_ot, b1_ot, n);
     io->flush();
-    long long t = time_from(start);
 
     delete[] b1_ot;
     delete[] b0_ot;
@@ -60,7 +58,6 @@ uint64_t intsum_ot_sender(NetIO *io,uint32_t *shares, bool *valid, int n, int nu
     uint64_t r[n*num_bits];
     uint64_t sum = 0;
     prg.random_data(r,n*num_bits*sizeof(uint64_t));
-    uint64_t mod = 1 << num_bits;
 
     for(int i = 0; i < n; i++){
         uint32_t num = shares[i];
@@ -98,11 +95,9 @@ uint64_t intsum_ot_sender(NetIO *io,uint32_t *shares, bool *valid, int n, int nu
     }
 
     io->sync();
-    auto start = clock_start();
     IKNP<NetIO> *ot = new IKNP<NetIO>(io);
     ot->send(b0_ot, b1_ot, n*num_bits);
     io->flush();
-    long long t = time_from(start);
 
     delete[] b1_ot;
     delete[] b0_ot;
@@ -127,11 +122,9 @@ uint64_t bitsum_ot_receiver(NetIO *io,bool *shares, int n){
     uint64_t ans[n];
     uint64_t sum = 0;
     io->sync();
-    auto start = clock_start();
     IKNP<NetIO> *ot = new IKNP<NetIO>(io);
     ot->recv(r, shares, n);
     io->flush();
-    long long t = time_from(start);
 
     for(int i = 0; i < n; i++){
 
@@ -160,11 +153,9 @@ uint64_t intsum_ot_receiver(NetIO *io, uint32_t *shares, int n, int num_bits){
 
     uint64_t sum = 0;
     io->sync();
-    auto start = clock_start();
     IKNP<NetIO> *ot = new IKNP<NetIO>(io);
     ot->recv(r, bool_shares, n*num_bits);
     io->flush();
-    long long t = time_from(start);
 
     for(int i = 0; i < n; i++){
         uint64_t valid = ((uint64_t*) &r[i*num_bits])[0];
@@ -190,10 +181,9 @@ uint64_t xor_to_sum_share_sender(NetIO *io, uint32_t share, int num_bits){
     uint64_t r[num_bits];
     uint64_t sum = 0;
     prg.random_data(r,num_bits*sizeof(uint64_t));
-    uint64_t mod = 1 << num_bits;
 
     
-    uint32_t num = shares[i];
+    uint32_t num = share;
     // std::cout << "Share : " << num << "  valid " << valid[i] << std::endl;
     // std::cout << "Valid : " << valid[i] << " num bits " << num_bits << std::endl;
     for(int j = 0; j < num_bits; j++){
@@ -223,11 +213,9 @@ uint64_t xor_to_sum_share_sender(NetIO *io, uint32_t share, int num_bits){
     }
 
     io->sync();
-    auto start = clock_start();
     IKNP<NetIO> *ot = new IKNP<NetIO>(io);
     ot->send(b0_ot, b1_ot, num_bits);
     io->flush();
-    long long t = time_from(start);
 
     delete[] b1_ot;
     delete[] b0_ot;
@@ -255,11 +243,9 @@ uint64_t xor_to_sum_share_receiver(NetIO *io, uint32_t share, int num_bits){
 
     uint64_t sum = 0;
     io->sync();
-    auto start = clock_start();
     IKNP<NetIO> *ot = new IKNP<NetIO>(io);
     ot->recv(r, bool_shares, num_bits);
     io->flush();
-    long long t = time_from(start);
 
     for(int j = 0; j < num_bits; j++){
         uint64_t *p = (uint64_t*)&r[j];

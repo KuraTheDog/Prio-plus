@@ -1,21 +1,3 @@
-/*
-    Copyright (C) 2011 Fredrik Johansson
-
-    This file is part of FLINT.
-
-    FLINT is free software: you can redistribute it and/or modify it under
-    the terms of the GNU Lesser General Public License (LGPL) as published
-    by the Free Software Foundation; either version 2.1 of the License, or
-    (at your option) any later version.  See <https://www.gnu.org/licenses/>.
-*/
-
-/*
-    Demo FLINT program for incremental multimodular reduction and
-    reconstruction using the Chinese Remainder Theorem.
-
-    Except not really
-*/
-
 #include <iostream>
 #include <gmpxx.h>
 
@@ -63,35 +45,72 @@ void test_CheckVar() {
   std::cout << "p1" << std::endl;
   p1->print();
 
-  std::cout << "Running through validity checks" << std::endl;
+  std::cout << "------ Running through validity checks" << std::endl;
+
+  fmpz_t randomX;
+  fmpz_init(randomX);
+  fmpz_randm(randomX, seed, Int_Modulus);
+  std::cout << "Random X: "; fmpz_print(randomX); std::cout << std::endl;
 
   Circuit* var_circuit0 = CheckVar();
-  Circuit* var_circuit1 = CheckVar();
   Checker* checker_0 = new Checker(var_circuit0, 0);
-  Checker* checker_1 = new Checker(var_circuit1, 1);
-
-  std::cout << "checker1 N: " << checker_1->N << std::endl;
 
   checker_0->setReq(p0);
-  checker_1->setReq(p1);
 
   CheckerPreComp* pre0 = new CheckerPreComp(var_circuit);
-  pre0->setCheckerPrecomp(inp[0]);  // TODO: what value? random?
-  checker_0->evalPoly(pre0, p0);
+  pre0->setCheckerPrecomp(randomX);
+  // checker_0->evalPoly(pre0, p0);
 
-  std::cout << "Checker 0:" << std::endl;
-  std::cout << "  evalF = "; fmpz_print(checker_0->evalF); std::cout << std::endl;
-  std::cout << "  evalG = "; fmpz_print(checker_0->evalG); std::cout << std::endl;
-  std::cout << "  evalH = "; fmpz_print(checker_0->evalH); std::cout << std::endl;
+  std::cout << "-=-=-=-=-=-" << std::endl;
+
+  Circuit* var_circuit1 = CheckVar();
+  Checker* checker_1 = new Checker(var_circuit1, 1);
+
+  checker_1->setReq(p1);
 
   CheckerPreComp* pre1 = new CheckerPreComp(var_circuit);
-  pre1->setCheckerPrecomp(inp[0]);  // TODO: what value? random?
-  checker_1->evalPoly(pre1, p1);
+  pre1->setCheckerPrecomp(randomX);
+  // checker_1->evalPoly(pre1);
 
-  std::cout << "Checker 1:" << std::endl;
-  std::cout << "  evalF = "; fmpz_print(checker_1->evalF); std::cout << std::endl;
-  std::cout << "  evalG = "; fmpz_print(checker_1->evalG); std::cout << std::endl;
-  std::cout << "  evalH = "; fmpz_print(checker_1->evalH); std::cout << std::endl;
+  auto corshare0 = checker_0->CorShareFn(pre0);
+  auto corshare1 = checker_1->CorShareFn(pre1);
+
+  auto cor0 = checker_0->CorFn(corshare0,corshare1);
+  auto cor1 = checker_1->CorFn(corshare0,corshare1);
+
+  fmpz_t out0, out1;
+  fmpz_init(out0);
+  fmpz_init(out1);
+
+  checker_0->OutShare(out0,cor0);
+  checker_1->OutShare(out1,cor1);
+
+  bool result0 = checker_0->OutputIsValid(out0,out1);
+  bool result1 = checker_1->OutputIsValid(out0,out1);
+
+  std::cout << "out0 : "; fmpz_print(out0); std::cout << ", out1 : "; fmpz_print(out1); std::cout << std::endl;  
+
+  std::cout << "Result0 : " << result0 << " , Result1 : " << result1 << std::endl;
+
+  std::cout << "^v^v^ Shared validation: " << std::endl;
+  fmpz_t tmp, rgr;
+  fmpz_init(rgr);
+  fmpz_init(tmp);
+  fmpz_add(tmp, checker_0->evalF, checker_1->evalF);
+  fmpz_mod(tmp, tmp, Int_Modulus);
+  std::cout << "f(r) = "; fmpz_print(tmp); std::cout << std::endl;
+  fmpz_add(rgr, checker_0->evalG, checker_1->evalG);
+  fmpz_mod(rgr, rgr, Int_Modulus);
+  std::cout << "r * g(r) = "; fmpz_print(rgr); std::cout << std::endl;
+  fmpz_mul(tmp, tmp, rgr);
+  fmpz_mod(tmp, tmp, Int_Modulus);
+  std::cout << "r * f(r) * g(r) = "; fmpz_print(tmp); std::cout << std::endl;
+
+  fmpz_add(tmp, checker_0->evalH, checker_1->evalH);
+  fmpz_mod(tmp, tmp, Int_Modulus);
+  std::cout << "r * h(r) = "; fmpz_print(tmp); std::cout << std::endl;
+
+
 }
 
 int main(int argc, char* argv[])

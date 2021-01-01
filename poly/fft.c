@@ -69,9 +69,6 @@ fmpz_t *fft_interpolate(fmpz_t mod, int nPoints,
   }
 
   for (int i=0; i<nPoints;i++) {
-    fmpz_clear(ys[i]);
-    fmpz_clear(roots[i]);
-
     fmpz_clear(tmp[i]);
     fmpz_clear(ySub[i]);
     fmpz_clear(rootsSub[i]);

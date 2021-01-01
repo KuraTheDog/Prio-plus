@@ -15,19 +15,22 @@ precomp_x_init(precomp_x_t *pre_x,
   fmpz_init(pre_x->modulus);
   fmpz_set(pre_x->modulus, pre->modulus);
 
-  // If the x value at which we want to evaluate is less
-  // than n_points, there's no need to do any interpolation,
+  // If the x value at which we want to evaluate is already an x_value 
+  // we've used, there's no need to do any interpolation,
   // so just short-circuit the computation and return this
   // value.
+  // Otherwise, the code will just provide all zeros, since x = x_i.
   //
   // NOTE: This introduces a potential timing attack, since we leak
   // information about x, but in our applications, the probability
-  // that x is so short is small.
-  const ulong xlong = fmpz_get_ui(x);
-  if (xlong < (ulong)pre->n_points) {
-    pre_x->short_x = xlong;
-  } else {
-    pre_x->short_x = -1;
+  // that x is one of the n_points values is small.
+
+  pre_x->short_x = -1;
+  for (int i = 0; i < pre->n_points; i++) {
+    if (fmpz_equal(x, pre->x_points[i])) {
+      pre_x->short_x = i;
+      break;
+    }
   }
 
   pre_x->coeffs = safe_malloc(pre->n_points * sizeof(mpz_t));
@@ -88,7 +91,7 @@ void precomp_x_eval(precomp_x_t *pre_x, fmpz_t *yValues, fmpz_t out)
     fmpz_set(out, yValues[pre_x->short_x]);
     return;
   }
-  
+
   fmpz_set_ui(out, 0);
 
   fmpz_t tmp;
