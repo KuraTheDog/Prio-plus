@@ -66,6 +66,12 @@ struct PreX {
     PreX(BatchPre* b, fmpz_t x) {
         batchPre = b;
         precomp_x_init(&pre, &batchPre->pre, x);
+        // std::cout << " PreX coeffs: [";
+        // for (int i = 0; i < pre.n_points; i++) {
+        //     if (i > 0) std::cout << ", ";
+        //     fmpz_print(pre.coeffs[i]);
+        // }
+        // std::cout << "]" << std::endl;
     }
 
     ~PreX() {
@@ -78,7 +84,7 @@ struct PreX {
 };
 
 struct CheckerPreComp {
-    fmpz_t x;  // is also r?
+    fmpz_t x;
 
     BatchPre *degN;
     BatchPre *deg2N;
@@ -178,13 +184,38 @@ struct Checker {
         }
 
         // set evals 
+        // std::cout << " pointsF = [";
+        // for (int i = 0; i < N; i++) {
+        //     if (i > 0) std::cout << ", ";
+        //     fmpz_print(pointsF[i]);
+        // }
+        // std::cout << "]" << std::endl;
         pre->xN->Eval(pointsF, evalF);
+        std::cout << "f(r) = "; fmpz_print(evalF); std::cout << std::endl;
+
+        // std::cout << " pointsG = [";
+        // for (int i = 0; i < N; i++) {
+        //     if (i > 0) std::cout << ", ";
+        //     fmpz_print(pointsG[i]);
+        // }
+        // std::cout << "]" << std::endl;
         pre->xN->Eval(pointsG, evalG);
+        std::cout << "g(r) = "; fmpz_print(evalG); std::cout << std::endl;
         fmpz_mul(evalG, evalG, pre->x);
         fmpz_mod(evalG, evalG, Int_Modulus);
+        std::cout << "r * g(r) = "; fmpz_print(evalG); std::cout << std::endl;
+
+        // std::cout << " pointsH = [";
+        // for (int i = 0; i < 2 * N; i++) {
+        //     if (i > 0) std::cout << ", ";
+        //     fmpz_print(pointsH[i]);
+        // }
+        // std::cout << "]" << std::endl;
         pre->x2N->Eval(pointsH, evalH);
+        std::cout << "h(r) = "; fmpz_print(evalH); std::cout << std::endl;
         fmpz_mul(evalH, evalH, pre->x);
         fmpz_mod(evalH, evalH, Int_Modulus);
+        std::cout << "r * h(r) = "; fmpz_print(evalH); std::cout << std::endl;
     }
 };
 

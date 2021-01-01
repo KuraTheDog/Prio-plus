@@ -41,20 +41,20 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
         fmpz_set(pointsG[i],mulgates[i-1]->ParentR->WireValue);
     }
 
-    std::cout << " pointsF = [";
-    for (int i = 0; i < N; i++) {
-        if (i > 0)
-            std::cout << ", ";
-        fmpz_print(pointsF[i]);
-    }
-    std::cout << "]" << std::endl;
-    std::cout << " pointsG = [";
-    for (int i = 0; i < N; i++) {
-        if (i > 0)
-            std::cout << ", ";
-        fmpz_print(pointsG[i]);
-    }
-    std::cout << "]" << std::endl;
+    // std::cout << " pointsF = [";
+    // for (int i = 0; i < N; i++) {
+    //     if (i > 0)
+    //         std::cout << ", ";
+    //     fmpz_print(pointsF[i]);
+    // }
+    // std::cout << "]" << std::endl;
+    // std::cout << " pointsG = [";
+    // for (int i = 0; i < N; i++) {
+    //     if (i > 0)
+    //         std::cout << ", ";
+    //     fmpz_print(pointsG[i]);
+    // }
+    // std::cout << "]" << std::endl;
 
     // Initialize roots (nth roots of unity) and invroots (their inverse)
     if(roots == nullptr){
@@ -66,18 +66,18 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
     fmpz_t *polyF = fft_interpolate(Int_Modulus,N,invroots,pointsF,true);
     fmpz_t *polyG = fft_interpolate(Int_Modulus,N,invroots,pointsG,true);
 
-    std::cout << " polyF = [";
-    for (int i = 0; i < N; i++) {
-        if (i > 0) std::cout << ", ";
-        fmpz_print(polyF[i]);
-    }
-    std::cout << "]" << std::endl;
-    std::cout << " polyG = [";
-    for (int i = 0; i < N; i++) {
-        if (i > 0) std::cout << ", ";
-        fmpz_print(polyG[i]);
-    }
-    std::cout << "]" << std::endl;
+    // std::cout << " polyF = [";
+    // for (int i = 0; i < N; i++) {
+    //     if (i > 0) std::cout << ", ";
+    //     fmpz_print(polyF[i]);
+    // }
+    // std::cout << "]" << std::endl;
+    // std::cout << " polyG = [";
+    // for (int i = 0; i < N; i++) {
+    //     if (i > 0) std::cout << ", ";
+    //     fmpz_print(polyG[i]);
+    // }
+    // std::cout << "]" << std::endl;
 
     // Pad to length 2N, to ensure it fits h.
     fmpz_t *paddedF, *paddedG;
@@ -95,20 +95,19 @@ void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
     fmpz_t *evalsF = fft_interpolate(Int_Modulus,2*N,roots2,paddedF,false);
     fmpz_t *evalsG = fft_interpolate(Int_Modulus,2*N,roots2,paddedG,false);
 
-    std::cout << " evalsF = [";
-    for (int i = 0; i < 2 * N; i++) {
-        if (i > 0) std::cout << ", ";
-        fmpz_print(evalsF[i]);
-    }
-    std::cout << "]" << std::endl;
+    // std::cout << " evalsF = [";
+    // for (int i = 0; i < 2 * N; i++) {
+    //     if (i > 0) std::cout << ", ";
+    //     fmpz_print(evalsF[i]);
+    // }
+    // std::cout << "]" << std::endl;
 
-    std::cout << " evalsG = [";
-    for (int i = 0; i < 2 * N; i++) {
-        if (i > 0) std::cout << ", ";
-        fmpz_print(evalsG[i]);
-    }
-    std::cout << "]" << std::endl;
-
+    // std::cout << " evalsG = [";
+    // for (int i = 0; i < 2 * N; i++) {
+    //     if (i > 0) std::cout << ", ";
+    //     fmpz_print(evalsG[i]);
+    // }
+    // std::cout << "]" << std::endl;
     
     init_client_packet(p0, N, NumMulInpGates);
     init_client_packet(p1, N, NumMulInpGates);

@@ -41,7 +41,7 @@ void clear_constants() {
 }
 
 void init_roots(int N) {
-    std::cout << "init_roots: " << N << std::endl;
+    // std::cout << "init_roots: " << N << std::endl;
 
     new_fmpz_array(&roots, N);
     new_fmpz_array(&invroots, N);
@@ -79,6 +79,27 @@ void init_roots(int N) {
         fmpz_mul(roots2[i], roots2[i-1], ghalf_);
         fmpz_mod(roots2[i],roots2[i],Int_Modulus);
     }
+
+    std::cout << " roots = {";
+    for (int i = 0; i < N; i++) {
+        if (i > 0) std::cout << ", ";
+        fmpz_print(roots[i]);
+    }
+    std::cout << "}" << std::endl;
+
+    std::cout << " invroots = {";
+    for (int i = 0; i < N; i++) {
+        if (i > 0) std::cout << ", ";
+        fmpz_print(invroots[i]);
+    }
+    std::cout << "}" << std::endl;
+
+    std::cout << " roots2 = {";
+    for (int i = 0; i < 2 * N; i++) {
+        if (i > 0) std::cout << ", ";
+        fmpz_print(roots2[i]);
+    }
+    std::cout << "}" << std::endl;
 
     fmpz_clear(g_);
     fmpz_clear(ginv_);
@@ -138,7 +159,7 @@ struct Circuit {
     // Evals circuit on the input, returns if all result_zero gates are zero.
     bool Eval(fmpz_t *inps){
         int inp_count = 0;
-        std::cout << "EVAL" << std::endl;
+        // std::cout << "EVAL" << std::endl;
         for(int i = 0; i < gates.size(); i++){
             
             switch (gates[i]->type)
@@ -146,53 +167,40 @@ struct Circuit {
             case Gate_Input:
                 fmpz_set(gates[i]->WireValue,inps[inp_count]);
                 inp_count++;
-                std::cout << "  EVAL Input \tGate " << i << "  -  ";
-                fmpz_print(gates[i]->WireValue);
-                std::cout << std::endl;
+                // std::cout << "  EVAL Input \tGate " << i << "  -  ";
+                // fmpz_print(gates[i]->WireValue); std::cout << std::endl;
                 break;
             case Gate_Add:
                 fmpz_add(gates[i]->WireValue,gates[i]->ParentL->WireValue,gates[i]->ParentR->WireValue);
                 fmpz_mod(gates[i]->WireValue,gates[i]->WireValue,Int_Modulus);
-                std::cout << "  EVAL Add \tGate " << i << "  -  ";
-                fmpz_print(gates[i]->ParentL->WireValue);
-                std::cout << ", ";
-                fmpz_print(gates[i]->ParentR->WireValue);
-                std::cout << " -> ";
-                fmpz_print(gates[i]->WireValue);
-                std::cout << std::endl;
+                // std::cout << "  EVAL Add \tGate " << i << "  -  ";
+                // fmpz_print(gates[i]->ParentL->WireValue); std::cout << ", ";
+                // fmpz_print(gates[i]->ParentR->WireValue); std::cout << " -> ";
+                // fmpz_print(gates[i]->WireValue); std::cout << std::endl;
                 break;
             case Gate_Mul:
                 fmpz_mul(gates[i]->WireValue,gates[i]->ParentL->WireValue,gates[i]->ParentR->WireValue);
                 fmpz_mod(gates[i]->WireValue,gates[i]->WireValue,Int_Modulus);
-                std::cout << "  EVAL Mul \tGate " << i << "  -  ";
-                fmpz_print(gates[i]->ParentL->WireValue);
-                std::cout << ", ";
-                fmpz_print(gates[i]->ParentR->WireValue);
-                std::cout << " -> ";
-                fmpz_print(gates[i]->WireValue);
-                std::cout << std::endl;
+                // std::cout << "  EVAL Mul \tGate " << i << "  -  ";
+                // fmpz_print(gates[i]->ParentL->WireValue); std::cout << ", ";
+                // fmpz_print(gates[i]->ParentR->WireValue); std::cout << " -> ";
+                // fmpz_print(gates[i]->WireValue); std::cout << std::endl;
                 break;
             case Gate_AddConst:
                 fmpz_add(gates[i]->WireValue,gates[i]->ParentL->WireValue,gates[i]->Constant);
                 fmpz_mod(gates[i]->WireValue,gates[i]->WireValue,Int_Modulus);
-                std::cout << "  EVAL add con \tGate " << i << "  -  ";
-                fmpz_print(gates[i]->ParentL->WireValue);
-                std::cout << ", const ";
-                fmpz_print(gates[i]->Constant);
-                std::cout << " -> ";
-                fmpz_print(gates[i]->WireValue);
-                std::cout << std::endl;
+                // std::cout << "  EVAL add con \tGate " << i << "  -  ";
+                // fmpz_print(gates[i]->ParentL->WireValue); std::cout << ", const ";
+                // fmpz_print(gates[i]->Constant); std::cout << " -> ";
+                // fmpz_print(gates[i]->WireValue); std::cout << std::endl;
                 break;
             case Gate_MulConst:
                 fmpz_mul(gates[i]->WireValue,gates[i]->ParentL->WireValue,gates[i]->Constant);
                 fmpz_mod(gates[i]->WireValue,gates[i]->WireValue,Int_Modulus);
-                std::cout << "  EVAL mul con \tGate " << i << "  -  ";
-                fmpz_print(gates[i]->ParentL->WireValue);
-                std::cout << ", const ";
-                fmpz_print(gates[i]->Constant);
-                std::cout << " -> ";
-                fmpz_print(gates[i]->WireValue);
-                std::cout << std::endl;
+                // std::cout << "  EVAL mul con \tGate " << i << "  -  ";
+                // fmpz_print(gates[i]->ParentL->WireValue); std::cout << ", const ";
+                // fmpz_print(gates[i]->Constant); std::cout << " -> ";
+                // fmpz_print(gates[i]->WireValue); std::cout << std::endl;
                 break;
             default:
                 break;

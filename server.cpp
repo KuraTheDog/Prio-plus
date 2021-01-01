@@ -10,6 +10,9 @@
 
 #include "types.h"
 #include "proto.h"
+#include "server.h"
+#include "circuit.h"
+#include "net_share.h"
 
 #define SERVER0_IP "127.0.0.1"
 #define SERVER1_IP "127.0.0.1"
@@ -43,38 +46,44 @@ std::vector<MaxShare> maxshares;
 std::unordered_map<std::string,uint32_t*> maxshare_map;
 std::unordered_map<std::string,bool> maxshare_valid_map;
 
+std::vector<VarShare> varshares;
+std::unordered_map<std::string, VarShare> varshare_map;  // ???
+std::unordered_map<std::string, bool> varshare_valid_map;
 
 uint32_t int_sum_max;
 uint32_t num_bits;
 
+// TODO: const 60051 for netio?
+// TODO: bytes_read loop helper functions? Since it's used a lot.
+
+void error_exit(const char *msg){
+    perror(msg);
+    exit(EXIT_FAILURE);
+}
+
 void bind_and_listen(sockaddr_in& addr, int& sockfd, int server_num, int port){
     sockfd = socket(AF_INET,SOCK_STREAM,0);
 
-    if(sockfd == -1){
-        std::cerr << "Socket creation failed" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    if(sockfd == -1)
+        error_exit("Socket creation failed");
     int sockopt = 0;
     
-    if(setsockopt(sockfd,SOL_SOCKET, SO_REUSEADDR,&sockopt,sizeof(sockopt))){
-        std::cerr << "Sockopt failed" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof(sockopt)))
+        error_exit("Sockopt failed");
+    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &sockopt, sizeof(sockopt)))
+        error_exit("Sockopt failed");
 
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
 
-    if(bind(sockfd,(struct sockaddr*)&addr,sizeof(addr)) < 0){
-        std::cerr << "Bind to port : " << port << " failed" << std::endl;
-        exit(EXIT_FAILURE);
+    if(bind(sockfd,(struct sockaddr*)&addr,sizeof(addr)) < 0) {
+        std::cerr << "Failed to bind to port: " << port << std::endl;
+        error_exit("Bind to port failed");
     }
 
-    if(listen(sockfd,2) < 0){
-        std::cerr << "Listen failed" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    
+    if(listen(sockfd,2) < 0)
+        error_exit("Listen failed");   
 }
 
 int main(int argc, char** argv){
@@ -86,21 +95,24 @@ int main(int argc, char** argv){
     int port = atoi(argv[2]);        // port of this server
     int other_port = atoi(argv[3]);  // port of the other server
 
+    if (argc >= 4)
+        num_bits = atoi(argv[4]);
+
     int sockfd, newsockfd;
 
     sockaddr_in addr;
 
     bind_and_listen(addr,sockfd,server_num,port);
 
+    init_constants();
+
     while(1){
         auto addrlen = sizeof(addr);
 
-        newsockfd = accept(sockfd,(struct sockaddr*)&addr,(socklen_t *)&addrlen);
+        std::cout << "waiting for connection..." << std::endl;
 
-        if(newsockfd < 0){
-            std::cerr << "Connection creation failure" << std::endl;
-            exit(EXIT_FAILURE);
-        }
+        newsockfd = accept(sockfd,(struct sockaddr*)&addr,(socklen_t *)&addrlen);
+        if(newsockfd < 0) error_exit("Connection creation failure");
         
         // Get an initMsg
         initMsg msg;
@@ -109,7 +121,7 @@ int main(int argc, char** argv){
         
         if(msg.type == BIT_SUM){
             BitShare bitshare;  // Single share buffer
-            int num_ots = msg.num_of_inputs;  // OT per client
+            // int num_ots = msg.num_of_inputs;  // OT per client
             bool *shares = new bool[msg.num_of_inputs];  // shares per client
             bool *valid = new bool[msg.num_of_inputs];  // validity per client
             for(int i = 0; i < msg.num_of_inputs; i++){
@@ -152,12 +164,11 @@ int main(int argc, char** argv){
 
                     inet_pton(AF_INET,SERVER0_IP,&server0.sin_addr);
 
-                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0){
-                        std::cerr << "Can't connect to server0" << std::endl;
-                        exit(EXIT_FAILURE);
-                    }
+                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0)
+                        error_exit("Can't connect to server0");
 
-                    int t = send(sockfd_init,&msg,sizeof(initMsg),0);
+                    if (send(sockfd_init,&msg,sizeof(initMsg),0) < 0)
+                        error_exit("Failed to send");
 
                     for(int i = 0; i < bitshares.size(); i++){
                         send(sockfd_init,&bitshares[i].pk,32,0);
@@ -173,9 +184,7 @@ int main(int argc, char** argv){
             }
             delete[] valid;
             delete[] shares;
-        }
-
-        if(msg.type == INIT_BIT_SUM){
+        } else if(msg.type == INIT_BIT_SUM){
             auto start = clock_start();  // for benchmark
             int num_ots = msg.num_of_inputs;
             bool *shares = new bool[msg.num_of_inputs];
@@ -210,13 +219,10 @@ int main(int argc, char** argv){
             std::cout << "Time taken : " << t << std::endl;
             delete[] shares;
             delete[] valid;
-
-        }
-
-        if(msg.type == INT_SUM){
+        } else if(msg.type == INT_SUM){
+            std::cout << "got INT_SUM" << std::endl;
             IntShare intshare;
             int_sum_max = 1 << atoi(argv[4]);
-            num_bits = atoi(argv[4]);
             int num_ots = msg.num_of_inputs;
             uint32_t *shares = new uint32_t[num_ots];
             bool *valid = new bool[num_ots];
@@ -226,10 +232,8 @@ int main(int argc, char** argv){
                 while(bytes_read < sizeof(IntShare)){
                     bytes_read += recv(newsockfd,(char*)&intshare+bytes_read,sizeof(IntShare)-bytes_read,0);
                 }
-                // bytes_read = recv(newsockfd,(char*)&intshare,sizeof(IntShare),0);
                 std::string pk(intshare.pk,intshare.pk+32);
 
-                
                 if(intshare_map.find(pk) != intshare_map.end() or (intshare.val >= int_sum_max)){
                     continue; //Reject the input
                 }
@@ -245,9 +249,11 @@ int main(int argc, char** argv){
             std::cerr << "Received " << msg.num_of_inputs << " shares" << std::endl;
 
             if(server_num == 1){
+                std::cout << "server 1 forking..." << std::endl;
                 sleep(2);
                 pid_t pid = fork();
                 if(pid > 0){
+                    std::cout << "server 1 fork to send init_int_sum" << std::endl;
                     initMsg msg;
                     msg.type = INIT_INT_SUM;
                     msg.num_of_inputs = intshares.size();
@@ -255,19 +261,16 @@ int main(int argc, char** argv){
                     int sockfd_init = socket(AF_INET,SOCK_STREAM,0);
 
                     struct sockaddr_in server0;
-
                     server0.sin_port = htons(other_port);
-
                     server0.sin_family = AF_INET;
 
                     inet_pton(AF_INET,SERVER0_IP,&server0.sin_addr);
 
-                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0){
-                        std::cerr << "Can't connect to server0" << std::endl;
-                        exit(EXIT_FAILURE);
-                    }
+                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0)
+                        error_exit("Can't connect to server0");
 
-                    int t = send(sockfd_init,&msg,sizeof(initMsg),0);
+                    if (send(sockfd_init,&msg,sizeof(initMsg),0) < 0)
+                        error_exit("Failed to send");
 
                     for(int i = 0; i < intshares.size(); i++){
                         send(sockfd_init,&intshares[i].pk,32,0);
@@ -278,12 +281,12 @@ int main(int argc, char** argv){
                     io = new NetIO(SERVER0_IP,60051);
                     uint64_t b = intsum_ot_receiver(io,&shares[0],intshares.size(),num_bits);
                     send(sockfd_init,&b,sizeof(uint64_t),0);
-                    std::cout << "From receiver: " << b << std::endl;
+                    std::cout << "Sending to server0: " << b << std::endl;
                 }
             }
-        }
-
-        if(msg.type == INIT_INT_SUM){
+            delete[] shares;
+            delete[] valid;
+        } else if(msg.type == INIT_INT_SUM){
             std::cout << "Received INIT_INT_SUM" << std::endl;
             auto start = clock_start();
             int num_ots = msg.num_of_inputs;
@@ -310,19 +313,19 @@ int main(int argc, char** argv){
             io = new NetIO(nullptr,60051);
             uint64_t a = intsum_ot_sender(io,&shares[0],&valid[0],num_ots,num_bits);
             uint64_t b;
+
             bytes_read = 0;
             while(bytes_read < sizeof(uint64_t))
                 bytes_read += recv(newsockfd,(char*)&b+bytes_read,sizeof(uint64_t)-bytes_read,0);
-            std::cout << "From sender: " << a<< std::endl;
+            std::cout << "From sender: " << a << std::endl;
+            std::cout << "Local sum: " << b << std::endl;
             uint64_t aggr = a + b;
             std::cout << "Ans : " << aggr << std::endl;
             long long t = time_from(start);
             std::cout << "Time taken : " << t << std::endl;
             delete[] shares;
             delete[] valid;
-        }
-
-        if(msg.type == AND_OP){
+        } else if(msg.type == AND_OP){
             AndShare andshare;
             int num_ots = msg.num_of_inputs;
 
@@ -359,7 +362,7 @@ int main(int argc, char** argv){
                     initMsg msg;
                     msg.type = INIT_AND_OP;
                     msg.num_of_inputs = andshares.size();
-                    uint32_t *shares = new uint32_t[andshares.size()];
+                    // uint32_t *shares = new uint32_t[andshares.size()];
                     int sockfd_init = socket(AF_INET,SOCK_STREAM,0);
 
                     struct sockaddr_in server0;
@@ -370,18 +373,17 @@ int main(int argc, char** argv){
 
                     inet_pton(AF_INET,SERVER0_IP,&server0.sin_addr);
 
-                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0){
-                        std::cerr << "Can't connect to server0" << std::endl;
-                        exit(EXIT_FAILURE);
-                    }
+                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0)
+                        error_exit("Can't connect to server0");
 
-                    int t = send(sockfd_init,&msg,sizeof(initMsg),0);
+                    if (send(sockfd_init,&msg,sizeof(initMsg),0) < 0)
+                        error_exit("Failed to send");
                     uint32_t b = 0;
                     for(int i = 0; i < andshares.size(); i++){
                         send(sockfd_init,&andshares[i].pk,32,0);
                         b ^= andshares[i].val;
                     }
-                    NetIO *io;
+                    // NetIO *io;
 
                     // io = new NetIO(SERVER0_IP,60051);
                     // uint64_t b = intsum_ot_receiver<NetIO,SHOTExtension>(io,&shares[0],andshares.size(),31);
@@ -389,12 +391,10 @@ int main(int argc, char** argv){
                     std::cout << "From receiver: " << b << std::endl;
                 }
             }
-        }
-
-        if(msg.type == INIT_AND_OP){
+        } else if(msg.type == INIT_AND_OP){
             std::cout << "Received INIT_AND_OP" << std::endl;
             auto start = clock_start();
-            int num_ots = msg.num_of_inputs;
+            // int num_ots = msg.num_of_inputs;
             uint32_t *shares = new uint32_t[msg.num_of_inputs];
             bool *valid = new bool[msg.num_of_inputs];
 
@@ -432,9 +432,7 @@ int main(int argc, char** argv){
             std::cout << "Time taken : " << t << std::endl;
             delete[] shares;
             delete[] valid;
-        }
-        
-        if(msg.type == OR_OP){
+        } else if(msg.type == OR_OP){
             OrShare orshare;
             int num_ots = msg.num_of_inputs;
 
@@ -471,7 +469,7 @@ int main(int argc, char** argv){
                     initMsg msg;
                     msg.type = INIT_OR_OP;
                     msg.num_of_inputs = orshares.size();
-                    uint32_t *shares = new uint32_t[orshares.size()];
+                    // uint32_t *shares = new uint32_t[orshares.size()];
                     int sockfd_init = socket(AF_INET,SOCK_STREAM,0);
 
                     struct sockaddr_in server0;
@@ -482,12 +480,11 @@ int main(int argc, char** argv){
 
                     inet_pton(AF_INET,SERVER0_IP,&server0.sin_addr);
 
-                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0){
-                        std::cerr << "Can't connect to server0" << std::endl;
-                        exit(EXIT_FAILURE);
-                    }
+                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0)
+                        error_exit("Can't connect to server0");
 
-                    int t = send(sockfd_init,&msg,sizeof(initMsg),0);
+                    if (send(sockfd_init,&msg,sizeof(initMsg),0) < 0)
+                        error_exit("Failed to send");
                     uint32_t b = 0;
                     for(int i = 0; i < orshares.size(); i++){
                         send(sockfd_init,&orshares[i].pk,32,0);
@@ -501,12 +498,10 @@ int main(int argc, char** argv){
                     std::cout << "From receiver: " << b << std::endl;
                 }
             }
-        }
-
-        if(msg.type == INIT_OR_OP){
+        } else if(msg.type == INIT_OR_OP){
             std::cout << "Received INIT_OR_OP" << std::endl;
             auto start = clock_start();
-            int num_ots = msg.num_of_inputs;
+            // int num_ots = msg.num_of_inputs;
             uint32_t *shares = new uint32_t[msg.num_of_inputs];
             bool *valid = new bool[msg.num_of_inputs];
             uint32_t a = 0;
@@ -542,18 +537,15 @@ int main(int argc, char** argv){
             std::cout << "Time taken : " << t << std::endl;
             delete[] shares;
             delete[] valid;
-        }
-
-        if(msg.type == MAX_OP){
+        } else if(msg.type == MAX_OP){
             MaxShare maxshare;
 
             int num_inputs = msg.num_of_inputs;
             int B = msg.max_inp;
             uint32_t* shares = new uint32_t[num_inputs*(msg.max_inp + 1)];
             bool *valid = new bool[num_inputs];
-            int share_sz = (msg.max_inp + 1)*sizeof(uint32_t);
+            // int share_sz = (msg.max_inp + 1)*sizeof(uint32_t);
             std::cout <<  "Num inputs : " << num_inputs << std::endl;
-            
 
             for(int i = 0; i < num_inputs; i++){
                 bytes_read = 0;
@@ -586,10 +578,8 @@ int main(int argc, char** argv){
                     continue;
                 maxshare_valid_map[pk] = true;
                 valid[i] = true;
-
                 
                 maxshare.arr = &shares[i*(B+1)];
-
                 maxshare_map[pk] = maxshare.arr;
                 maxshares.push_back(maxshare);
             }
@@ -608,24 +598,19 @@ int main(int argc, char** argv){
                     int sockfd_init = socket(AF_INET,SOCK_STREAM,0);
 
                     struct sockaddr_in server0;
-
                     server0.sin_port = htons(other_port);
-
                     server0.sin_family = AF_INET;
 
                     inet_pton(AF_INET,SERVER0_IP,&server0.sin_addr);
 
-                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0){
-                        std::cerr << "Can't connect to server0" << std::endl;
-                        exit(EXIT_FAILURE);
-                    }
+                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0)
+                        error_exit("Can't connect to server0");
 
-                    int t = send(sockfd_init,&msg,sizeof(initMsg),0);
-                    
+                    if (send(sockfd_init,&msg,sizeof(initMsg),0) < 0)
+                        error_exit("Failed to send");
                     uint32_t* b = new uint32_t[B+1];
                     for(int i = 0; i <= B; i++)
                         b[i] = 0;
-                    
 
                     for(int i = 0; i < maxshares.size(); i++){
                         send(sockfd_init,&maxshares[i].pk,32,0);
@@ -641,9 +626,7 @@ int main(int argc, char** argv){
                     // std::cout << "From receiver: " << b << std::endl;
                 }
             }
-        }
-
-        if(msg.type == INIT_MAX_OP){
+        } else if(msg.type == INIT_MAX_OP){
             std::cout << "Received INIT_MAX_OP" << std::endl;
             auto start = clock_start();
             int num_inputs = msg.num_of_inputs;
@@ -705,8 +688,140 @@ int main(int argc, char** argv){
             std::cout << "Time taken : " << t << std::endl;
             // delete[] shares;
             // delete[] valid;
+        } else if(msg.type == VAR_OP) {
+            // Alternate idea: make each of these a function. Var calls intsum twice, then snip. 
+            std::cout << "VAR_OP" << std::endl;
+            VarShare varshare;
+            uint32_t small_max = 1 << (num_bits / 2);  // for values
+            uint32_t var_max = 1 << num_bits;      // for values squared
+            uint32_t num_inputs = msg.num_of_inputs;
+            uint32_t shares[num_inputs];
+            uint32_t shares_squared[num_inputs];
+            bool valid[num_inputs];
+
+            std::cout << "small_max: " << small_max << std::endl;
+            std::cout << "var_max: " << var_max << std::endl;
+
+            for (int i = 0; i < num_inputs; i++) {
+                bytes_read = 0;
+                while (bytes_read < sizeof(VarShare)) {
+                    bytes_read += recv(newsockfd, (char*)&varshare + bytes_read, sizeof(VarShare) - bytes_read, 0);
+                }
+                std::string pk(varshare.pk, varshare.pk+32);
+
+                // std::cout << "share[" << i << "] = (" << varshare.val << ", " << varshare.val_squared << ")" << std::endl;
+
+                if((varshare_map.find(pk) != varshare_map.end())
+                   or (varshare.val >= small_max) 
+                   or (varshare.val_squared >= var_max)) {
+                    continue;  // Reject the input
+                }
+
+                // TODO: snips?
+
+                varshare_valid_map[pk] = true;
+                valid[i] = true;
+                shares[i] = varshare.val;
+                shares_squared[i] = varshare.val_squared;
+                varshares.push_back(varshare);
+                varshare_map[pk] = varshare;
+            }
+
+            std::cout << "Recieved " << num_inputs << " shares" << std::endl;
+            std::cout << varshares.size() << " are valid" << std::endl;
+
+            if(server_num == 1){
+                std::cout << "server 1 forking..." << std::endl;
+                sleep(2);
+                pid_t pid = fork();
+                if(pid > 0){
+                    std::cout << "server 1 fork to send INIT_VAR_OP" << std::endl;
+                    initMsg msg;
+                    msg.type = INIT_VAR_OP;
+                    size_t num_shares = varshares.size();
+                    msg.num_of_inputs = num_shares;
+                    uint32_t shares[num_shares];
+                    uint32_t shares_squared[num_shares];
+
+                    int sockfd_init = socket(AF_INET, SOCK_STREAM, 0);
+                    struct sockaddr_in server0;
+                    server0.sin_port = htons(other_port);
+                    server0.sin_family = AF_INET;
+                    inet_pton(AF_INET, SERVER0_IP, &server0.sin_addr);
+
+                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0)
+                        error_exit("Can't connect to server0");
+                    if (send(sockfd_init, &msg, sizeof(initMsg),0) < 0)
+                        error_exit("Failed to send");
+
+                    for (int i = 0; i < num_shares; i++) {
+                        send(sockfd_init, &varshares[i].pk, 32, 0);
+                        shares[i] = varshares[i].val;
+                        shares_squared[i] = varshares[i].val_squared;
+                    }
+                    NetIO* io = new NetIO(SERVER0_IP, 60051);
+                    uint64_t b = intsum_ot_receiver(io, &shares[0], num_shares, num_bits);
+                    std::cout << "sending b = " << b << std::endl;
+                    send(sockfd_init, &b, sizeof(b), 0);
+
+                    uint64_t b2 = intsum_ot_receiver(io, &shares_squared[0], num_shares, num_bits);
+                    send(sockfd_init, &b2, sizeof(b2), 0);
+                    std::cout << "sending b2 = " << b2 << std::endl;
+                }
+            }
+
+            // TODO: snips
+
+        } else if(msg.type == INIT_VAR_OP) { 
+            std::cout << "Recieved INIT_VAR_OP" << std::endl;
+            int num_inputs = msg.num_of_inputs;
+            uint32_t shares[num_inputs];
+            uint32_t shares_squared[num_inputs];
+            bool valid[num_inputs];
+
+            std::cout << "num_inputs: " << num_inputs << std::endl;
+
+            for (int i = 0; i < num_inputs; i++) {
+                char pk[32];
+                bytes_read = 0;
+                while (bytes_read < 32)
+                    bytes_read += recv(newsockfd, (char*) &pk[0] + bytes_read, 32 - bytes_read, 0);
+                std::string pk_str(pk, pk + 32);
+
+                if(varshare_map.find(pk_str) == varshare_map.end()) {
+                    valid[i] = false;
+                } else {
+                    valid[i] = true;
+                    shares[i] = varshare_map[pk_str].val;
+                    shares_squared[i] = varshare_map[pk_str].val_squared;
+                }
+            }
+
+            NetIO* io = new NetIO(nullptr, 60051);
+            uint64_t a = intsum_ot_sender(io, &shares[0], &valid[0], num_inputs, num_bits);
+            std::cout << "got a: " << a << std::endl;
+            uint64_t a2 = intsum_ot_sender(io, &shares_squared[0], &valid[0], num_inputs, num_bits);
+            std::cout << "got a2: " << a2 << std::endl;
+            uint64_t b, b2;
+
+            bytes_read = 0;
+            while (bytes_read < sizeof(uint64_t))
+                bytes_read += recv(newsockfd, (char*)&b + bytes_read, sizeof(uint64_t) - bytes_read, 0);
+            std::cout << "have b: " << b << std::endl;
+            bytes_read = 0;
+            while (bytes_read < sizeof(uint64_t))
+                bytes_read += recv(newsockfd, (char*)&b2 + bytes_read, sizeof(uint64_t) - bytes_read, 0);
+            std::cout << "have b2: " << b2 << std::endl;
+            float ex = 1.0 * (a + b) / num_inputs;
+            float ex2 = 1.0 * (a2 + b2) / num_inputs;
+            float ans = ex2 - (ex * ex);
+            std::cout << "Ans: " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
+
+        } else {
+            std::cout << "Unrecognized message type: " << msg.type << std::endl;
         }
 
+        std::cout << "end of loop" << std::endl << std::endl;
         close(newsockfd);
 
     }

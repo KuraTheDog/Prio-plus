@@ -15,8 +15,10 @@ Simulates a group of num_submission clients that communicate with the servers.
 #include <sstream>
 
 #include "types.h"
-
 #include "proto.h"
+#include "circuit.h"
+#include "client.h"
+#include "net_share.h"
 
 // #define SERVER0_IP "52.87.230.64"
 // #define SERVER1_IP "54.213.189.18"
@@ -26,7 +28,13 @@ Simulates a group of num_submission clients that communicate with the servers.
 
 
 uint64_t max_int;
+uint64_t small_max_int; // sqrt(max_int)
 int sockfd0, sockfd1;
+
+void error_exit(const char *msg){
+    perror(msg);
+    exit(EXIT_FAILURE);
+}
 
 std::string pub_key_to_hex(uint64_t *key){
     std::stringstream ss;
@@ -55,10 +63,7 @@ void send_maxshare(MaxShare& maxshare, int server_num, int B){
 void send_to_server(int server, void* buffer, size_t n, int flags) {
     int socket = (server == 0 ? sockfd0 : sockfd1);
     int ret = send(socket, buffer, n, flags);
-    if(ret < 0) {
-        std::cerr << "Failed to send to server " << server << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    if(ret < 0) error_exit("Failed to send to server ");
 }
 
 int main(int argc, char** argv){
@@ -72,8 +77,11 @@ int main(int argc, char** argv){
 
     std::string protocol(argv[4]);
 
-    if(protocol == "INTSUM")
-        max_int = 1 << (atoi(argv[5]));
+    if(protocol == "INTSUM" or protocol == "VAROP") {
+        int num_bits = atoi(argv[5]);
+        max_int = 1 << num_bits;
+        small_max_int = 1 << (num_bits / 2);
+    }
 
     // Set up server connections
 
@@ -82,10 +90,16 @@ int main(int argc, char** argv){
     sockfd0 = socket(AF_INET,SOCK_STREAM,0);
     sockfd1 = socket(AF_INET,SOCK_STREAM,0);
 
-    if(sockfd0 < 0 or sockfd1 < 0){
-        std::cerr << "Socket creation failed!" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    if(sockfd0 < 0 or sockfd1 < 0) error_exit("Socket creation failed!");
+    int sockopt = 0;
+    if(setsockopt(sockfd0, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof(sockopt)))
+        error_exit("Sockopt on 0 failed");
+    if(setsockopt(sockfd1, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof(sockopt)))
+        error_exit("Sockopt on 1 failed");
+    if(setsockopt(sockfd0, SOL_SOCKET, SO_REUSEPORT, &sockopt, sizeof(sockopt)))
+        error_exit("Sockopt on 0 failed");
+    if(setsockopt(sockfd1, SOL_SOCKET, SO_REUSEPORT, &sockopt, sizeof(sockopt)))
+        error_exit("Sockopt on 1 failed");
 
     server1.sin_port = htons(port1);
     server0.sin_port = htons(port0);
@@ -96,15 +110,13 @@ int main(int argc, char** argv){
     inet_pton(AF_INET,SERVER0_IP,&server0.sin_addr);
     inet_pton(AF_INET,SERVER1_IP,&server1.sin_addr);
     std::cout << "Connecting to server 0" << std::endl;
-    if(connect(sockfd0,(sockaddr*)&server0,sizeof(server0)) < 0){
-        std::cerr << "Can't connect to server0" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    if(connect(sockfd0,(sockaddr*)&server0,sizeof(server0)) < 0)
+        error_exit("Can't connect to server0");
     std::cout << "Connecting to server 1" << std::endl;
-    if(connect(sockfd1,(sockaddr*)&server1,sizeof(server1)) < 0){
-        std::cerr << "Can't connect to server1" << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    if(connect(sockfd1,(sockaddr*)&server1,sizeof(server1)) < 0)
+        error_exit("Can't connect to server1");
+
+    init_constants();
 
     if(protocol == "BITSUM"){
         emp::block *b = new block[numreqs];  // public keys
@@ -176,15 +188,13 @@ int main(int argc, char** argv){
             shares0[i] = shares0[i]%max_int;
             shares1[i] = shares1[i]%max_int;
             real_vals[i] = shares0[i]^shares1[i];
-            std::cout << real_vals[i] << endl;
+            std::cout << "real_vals[" << i << "] = " << real_vals[i] << " = " << shares0[i] << " ^ " << shares1[i] << std::endl;
             ans += real_vals[i];
         }
 
         initMsg msg;
         msg.num_of_inputs = numreqs;
         msg.type = INT_SUM;
-
-        std::cerr << "NUM REQS " << numreqs << std::endl;
 
         send_to_server(0,&msg,sizeof(msg),0);
         send_to_server(1,&msg,sizeof(msg),0);
@@ -198,13 +208,13 @@ int main(int argc, char** argv){
             memcpy(intshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
             intshare1.val = shares1[i];
             memcpy(intshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
-            std::cout << pub_key_to_hex((uint64_t*)&b[i]) << endl;
+            std::cout << "key[" << i << "] = " << pub_key_to_hex((uint64_t*)&b[i]) << endl;
 
             send_to_server(0,(void *)&intshare0,sizeof(intshare0),0);
             send_to_server(1,(void *)&intshare1,sizeof(intshare1),0);
         }
 
-        std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
+        std::cout << "Uploaded all shares. True Ans : " << ans << std::endl;
         close(sockfd0);
         close(sockfd1);
 
@@ -212,7 +222,6 @@ int main(int argc, char** argv){
         delete[] shares1;
         delete[] real_vals;
         delete[] b;
-
     }
 
     else if(protocol == "ANDOP"){
@@ -374,7 +383,7 @@ int main(int argc, char** argv){
         for(int i = 0; i < numreqs; i++){
             MaxShare maxshare0, maxshare1;
             values[i] = 10%(B+1);
-            std::cout << values[i] << std::endl;
+            std::cout << "value[" << i << "] = " << values[i] << std::endl;
             prg.random_data(or_encoded_array, (B+1)*sizeof(uint32_t));
             prg.random_data(shares0, (B+1)*sizeof(uint32_t));
             for(int j = values[i] + 1; j <= B ; j++)
@@ -382,7 +391,7 @@ int main(int argc, char** argv){
 
             for(int j = 0; j <= msg.max_inp ; j++){
                 shares1[j] = shares0[j] ^ or_encoded_array[j];
-                std::cout << shares0[j] << "   " << shares1[j] << endl;
+                // std::cout << shares0[j] << "   " << shares1[j] << endl;
             }
 
             memcpy(maxshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
@@ -408,7 +417,97 @@ int main(int argc, char** argv){
         delete[] values;
         delete[] or_encoded_array;
         delete[] b;
+    }
 
+    else if (protocol == "VAROP") {
+        // Alternate idea: make each of these a function. Var calls intsum twice, then snip. 
+        emp::block *b = new block[numreqs];
+        // shares of x
+        uint32_t shares0[numreqs];
+        uint32_t shares1[numreqs];
+        // shares of x^2
+        uint32_t shares0_squared[numreqs];
+        uint32_t shares1_squared[numreqs];
+        uint32_t real_vals[numreqs];
+        int sum = 0, sumsquared = 0;
+        float ans, ex, ex2;
+
+        emp::PRG prg(fix_key);
+
+        prg.random_block(b,numreqs);
+        prg.random_data(shares0,numreqs*sizeof(uint32_t));
+        prg.random_data(shares1,numreqs*sizeof(uint32_t));
+        prg.random_data(shares0_squared,numreqs*sizeof(uint32_t));
+
+        // Since we are squaring, we have base values half as many bits.
+
+        for(int i = 0; i < numreqs; i++){
+            shares0[i] = shares0[i] % small_max_int;
+            shares1[i] = shares1[i] % small_max_int;
+            real_vals[i] = shares0[i]^shares1[i];
+            std::cout << "real_vals[" << i << "] = " << real_vals[i] << " = " << shares0[i] << " ^ " << shares1[i] << std::endl;
+
+            shares0_squared[i] = shares0_squared[i] % max_int;
+            uint32_t squared = real_vals[i] * real_vals[i];
+            shares1_squared[i] = squared ^ shares0_squared[i];
+            std::cout << "  real_vals[" << i << "]^2 = " << squared << " = " << shares0_squared[i] << " ^ " << shares1_squared[i] << std::endl;
+            sum += real_vals[i];
+            sumsquared += squared;
+        }
+
+        initMsg msg;
+        msg.num_of_inputs = numreqs;
+        msg.type = VAR_OP;
+
+        send_to_server(0, &msg, sizeof(msg), 0);
+        send_to_server(1, &msg, sizeof(msg), 0);
+
+        std::cout << "numreqs: " << numreqs << std::endl;
+
+        fmpz_t inp[2];
+        fmpz_init(inp[0]);
+        fmpz_init(inp[1]);
+
+        for(int i = 0; i < numreqs; i++) {
+            VarShare varshare0, varshare1;
+            memcpy(varshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            varshare0.val = shares0[i];
+            varshare0.val_squared = shares0_squared[i];
+            memcpy(varshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+
+            memcpy(varshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            varshare1.val = shares1[i];
+            varshare1.val_squared = shares1_squared[i];
+            memcpy(varshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+
+            std::cout << "key[" << i << "] = " << pub_key_to_hex((uint64_t*)&b[i]) << endl;
+
+            std::cout << "  0: (" << shares0[i] << ", " << shares0_squared[i] << ")" << std::endl;
+            std::cout << "  1: (" << shares1[i] << ", " << shares1_squared[i] << ")" << std::endl;
+
+            send_to_server(0, (void *)&varshare0, sizeof(varshare0), 0);
+            send_to_server(1, (void *)&varshare1, sizeof(varshare1), 0);
+
+            // SNIP: proof that x^2 = x_squared
+            fmpz_set_si(inp[0], real_vals[i]);
+            fmpz_set_si(inp[1], real_vals[i] * real_vals[i]);
+            Circuit* var_circuit = CheckVar();
+            // Run through circuit to set wires.
+            bool eval = var_circuit->Eval(inp);
+            ClientPacket p0, p1;
+            share_polynomials(var_circuit, p0, p1);
+
+            // Send p0 to server0, p1 to server1
+        }
+
+        ex = 1. * sum / numreqs;
+        ex2 = 1. * sumsquared / numreqs;
+        ans = ex2 - (ex * ex);
+        std::cout << "Uploaded all shares. True Ans : " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
+        close(sockfd0);
+        close(sockfd1);
+
+        delete[] b;
     }
 
     else {
