@@ -61,11 +61,19 @@ uint32_t int_sum_max;
 uint32_t num_bits;
 
 // TODO: const 60051 for netio?
-// TODO: bytes_read loop helper functions? Since it's used a lot.
 
 void error_exit(const char *msg){
     perror(msg);
     exit(EXIT_FAILURE);
+}
+
+// Use example: type obj; read_in(sockfd, &obj, sizeof(obj))
+size_t read_in(int sockfd, void* buf, size_t len) {
+    size_t bytes_read = 0;
+    char* bufptr = (char*) buf;
+    while (bytes_read < len)
+        bytes_read += recv(sockfd, bufptr + bytes_read, len - bytes_read, 0);
+    return bytes_read;
 }
 
 void bind_and_listen(sockaddr_in& addr, int& sockfd, int port, int reuse = 1){
@@ -123,8 +131,7 @@ int main(int argc, char** argv){
         
         // Get an initMsg
         initMsg msg;
-        int bytes_read;
-        bytes_read = recv(newsockfd,(void *)&msg,sizeof(initMsg),0);
+        read_in(newsockfd, &msg, sizeof(initMsg));
         
         if(msg.type == BIT_SUM){
             BitShare bitshare;  // Single share buffer
@@ -133,9 +140,7 @@ int main(int argc, char** argv){
             bool *valid = new bool[msg.num_of_inputs];  // validity per client
             for(int i = 0; i < msg.num_of_inputs; i++){
                 // read in client's share
-                bytes_read = 0;
-                while(bytes_read < sizeof(BitShare))
-                    bytes_read += recv(newsockfd,(char*)&bitshare+bytes_read,sizeof(BitShare)-bytes_read,0);
+                read_in(newsockfd, &bitshare, sizeof(BitShare));
                 std::string pk(bitshare.pk,bitshare.pk+32);
                 // public key already seen, duplicate, so skip over.
                 if(bitshare_map.find(pk) != bitshare_map.end())
@@ -198,9 +203,7 @@ int main(int argc, char** argv){
             bool *valid = new bool[msg.num_of_inputs];
             for(int i = 0; i < msg.num_of_inputs; i++){
                 char pk[32];
-                bytes_read = 0;
-                while(bytes_read < 32)
-                    bytes_read += recv(newsockfd,(char*)&pk[0]+bytes_read,32-bytes_read,0);
+                read_in(newsockfd, &pk[0], 32);
                 std::string pk_str(pk,pk+32);
 
                 if(bitshare_map.find(pk_str) == bitshare_map.end()){
@@ -217,9 +220,7 @@ int main(int argc, char** argv){
             uint64_t a = bitsum_ot_sender(io,&shares[0],&valid[0],num_ots);
             std::cout << "From sender: " << a<< std::endl;
             uint64_t b;
-            bytes_read = 0;
-            while(bytes_read < sizeof(uint64_t))
-                bytes_read += recv(newsockfd,(char*)&b+bytes_read,sizeof(uint64_t)-bytes_read,0);
+            read_in(newsockfd, &b, sizeof(uint64_t));
             uint64_t aggr = a + b;
             std::cout << "Ans : " << aggr << std::endl;
             long long t = time_from(start);
@@ -235,10 +236,7 @@ int main(int argc, char** argv){
             bool *valid = new bool[num_ots];
 
             for(int i = 0; i < msg.num_of_inputs; i++){
-                bytes_read = 0;
-                while(bytes_read < sizeof(IntShare)){
-                    bytes_read += recv(newsockfd,(char*)&intshare+bytes_read,sizeof(IntShare)-bytes_read,0);
-                }
+                read_in(newsockfd, &intshare, sizeof(IntShare));
                 std::string pk(intshare.pk,intshare.pk+32);
 
                 if(intshare_map.find(pk) != intshare_map.end() or (intshare.val >= int_sum_max)){
@@ -302,9 +300,7 @@ int main(int argc, char** argv){
 
             for(int i = 0; i < msg.num_of_inputs; i++){
                 char pk[32];
-                bytes_read = 0;
-                while(bytes_read < 32)
-                    bytes_read += recv(newsockfd,(char*)&pk[0]+bytes_read,32-bytes_read,0);
+                read_in(newsockfd, &pk[0], 32);
                 std::string pk_str(pk,pk+32);
 
                 if(intshare_map.find(pk_str) == intshare_map.end()){
@@ -321,9 +317,7 @@ int main(int argc, char** argv){
             uint64_t a = intsum_ot_sender(io,&shares[0],&valid[0],num_ots,num_bits);
             uint64_t b;
 
-            bytes_read = 0;
-            while(bytes_read < sizeof(uint64_t))
-                bytes_read += recv(newsockfd,(char*)&b+bytes_read,sizeof(uint64_t)-bytes_read,0);
+            read_in(newsockfd, &b, sizeof(uint64_t));
             std::cout << "From sender: " << a << std::endl;
             std::cout << "Local sum: " << b << std::endl;
             uint64_t aggr = a + b;
@@ -340,11 +334,7 @@ int main(int argc, char** argv){
             bool *valid = new bool[num_ots];
 
             for(int i = 0; i < num_ots; i++){
-                bytes_read = 0;
-                while(bytes_read < sizeof(AndShare)){
-                    bytes_read += recv(newsockfd,(char*)&andshare+bytes_read,sizeof(AndShare)-bytes_read,0);
-                }
-                // bytes_read = recv(newsockfd,(char*)&intshare,sizeof(IntShare),0);
+                read_in(newsockfd, &andshare, sizeof(AndShare));
                 std::string pk(andshare.pk,andshare.pk+32);
                 
                 if(andshare_map.find(pk) != andshare_map.end()){
@@ -408,9 +398,7 @@ int main(int argc, char** argv){
 
             for(int i = 0; i < msg.num_of_inputs; i++){
                 char pk[32];
-                bytes_read = 0;
-                while(bytes_read < 32)
-                    bytes_read += recv(newsockfd,(char*)&pk[0]+bytes_read,32-bytes_read,0);
+                read_in(newsockfd, &pk[0], 32);
                 std::string pk_str(pk,pk+32);
 
                 if(andshare_map.find(pk_str) == andshare_map.end()){
@@ -428,9 +416,7 @@ int main(int argc, char** argv){
             // io = new NetIO(nullptr,60051);
             // uint64_t a = intsum_ot_sender<NetIO,SHOTExtension>(io,&shares[0],&valid[0],num_ots,31);
             uint32_t b;
-            bytes_read = 0;
-            while(bytes_read < sizeof(uint32_t))
-                bytes_read += recv(newsockfd,(char*)&b+bytes_read,sizeof(uint32_t)-bytes_read,0);
+            read_in(newsockfd, &b, sizeof(uint32_t));
             std::cout << "From sender: " << a<< std::endl;
             uint32_t aggr = a ^ b;
             std::cout << "Ans of AND op : " << std::boolalpha << (aggr == 0) << std::endl;
@@ -446,11 +432,7 @@ int main(int argc, char** argv){
             bool *valid = new bool[num_ots];
 
             for(int i = 0; i < num_ots; i++){
-                bytes_read = 0;
-                while(bytes_read < sizeof(OrShare)){
-                    bytes_read += recv(newsockfd,(char*)&orshare+bytes_read,sizeof(OrShare)-bytes_read,0);
-                }
-                // bytes_read = recv(newsockfd,(char*)&intshare,sizeof(IntShare),0);
+                read_in(newsockfd, &orshare, sizeof(OrShare));
                 std::string pk(orshare.pk,orshare.pk+32);
                 
                 if(orshare_map.find(pk) != orshare_map.end()){
@@ -512,9 +494,7 @@ int main(int argc, char** argv){
             uint32_t a = 0;
             for(int i = 0; i < msg.num_of_inputs; i++){
                 char pk[32];
-                bytes_read = 0;
-                while(bytes_read < 32)
-                    bytes_read += recv(newsockfd,(char*)&pk[0]+bytes_read,32-bytes_read,0);
+                read_in(newsockfd, &pk[0], 32);
                 std::string pk_str(pk,pk+32);
 
                 if(orshare_map.find(pk_str) == orshare_map.end()){
@@ -532,9 +512,7 @@ int main(int argc, char** argv){
             // io = new NetIO(nullptr,60051);
             // uint64_t a = intsum_ot_sender<NetIO,SHOTExtension>(io,&shares[0],&valid[0],num_ots,31);
             uint32_t b;
-            bytes_read = 0;
-            while(bytes_read < sizeof(uint32_t))
-                bytes_read += recv(newsockfd,(char*)&b+bytes_read,sizeof(uint32_t)-bytes_read,0);
+            read_in(newsockfd, &b, sizeof(uint32_t));
             std::cout << "From sender: " << a<< std::endl;
             uint64_t aggr = a ^ b;
             std::cout << "Ans of OR op : " << std::boolalpha << (aggr != 0) << std::endl;
@@ -553,21 +531,12 @@ int main(int argc, char** argv){
             std::cout <<  "Num inputs : " << num_inputs << std::endl;
 
             for(int i = 0; i < num_inputs; i++){
-                bytes_read = 0;
-                // std::cout << "HELLLO MAX OP  " << i << "  " << num_inputs << std::endl;
-                while(bytes_read < sizeof(MaxShare)){
-                    bytes_read += recv(newsockfd,(char*)&maxshare+bytes_read,sizeof(MaxShare)-bytes_read,0);
-                    // std::cout << "hell!" << std::endl;
-                }
+                read_in(newsockfd, &maxshare, sizeof(MaxShare));
 
                 std::string pk(maxshare.pk,maxshare.pk+32);
-                bytes_read = 0;
 
                 for(int j = 0; j <= B; j++){
-                    bytes_read = 0;
-                    while(bytes_read < sizeof(uint32_t))
-                        bytes_read += recv(newsockfd,(char*)&(shares[i*(B+1)+j]) + bytes_read,sizeof(uint32_t)-bytes_read,0);
-                    // std::cout << shares[i*(B+1)+j] << std::endl;
+                    read_in(newsockfd, &(shares[i*(B+1) + j]), sizeof(uint32_t));
                 }
 
                 std::cout << pk << " Share : " << i << std::endl; 
@@ -643,9 +612,7 @@ int main(int argc, char** argv){
 
             for(int i = 0; i < msg.num_of_inputs; i++){
                 char pk[32];
-                bytes_read = 0;
-                while(bytes_read < 32)
-                    bytes_read += recv(newsockfd,(char*)&pk[0]+bytes_read,32-bytes_read,0);
+                read_in(newsockfd, &pk[0], 32);
                 std::string pk_str(pk,pk+32);
                 // std::cout << pk_str << std::endl;
                 if(maxshare_valid_map.find(pk_str) == maxshare_valid_map.end()){
@@ -669,9 +636,7 @@ int main(int argc, char** argv){
             uint32_t* b = new uint32_t[B+1];
             
             for(int j = 0; j <= B; j++){
-                bytes_read = 0;
-                while(bytes_read < sizeof(uint32_t))
-                    bytes_read += recv(newsockfd,(char*)&(b[j])+bytes_read,sizeof(uint32_t)-bytes_read,0);
+                read_in(newsockfd, &(b[j]), sizeof(uint32_t));
             }
             
             for(int i = B; i >= 0; i--){
@@ -704,13 +669,9 @@ int main(int argc, char** argv){
             std::cout << "var_max: " << var_max << std::endl;
 
             for (int i = 0; i < num_inputs; i++) {
-                bytes_read = 0;
-                while (bytes_read < sizeof(VarShare)) {
-                    bytes_read += recv(newsockfd, (char*)&varshare + bytes_read, sizeof(VarShare) - bytes_read, 0);
-                    if (bytes_read == 0) {
-                        error_exit("Read 0 bytes. connection closed?");
-                    }
-                }
+                std::cout << "i = " << i << std::endl;
+                int bytes_read = read_in(newsockfd, &varshare, sizeof(VarShare));
+                if (bytes_read == 0) error_exit("Read 0 bytes. Connection closed?");
                 std::string pk(varshare.pk, varshare.pk+32);
 
                 // std::cout << "share[" << i << "] = (" << varshare.val << ", " << varshare.val_squared << ")" << std::endl;
@@ -788,9 +749,7 @@ int main(int argc, char** argv){
 
             for (int i = 0; i < num_inputs; i++) {
                 char pk[32];
-                bytes_read = 0;
-                while (bytes_read < 32)
-                    bytes_read += recv(newsockfd, (char*) &pk[0] + bytes_read, 32 - bytes_read, 0);
+                read_in(newsockfd, &pk[0], 32);
                 std::string pk_str(pk, pk + 32);
 
                 if(varshare_map.find(pk_str) == varshare_map.end()) {
@@ -809,13 +768,8 @@ int main(int argc, char** argv){
             std::cout << "got a2: " << a2 << std::endl;
             uint64_t b, b2;
 
-            bytes_read = 0;
-            while (bytes_read < sizeof(uint64_t))
-                bytes_read += recv(newsockfd, (char*)&b + bytes_read, sizeof(uint64_t) - bytes_read, 0);
-            std::cout << "have b: " << b << std::endl;
-            bytes_read = 0;
-            while (bytes_read < sizeof(uint64_t))
-                bytes_read += recv(newsockfd, (char*)&b2 + bytes_read, sizeof(uint64_t) - bytes_read, 0);
+            read_in(newsockfd, &b, sizeof(uint64_t));
+            read_in(newsockfd, &b2, sizeof(uint64_t));
             std::cout << "have b2: " << b2 << std::endl;
             float ex = 1.0 * (a + b) / num_inputs;
             float ex2 = 1.0 * (a2 + b2) / num_inputs;
