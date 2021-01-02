@@ -37,7 +37,6 @@ TODO: maybe hide/delete/comment out ones we don't use.
 #ifndef NET_SHARE_H
 #define NET_SHARE_H
 
-#include <stdio.h>
 #include "fmpz_utils.h"
 #include "share.h"
 
@@ -46,37 +45,63 @@ extern "C" {
     #include "flint/fmpz.h"
 };
 
+/* 
+Other ideas:
+fmpz_in_raw, fmpz_out_raw. Has trouble with using socket for other things.
+    can have send_int map to it, but e.g. server has trouble with other general use.
+fmpz_sng + fmpz_get_ui_array: best for really large numbers?
+fmpz_get_str: best for small numbers. 
+
+ulong array: Always uses ulongs. 32 or 64 bits. "perfect" space efficiency, for really large numbers.
+string: best is base 62, so 62/256 ~ 25% space efficiency. So needs ~4x bits compared to numbers. 
+*/
+
 class ShareSender {
     int sockfd;
-    FILE* file;
 
-    int send_fmpz(fmpz_t x){
-        return fmpz_out_raw(file, x);
+    int send_int(const int x){
+        int x_conv = htonl(x);
+        const char* data = (const char*) &x_conv;
+        int ret = send(sockfd, data, sizeof(int), 0);
+        return ret;
     }
 
-    int send_int(int x){
-        // For consistency, just map ints to slong to fmpz, to use the same methedology.
-        fmpz_t f;
-        fmpz_init(f);
-        fmpz_set_si(f, x);
-        int ret = send_fmpz(f);
-        fmpz_clear(f);
+    int send_ulong(const ulong x) {
+        ulong x_conv = htonll(x);
+        const char* data = (const char*) &x_conv;
+        int ret = send(sockfd, data, sizeof(ulong), 0);
         return ret;
+    }
+
+    int send_fmpz(fmpz_t x){
+        int total = 0, ret;
+        size_t len = fmpz_size(x);
+        ulong arr[len];
+        fmpz_get_ui_array(arr, len, x);
+        ret = send_int(len);
+        if (ret <= 0) return ret; else total += ret;
+        for (int i = 0; i < len; i++) {
+            ret = send_ulong(arr[i]);
+            if (ret <= 0) return ret; else total += ret;
+        }
+        return total;
     }
 
 public: 
 
     ShareSender(int sockfd) {
         this->sockfd = sockfd;
-        file = fdopen(sockfd, "w");
     }
 
     ~ShareSender() {
-        fclose(file);
     }
 
     int fmpz(fmpz_t x) {
         return send_fmpz(x);
+    }
+
+    int integer(int x) {
+        return send_int(x);
     }
 
     int Cor(Cor *x) {
@@ -97,14 +122,15 @@ public:
         return total;
     }
 
-    // Note: This is different from a ClientPacket
     int client_packet(client_packet *x) {
-        int N = x->N, total = 0, ret;
+        int N = x->N, NWires = x->NWires, total = 0, ret;
         ret = send_int(N);
+        if (ret <= 0) return ret; else total += ret;
+        ret = send_int(NWires);
         if (ret <= 0) return ret; else total += ret;
 
         int i;
-        for (i = 0; i < N; i++) {
+        for (i = 0; i < NWires; i++) {
             ret = send_fmpz(x->WireShares[i]);
             if (ret <= 0) return ret; else total += ret;
         }
@@ -147,33 +173,63 @@ public:
 
 class ShareReciever {
     int sockfd;
-    FILE* file;
-
-    int recv_fmpz(fmpz_t x){
-        return fmpz_inp_raw(x, file);
-    }
 
     int recv_int(int& x) {
-        fmpz_t f;
-        int ret = recv_fmpz(f);
-        x = fmpz_get_si(f);
-        fmpz_clear(f);
-        return ret;
+        int bytes_read = 0, tmp;
+        char buf[sizeof(int)];
+        while (bytes_read < sizeof(int)) {
+            tmp = recv(sockfd, &buf + bytes_read, sizeof(int) - bytes_read, 0);
+            if (tmp <= 0) return tmp; else bytes_read += tmp;
+        }
+        x = ntohl(*((int*)buf));
+        return bytes_read;
+    }
+
+    int recv_ulong(ulong& x) {
+        char buf[sizeof(ulong)];
+        int bytes_read = 0, tmp;
+        while (bytes_read < sizeof(ulong)) {
+            tmp = recv(sockfd, &buf + bytes_read, sizeof(ulong) - bytes_read, 0);
+            if (tmp <= 0) return tmp; else bytes_read += tmp;
+        }
+        x = ntohll(*((ulong*)buf));
+        return bytes_read;
+    }
+
+    int recv_fmpz(fmpz_t x){
+        int total = 0, ret, len;
+        ulong tmp;
+        ret = recv_int(len);
+        if (ret <= 0) return ret; else total += ret;
+        if (len == 0) {
+            fmpz_set_ui(x, 0);
+            return total;
+        }
+        ulong buf[len];
+        for (int i = 0; i < len; i++) {
+            ret = recv_ulong(tmp);
+            if (ret <= 0) return ret; else total += ret;
+            buf[i] = tmp;
+        }
+        fmpz_set_ui_array(x, buf, len);
+        return total;
     }
 
 public: 
 
     ShareReciever(int sockfd) {
         this->sockfd = sockfd;
-        file = fdopen(sockfd, "r");
     }
 
     ~ShareReciever() {
-        fclose(file);
     }
 
     int fmpz(fmpz_t x) {
         return recv_fmpz(x);
+    }
+
+    int integer(int& x) {
+        return recv_int(x);
     }
 
     int Cor(Cor *x) {
@@ -194,15 +250,16 @@ public:
         return total;
     }
 
-    // Note: This is different from a ClientPacket
-    int client_packet(client_packet *x) {
-        int i, N, total = 0, ret;
+    int client_packet(client_packet* &x) {
+        int N, NWires, total = 0, ret;
         ret = recv_int(N);
         if (ret <= 0) return ret; else total += ret;
-        x->N = N;
+        ret = recv_int(NWires);
+        if (ret <= 0) return ret; else total += ret;
+        init_client_packet(x, N, NWires);
 
-        new_fmpz_array(&x->WireShares, N);
-        for (i = 0; i < N; i++) {
+        int i;
+        for (i = 0; i < NWires; i++) {
             ret = recv_fmpz(x->WireShares[i]);
             if (ret <= 0) return ret; else total += ret;
         }
@@ -214,7 +271,6 @@ public:
         ret = recv_fmpz(x->h0_s);
         if (ret <= 0) return ret; else total += ret;
 
-        new_fmpz_array(&x->h_points, N);
         for (i = 0; i < N; i++) {
             ret = recv_fmpz(x->h_points[i]);
             if (ret <= 0) return ret; else total += ret;

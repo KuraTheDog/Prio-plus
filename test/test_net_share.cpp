@@ -88,12 +88,21 @@ void run_sender(int sockfd) {
     fmpz_t number;
 
     fmpz_init(number);
+
+    // Small number
     fmpz_set_d(number, 12345);
     n = share_sender.fmpz(number);
     std::cout << "send: size = " << n << ", fmpz: ";
     fmpz_print(number); std::cout << std::endl;
 
-    fmpz_set_str(number, "314159265358979323846264338327950", 10);
+    // Large unsigned long
+    fmpz_set_ui(number, 12345678900987654321ul);
+    n = share_sender.fmpz(number);
+    std::cout << "send: size = " << n << ", fmpz: ";
+    fmpz_print(number); std::cout << std::endl;
+
+    // Very large multi-limbed number
+    fmpz_set_str(number, "3141592653589793238462643383279502884197169399", 10);
     n = share_sender.fmpz(number);
     std::cout << "send: size = " << n << ", fmpz: ";
     fmpz_print(number); std::cout << std::endl;
@@ -105,16 +114,17 @@ void run_sender(int sockfd) {
     fmpz_print(trip->B); std::cout << ", ";
     fmpz_print(trip->C); std::cout << std::endl;
 
-    client_packet* packet;
-    init_client_packet(packet, 42, 69);
+    ClientPacket packet;
+    init_client_packet(packet, 1, 2);
     n = share_sender.client_packet(packet);
-    std::cout << "send: size = " << n << ", packet, N = " << packet->N << std::endl;
+    std::cout << "send: size = " << n << ", packet, N = " << packet->N << ", NWires = " << packet->NWires << std::endl;
 
-    init_client_packet(packet, 12, 123);
-    n = share_sender.client_packet(packet);
-    std::cout << "send: size = " << n << ", packet, N = " << packet->N << std::endl;
+    ClientPacket packet2;
+    init_client_packet(packet2, 2, 3);
+    n = share_sender.client_packet(packet2);
+    std::cout << "send: size = " << n << ", packet, N = " << packet2->N << ", NWires = " << packet2->NWires << std::endl;
 
-    fmpz_init(number);
+    // Sanity: sending numbers still works
     fmpz_set_d(number, 54321);
     n = share_sender.fmpz(number);
     std::cout << "send: size = " << n << ", fmpz: ";
@@ -127,6 +137,11 @@ void run_reciever(int newsockfd) {
     int n;
 
     fmpz_t number;
+    fmpz_init(number);
+    n = share_reciever.fmpz(number);
+    std::cout << "recv: size = " << n << ", fmpz: ";
+    fmpz_print(number); std::cout << std::endl;
+
     n = share_reciever.fmpz(number);
     std::cout << "recv: size = " << n << ", fmpz: ";
     fmpz_print(number); std::cout << std::endl;
@@ -142,12 +157,15 @@ void run_reciever(int newsockfd) {
     fmpz_print(trip->B); std::cout << ", ";
     fmpz_print(trip->C); std::cout << std::endl;
 
-    client_packet* packet = new client_packet();
+    ClientPacket packet = nullptr;
     n = share_reciever.client_packet(packet);
-    std::cout << "recv: size = " << n << ", packet, N = " << packet->N << std::endl;
+    std::cout << "recv: size = " << n << ", packet" << std::endl;
+    std::cout << "recv: size = " << n << ", packet, N = " << packet->N << ", NWires = " << packet->NWires << std::endl;
 
-    n = share_reciever.client_packet(packet);
-    std::cout << "recv: size = " << n << ", packet, N = " << packet->N << std::endl;
+    ClientPacket packet2 = nullptr;
+    n = share_reciever.client_packet(packet2);
+    std::cout << "recv: size = " << n << ", packet, N = " << packet2->N << ". NWires = " << packet2->NWires << std::endl;
+    std::cout << "recv: size = " << n << ", packet" << std::endl;
 
     n = share_reciever.fmpz(number);
     std::cout << "recv: size = " << n << ", fmpz: ";
