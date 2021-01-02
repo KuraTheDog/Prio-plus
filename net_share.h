@@ -146,6 +146,10 @@ public:
             ret = send_fmpz(x->h_points[i]);
             if (ret <= 0) return ret; else total += ret;
         }
+
+        ret = BeaverTripleShare(x->triple_share);
+        if (ret <= 0) return ret; else total += ret;
+
         return total;
     }
 
@@ -275,6 +279,10 @@ public:
             ret = recv_fmpz(x->h_points[i]);
             if (ret <= 0) return ret; else total += ret;
         }
+
+        ret = BeaverTripleShare(x->triple_share);
+        if (ret <= 0) return ret; else total += ret;
+
         return total;
     }
 

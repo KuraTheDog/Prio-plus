@@ -86,7 +86,6 @@ void run_sender(int sockfd) {
 
     int n;
     fmpz_t number;
-
     fmpz_init(number);
 
     // Small number
@@ -135,9 +134,9 @@ void run_reciever(int newsockfd) {
     ShareReciever share_reciever(newsockfd);
 
     int n;
-
     fmpz_t number;
     fmpz_init(number);
+
     n = share_reciever.fmpz(number);
     std::cout << "recv: size = " << n << ", fmpz: ";
     fmpz_print(number); std::cout << std::endl;
@@ -159,7 +158,6 @@ void run_reciever(int newsockfd) {
 
     ClientPacket packet = nullptr;
     n = share_reciever.client_packet(packet);
-    std::cout << "recv: size = " << n << ", packet" << std::endl;
     std::cout << "recv: size = " << n << ", packet, N = " << packet->N << ", NWires = " << packet->NWires << std::endl;
 
     ClientPacket packet2 = nullptr;

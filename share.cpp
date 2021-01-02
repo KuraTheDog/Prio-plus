@@ -24,6 +24,8 @@ void init_client_packet(ClientPacket &p, int N, int NumMulInpGates){
     fmpz_init(p->h0_s);
 
     new_fmpz_array(&p->h_points, N);
+
+    p->triple_share = new BeaverTripleShare();
 }
 
 void SplitShare(fmpz_t val, fmpz_t A, fmpz_t B){
