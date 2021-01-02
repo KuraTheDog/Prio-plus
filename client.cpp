@@ -60,10 +60,12 @@ void send_maxshare(MaxShare& maxshare, int server_num, int B){
 }
 
 // Wrapper around send, with error catching.
-void send_to_server(int server, void* buffer, size_t n, int flags) {
+int send_to_server(int server, void* buffer, size_t n, int flags) {
     int socket = (server == 0 ? sockfd0 : sockfd1);
+    // TODO: send loop until ret = buffer size? 
     int ret = send(socket, buffer, n, flags);
     if(ret < 0) error_exit("Failed to send to server ");
+    return ret;
 }
 
 int main(int argc, char** argv){
@@ -493,7 +495,7 @@ int main(int argc, char** argv){
             fmpz_set_si(inp[1], real_vals[i] * real_vals[i]);
             Circuit* var_circuit = CheckVar();
             // Run through circuit to set wires.
-            bool eval = var_circuit->Eval(inp);
+            var_circuit->Eval(inp);
             ClientPacket p0, p1;
             share_polynomials(var_circuit, p0, p1);
 

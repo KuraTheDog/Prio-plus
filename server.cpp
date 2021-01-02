@@ -11,7 +11,6 @@
 #include "types.h"
 #include "proto.h"
 #include "server.h"
-#include "circuit.h"
 #include "net_share.h"
 
 #define SERVER0_IP "127.0.0.1"
@@ -47,7 +46,8 @@ std::unordered_map<std::string,uint32_t*> maxshare_map;
 std::unordered_map<std::string,bool> maxshare_valid_map;
 
 std::vector<VarShare> varshares;
-std::unordered_map<std::string, VarShare> varshare_map;  // ???
+std::unordered_map<std::string, uint32_t> varshare_map;
+std::unordered_map<std::string, uint32_t> varshare_map_squared;
 std::unordered_map<std::string, bool> varshare_valid_map;
 
 uint32_t int_sum_max;
@@ -73,6 +73,7 @@ void bind_and_listen(sockaddr_in& addr, int& sockfd, int server_num, int port){
     if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &sockopt, sizeof(sockopt)))
         error_exit("Sockopt failed");
 
+    bzero((char *) &addr, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
@@ -107,11 +108,11 @@ int main(int argc, char** argv){
     init_constants();
 
     while(1){
-        auto addrlen = sizeof(addr);
+        socklen_t addrlen = sizeof(addr);
 
         std::cout << "waiting for connection..." << std::endl;
 
-        newsockfd = accept(sockfd,(struct sockaddr*)&addr,(socklen_t *)&addrlen);
+        newsockfd = accept(sockfd,(struct sockaddr*)&addr,&addrlen);
         if(newsockfd < 0) error_exit("Connection creation failure");
         
         // Get an initMsg
@@ -706,6 +707,9 @@ int main(int argc, char** argv){
                 bytes_read = 0;
                 while (bytes_read < sizeof(VarShare)) {
                     bytes_read += recv(newsockfd, (char*)&varshare + bytes_read, sizeof(VarShare) - bytes_read, 0);
+                    if (bytes_read == 0) {
+                        error_exit("Read 0 bytes. connection closed?");
+                    }
                 }
                 std::string pk(varshare.pk, varshare.pk+32);
 
@@ -724,7 +728,8 @@ int main(int argc, char** argv){
                 shares[i] = varshare.val;
                 shares_squared[i] = varshare.val_squared;
                 varshares.push_back(varshare);
-                varshare_map[pk] = varshare;
+                varshare_map[pk] = varshare.val;
+                varshare_map_squared[pk] = varshare.val_squared;
             }
 
             std::cout << "Recieved " << num_inputs << " shares" << std::endl;
@@ -792,8 +797,8 @@ int main(int argc, char** argv){
                     valid[i] = false;
                 } else {
                     valid[i] = true;
-                    shares[i] = varshare_map[pk_str].val;
-                    shares_squared[i] = varshare_map[pk_str].val_squared;
+                    shares[i] = varshare_map[pk_str];
+                    shares_squared[i] = varshare_map_squared[pk_str];
                 }
             }
 
