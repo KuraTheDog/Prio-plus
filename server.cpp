@@ -23,6 +23,13 @@
 shares: list of shares
 share_map: map of pk -> val
 share_valid_map: map of pk -> validity
+
+Used so that values are preserved from X_OP to INIT_X_OP
+
+NOTE: This breaks if we run the same op twice.
+E.g. running intsum twice, it'll keep the old values still in intshare and intshare_map. 
+TODO: a) clean up the values each time.
+b) Merge operands, so it is in one scope.
 */
 
 std::vector<BitShare> bitshares;
@@ -61,16 +68,15 @@ void error_exit(const char *msg){
     exit(EXIT_FAILURE);
 }
 
-void bind_and_listen(sockaddr_in& addr, int& sockfd, int server_num, int port){
+void bind_and_listen(sockaddr_in& addr, int& sockfd, int port, int reuse = 1){
     sockfd = socket(AF_INET,SOCK_STREAM,0);
 
     if(sockfd == -1)
         error_exit("Socket creation failed");
-    int sockopt = 0;
     
-    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &sockopt, sizeof(sockopt)))
+    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)))
         error_exit("Sockopt failed");
-    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &sockopt, sizeof(sockopt)))
+    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)))
         error_exit("Sockopt failed");
 
     bzero((char *) &addr, sizeof(addr));
@@ -103,9 +109,9 @@ int main(int argc, char** argv){
 
     sockaddr_in addr;
 
-    bind_and_listen(addr,sockfd,server_num,port);
 
     init_constants();
+    bind_and_listen(addr, sockfd, port);
 
     while(1){
         socklen_t addrlen = sizeof(addr);
@@ -340,7 +346,6 @@ int main(int argc, char** argv){
                 }
                 // bytes_read = recv(newsockfd,(char*)&intshare,sizeof(IntShare),0);
                 std::string pk(andshare.pk,andshare.pk+32);
-
                 
                 if(andshare_map.find(pk) != andshare_map.end()){
                     continue; //Reject this input
@@ -447,7 +452,6 @@ int main(int argc, char** argv){
                 }
                 // bytes_read = recv(newsockfd,(char*)&intshare,sizeof(IntShare),0);
                 std::string pk(orshare.pk,orshare.pk+32);
-
                 
                 if(orshare_map.find(pk) != orshare_map.end()){
                     continue; //Reject this input
@@ -565,10 +569,6 @@ int main(int argc, char** argv){
                         bytes_read += recv(newsockfd,(char*)&(shares[i*(B+1)+j]) + bytes_read,sizeof(uint32_t)-bytes_read,0);
                     // std::cout << shares[i*(B+1)+j] << std::endl;
                 }
-
-                // while(bytes_read < share_sz){
-                //     bytes_read += recv(newsockfd,(char*)&(shares[i * (B+1)]) + bytes_read,share_sz-bytes_read,0);
-                // }
 
                 std::cout << pk << " Share : " << i << std::endl; 
                 // for(int j = 0; j <= B; j++)
@@ -828,7 +828,6 @@ int main(int argc, char** argv){
 
         std::cout << "end of loop" << std::endl << std::endl;
         close(newsockfd);
-
     }
 
     return 0;

@@ -384,7 +384,7 @@ int main(int argc, char** argv){
 
         for(int i = 0; i < numreqs; i++){
             MaxShare maxshare0, maxshare1;
-            values[i] = 10%(B+1);
+            values[i] = (i * i)%(B+1);  // TODO: random?
             std::cout << "value[" << i << "] = " << values[i] << std::endl;
             prg.random_data(or_encoded_array, (B+1)*sizeof(uint32_t));
             prg.random_data(shares0, (B+1)*sizeof(uint32_t));
