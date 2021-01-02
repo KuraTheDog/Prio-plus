@@ -67,7 +67,7 @@ void error_exit(const char *msg){
     exit(EXIT_FAILURE);
 }
 
-// Use example: type obj; read_in(sockfd, &obj, sizeof(obj))
+// Use example: type obj; read_in(sockfd, &obj, sizeof(type))
 size_t read_in(int sockfd, void* buf, size_t len) {
     size_t bytes_read = 0;
     char* bufptr = (char*) buf;
@@ -101,6 +101,39 @@ void bind_and_listen(sockaddr_in& addr, int& sockfd, int port, int reuse = 1){
         error_exit("Listen failed");   
 }
 
+// Asymmetric: 1 connects to 0, 0 listens to 1.
+void server0_listen(int& sockfd, int& newsockfd, int port, int reuse = 0) {
+    sockaddr_in addr;
+    bind_and_listen(addr, sockfd, port, reuse);
+
+    socklen_t addrlen = sizeof(addr);
+    std::cout << "  Waiting to accept\n";
+    newsockfd = accept(sockfd, (sockaddr*)&addr, &addrlen);
+    if(newsockfd < 0) error_exit("Accept failure");
+    std::cout << "  Accepted\n";
+}
+
+void server1_connect(int& sockfd, int port, int reuse = 0) {
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if(sockfd == -1) error_exit("Socket creation failed");
+
+    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)))
+        error_exit("Sockopt failed");
+    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)))
+        error_exit("Sockopt failed");
+
+    sockaddr_in addr;
+    bzero((char *) &addr, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    inet_pton(AF_INET, SERVER0_IP, &addr.sin_addr);
+
+    std::cout << "  Trying to connect...\n";
+    if (connect(sockfd, (sockaddr*)&addr, sizeof(addr)) < 0)
+        error_exit("Can't connect to other server");
+    std::cout << "  Connected\n";
+}
+
 int main(int argc, char** argv){
     if(argc < 4){
         std::cout << "Usage: ./bin/server server_num(0/1) this_port other_server_port INT_SUM_MAX_bits" << endl;
@@ -113,12 +146,36 @@ int main(int argc, char** argv){
     if (argc >= 4)
         num_bits = atoi(argv[4]);
 
-    int sockfd, newsockfd;
+    init_constants();
 
+    // Share the same randomX.
+    // TODO: change every once in a while.
+    fmpz_t randomX;
+    fmpz_init(randomX);
+    if (server_num == 0) {
+        int sockfd_other, newsockfd_other;
+        server0_listen(sockfd_other, newsockfd_other, port, 1);
+        ShareReciever other_share_reciever(newsockfd_other);
+        other_share_reciever.fmpz(randomX);
+        std::cout << "Got randomX: "; fmpz_print(randomX); std::cout << std::endl;
+        close(sockfd_other);
+        close(newsockfd_other);
+    } else if (server_num == 1) {
+        fmpz_set_si(randomX, 42);
+        // fmpz_randm(randomX, seed, Int_Modulus);
+        std::cout << "Sending randomX: "; fmpz_print(randomX); std::cout << std::endl;
+        int sockfd_other;
+        server1_connect(sockfd_other, other_port, 1);
+        ShareSender other_server_sender(sockfd_other);
+        other_server_sender.fmpz(randomX);
+        close(sockfd_other);
+    } else {
+        error_exit("Can only handle servers #0 and #1");
+    }
+
+    int sockfd, newsockfd;
     sockaddr_in addr;
 
-
-    init_constants();
     bind_and_listen(addr, sockfd, port);
 
     while(1){
@@ -166,18 +223,9 @@ int main(int argc, char** argv){
                     msg.type = INIT_BIT_SUM;
                     msg.num_of_inputs = bitshares.size();
                     bool *shares = new bool[msg.num_of_inputs];
-                    int sockfd_init = socket(AF_INET,SOCK_STREAM,0);
 
-                    struct sockaddr_in server0;
-
-                    server0.sin_port = htons(other_port);
-
-                    server0.sin_family = AF_INET;
-
-                    inet_pton(AF_INET,SERVER0_IP,&server0.sin_addr);
-
-                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0)
-                        error_exit("Can't connect to server0");
+                    int sockfd_init;
+                    server1_connect(sockfd_init, other_port);
 
                     if (send(sockfd_init,&msg,sizeof(initMsg),0) < 0)
                         error_exit("Failed to send");
@@ -263,16 +311,9 @@ int main(int argc, char** argv){
                     msg.type = INIT_INT_SUM;
                     msg.num_of_inputs = intshares.size();
                     uint32_t *shares = new uint32_t[intshares.size()];
-                    int sockfd_init = socket(AF_INET,SOCK_STREAM,0);
 
-                    struct sockaddr_in server0;
-                    server0.sin_port = htons(other_port);
-                    server0.sin_family = AF_INET;
-
-                    inet_pton(AF_INET,SERVER0_IP,&server0.sin_addr);
-
-                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0)
-                        error_exit("Can't connect to server0");
+                    int sockfd_init;
+                    server1_connect(sockfd_init, other_port);
 
                     if (send(sockfd_init,&msg,sizeof(initMsg),0) < 0)
                         error_exit("Failed to send");
@@ -359,18 +400,9 @@ int main(int argc, char** argv){
                     msg.type = INIT_AND_OP;
                     msg.num_of_inputs = andshares.size();
                     // uint32_t *shares = new uint32_t[andshares.size()];
-                    int sockfd_init = socket(AF_INET,SOCK_STREAM,0);
 
-                    struct sockaddr_in server0;
-
-                    server0.sin_port = htons(other_port);
-
-                    server0.sin_family = AF_INET;
-
-                    inet_pton(AF_INET,SERVER0_IP,&server0.sin_addr);
-
-                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0)
-                        error_exit("Can't connect to server0");
+                    int sockfd_init;
+                    server1_connect(sockfd_init, other_port);
 
                     if (send(sockfd_init,&msg,sizeof(initMsg),0) < 0)
                         error_exit("Failed to send");
@@ -457,18 +489,9 @@ int main(int argc, char** argv){
                     msg.type = INIT_OR_OP;
                     msg.num_of_inputs = orshares.size();
                     // uint32_t *shares = new uint32_t[orshares.size()];
-                    int sockfd_init = socket(AF_INET,SOCK_STREAM,0);
 
-                    struct sockaddr_in server0;
-
-                    server0.sin_port = htons(other_port);
-
-                    server0.sin_family = AF_INET;
-
-                    inet_pton(AF_INET,SERVER0_IP,&server0.sin_addr);
-
-                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0)
-                        error_exit("Can't connect to server0");
+                    int sockfd_init;
+                    server1_connect(sockfd_init, other_port);
 
                     if (send(sockfd_init,&msg,sizeof(initMsg),0) < 0)
                         error_exit("Failed to send");
@@ -565,16 +588,8 @@ int main(int argc, char** argv){
                     msg.num_of_inputs = maxshares.size();
                     msg.max_inp = B;
                     // uint32_t *shares = new uint32_t[orshares.size()];
-                    int sockfd_init = socket(AF_INET,SOCK_STREAM,0);
-
-                    struct sockaddr_in server0;
-                    server0.sin_port = htons(other_port);
-                    server0.sin_family = AF_INET;
-
-                    inet_pton(AF_INET,SERVER0_IP,&server0.sin_addr);
-
-                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0)
-                        error_exit("Can't connect to server0");
+                    int sockfd_init;
+                    server1_connect(sockfd_init, other_port);
 
                     if (send(sockfd_init,&msg,sizeof(initMsg),0) < 0)
                         error_exit("Failed to send");
@@ -709,14 +724,9 @@ int main(int argc, char** argv){
                     uint32_t shares[num_shares];
                     uint32_t shares_squared[num_shares];
 
-                    int sockfd_init = socket(AF_INET, SOCK_STREAM, 0);
-                    struct sockaddr_in server0;
-                    server0.sin_port = htons(other_port);
-                    server0.sin_family = AF_INET;
-                    inet_pton(AF_INET, SERVER0_IP, &server0.sin_addr);
+                    int sockfd_init;
+                    server1_connect(sockfd_init, other_port);
 
-                    if(connect(sockfd_init,(sockaddr*)&server0,sizeof(server0)) < 0)
-                        error_exit("Can't connect to server0");
                     if (send(sockfd_init, &msg, sizeof(initMsg),0) < 0)
                         error_exit("Failed to send");
 
