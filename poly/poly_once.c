@@ -8,12 +8,9 @@
 
 
 void 
-precomp_x_init(precomp_x_t *pre_x,
-  const precomp_t *pre, fmpz_t x)
+precomp_x_init(precomp_x_t *pre_x, const precomp_t *pre, const fmpz_t x)
 {
-
-  fmpz_init(pre_x->modulus);
-  fmpz_set(pre_x->modulus, pre->modulus);
+  fmpz_init_set(pre_x->modulus, pre->modulus);
 
   // If the x value at which we want to evaluate is already an x_value 
   // we've used, there's no need to do any interpolation,
@@ -46,8 +43,7 @@ precomp_x_init(precomp_x_t *pre_x,
   fmpz_t tmp;
   fmpz_init(tmp); 
 
-  fmpz_init(prod); 
-  fmpz_set_ui(prod, 1);
+  fmpz_init_set_ui(prod, 1);
   for (int i = 0; i < pre_x->n_points; i++) {
     // Compute tmp = (x - x_i)
     fmpz_sub(tmp, x, pre->x_points[i]);
@@ -84,7 +80,7 @@ precomp_x_clear(precomp_x_t *pre_x)
   fmpz_clear(pre_x->modulus);
 }
 
-void precomp_x_eval(precomp_x_t *pre_x, fmpz_t *yValues, fmpz_t out)
+void precomp_x_eval(precomp_x_t *pre_x, const fmpz_t *yValues, fmpz_t out)
 {
   fmpz_init(out);
   if (pre_x->short_x >= 0) {

@@ -17,11 +17,11 @@ struct BatchPoly {
 
     // Below 2 are unused in test_circuit.
 
-    fmpz_t* Eval(fmpz_t* xPointsIn, int n) {
+    fmpz_t* Eval(const fmpz_t* xPointsIn, const int n) {
         return poly_batch_evaluate(fpoly, n, xPointsIn);
     }
 
-    void EvalOnce(fmpz_t x, fmpz_t out) {
+    void EvalOnce(const fmpz_t x, fmpz_t out) {
         fmpz_init(out);
         poly_batch_evaluate_once(fpoly, x, out);
     }
@@ -35,13 +35,18 @@ struct BatchPre {
     precomp_t pre;
 
     // Newbatch
-    BatchPre(fmpz_t *xPointsIn, int n) {
-        poly_batch_precomp_init(&pre, Int_Modulus, nPoints, xPointsIn);
+    BatchPre(const fmpz_t *xPointsIn, const int n) {
+        // std::cout << " new BatchPre , n = " << n << ", xPointsIn = [";
+        // for(int i =0; i < n; i++){
+        //     if (i > 0) std::cout << ", ";
+        //     fmpz_print(xPointsIn[i]);
+        // }
+        // std::cout << "]\n";
         poly_batch_precomp_init(&pre, Int_Modulus, n, xPointsIn);
     }
 
-    // can we use this.npoints in place of n?
-    BatchPoly* Interp(fmpz_t* yPointsIn, int n) {
+    // Unused. 
+    BatchPoly* Interp(const fmpz_t* yPointsIn, const int n) {
         BatchPoly* bpoly = new BatchPoly();
 
         poly_batch_init(bpoly->fpoly, &pre);
@@ -61,7 +66,7 @@ struct PreX {
     precomp_x_t pre;
 
     // Replaces NewEvalPoint
-    PreX(BatchPre* b, fmpz_t x) {
+    PreX(BatchPre* b, const fmpz_t x) {
         batchPre = b;
         precomp_x_init(&pre, &batchPre->pre, x);
         // std::cout << " PreX coeffs: [";
@@ -76,7 +81,7 @@ struct PreX {
         precomp_x_clear(&pre);
     }
 
-    void Eval(fmpz_t* yValues, fmpz_t out) {
+    void Eval(const fmpz_t* yValues, fmpz_t out) {
         precomp_x_eval(&pre, yValues, out);
     }
 };
@@ -90,7 +95,7 @@ struct CheckerPreComp {
     PreX *xN;
     PreX *x2N;
 
-    CheckerPreComp(Circuit* ckt) {
+    CheckerPreComp(const Circuit* ckt) {
         int n = ckt->NumMulGates() + 1;
         int N = NextPowerofTwo(n);
 
@@ -98,7 +103,7 @@ struct CheckerPreComp {
         deg2N = new BatchPre(roots2, 2 * N);
     }
 
-    void setCheckerPrecomp(fmpz_t val) {
+    void setCheckerPrecomp(const fmpz_t val) {
         fmpz_init_set(x, val);
 
         xN = new PreX(degN, x);
@@ -108,7 +113,7 @@ struct CheckerPreComp {
 
 struct Checker {
     int serveridx;     // id of this server
-    ClientPacket req;  // ??? Contains beaver triple?
+    ClientPacket req;  // Client packet
     Circuit *ckt;      // Validation circuit
 
     int n;  // number of mult gates
@@ -123,7 +128,7 @@ struct Checker {
     fmpz_t evalG;  // [r * g(r)]
     fmpz_t evalH;  // [r * h(r)]
 
-    Checker(Circuit* c, int idx){
+    Checker(Circuit* c, const int idx){
         ckt = c;
         serveridx = idx;
         n = ckt->NumMulGates()+1;
@@ -147,19 +152,13 @@ struct Checker {
         fmpz_clear(evalH);
     }
 
-    void setReq(ClientPacket pkt){
+    void setReq(const ClientPacket pkt){
         req = pkt;
         ckt->ImportWires(pkt, serveridx);
     }
 
-    /* Step 2. 
-       Given f0 and x can rebuild f. same with g. 
-       Also rebuild wire shares.
-
-       Can we replace pkt with req?
-    */
-    void evalPoly(CheckerPreComp *pre){
-        std::cout << "evalPoly" << std::endl;
+    void evalPoly(const CheckerPreComp *pre){
+        // std::cout << "evalPoly" << std::endl;
         std::vector<Gate*> mulgates = ckt->MulGates();
         // Get constant terms from packet
         fmpz_set(pointsF[0],req->f0_s);
@@ -189,7 +188,7 @@ struct Checker {
         // }
         // std::cout << "]" << std::endl;
         pre->xN->Eval(pointsF, evalF);
-        std::cout << "f(r) = "; fmpz_print(evalF); std::cout << std::endl;
+        // std::cout << "f(r) = "; fmpz_print(evalF); std::cout << std::endl;
 
         // std::cout << " pointsG = [";
         // for (int i = 0; i < N; i++) {
@@ -198,10 +197,10 @@ struct Checker {
         // }
         // std::cout << "]" << std::endl;
         pre->xN->Eval(pointsG, evalG);
-        std::cout << "g(r) = "; fmpz_print(evalG); std::cout << std::endl;
+        // std::cout << "g(r) = "; fmpz_print(evalG); std::cout << std::endl;
         fmpz_mul(evalG, evalG, pre->x);
         fmpz_mod(evalG, evalG, Int_Modulus);
-        std::cout << "r * g(r) = "; fmpz_print(evalG); std::cout << std::endl;
+        // std::cout << "r * g(r) = "; fmpz_print(evalG); std::cout << std::endl;
 
         // std::cout << " pointsH = [";
         // for (int i = 0; i < 2 * N; i++) {
@@ -210,15 +209,15 @@ struct Checker {
         // }
         // std::cout << "]" << std::endl;
         pre->x2N->Eval(pointsH, evalH);
-        std::cout << "h(r) = "; fmpz_print(evalH); std::cout << std::endl;
+        // std::cout << "h(r) = "; fmpz_print(evalH); std::cout << std::endl;
         fmpz_mul(evalH, evalH, pre->x);
         fmpz_mod(evalH, evalH, Int_Modulus);
-        std::cout << "r * h(r) = "; fmpz_print(evalH); std::cout << std::endl;
+        // std::cout << "r * h(r) = "; fmpz_print(evalH); std::cout << std::endl;
     }
 
-    CorShare* CorShareFn(CheckerPreComp *pre){
+    CorShare* CorShareFn(const CheckerPreComp *pre){
         evalPoly(pre);
-        std::cout << "CorShareFn" << std::endl;
+        // std::cout << "CorShareFn" << std::endl;
         CorShare* out = new CorShare();
 
         fmpz_sub(out->shareD, evalF, req->triple_share->shareA);
@@ -230,9 +229,9 @@ struct Checker {
         return out;
     }
 
-    Cor* CorFn(CorShare* cs0, CorShare* cs1){
+    Cor* CorFn(const CorShare* cs0, const CorShare* cs1){
         Cor* out = new Cor();
-        std::cout << "CorFn" << std::endl;
+        // std::cout << "CorFn" << std::endl;
         fmpz_add(out->D,cs0->shareD, cs1->shareD);
         fmpz_mod(out->D, out->D, Int_Modulus);
 
@@ -243,7 +242,7 @@ struct Checker {
     }
 
     // To be fixed. Both servers need to use same random seed. Using constant 1 instead now.
-    void randSum(fmpz_t out, fmpz_t* arr){
+    void randSum(fmpz_t out, const fmpz_t* arr){
         int len = ckt->result_zero.size() + 1;
 
         fmpz_t tmp;
@@ -263,7 +262,7 @@ struct Checker {
         fmpz_clear(tmp);
     }
 
-    void OutShare(fmpz_t out, Cor* corIn) {
+    void OutShare(fmpz_t out, const Cor* corIn) {
         fmpz_t mulCheck;
         fmpz_t term;
 
@@ -308,7 +307,7 @@ struct Checker {
         fmpz_clear(term);
     }
 
-    bool OutputIsValid(fmpz_t output0, fmpz_t output1){
+    bool OutputIsValid(const fmpz_t output0, const fmpz_t output1){
         fmpz_t out;
         fmpz_init(out);
         

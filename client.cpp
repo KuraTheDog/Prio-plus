@@ -36,14 +36,14 @@ void error_exit(const char *msg){
     exit(EXIT_FAILURE);
 }
 
-std::string pub_key_to_hex(uint64_t *key){
+std::string pub_key_to_hex(const uint64_t *key){
     std::stringstream ss;
     ss << std::setfill('0') << std::setw(16) << std::hex << key[0];
     ss << std::setfill('0') << std::setw(16) << std::hex << key[1];
     return ss.str();
 }
 
-void send_maxshare(MaxShare& maxshare, int server_num, int B){
+void send_maxshare(const MaxShare& maxshare, const int server_num, const int B){
     int sock = (server_num == 0) ? sockfd0 : sockfd1;
 
     int s = send(sock,(void *)&maxshare,sizeof(MaxShare),0);
@@ -60,7 +60,7 @@ void send_maxshare(MaxShare& maxshare, int server_num, int B){
 }
 
 // Wrapper around send, with error catching.
-int send_to_server(int server, void* buffer, size_t n, int flags) {
+int send_to_server(const int server, const void* buffer, const size_t n, const int flags) {
     int socket = (server == 0 ? sockfd0 : sockfd1);
     // TODO: send loop until ret = buffer size? 
     int ret = send(socket, buffer, n, flags);
@@ -73,9 +73,9 @@ int main(int argc, char** argv){
         std::cout << "Usage: ./bin/client num_submissions server0_port server1_port BITSUM/INTSUM num_bits" << endl;
     }
 
-    int numreqs = atoi(argv[1]);  // Number of simulated clients
-    int port0 = atoi(argv[2]);
-    int port1 = atoi(argv[3]);
+    const int numreqs = atoi(argv[1]);  // Number of simulated clients
+    const int port0 = atoi(argv[2]);
+    const int port1 = atoi(argv[3]);
 
     std::string protocol(argv[4]);
 

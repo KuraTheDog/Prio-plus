@@ -40,7 +40,7 @@ void clear_constants() {
     flint_randclear(seed);
 }
 
-void init_roots(int N) {
+void init_roots(const int N) {
     // std::cout << "init_roots: " << N << std::endl;
 
     new_fmpz_array(&roots, N);
@@ -216,7 +216,7 @@ struct Circuit {
         return res;
     }
 
-    std::vector<Gate*> MulGates(){
+    std::vector<Gate*> MulGates() const {
         std::vector<Gate*> res;
 
         for(auto gate : this->gates){
@@ -227,7 +227,7 @@ struct Circuit {
         return res;
     }
 
-    int NumMulGates() {
+    int NumMulGates() const {
         int total = 0;
         for (auto gate: this->gates) {
             if (gate->type == Gate_Mul)
@@ -236,7 +236,7 @@ struct Circuit {
         return total;
     }
 
-    int NumMulInpGates() {
+    int NumMulInpGates() const {
         int total = 0;
         for (auto gate: this->gates) {
             if (gate->type == Gate_Mul or gate->type == Gate_Input)
@@ -245,7 +245,7 @@ struct Circuit {
         return total;
     }
 
-    void GetWireShares(fmpz_t** shares0, fmpz_t** shares1, int& n){
+    void GetWireShares(fmpz_t** shares0, fmpz_t** shares1, int& n) const {
         n = 0;
         for(auto gate : gates){
             if(gate->type == Gate_Input or gate->type == Gate_Mul){
@@ -274,7 +274,7 @@ struct Circuit {
         *shares0 = forServer0; *shares1 = forServer1;
     }
 
-    void ImportWires(ClientPacket p, int server_num){
+    void ImportWires(const ClientPacket p, const int server_num){
         int i = 0;
 
 
@@ -311,7 +311,7 @@ struct Circuit {
     }
 };
 
-int NextPowerofTwo(int n){
+int NextPowerofTwo(const int n){
     int ans = 1;
     while(n > ans){
         ans *= 2;

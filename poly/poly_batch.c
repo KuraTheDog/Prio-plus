@@ -6,21 +6,17 @@
 #include "poly_batch.h"
 
 
-static void fast_linear_comp(fmpz_mod_poly_t poly, const struct tree_s *pre,
-  int n_points, fmpz_t *pointsX, fmpz_t *pointsY);
-static void fast_interpolate(fmpz_mod_poly_t poly, const struct precomp_s *pre, fmpz_t *pointsY);
-static void fast_evaluate(fmpz_t *pointsY, const fmpz_mod_poly_t poly, 
-    const struct tree_s *pre, int n_points, fmpz_t *pointsX);
+static void fast_linear_comp(fmpz_mod_poly_t poly, const struct tree_s *pre, const int n_points, fmpz_t *pointsX, fmpz_t *pointsY);
+static void fast_interpolate(fmpz_mod_poly_t poly, const struct precomp_s *pre, const fmpz_t *pointsY);
+static void fast_evaluate(fmpz_t *pointsY, const fmpz_mod_poly_t poly, const struct tree_s *pre, const int n_points, const fmpz_t *pointsX);
 
-static void tree_init(struct tree_s *pre, const fmpz_t modulus, 
-    int n_points, fmpz_t *pointsX);
+static void tree_init(struct tree_s *pre, const fmpz_t modulus, const int n_points, const fmpz_t *pointsX);
 void tree_clear(struct tree_s *pre);
 
-static void c_precomp_init(struct precomp_s *pre, const fmpz_t modulus, 
-  int n_points, fmpz_t *pointsX);
+static void c_precomp_init(struct precomp_s *pre, const fmpz_t modulus, const int n_points, const fmpz_t *pointsX);
 
 void
-poly_batch_init(fmpz_mod_poly_t poly, struct precomp_s *pre)
+poly_batch_init(fmpz_mod_poly_t poly, const struct precomp_s *pre)
 {
   fmpz_mod_poly_init(poly, pre->modulus);
   fmpz_mod_poly_set_coeff_ui(poly, 0, 0);
@@ -33,27 +29,24 @@ poly_batch_clear(fmpz_mod_poly_t poly)
 }
 
 void
-poly_batch_evaluate_once(fmpz_mod_poly_t poly, fmpz_t x, fmpz_t out)
+poly_batch_evaluate_once(const fmpz_mod_poly_t poly, const fmpz_t xIn, fmpz_t out)
 {
   fmpz_t y;
   fmpz_init(y);
 
-  fmpz_mod_poly_evaluate_fmpz(y, poly, x);
-  fmpz_set(out,y);
+  fmpz_mod_poly_evaluate_fmpz(y, poly, xIn);
+  fmpz_set(out, y);
 
-  // fmpz_clear(x);
   fmpz_clear(y);
-
 }
 
 fmpz_t *
-poly_batch_evaluate(fmpz_mod_poly_t poly, int n_points, fmpz_t *pointsXin)
+poly_batch_evaluate(fmpz_mod_poly_t poly, const int n_points, const fmpz_t *pointsXin)
 {
   fmpz_t xs[n_points];
   fmpz_t *ys = (fmpz_t*) malloc(sizeof(fmpz_t) *n_points);;
   for (int i = 0; i < n_points; i++) {
-    fmpz_init(xs[i]);
-    fmpz_set(xs[i], pointsXin[i]);
+    fmpz_init_set(xs[i], pointsXin[i]);
     fmpz_init(ys[i]);
   }
 
@@ -68,7 +61,7 @@ poly_batch_evaluate(fmpz_mod_poly_t poly, int n_points, fmpz_t *pointsXin)
 
 
 void
-poly_batch_interpolate(fmpz_mod_poly_t poly, struct precomp_s *pre, fmpz_t *pointsYin)
+poly_batch_interpolate(fmpz_mod_poly_t poly, const struct precomp_s *pre, const fmpz_t *pointsYin)
 {
   // We use the algorithm from:
   //    "Modern Computer Algebra"
@@ -77,8 +70,7 @@ poly_batch_interpolate(fmpz_mod_poly_t poly, struct precomp_s *pre, fmpz_t *poin
   fmpz_t pointsY[pre->n_points];
 
   for (int i = 0; i < pre->n_points; i++) {
-    fmpz_init(pointsY[i]);
-    fmpz_set(pointsY[i], pointsYin[i]);
+    fmpz_init_set(pointsY[i], pointsYin[i]);
   }
 
   fast_interpolate(poly, pre, pointsY);
@@ -89,8 +81,7 @@ poly_batch_interpolate(fmpz_mod_poly_t poly, struct precomp_s *pre, fmpz_t *poin
 }
 
 static void
-tree_init(struct tree_s *pre, const fmpz_t modulus, 
-    int n_points, fmpz_t *pointsX)
+tree_init(struct tree_s *pre, const fmpz_t modulus, const int n_points, const fmpz_t *pointsX)
 {
   // On input (x_1, ..., x_n), compute the polynomial
   //    f(x) = (x - x_1)(x - x_2) ... (x - x_n)
@@ -105,8 +96,7 @@ tree_init(struct tree_s *pre, const fmpz_t modulus,
     pre->right = NULL; 
 
     fmpz_t tmp;
-    fmpz_init(tmp);
-    fmpz_set(tmp, pointsX[0]);
+    fmpz_init_set(tmp, pointsX[0]);
     fmpz_neg(tmp, tmp);
   
     // In base case, polynomial is (x - x_i)
@@ -135,17 +125,14 @@ tree_init(struct tree_s *pre, const fmpz_t modulus,
   fmpz_mod_poly_mul(pre->poly, pre->left->poly, pre->right->poly);
 }
 
-static void c_precomp_init(struct precomp_s *pre, const fmpz_t modulus, 
-  int n_points, fmpz_t *pointsX)
+static void c_precomp_init(struct precomp_s *pre, const fmpz_t modulus, const int n_points, const fmpz_t *pointsX)
 {
   pre->x_points = safe_malloc(n_points * sizeof(fmpz_t));
   pre->s_points = safe_malloc(n_points * sizeof(fmpz_t));
 
   for (int i = 0; i < n_points; i++) {
-    fmpz_init(pre->x_points[i]);
+    fmpz_init_set(pre->x_points[i], pointsX[i]);
     fmpz_init(pre->s_points[i]);
-
-    fmpz_set(pre->x_points[i], pointsX[i]);
   }
 
   pre->n_points = n_points;
@@ -164,15 +151,13 @@ static void c_precomp_init(struct precomp_s *pre, const fmpz_t modulus,
 }
 
 void 
-poly_batch_precomp_init(struct precomp_s *pre, fmpz_t modIn, 
-    int n_points, fmpz_t *pointsXin)
+poly_batch_precomp_init(struct precomp_s *pre, const fmpz_t modIn, const int n_points, const fmpz_t *pointsXin)
 {
   fmpz_init_set(pre->modulus, modIn);
 
   fmpz_t pointsX[n_points];
   for (int i = 0; i < n_points; i++) {
-    fmpz_init(pointsX[i]);
-    fmpz_set(pointsX[i], pointsXin[i]);
+    fmpz_init_set(pointsX[i], pointsXin[i]);
   }
 
   c_precomp_init(pre, pre->modulus, n_points, pointsX);
@@ -208,7 +193,7 @@ void tree_clear(struct tree_s *pre)
 }
 
 static void
-fast_interpolate(fmpz_mod_poly_t poly, const struct precomp_s *pre, fmpz_t *pointsY)
+fast_interpolate(fmpz_mod_poly_t poly, const struct precomp_s *pre, const fmpz_t *pointsY)
 {
   const fmpz *mod = fmpz_mod_poly_modulus(poly);
 
@@ -227,8 +212,7 @@ fast_interpolate(fmpz_mod_poly_t poly, const struct precomp_s *pre, fmpz_t *poin
 }
 
 static void
-fast_linear_comp(fmpz_mod_poly_t poly, const struct tree_s *pre,
-  int n_points, fmpz_t *pointsX, fmpz_t *pointsY)
+fast_linear_comp(fmpz_mod_poly_t poly, const struct tree_s *pre, const int n_points, fmpz_t *pointsX, fmpz_t *pointsY)
 {
   // This is Algorithm 10.9 from the book cited above.
   //
@@ -263,7 +247,7 @@ fast_linear_comp(fmpz_mod_poly_t poly, const struct tree_s *pre,
 }
 
 static void
-fast_evaluate(fmpz_t *pointsY, const fmpz_mod_poly_t poly, const struct tree_s *pre, int n_points, fmpz_t *pointsX)
+fast_evaluate(fmpz_t *pointsY, const fmpz_mod_poly_t poly, const struct tree_s *pre, const int n_points, const fmpz_t *pointsX)
 {
   if (n_points == 1) {
     fmpz_mod_poly_get_coeff_fmpz(pointsY[0], poly, 0);

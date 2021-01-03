@@ -99,7 +99,7 @@ struct client_packet {
         clear_fmpz_array(h_points, N);
     }
 
-    void print() {
+    void print() const {
         std::cout << " N = " << N << std::endl;
         std::cout << " NWires = " << NWires << std::endl;
         std::cout << " WireShares = {";
@@ -129,12 +129,13 @@ struct ClientSubmission {
     BeaverTripleShare triple;
 };
 
-void init_client_packet(ClientPacket &p, int N, int NumMulInpGates);
+// Can this be an alternative constructor? Or the only one?
+void init_client_packet(ClientPacket &p, const int N, const int NumMulInpGates);
 
-void SplitShare(fmpz_t val, fmpz_t A, fmpz_t B);
+void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B);
 
 BeaverTriple* NewBeaverTriple();
 
-BeaverTripleShare* BeaverTripleShares(BeaverTriple* inp);
+BeaverTripleShare* BeaverTripleShares(const BeaverTriple* inp);
 
 #endif

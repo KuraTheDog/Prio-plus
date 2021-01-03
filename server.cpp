@@ -75,7 +75,7 @@ void error_exit(const char *msg){
 }
 
 // Use example: type obj; read_in(sockfd, &obj, sizeof(type))
-size_t read_in(int sockfd, void* buf, size_t len) {
+size_t read_in(const int sockfd, void* buf, const size_t len) {
     size_t bytes_read = 0;
     char* bufptr = (char*) buf;
     while (bytes_read < len)
@@ -83,7 +83,7 @@ size_t read_in(int sockfd, void* buf, size_t len) {
     return bytes_read;
 }
 
-void bind_and_listen(sockaddr_in& addr, int& sockfd, int port, int reuse = 1){
+void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port, const int reuse = 1){
     sockfd = socket(AF_INET,SOCK_STREAM,0);
 
     if(sockfd == -1)
@@ -109,7 +109,7 @@ void bind_and_listen(sockaddr_in& addr, int& sockfd, int port, int reuse = 1){
 }
 
 // Asymmetric: 1 connects to 0, 0 listens to 1.
-void server0_listen(int& sockfd, int& newsockfd, int port, int reuse = 0) {
+void server0_listen(int& sockfd, int& newsockfd, const int port, const int reuse = 0) {
     sockaddr_in addr;
     bind_and_listen(addr, sockfd, port, reuse);
 
@@ -120,7 +120,7 @@ void server0_listen(int& sockfd, int& newsockfd, int port, int reuse = 0) {
     std::cout << "  Accepted\n";
 }
 
-void server1_connect(int& sockfd, int port, int reuse = 0) {
+void server1_connect(int& sockfd, const int port, const int reuse = 0) {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if(sockfd == -1) error_exit("Socket creation failed");
 
@@ -141,8 +141,8 @@ void server1_connect(int& sockfd, int port, int reuse = 0) {
     std::cout << "  Connected\n";
 }
 
-bool run_snip(Circuit* circuit, ClientPacket packet, fmpz_t randomX, 
-              ShareSender sender, ShareReceiver receiver, int server_num) {
+bool run_snip(Circuit* circuit, const ClientPacket packet, const fmpz_t randomX, 
+              const ShareSender sender, const ShareReceiver receiver, const int server_num) {
     Checker* checker = new Checker(circuit, server_num);
     checker->setReq(packet);
     CheckerPreComp* pre = new CheckerPreComp(circuit);
@@ -185,9 +185,9 @@ int main(int argc, char** argv){
         std::cout << "Usage: ./bin/server server_num(0/1) this_port other_server_port INT_SUM_MAX_bits" << endl;
     }
 
-    int server_num = atoi(argv[1]);  // Server # 1 or # 2
-    int port = atoi(argv[2]);        // port of this server
-    int other_port = atoi(argv[3]);  // port of the other server
+    const int server_num = atoi(argv[1]);  // Server # 1 or # 2
+    const int port = atoi(argv[2]);        // port of this server
+    const int other_port = atoi(argv[3]);  // port of the other server
 
     if (argc >= 4)
         num_bits = atoi(argv[4]);
@@ -730,8 +730,8 @@ int main(int argc, char** argv){
             // Alternate idea: make each of these a function. Var calls intsum twice, then snip. 
             std::cout << "VAR_OP" << std::endl;
             VarShare varshare;
-            uint32_t small_max = 1 << (num_bits / 2);  // for values
-            uint32_t var_max = 1 << num_bits;      // for values squared
+            const uint32_t small_max = 1 << (num_bits / 2);  // for values
+            const uint32_t var_max = 1 << num_bits;      // for values squared
             const size_t num_inputs = msg.num_of_inputs;
             uint32_t shares[num_inputs];
             uint32_t shares_squared[num_inputs];

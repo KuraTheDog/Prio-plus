@@ -10,7 +10,7 @@ extern "C" {
     #include "poly/fft.h"
 }
 
-void share_polynomials(Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
+void share_polynomials(const Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
     auto mulgates = circuit->MulGates();
 
     int n = mulgates.size() + 1;

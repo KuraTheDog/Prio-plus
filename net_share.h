@@ -57,23 +57,23 @@ string: best is base 62, so 62/256 ~ 25% space efficiency. So needs ~4x bits com
 */
 
 class ShareSender {
-    int sockfd;
+    const int sockfd;
 
-    int send_int(const int x){
+    int send_int(const int x) const {
         int x_conv = htonl(x);
         const char* data = (const char*) &x_conv;
         int ret = send(sockfd, data, sizeof(int), 0);
         return ret;
     }
 
-    int send_ulong(const ulong x) {
+    int send_ulong(const ulong x) const {
         ulong x_conv = htonll(x);
         const char* data = (const char*) &x_conv;
         int ret = send(sockfd, data, sizeof(ulong), 0);
         return ret;
     }
 
-    int send_fmpz(fmpz_t x){
+    int send_fmpz(const fmpz_t x) const {
         int total = 0, ret;
         size_t len = fmpz_size(x);
         ulong arr[len];
@@ -89,22 +89,19 @@ class ShareSender {
 
 public: 
 
-    ShareSender(int sockfd) {
-        this->sockfd = sockfd;
-    }
+    ShareSender(const int sockfd) : sockfd(sockfd) {}
 
-    ~ShareSender() {
-    }
+    ~ShareSender() {}
 
-    int fmpz(fmpz_t x) {
+    int fmpz(const fmpz_t x) const {
         return send_fmpz(x);
     }
 
-    int integer(int x) {
+    int integer(const int x) const {
         return send_int(x);
     }
 
-    int Cor(Cor *x) {
+    int Cor(const Cor *x) const {
         int total = 0, ret;
         ret = send_fmpz(x->D);
         if (ret <= 0) return ret; else total += ret;
@@ -113,7 +110,7 @@ public:
         return total;
     }
 
-    int CorShare(CorShare *x) {
+    int CorShare(const CorShare *x) const {
         int total = 0, ret;
         ret = send_fmpz(x->shareD);
         if (ret <= 0) return ret; else total += ret;
@@ -122,7 +119,7 @@ public:
         return total;
     }
 
-    int client_packet(client_packet *x) {
+    int client_packet(const client_packet *x) const {
         int N = x->N, NWires = x->NWires, total = 0, ret;
         ret = send_int(N);
         if (ret <= 0) return ret; else total += ret;
@@ -153,7 +150,7 @@ public:
         return total;
     }
 
-    int BeaverTriple(BeaverTriple *x) {
+    int BeaverTriple(const BeaverTriple *x) const {
         int total = 0, ret;
         ret = send_fmpz(x->A);
         if (ret <= 0) return ret; else total += ret;
@@ -164,7 +161,7 @@ public:
         return total;
     }
 
-    int BeaverTripleShare(BeaverTripleShare *x) {
+    int BeaverTripleShare(const BeaverTripleShare *x) const {
         int total = 0, ret;
         ret = send_fmpz(x->shareA);
         if (ret <= 0) return ret; else total += ret;
@@ -176,9 +173,9 @@ public:
 };
 
 class ShareReceiver {
-    int sockfd;
+    const int sockfd;
 
-    int recv_int(int& x) {
+    int recv_int(int& x) const {
         int bytes_read = 0, tmp;
         char buf[sizeof(int)];
         while (bytes_read < sizeof(int)) {
@@ -189,7 +186,7 @@ class ShareReceiver {
         return bytes_read;
     }
 
-    int recv_ulong(ulong& x) {
+    int recv_ulong(ulong& x) const {
         char buf[sizeof(ulong)];
         int bytes_read = 0, tmp;
         while (bytes_read < sizeof(ulong)) {
@@ -200,7 +197,7 @@ class ShareReceiver {
         return bytes_read;
     }
 
-    int recv_fmpz(fmpz_t x){
+    int recv_fmpz(fmpz_t x) const {
         int total = 0, ret, len;
         ulong tmp;
         ret = recv_int(len);
@@ -221,22 +218,19 @@ class ShareReceiver {
 
 public: 
 
-    ShareReceiver(int sockfd) {
-        this->sockfd = sockfd;
-    }
+    ShareReceiver(const int sockfd) : sockfd(sockfd) {}
 
-    ~ShareReceiver() {
-    }
+    ~ShareReceiver() {}
 
-    int fmpz(fmpz_t x) {
+    int fmpz(fmpz_t x) const {
         return recv_fmpz(x);
     }
 
-    int integer(int& x) {
+    int integer(int& x) const {
         return recv_int(x);
     }
 
-    int Cor(Cor *x) {
+    int Cor(Cor *x) const {
         int total = 0, ret;
         ret = recv_fmpz(x->D);
         if (ret <= 0) return ret; else total += ret;
@@ -245,7 +239,7 @@ public:
         return total;
     }
 
-    int CorShare(CorShare *x) {
+    int CorShare(CorShare *x) const {
         int total = 0, ret;
         ret = recv_fmpz(x->shareD);
         if (ret <= 0) return ret; else total += ret;
@@ -254,7 +248,7 @@ public:
         return total;
     }
 
-    int client_packet(client_packet* &x) {
+    int client_packet(client_packet* &x) const {
         int N, NWires, total = 0, ret;
         ret = recv_int(N);
         if (ret <= 0) return ret; else total += ret;
@@ -286,7 +280,7 @@ public:
         return total;
     }
 
-    int BeaverTriple(BeaverTriple *x) {
+    int BeaverTriple(BeaverTriple *x) const {
         int total = 0, ret;
         ret = recv_fmpz(x->A);
         if (ret <= 0) return ret; else total += ret;
@@ -297,7 +291,7 @@ public:
         return total;
     }
 
-    int BeaverTripleShare(BeaverTripleShare *x) {
+    int BeaverTripleShare(BeaverTripleShare *x) const {
         int total = 0, ret;
         ret = recv_fmpz(x->shareA);
         if (ret <= 0) return ret; else total += ret;
