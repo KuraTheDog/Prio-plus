@@ -287,6 +287,9 @@ int main(int argc, char** argv){
                     std::cout << "From receiver: " << b << std::endl;
                     send(sockfd_init,&b,sizeof(uint64_t),0);
                 }
+                bitshares.clear();
+                bitshare_map.clear();
+                bitshare_valid_map.clear();
             }
             delete[] valid;
             delete[] shares;
@@ -321,6 +324,9 @@ int main(int argc, char** argv){
             std::cout << "Time taken : " << t << std::endl;
             delete[] shares;
             delete[] valid;
+            bitshares.clear();
+            bitshare_map.clear();
+            bitshare_valid_map.clear();
         } else if(msg.type == INT_SUM){
             std::cout << "got INT_SUM" << std::endl;
             IntShare intshare;
@@ -375,6 +381,9 @@ int main(int argc, char** argv){
                     send(sockfd_init,&b,sizeof(uint64_t),0);
                     std::cout << "Sending to server0: " << b << std::endl;
                 }
+                intshares.clear();
+                intshare_map.clear();
+                intshare_valid_map.clear();
             }
             delete[] shares;
             delete[] valid;
@@ -413,6 +422,9 @@ int main(int argc, char** argv){
             std::cout << "Time taken : " << t << std::endl;
             delete[] shares;
             delete[] valid;
+            intshares.clear();
+            intshare_map.clear();
+            intshare_valid_map.clear();
         } else if(msg.type == AND_OP){
             AndShare andshare;
             int num_ots = msg.num_of_inputs;
@@ -464,6 +476,9 @@ int main(int argc, char** argv){
                     send(sockfd_init,&b,sizeof(uint32_t),0);
                     std::cout << "From receiver: " << b << std::endl;
                 }
+                andshares.clear();
+                andshare_map.clear();
+                andshare_valid_map.clear();
             }
         } else if(msg.type == INIT_AND_OP){
             std::cout << "Received INIT_AND_OP" << std::endl;
@@ -502,6 +517,9 @@ int main(int argc, char** argv){
             std::cout << "Time taken : " << t << std::endl;
             delete[] shares;
             delete[] valid;
+            andshares.clear();
+            andshare_map.clear();
+            andshare_valid_map.clear();
         } else if(msg.type == OR_OP){
             OrShare orshare;
             int num_ots = msg.num_of_inputs;
@@ -553,6 +571,9 @@ int main(int argc, char** argv){
                     send(sockfd_init,&b,sizeof(uint32_t),0);
                     std::cout << "From receiver: " << b << std::endl;
                 }
+                orshares.clear();
+                orshare_map.clear();
+                orshare_valid_map.clear();
             }
         } else if(msg.type == INIT_OR_OP){
             std::cout << "Received INIT_OR_OP" << std::endl;
@@ -589,6 +610,9 @@ int main(int argc, char** argv){
             std::cout << "Time taken : " << t << std::endl;
             delete[] shares;
             delete[] valid;
+            orshares.clear();
+            orshare_map.clear();
+            orshare_valid_map.clear();
         } else if(msg.type == MAX_OP){
             MaxShare maxshare;
 
@@ -656,6 +680,9 @@ int main(int argc, char** argv){
                         send(sockfd_init,&b[i],sizeof(uint32_t),0);
                     // std::cout << "From receiver: " << b << std::endl;
                 }
+                maxshares.clear();
+                maxshare_map.clear();
+                maxshare_valid_map.clear();
             }
         } else if(msg.type == INIT_MAX_OP){
             std::cout << "Received INIT_MAX_OP" << std::endl;
@@ -713,8 +740,14 @@ int main(int argc, char** argv){
             // uint64_t aggr = a + b;
             long long t = time_from(start);
             std::cout << "Time taken : " << t << std::endl;
-            // delete[] shares;
-            // delete[] valid;
+
+            delete[] shares;
+            delete[] valid;
+            delete[] a;
+            delete[] b;
+            maxshares.clear();
+            maxshare_map.clear();
+            maxshare_valid_map.clear();
         } else if(msg.type == VAR_OP) {
             // Alternate idea: make each of these a function. Var calls intsum twice, then snip. 
             std::cout << "VAR_OP" << std::endl;
@@ -772,7 +805,6 @@ int main(int argc, char** argv){
                     initMsg msg;
                     msg.type = INIT_VAR_OP;
                     size_t num_shares = varshares.size();
-                    size_t num_valid_shares = 0;
                     msg.num_of_inputs = num_shares;
                     uint32_t shares[num_shares];
                     uint32_t shares_squared[num_shares];
@@ -818,7 +850,7 @@ int main(int argc, char** argv){
                             // TODO: communicate snips validity
                             // shares[num_valid_shares] = varshares[i].val;
                             // shares_squared[num_valid_shares] = varshares[i].val_squared;
-                            num_valid_shares += 1;
+                            ;
                         }
                     }
                     NetIO* io = new NetIO(SERVER0_IP, 60051);
@@ -832,6 +864,11 @@ int main(int argc, char** argv){
 
                     close(sockfd_init);
                 }
+                varshares.clear();
+                varshare_map.clear();
+                varshare_map_squared.clear();
+                varshare_map_packets.clear();
+                varshare_valid_map.clear();
             }
         } else if(msg.type == INIT_VAR_OP) { 
             std::cout << "Received INIT_VAR_OP" << std::endl;
@@ -897,6 +934,11 @@ int main(int argc, char** argv){
             float ans = ex2 - (ex * ex);
             std::cout << "Ans: " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
 
+            varshares.clear();
+            varshare_map.clear();
+            varshare_map_squared.clear();
+            varshare_map_packets.clear();
+            varshare_valid_map.clear();
         } else {
             std::cout << "Unrecognized message type: " << msg.type << std::endl;
         }
