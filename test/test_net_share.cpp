@@ -1,7 +1,7 @@
 /*
 Tests out net_share.cpp
 
-Creates "sender" and "reciever", and sends a bunch of struct.h objects from sender to reciever.
+Creates "sender" and "receiver", and sends a bunch of struct.h objects from sender to receiver.
 
 g++ -std=c++11 -o test_net_share test_net_share.cpp ../fmpz_utils.cpp ../share.cpp -lgmp -lflint -g && ./test_net_share
 */
@@ -67,7 +67,7 @@ int init_receiver() {
     return sockfd;
 }
 
-int accept_reciever(int sockfd) {
+int accept_receiver(int sockfd) {
     int newsockfd;
     socklen_t snd_len;
     struct sockaddr_in snd_addr;
@@ -130,42 +130,42 @@ void run_sender(int sockfd) {
     fmpz_print(number); std::cout << std::endl;
 }
 
-void run_reciever(int newsockfd) {
-    ShareReciever share_reciever(newsockfd);
+void run_receiver(int newsockfd) {
+    ShareReceiver share_receiver(newsockfd);
 
     int n;
     fmpz_t number;
     fmpz_init(number);
 
-    n = share_reciever.fmpz(number);
+    n = share_receiver.fmpz(number);
     std::cout << "recv: size = " << n << ", fmpz: ";
     fmpz_print(number); std::cout << std::endl;
 
-    n = share_reciever.fmpz(number);
+    n = share_receiver.fmpz(number);
     std::cout << "recv: size = " << n << ", fmpz: ";
     fmpz_print(number); std::cout << std::endl;
 
-    n = share_reciever.fmpz(number);
+    n = share_receiver.fmpz(number);
     std::cout << "recv: size = " << n << ", fmpz: ";
     fmpz_print(number); std::cout << std::endl;
 
     BeaverTriple* trip = new BeaverTriple();
-    n = share_reciever.BeaverTriple(trip);
+    n = share_receiver.BeaverTriple(trip);
     std::cout << "recv: size = " << n << ", triple: ";
     fmpz_print(trip->A); std::cout << ", ";
     fmpz_print(trip->B); std::cout << ", ";
     fmpz_print(trip->C); std::cout << std::endl;
 
     ClientPacket packet = nullptr;
-    n = share_reciever.client_packet(packet);
+    n = share_receiver.client_packet(packet);
     std::cout << "recv: size = " << n << ", packet, N = " << packet->N << ", NWires = " << packet->NWires << std::endl;
 
     ClientPacket packet2 = nullptr;
-    n = share_reciever.client_packet(packet2);
+    n = share_receiver.client_packet(packet2);
     std::cout << "recv: size = " << n << ", packet, N = " << packet2->N << ". NWires = " << packet2->NWires << std::endl;
     std::cout << "recv: size = " << n << ", packet" << std::endl;
 
-    n = share_reciever.fmpz(number);
+    n = share_receiver.fmpz(number);
     std::cout << "recv: size = " << n << ", fmpz: ";
     fmpz_print(number); std::cout << std::endl;
 }
@@ -177,7 +177,7 @@ int main(int argc, char** argv) {
     fmpz_set_str(Int_Modulus,Int_Modulus_str.c_str(),16);
     flint_randinit(seed);
 
-    /* set up reciever */
+    /* set up receiver */
     int sockfd = init_receiver();
 
     /* Launch child to do sending */
@@ -188,10 +188,10 @@ int main(int argc, char** argv) {
         run_sender(cli_sockfd);
         close(cli_sockfd);
     } else if (pid > 0) {
-        /* Do reciever handling */
-        int newsockfd = accept_reciever(sockfd);
+        /* Do receiver handling */
+        int newsockfd = accept_receiver(sockfd);
 
-        run_reciever(newsockfd);
+        run_receiver(newsockfd);
 
         close(newsockfd);
         close(sockfd);

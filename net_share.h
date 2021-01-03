@@ -1,10 +1,10 @@
 /* 
 For sending fmtp_t objects over sockets.
 
-Uses fdopen to use built in fmpz functions to send/recieve via files.
+Uses fdopen to use built in fmpz functions to send/receive via files.
 
 ShareSender: Sends over the socket.
-ShareReciever: Recieves over the socket. Takes as argument the variable to set.
+ShareReceiver: Receives over the socket. Takes as argument the variable to set.
 
 E.g. 
 
@@ -16,12 +16,12 @@ client:
     ...
 
 server: 
-    ShareReciever share_reciever(socket);
+    ShareReceiver share_receiver(socket);
     ...
     fmpz_t number;  // create new var to set
-    share_reciever.fmpz(number);
+    share_receiver.fmpz(number);
     BeaverTriple* trip = new BeaverTriple();  // create new var to set
-    share_reciever.BeaverTriple(trip);
+    share_receiver.BeaverTriple(trip);
     // now use number and trip
     ...
 
@@ -175,7 +175,7 @@ public:
     }
 };
 
-class ShareReciever {
+class ShareReceiver {
     int sockfd;
 
     int recv_int(int& x) {
@@ -221,11 +221,11 @@ class ShareReciever {
 
 public: 
 
-    ShareReciever(int sockfd) {
+    ShareReceiver(int sockfd) {
         this->sockfd = sockfd;
     }
 
-    ~ShareReciever() {
+    ~ShareReceiver() {
     }
 
     int fmpz(fmpz_t x) {
