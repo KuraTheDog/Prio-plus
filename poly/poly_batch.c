@@ -167,7 +167,7 @@ void
 poly_batch_precomp_init(struct precomp_s *pre, fmpz_t modIn, 
     int n_points, fmpz_t *pointsXin)
 {
-  fmpz_set(pre->modulus, modIn);
+  fmpz_init_set(pre->modulus, modIn);
 
   fmpz_t pointsX[n_points];
   for (int i = 0; i < n_points; i++) {
