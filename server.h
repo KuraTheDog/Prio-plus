@@ -221,9 +221,9 @@ struct Checker {
     CorShare* CorShareFn(CheckerPreComp *pre){
         evalPoly(pre);
         std::cout << "CorShareFn" << std::endl;
-        auto out = new CorShare();
+        CorShare* out = new CorShare();
 
-        fmpz_sub(out->shareD, evalF,req->triple_share->shareA);
+        fmpz_sub(out->shareD, evalF, req->triple_share->shareA);
         fmpz_mod(out->shareD, out->shareD, Int_Modulus);
 
         fmpz_sub(out->shareE, evalG,req->triple_share->shareB);

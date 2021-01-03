@@ -19,6 +19,12 @@
 // #define SERVER0_IP "52.87.230.64"
 // #define SERVER1_IP "54.213.189.18"
 
+/* TODO: Split client and server ports
+server client_in, server_in, other_server
+Servers chat on server_in/other_server
+So server can connect to client + other server
+*/
+
 /*
 shares: list of shares
 share_map: map of pk -> val
@@ -55,6 +61,7 @@ std::unordered_map<std::string,bool> maxshare_valid_map;
 std::vector<VarShare> varshares;
 std::unordered_map<std::string, uint32_t> varshare_map;
 std::unordered_map<std::string, uint32_t> varshare_map_squared;
+std::unordered_map<std::string, ClientPacket> varshare_map_packets;
 std::unordered_map<std::string, bool> varshare_valid_map;
 
 uint32_t int_sum_max;
@@ -683,6 +690,8 @@ int main(int argc, char** argv){
             std::cout << "small_max: " << small_max << std::endl;
             std::cout << "var_max: " << var_max << std::endl;
 
+            ShareReciever client_share_reciever(newsockfd);
+
             for (int i = 0; i < num_inputs; i++) {
                 std::cout << "i = " << i << std::endl;
                 int bytes_read = read_in(newsockfd, &varshare, sizeof(VarShare));
@@ -691,14 +700,17 @@ int main(int argc, char** argv){
 
                 // std::cout << "share[" << i << "] = (" << varshare.val << ", " << varshare.val_squared << ")" << std::endl;
 
+                ClientPacket packet = nullptr;
+                client_share_reciever.client_packet(packet);
+
                 if((varshare_map.find(pk) != varshare_map.end())
                    or (varshare.val >= small_max) 
                    or (varshare.val_squared >= var_max)) {
+                    std::cout << " invalid" << std::endl;
                     continue;  // Reject the input
                 }
 
-                // TODO: snips?
-
+                std::cout << " valid" << std::endl;
                 varshare_valid_map[pk] = true;
                 valid[i] = true;
                 shares[i] = varshare.val;
@@ -706,6 +718,7 @@ int main(int argc, char** argv){
                 varshares.push_back(varshare);
                 varshare_map[pk] = varshare.val;
                 varshare_map_squared[pk] = varshare.val_squared;
+                varshare_map_packets[pk] = packet;
             }
 
             std::cout << "Recieved " << num_inputs << " shares" << std::endl;
@@ -713,13 +726,14 @@ int main(int argc, char** argv){
 
             if(server_num == 1){
                 std::cout << "server 1 forking..." << std::endl;
-                sleep(2);
+                // sleep(2);
                 pid_t pid = fork();
                 if(pid > 0){
                     std::cout << "server 1 fork to send INIT_VAR_OP" << std::endl;
                     initMsg msg;
                     msg.type = INIT_VAR_OP;
                     size_t num_shares = varshares.size();
+                    size_t num_valid_shares = 0;
                     msg.num_of_inputs = num_shares;
                     uint32_t shares[num_shares];
                     uint32_t shares_squared[num_shares];
@@ -730,10 +744,55 @@ int main(int argc, char** argv){
                     if (send(sockfd_init, &msg, sizeof(initMsg),0) < 0)
                         error_exit("Failed to send");
 
+                    ShareSender other_share_sender(sockfd_init);
+                    ShareReciever other_share_reciever(sockfd_init);
+
                     for (int i = 0; i < num_shares; i++) {
                         send(sockfd_init, &varshares[i].pk, 32, 0);
                         shares[i] = varshares[i].val;
                         shares_squared[i] = varshares[i].val_squared;
+
+                        bool other_valid;
+                        read_in(sockfd_init, &other_valid, sizeof(bool));
+
+                        std::cout << " Other valid: " << other_valid << std::endl;
+
+                        if (!other_valid)
+                            continue;
+
+                        // SNIPS
+                        std::string pk(varshares[i].pk, varshares[i].pk+32);
+                        ClientPacket packet = varshare_map_packets[pk];
+                        Circuit* circuit = CheckVar();
+                        int N = NextPowerofTwo(circuit->NumMulGates() + 1);
+                        init_roots(N);
+
+                        Checker* checker = new Checker(circuit, server_num);
+                        checker->setReq(packet);
+                        CheckerPreComp* pre = new CheckerPreComp(circuit);
+                        pre->setCheckerPrecomp(randomX);
+
+                        CorShare* cor_share = checker->CorShareFn(pre);
+                        CorShare* cor_share_other = new CorShare();
+                        other_share_reciever.CorShare(cor_share_other);
+                        other_share_sender.CorShare(cor_share);
+                        Cor* cor = checker->CorFn(cor_share, cor_share_other);
+
+                        fmpz_t valid_share, valid_share_other;
+                        fmpz_init(valid_share);
+                        fmpz_init(valid_share_other);
+                        checker->OutShare(valid_share, cor);
+                        other_share_reciever.fmpz(valid_share_other);
+                        other_share_sender.fmpz(valid_share);
+
+                        bool circuit_valid = checker->OutputIsValid(valid_share, valid_share_other);
+                        std::cout << "Circuit for " << i << " validity: " << (circuit_valid ? "Yes" : "No") << std::endl;
+                        if (circuit_valid) {
+                            // TODO: communicate snips validity
+                            // shares[num_valid_shares] = varshares[i].val;
+                            // shares_squared[num_valid_shares] = varshares[i].val_squared;
+                            num_valid_shares += 1;
+                        }
                     }
                     NetIO* io = new NetIO(SERVER0_IP, 60051);
                     uint64_t b = intsum_ot_receiver(io, &shares[0], num_shares, num_bits);
@@ -743,11 +802,10 @@ int main(int argc, char** argv){
                     uint64_t b2 = intsum_ot_receiver(io, &shares_squared[0], num_shares, num_bits);
                     send(sockfd_init, &b2, sizeof(b2), 0);
                     std::cout << "sending b2 = " << b2 << std::endl;
+
+                    close(sockfd_init);
                 }
             }
-
-            // TODO: snips
-
         } else if(msg.type == INIT_VAR_OP) { 
             std::cout << "Recieved INIT_VAR_OP" << std::endl;
             int num_inputs = msg.num_of_inputs;
@@ -757,17 +815,54 @@ int main(int argc, char** argv){
 
             std::cout << "num_inputs: " << num_inputs << std::endl;
 
+            ShareSender other_share_sender(newsockfd);
+            ShareReciever other_share_reciever(newsockfd);
+
             for (int i = 0; i < num_inputs; i++) {
                 char pk[32];
                 read_in(newsockfd, &pk[0], 32);
                 std::string pk_str(pk, pk + 32);
 
-                if(varshare_map.find(pk_str) == varshare_map.end()) {
-                    valid[i] = false;
-                } else {
-                    valid[i] = true;
+                std::cout << "i = " << i << std::endl;
+
+                bool is_valid = (varshare_map.find(pk_str) != varshare_map.end());
+                valid[i] = is_valid;
+                std::cout << " is_valid = " << is_valid << std::endl;
+                send(newsockfd, &is_valid, sizeof(is_valid), 0);
+                if(is_valid) {
                     shares[i] = varshare_map[pk_str];
                     shares_squared[i] = varshare_map_squared[pk_str];
+                    
+                    // SNIPS
+                    ClientPacket packet = varshare_map_packets[pk_str];
+                    Circuit* circuit = CheckVar();
+                    int N = NextPowerofTwo(circuit->NumMulGates() + 1);
+                    init_roots(N);
+
+                    Checker* checker = new Checker(circuit, server_num);
+                    checker->setReq(packet);
+                    CheckerPreComp* pre = new CheckerPreComp(circuit);
+                    pre->setCheckerPrecomp(randomX);
+
+                    CorShare* cor_share = checker->CorShareFn(pre);
+                    CorShare* cor_share_other = new CorShare();
+                    other_share_sender.CorShare(cor_share);
+                    other_share_reciever.CorShare(cor_share_other);
+                    Cor* cor = checker->CorFn(cor_share, cor_share_other);
+
+                    fmpz_t valid_share, valid_share_other;
+                    fmpz_init(valid_share);
+                    fmpz_init(valid_share_other);
+                    checker->OutShare(valid_share, cor);
+                    other_share_sender.fmpz(valid_share);
+                    other_share_reciever.fmpz(valid_share_other);
+
+                    bool circuit_valid = checker->OutputIsValid(valid_share, valid_share_other);
+                    std::cout << "Circuit for " << i << " validity: " << (circuit_valid ? "Yes" : "No") << std::endl;
+                    if (!circuit_valid) {
+                        valid[i] = false;
+                    }
+                    // TODO: recieve other circuit validity
                 }
             }
 
