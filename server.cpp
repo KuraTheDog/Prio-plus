@@ -238,10 +238,9 @@ int main(int argc, char** argv){
         
         if(msg.type == BIT_SUM){
             BitShare bitshare;  // Single share buffer
-            // int num_ots = msg.num_of_inputs;  // OT per client
-            bool *shares = new bool[msg.num_of_inputs];  // shares per client
-            bool *valid = new bool[msg.num_of_inputs];  // validity per client
-            for(int i = 0; i < msg.num_of_inputs; i++){
+            const size_t num_inputs = msg.num_of_inputs;  // OT per client
+            bool shares[num_inputs];  // shares per client
+            for(int i = 0; i < num_inputs; i++){
                 // read in client's share
                 read_in(newsockfd, &bitshare, sizeof(BitShare));
                 std::string pk(bitshare.pk,bitshare.pk+32);
@@ -252,11 +251,9 @@ int main(int argc, char** argv){
                 bitshare_map[pk] = bitshare.val;
                 if(bitshare.val != 0 and bitshare.val != 1){
                     bitshare_valid_map[pk] = false;
-                    valid[i] = false;
                 }
                 else{
                     bitshare_valid_map[pk] = true;
-                    valid[i] = true;
                     shares[i] = bitshare.val;
                 }
             }
@@ -267,8 +264,9 @@ int main(int argc, char** argv){
                 if(pid > 0){
                     initMsg msg;
                     msg.type = INIT_BIT_SUM;
-                    msg.num_of_inputs = bitshares.size();
-                    bool *shares = new bool[msg.num_of_inputs];
+                    const size_t num_inputs = bitshares.size();
+                    msg.num_of_inputs = num_inputs;
+                    bool shares[num_inputs];
 
                     int sockfd_init;
                     server1_connect(sockfd_init, other_port);
@@ -283,7 +281,7 @@ int main(int argc, char** argv){
                     NetIO *io;
 
                     io = new NetIO(SERVER0_IP,60051);
-                    uint64_t b = bitsum_ot_receiver(io,&shares[0],bitshares.size());
+                    uint64_t b = bitsum_ot_receiver(io,&shares[0],num_inputs);
                     std::cout << "From receiver: " << b << std::endl;
                     send(sockfd_init,&b,sizeof(uint64_t),0);
                 }
@@ -291,14 +289,12 @@ int main(int argc, char** argv){
                 bitshare_map.clear();
                 bitshare_valid_map.clear();
             }
-            delete[] valid;
-            delete[] shares;
         } else if(msg.type == INIT_BIT_SUM){
             auto start = clock_start();  // for benchmark
-            int num_ots = msg.num_of_inputs;
-            bool *shares = new bool[msg.num_of_inputs];
-            bool *valid = new bool[msg.num_of_inputs];
-            for(int i = 0; i < msg.num_of_inputs; i++){
+            const size_t num_inputs = msg.num_of_inputs;
+            bool shares[num_inputs];
+            bool valid[num_inputs];
+            for(int i = 0; i < num_inputs; i++){
                 char pk[32];
                 read_in(newsockfd, &pk[0], 32);
                 std::string pk_str(pk,pk+32);
@@ -314,7 +310,7 @@ int main(int argc, char** argv){
             NetIO *io;
             
             io = new NetIO(nullptr,60051);
-            uint64_t a = bitsum_ot_sender(io,&shares[0],&valid[0],num_ots);
+            uint64_t a = bitsum_ot_sender(io,&shares[0],&valid[0],num_inputs);
             std::cout << "From sender: " << a<< std::endl;
             uint64_t b;
             read_in(newsockfd, &b, sizeof(uint64_t));
@@ -322,8 +318,7 @@ int main(int argc, char** argv){
             std::cout << "Ans : " << aggr << std::endl;
             long long t = time_from(start);
             std::cout << "Time taken : " << t << std::endl;
-            delete[] shares;
-            delete[] valid;
+
             bitshares.clear();
             bitshare_map.clear();
             bitshare_valid_map.clear();
@@ -331,11 +326,10 @@ int main(int argc, char** argv){
             std::cout << "got INT_SUM" << std::endl;
             IntShare intshare;
             int_sum_max = 1 << atoi(argv[4]);
-            int num_ots = msg.num_of_inputs;
-            uint32_t *shares = new uint32_t[num_ots];
-            bool *valid = new bool[num_ots];
+            const size_t num_inputs = msg.num_of_inputs;
+            uint32_t shares[num_inputs];
 
-            for(int i = 0; i < msg.num_of_inputs; i++){
+            for(int i = 0; i < num_inputs; i++){
                 read_in(newsockfd, &intshare, sizeof(IntShare));
                 std::string pk(intshare.pk,intshare.pk+32);
 
@@ -344,7 +338,6 @@ int main(int argc, char** argv){
                 }
                 else{
                     intshare_valid_map[pk] = true;
-                    valid[i] = true;
                     shares[i] = intshare.val;
                 }
                 intshares.push_back(intshare);
@@ -385,16 +378,14 @@ int main(int argc, char** argv){
                 intshare_map.clear();
                 intshare_valid_map.clear();
             }
-            delete[] shares;
-            delete[] valid;
         } else if(msg.type == INIT_INT_SUM){
             std::cout << "Received INIT_INT_SUM" << std::endl;
             auto start = clock_start();
-            int num_ots = msg.num_of_inputs;
-            uint32_t *shares = new uint32_t[msg.num_of_inputs];
-            bool *valid = new bool[msg.num_of_inputs];
+            const size_t num_inputs = msg.num_of_inputs;
+            uint32_t shares[num_inputs];
+            bool valid[num_inputs];
 
-            for(int i = 0; i < msg.num_of_inputs; i++){
+            for(int i = 0; i < num_inputs; i++){
                 char pk[32];
                 read_in(newsockfd, &pk[0], 32);
                 std::string pk_str(pk,pk+32);
@@ -410,7 +401,7 @@ int main(int argc, char** argv){
             NetIO *io;
             
             io = new NetIO(nullptr,60051);
-            uint64_t a = intsum_ot_sender(io,&shares[0],&valid[0],num_ots,num_bits);
+            uint64_t a = intsum_ot_sender(io,&shares[0],&valid[0],num_inputs,num_bits);
             uint64_t b;
 
             read_in(newsockfd, &b, sizeof(uint64_t));
@@ -420,19 +411,17 @@ int main(int argc, char** argv){
             std::cout << "Ans : " << aggr << std::endl;
             long long t = time_from(start);
             std::cout << "Time taken : " << t << std::endl;
-            delete[] shares;
-            delete[] valid;
+
             intshares.clear();
             intshare_map.clear();
             intshare_valid_map.clear();
         } else if(msg.type == AND_OP){
             AndShare andshare;
-            int num_ots = msg.num_of_inputs;
+            const size_t num_inputs = msg.num_of_inputs;
 
-            uint32_t *shares = new uint32_t[num_ots];
-            bool *valid = new bool[num_ots];
+            uint32_t shares[num_inputs];
 
-            for(int i = 0; i < num_ots; i++){
+            for(int i = 0; i < num_inputs; i++){
                 read_in(newsockfd, &andshare, sizeof(AndShare));
                 std::string pk(andshare.pk,andshare.pk+32);
                 
@@ -441,7 +430,6 @@ int main(int argc, char** argv){
                 }
                 
                 andshare_valid_map[pk] = true;
-                valid[i] = true;
                 shares[i] = andshare.val;
 
                 andshares.push_back(andshare);
@@ -483,13 +471,13 @@ int main(int argc, char** argv){
         } else if(msg.type == INIT_AND_OP){
             std::cout << "Received INIT_AND_OP" << std::endl;
             auto start = clock_start();
-            // int num_ots = msg.num_of_inputs;
-            uint32_t *shares = new uint32_t[msg.num_of_inputs];
-            bool *valid = new bool[msg.num_of_inputs];
+            const size_t num_inputs = msg.num_of_inputs;
+            uint32_t shares[num_inputs];
+            bool valid[num_inputs];
 
             uint32_t a = 0;
 
-            for(int i = 0; i < msg.num_of_inputs; i++){
+            for(int i = 0; i < num_inputs; i++){
                 char pk[32];
                 read_in(newsockfd, &pk[0], 32);
                 std::string pk_str(pk,pk+32);
@@ -515,19 +503,17 @@ int main(int argc, char** argv){
             std::cout << "Ans of AND op : " << std::boolalpha << (aggr == 0) << std::endl;
             long long t = time_from(start);
             std::cout << "Time taken : " << t << std::endl;
-            delete[] shares;
-            delete[] valid;
+
             andshares.clear();
             andshare_map.clear();
             andshare_valid_map.clear();
         } else if(msg.type == OR_OP){
             OrShare orshare;
-            int num_ots = msg.num_of_inputs;
+            const size_t num_inputs = msg.num_of_inputs;
 
-            uint32_t *shares = new uint32_t[num_ots];
-            bool *valid = new bool[num_ots];
+            uint32_t shares[num_inputs];
 
-            for(int i = 0; i < num_ots; i++){
+            for(int i = 0; i < num_inputs; i++){
                 read_in(newsockfd, &orshare, sizeof(OrShare));
                 std::string pk(orshare.pk,orshare.pk+32);
                 
@@ -536,7 +522,6 @@ int main(int argc, char** argv){
                 }
                 
                 orshare_valid_map[pk] = true;
-                valid[i] = true;
                 shares[i] = orshare.val;
 
                 orshares.push_back(orshare);
@@ -552,7 +537,6 @@ int main(int argc, char** argv){
                     initMsg msg;
                     msg.type = INIT_OR_OP;
                     msg.num_of_inputs = orshares.size();
-                    // uint32_t *shares = new uint32_t[orshares.size()];
 
                     int sockfd_init;
                     server1_connect(sockfd_init, other_port);
@@ -578,11 +562,11 @@ int main(int argc, char** argv){
         } else if(msg.type == INIT_OR_OP){
             std::cout << "Received INIT_OR_OP" << std::endl;
             auto start = clock_start();
-            // int num_ots = msg.num_of_inputs;
-            uint32_t *shares = new uint32_t[msg.num_of_inputs];
-            bool *valid = new bool[msg.num_of_inputs];
+            const size_t num_inputs = msg.num_of_inputs;
+            uint32_t shares[num_inputs];
+            bool valid[num_inputs];
             uint32_t a = 0;
-            for(int i = 0; i < msg.num_of_inputs; i++){
+            for(int i = 0; i < num_inputs; i++){
                 char pk[32];
                 read_in(newsockfd, &pk[0], 32);
                 std::string pk_str(pk,pk+32);
@@ -608,18 +592,16 @@ int main(int argc, char** argv){
             std::cout << "Ans of OR op : " << std::boolalpha << (aggr != 0) << std::endl;
             long long t = time_from(start);
             std::cout << "Time taken : " << t << std::endl;
-            delete[] shares;
-            delete[] valid;
+
             orshares.clear();
             orshare_map.clear();
             orshare_valid_map.clear();
         } else if(msg.type == MAX_OP){
             MaxShare maxshare;
 
-            int num_inputs = msg.num_of_inputs;
+            const size_t num_inputs = msg.num_of_inputs;
             int B = msg.max_inp;
             uint32_t* shares = new uint32_t[num_inputs*(msg.max_inp + 1)];
-            bool *valid = new bool[num_inputs];
             // int share_sz = (msg.max_inp + 1)*sizeof(uint32_t);
             std::cout <<  "Num inputs : " << num_inputs << std::endl;
 
@@ -640,7 +622,6 @@ int main(int argc, char** argv){
                 if(maxshare_valid_map.find(pk) != maxshare_valid_map.end())
                     continue;
                 maxshare_valid_map[pk] = true;
-                valid[i] = true;
                 
                 maxshare.arr = &shares[i*(B+1)];
                 maxshare_map[pk] = maxshare.arr;
@@ -655,7 +636,8 @@ int main(int argc, char** argv){
                 if(pid > 0){
                     initMsg msg;
                     msg.type = INIT_MAX_OP;
-                    msg.num_of_inputs = maxshares.size();
+                    const size_t num_inputs = maxshares.size();
+                    msg.num_of_inputs = num_inputs;
                     msg.max_inp = B;
                     // uint32_t *shares = new uint32_t[orshares.size()];
                     int sockfd_init;
@@ -667,7 +649,7 @@ int main(int argc, char** argv){
                     for(int i = 0; i <= B; i++)
                         b[i] = 0;
 
-                    for(int i = 0; i < maxshares.size(); i++){
+                    for(int i = 0; i < num_inputs; i++){
                         send(sockfd_init,&maxshares[i].pk,32,0);
                         for(int j = 0; j <= B; j++)
                             b[j] ^= shares[i*(B+1) + j];
@@ -687,18 +669,18 @@ int main(int argc, char** argv){
         } else if(msg.type == INIT_MAX_OP){
             std::cout << "Received INIT_MAX_OP" << std::endl;
             auto start = clock_start();
-            int num_inputs = msg.num_of_inputs;
+            const size_t num_inputs = msg.num_of_inputs;
             int B = msg.max_inp;
-            uint32_t *shares = new uint32_t[num_inputs * (B+1)];
-            bool *valid = new bool[msg.num_of_inputs];
+            uint32_t shares[num_inputs];
+            bool valid[num_inputs];
             int share_sz = (B + 1)*sizeof(uint32_t);
 
-            uint32_t* a = new uint32_t[B+1];
+            uint32_t a[B+1];
 
             for(int i = 0; i <= B; i++)
                 a[i] = 0;
 
-            for(int i = 0; i < msg.num_of_inputs; i++){
+            for(int i = 0; i < num_inputs; i++){
                 char pk[32];
                 read_in(newsockfd, &pk[0], 32);
                 std::string pk_str(pk,pk+32);
@@ -721,7 +703,7 @@ int main(int argc, char** argv){
             // io = new NetIO(nullptr,60051);
             // auto a = maxop_ot_sender<NetIO,SHOTExtension>(io,&shares[0],&valid[0],num_inputs,B);
             // std::cout << a.size() << " " << B+1 << endl;
-            uint32_t* b = new uint32_t[B+1];
+            uint32_t b[B+1];
             
             for(int j = 0; j <= B; j++){
                 read_in(newsockfd, &(b[j]), sizeof(uint32_t));
@@ -741,10 +723,6 @@ int main(int argc, char** argv){
             long long t = time_from(start);
             std::cout << "Time taken : " << t << std::endl;
 
-            delete[] shares;
-            delete[] valid;
-            delete[] a;
-            delete[] b;
             maxshares.clear();
             maxshare_map.clear();
             maxshare_valid_map.clear();
@@ -754,10 +732,9 @@ int main(int argc, char** argv){
             VarShare varshare;
             uint32_t small_max = 1 << (num_bits / 2);  // for values
             uint32_t var_max = 1 << num_bits;      // for values squared
-            uint32_t num_inputs = msg.num_of_inputs;
+            const size_t num_inputs = msg.num_of_inputs;
             uint32_t shares[num_inputs];
             uint32_t shares_squared[num_inputs];
-            bool valid[num_inputs];
 
             std::cout << "small_max: " << small_max << std::endl;
             std::cout << "var_max: " << var_max << std::endl;
@@ -784,7 +761,6 @@ int main(int argc, char** argv){
 
                 std::cout << " valid" << std::endl;
                 varshare_valid_map[pk] = true;
-                valid[i] = true;
                 shares[i] = varshare.val;
                 shares_squared[i] = varshare.val_squared;
                 varshares.push_back(varshare);
@@ -804,10 +780,10 @@ int main(int argc, char** argv){
                     std::cout << "server 1 fork to send INIT_VAR_OP" << std::endl;
                     initMsg msg;
                     msg.type = INIT_VAR_OP;
-                    size_t num_shares = varshares.size();
-                    msg.num_of_inputs = num_shares;
-                    uint32_t shares[num_shares];
-                    uint32_t shares_squared[num_shares];
+                    const size_t num_inputs = varshares.size();
+                    msg.num_of_inputs = num_inputs;
+                    uint32_t shares[num_inputs];
+                    uint32_t shares_squared[num_inputs];
 
                     int sockfd_init;
                     server1_connect(sockfd_init, other_port);
@@ -820,7 +796,7 @@ int main(int argc, char** argv){
 
                     bool have_roots_init = false;
 
-                    for (int i = 0; i < num_shares; i++) {
+                    for (int i = 0; i < num_inputs; i++) {
                         send(sockfd_init, &varshares[i].pk, 32, 0);
                         shares[i] = varshares[i].val;
                         shares_squared[i] = varshares[i].val_squared;
@@ -854,11 +830,11 @@ int main(int argc, char** argv){
                         }
                     }
                     NetIO* io = new NetIO(SERVER0_IP, 60051);
-                    uint64_t b = intsum_ot_receiver(io, &shares[0], num_shares, num_bits);
+                    uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
                     std::cout << "sending b = " << b << std::endl;
                     send(sockfd_init, &b, sizeof(b), 0);
 
-                    uint64_t b2 = intsum_ot_receiver(io, &shares_squared[0], num_shares, num_bits);
+                    uint64_t b2 = intsum_ot_receiver(io, &shares_squared[0], num_inputs, num_bits);
                     send(sockfd_init, &b2, sizeof(b2), 0);
                     std::cout << "sending b2 = " << b2 << std::endl;
 
@@ -872,7 +848,7 @@ int main(int argc, char** argv){
             }
         } else if(msg.type == INIT_VAR_OP) { 
             std::cout << "Received INIT_VAR_OP" << std::endl;
-            int num_inputs = msg.num_of_inputs;
+            const size_t num_inputs = msg.num_of_inputs;
             uint32_t shares[num_inputs];
             uint32_t shares_squared[num_inputs];
             bool valid[num_inputs];

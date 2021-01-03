@@ -11,8 +11,8 @@ extern "C" {
     #include "poly/poly_once.h"
 }
 
+// Only used in unused BatchPre.Interp
 struct BatchPoly {
-    int nPoints;  // unused?
     fmpz_mod_poly_t fpoly;
 
     // Below 2 are unused in test_circuit.
@@ -32,19 +32,17 @@ struct BatchPoly {
 };
 
 struct BatchPre {
-    int nPoints;  // unused?
     precomp_t pre;
 
     // Newbatch
     BatchPre(fmpz_t *xPointsIn, int n) {
-        nPoints = n;
         poly_batch_precomp_init(&pre, Int_Modulus, nPoints, xPointsIn);
+        poly_batch_precomp_init(&pre, Int_Modulus, n, xPointsIn);
     }
 
     // can we use this.npoints in place of n?
     BatchPoly* Interp(fmpz_t* yPointsIn, int n) {
         BatchPoly* bpoly = new BatchPoly();
-        bpoly->nPoints = n;
 
         poly_batch_init(bpoly->fpoly, &pre);
 

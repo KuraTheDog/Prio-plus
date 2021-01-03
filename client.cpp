@@ -125,9 +125,9 @@ int main(int argc, char** argv){
 
     if(protocol == "BITSUM"){
         emp::block *b = new block[numreqs];  // public keys
-        bool* shares0 = new bool[numreqs];  // shares going to 0
-        bool* shares1 = new bool[numreqs];  // shares going to 1
-        bool* real_vals = new bool[numreqs];  // actual values
+        bool shares0[numreqs];  // shares going to 0
+        bool shares1[numreqs];  // shares going to 1
+        bool real_vals[numreqs];  // actual values
 
         emp::PRG prg(fix_key);  // use fixed key
         prg.random_block(b,numreqs);  // randomize b per client
@@ -169,18 +169,14 @@ int main(int argc, char** argv){
         close(sockfd0);
         close(sockfd1);
 
-
-        delete[] shares0;
-        delete[] shares1;
         delete[] b;
-        delete[] real_vals;
     }
 
     else if(protocol == "INTSUM"){
         emp::block *b = new block[numreqs];
-        uint32_t *shares0 = new uint32_t[numreqs];
-        uint32_t *shares1 = new uint32_t[numreqs];
-        uint32_t *real_vals = new uint32_t[numreqs];
+        uint32_t shares0[numreqs];
+        uint32_t shares1[numreqs];
+        uint32_t real_vals[numreqs];
         uint64_t ans = 0;
 
         emp::PRG prg(fix_key);
@@ -223,9 +219,6 @@ int main(int argc, char** argv){
         close(sockfd0);
         close(sockfd1);
 
-        delete[] shares0;
-        delete[] shares1;
-        delete[] real_vals;
         delete[] b;
     }
 
@@ -233,10 +226,10 @@ int main(int argc, char** argv){
         std::cout << "Uploading all and shares. " << numreqs << std::endl;
         emp::block *b = new block[numreqs];
 
-        uint32_t *values = new uint32_t[numreqs];
-        uint32_t *encoded_values = new uint32_t[numreqs];
-        uint32_t *shares0 = new uint32_t[numreqs];
-        uint32_t *shares1 = new uint32_t[numreqs];
+        uint32_t values[numreqs];
+        uint32_t encoded_values[numreqs];
+        uint32_t shares0[numreqs];
+        uint32_t shares1[numreqs];
         uint64_t ans = 0;
 
         emp::PRG prg(fix_key);
@@ -288,20 +281,16 @@ int main(int argc, char** argv){
         close(sockfd0);
         close(sockfd1);
 
-        delete[] shares0;
-        delete[] shares1;
-        delete[] values;
-        delete[] encoded_values;
         delete[] b;
     }
 
     else if(protocol == "OROP"){
         emp::block *b = new block[numreqs];
 
-        uint32_t *values = new uint32_t[numreqs];
-        uint32_t *encoded_values = new uint32_t[numreqs];
-        uint32_t *shares0 = new uint32_t[numreqs];
-        uint32_t *shares1 = new uint32_t[numreqs];
+        uint32_t values[numreqs];
+        uint32_t encoded_values[numreqs];
+        uint32_t shares0[numreqs];
+        uint32_t shares1[numreqs];
         uint64_t ans = 0;
 
         emp::PRG prg(fix_key);
@@ -351,10 +340,6 @@ int main(int argc, char** argv){
         close(sockfd0);
         close(sockfd1);
 
-        delete[] shares0;
-        delete[] shares1;
-        delete[] values;
-        delete[] encoded_values;
         delete[] b;
     }
 
@@ -371,10 +356,10 @@ int main(int argc, char** argv){
         emp::block *b = new block[numreqs];
         prg.random_block(b,numreqs);
 
-        uint32_t *values = new uint32_t[numreqs];
-        uint32_t *shares0 = new uint32_t[B+1];
-        uint32_t *shares1 = new uint32_t[B+1];
-        uint32_t *or_encoded_array = new uint32_t[B+1];
+        uint32_t values[numreqs];
+        uint32_t shares0[B+1];
+        uint32_t shares1[B+1];
+        uint32_t or_encoded_array[B+1];
         prg.random_data(values, numreqs*sizeof(uint32_t));
 
 
@@ -417,10 +402,6 @@ int main(int argc, char** argv){
         close(sockfd0);
         close(sockfd1);
 
-        delete[] shares0;
-        delete[] shares1;
-        delete[] values;
-        delete[] or_encoded_array;
         delete[] b;
     }
 
