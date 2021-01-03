@@ -797,6 +797,7 @@ int main(int argc, char** argv){
                     bool have_roots_init = false;
 
                     for (int i = 0; i < num_inputs; i++) {
+                        std::cout << "i = " << i << std::endl;
                         send(sockfd_init, &varshares[i].pk, 32, 0);
                         shares[i] = varshares[i].val;
                         shares_squared[i] = varshares[i].val_squared;
@@ -804,7 +805,7 @@ int main(int argc, char** argv){
                         bool other_valid;
                         read_in(sockfd_init, &other_valid, sizeof(bool));
 
-                        std::cout << " Other valid: " << other_valid << std::endl;
+                        std::cout << " Other valid: " << (other_valid ? "Yes": "No") << std::endl;
 
                         if (!other_valid)
                             continue;
@@ -821,13 +822,8 @@ int main(int argc, char** argv){
 
                         bool circuit_valid = run_snip(circuit, packet, randomX, other_share_sender, other_share_receiver, server_num);
 
-                        std::cout << "Circuit for " << i << " validity: " << (circuit_valid ? "Yes" : "No") << std::endl;
-                        if (circuit_valid) {
-                            // TODO: communicate snips validity
-                            // shares[num_valid_shares] = varshares[i].val;
-                            // shares_squared[num_valid_shares] = varshares[i].val_squared;
-                            ;
-                        }
+                        std::cout << " Circuit for " << i << " validity: " << (circuit_valid ? "Yes" : "No") << std::endl;
+                        send(sockfd_init, &circuit_valid, sizeof(circuit_valid), 0);
                     }
                     NetIO* io = new NetIO(SERVER0_IP, 60051);
                     uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
@@ -887,11 +883,16 @@ int main(int argc, char** argv){
 
                     bool circuit_valid = run_snip(circuit, packet, randomX, other_share_sender, other_share_receiver, server_num);
 
-                    std::cout << "Circuit for " << i << " validity: " << (circuit_valid ? "Yes" : "No") << std::endl;
+                    std::cout << " Circuit for " << i << " validity: " << (circuit_valid ? "Yes" : "No") << std::endl;
                     if (!circuit_valid) {
                         valid[i] = false;
                     }
-                    // TODO: receive other circuit validity
+                    bool other_valid;
+                    read_in(newsockfd, &other_valid, sizeof(bool));
+                    std::cout << " Other circuit valid: " << (other_valid ? "Yes": "No") << std::endl;
+                    if (!other_valid) {
+                        valid[i] = false;
+                    }
                 }
             }
 

@@ -466,7 +466,7 @@ int main(int argc, char** argv){
             varshare1.val_squared = shares1_squared[i];
             memcpy(varshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
 
-            std::cout << "key[" << i << "] = " << pub_key_to_hex((uint64_t*)&b[i]) << endl;
+            // std::cout << "key[" << i << "] = " << pub_key_to_hex((uint64_t*)&b[i]) << endl;
 
             // std::cout << "  0: (" << shares0[i] << ", " << shares0_squared[i] << ")" << std::endl;
             // std::cout << "  1: (" << shares1[i] << ", " << shares1_squared[i] << ")" << std::endl;
@@ -474,7 +474,6 @@ int main(int argc, char** argv){
             send_to_server(0, (void *)&varshare0, sizeof(varshare0), 0);
             send_to_server(1, (void *)&varshare1, sizeof(varshare1), 0);
 
-            std::cout << " building snip..." << std::endl;
             // SNIP: proof that x^2 = x_squared
             fmpz_set_si(inp[0], real_vals[i]);
             fmpz_set_si(inp[1], real_vals[i] * real_vals[i]);
@@ -486,9 +485,8 @@ int main(int argc, char** argv){
 
             // Send p0 to server0, p1 to server1
             int n = share_sender0.client_packet(p0);
-            std::cout << "Sent " << n << " bytes to server0, f0 = ";
-            fmpz_print(p0->f0_s); std::cout << std::endl;
-            p0->print();
+            // std::cout << "Sent " << n << " bytes to server0, f0 = ";
+            // fmpz_print(p0->f0_s); std::cout << std::endl;
             n = share_sender1.client_packet(p1);
             delete p0;
             delete p1;
