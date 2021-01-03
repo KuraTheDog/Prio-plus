@@ -163,7 +163,6 @@ void run_receiver(int newsockfd) {
     ClientPacket packet2 = nullptr;
     n = share_receiver.client_packet(packet2);
     std::cout << "recv: size = " << n << ", packet, N = " << packet2->N << ". NWires = " << packet2->NWires << std::endl;
-    std::cout << "recv: size = " << n << ", packet" << std::endl;
 
     n = share_receiver.fmpz(number);
     std::cout << "recv: size = " << n << ", fmpz: ";

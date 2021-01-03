@@ -207,8 +207,8 @@ int main(int argc, char** argv){
         close(sockfd_other);
         close(newsockfd_other);
     } else if (server_num == 1) {
-        fmpz_set_si(randomX, 42);
-        // fmpz_randm(randomX, seed, Int_Modulus);
+        // fmpz_set_si(randomX, 42);
+        fmpz_randm(randomX, seed, Int_Modulus);
         std::cout << "Sending randomX: "; fmpz_print(randomX); std::cout << std::endl;
         int sockfd_other;
         server1_connect(sockfd_other, other_port, 1);
