@@ -662,7 +662,7 @@ int main(int argc, char** argv){
                     break;
                 }
             }
-            std:: cout << std::endl;
+            std::cout << std::endl;
             // std::cout << "From sender: " << a<< std::endl;
             // uint64_t aggr = a + b;
             long long t = time_from(start);
