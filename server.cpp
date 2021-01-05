@@ -726,14 +726,11 @@ int main(int argc, char** argv){
             std::unordered_map<std::string, uint32_t> varshare_map;
             std::unordered_map<std::string, uint32_t> varshare_map_squared;
             std::unordered_map<std::string, ClientPacket> varshare_map_packets;
-            std::unordered_map<std::string, bool> varshare_valid_map;
 
             VarShare varshare;
             const uint32_t small_max = 1 << (num_bits / 2);  // for values
             const uint32_t var_max = 1 << num_bits;      // for values squared
             const size_t num_inputs = msg.num_of_inputs;
-            uint32_t shares[num_inputs];
-            uint32_t shares_squared[num_inputs];
 
             std::cout << "small_max: " << small_max << std::endl;
             std::cout << "var_max: " << var_max << std::endl;
@@ -746,9 +743,6 @@ int main(int argc, char** argv){
                 if (bytes_read == 0) error_exit("Read 0 bytes. Connection closed?");
                 std::string pk(varshare.pk, varshare.pk+32);
 
-                std::cout << "share[" << i << "], pk = " << pk << std::endl;
-                // std::cout << "share[" << i << "] = (" << varshare.val << ", " << varshare.val_squared << ")" << std::endl;
-
                 ClientPacket packet = nullptr;
                 client_share_receiver.client_packet(packet);
 
@@ -760,9 +754,6 @@ int main(int argc, char** argv){
                 }
 
                 std::cout << " valid" << std::endl;
-                varshare_valid_map[pk] = true;
-                shares[i] = varshare.val;
-                shares_squared[i] = varshare.val_squared;
                 varshares.push_back(varshare);
                 varshare_map[pk] = varshare.val;
                 varshare_map_squared[pk] = varshare.val_squared;
@@ -824,13 +815,6 @@ int main(int argc, char** argv){
                     send_out(serverfd, &circuit_valid, sizeof(circuit_valid));
                 }
 
-                std::cout << "Final shares: ";
-                for (int k = 0; k < num_inputs; k++) {
-                    if (k > 0) std::cout << ", ";
-                    std::cout << shares[k];
-                }
-                std::cout << std::endl;
-
                 // Compute result
                 NetIO* io = new NetIO(SERVER0_IP, 60051);
                 uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
@@ -891,13 +875,6 @@ int main(int argc, char** argv){
                         valid[i] = false;
                     }
                 }
-
-                std::cout << "Final shares: ";
-                for (int k = 0; k < num_inputs; k++) {
-                    if (k > 0) std::cout << ", ";
-                    std::cout << shares[k];
-                }
-                std::cout << std::endl;
 
                 // Compute result
                 NetIO* io = new NetIO(nullptr, 60051);
