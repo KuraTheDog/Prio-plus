@@ -58,7 +58,7 @@ uint32_t num_bits;
 
 // TODO: const 60051 for netio?
 
-void error_exit(const char *msg){
+void error_exit(const char *msg) {
     perror(msg);
     exit(EXIT_FAILURE);
 }
@@ -72,21 +72,21 @@ size_t read_in(const int sockfd, void* buf, const size_t len) {
     return bytes_read;
 }
 
-size_t send_out(const int sockfd, void* buf, const size_t len) {
+size_t send_out(const int sockfd, const void* buf, const size_t len) {
     size_t ret = send(sockfd, buf, len, 0);
     if (ret <= 0) error_exit("Failed to send");
     return ret;
 }
 
-void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port, const int reuse = 1){
+void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port, const int reuse = 1) {
     sockfd = socket(AF_INET,SOCK_STREAM,0);
 
-    if(sockfd == -1)
+    if (sockfd == -1)
         error_exit("Socket creation failed");
     
-    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)))
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)))
         error_exit("Sockopt failed");
-    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)))
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)))
         error_exit("Sockopt failed");
 
     bzero((char *) &addr, sizeof(addr));
@@ -94,12 +94,12 @@ void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port, const int r
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
 
-    if(bind(sockfd,(struct sockaddr*)&addr,sizeof(addr)) < 0) {
+    if (bind(sockfd,(struct sockaddr*)&addr,sizeof(addr)) < 0) {
         std::cerr << "Failed to bind to port: " << port << std::endl;
         error_exit("Bind to port failed");
     }
 
-    if(listen(sockfd,2) < 0)
+    if (listen(sockfd,2) < 0)
         error_exit("Listen failed");   
 }
 
@@ -111,17 +111,17 @@ void server0_listen(int& sockfd, int& newsockfd, const int port, const int reuse
     socklen_t addrlen = sizeof(addr);
     std::cout << "  Waiting to accept\n";
     newsockfd = accept(sockfd, (sockaddr*)&addr, &addrlen);
-    if(newsockfd < 0) error_exit("Accept failure");
+    if (newsockfd < 0) error_exit("Accept failure");
     std::cout << "  Accepted\n";
 }
 
 void server1_connect(int& sockfd, const int port, const int reuse = 0) {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if(sockfd == -1) error_exit("Socket creation failed");
+    if (sockfd == -1) error_exit("Socket creation failed");
 
-    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)))
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)))
         error_exit("Sockopt failed");
-    if(setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)))
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)))
         error_exit("Sockopt failed");
 
     sockaddr_in addr;
@@ -175,8 +175,8 @@ bool run_snip(Circuit* circuit, const ClientPacket packet, const fmpz_t randomX,
     return circuit_valid;
 }
 
-int main(int argc, char** argv){
-    if(argc < 5){
+int main(int argc, char** argv) {
+    if (argc < 5) {
         std::cout << "Usage: ./bin/server server_num(0/1) this_client_port this_server_port other_server_port INT_SUM_MAX_bits" << endl;
     }
 
@@ -228,13 +228,13 @@ int main(int argc, char** argv){
 
     bind_and_listen(addr, sockfd, client_port);
 
-    while(1){
+    while(1) {
         socklen_t addrlen = sizeof(addr);
 
         std::cout << "waiting for connection..." << std::endl;
 
         newsockfd = accept(sockfd,(struct sockaddr*)&addr,&addrlen);
-        if(newsockfd < 0) error_exit("Connection creation failure");
+        if (newsockfd < 0) error_exit("Connection creation failure");
         
         // Get an initMsg
         initMsg msg;
@@ -243,23 +243,16 @@ int main(int argc, char** argv){
         if(msg.type == BIT_SUM){
             BitShare bitshare;  // Single share buffer
             const size_t num_inputs = msg.num_of_inputs;  // OT per client
-            bool shares[num_inputs];  // shares per client
             for(int i = 0; i < num_inputs; i++){
                 // read in client's share
                 read_in(newsockfd, &bitshare, sizeof(BitShare));
-                std::string pk(bitshare.pk,bitshare.pk+32);
+                std::string pk(bitshare.pk, bitshare.pk + 32);
                 // public key already seen, duplicate, so skip over.
-                if(bitshare_map.find(pk) != bitshare_map.end())
+                if (bitshare_map.find(pk) != bitshare_map.end()
+                    or (bitshare.val != 0 and bitshare.val != 1))
                     continue;
                 bitshares.push_back(bitshare);
                 bitshare_map[pk] = bitshare.val;
-                if(bitshare.val != 0 and bitshare.val != 1){
-                    bitshare_valid_map[pk] = false;
-                }
-                else{
-                    bitshare_valid_map[pk] = true;
-                    shares[i] = bitshare.val;
-                }
             }
             std::cerr << "Received " << msg.num_of_inputs << " shares" << std::endl;
 
@@ -324,20 +317,16 @@ int main(int argc, char** argv){
         } else if(msg.type == INT_SUM){
             std::cout << "got INT_SUM" << std::endl;
             IntShare intshare;
-            int_sum_max = 1 << atoi(argv[4]);
+            int_sum_max = 1 << num_bits;
             const size_t num_inputs = msg.num_of_inputs;
-            uint32_t shares[num_inputs];
 
-            for(int i = 0; i < num_inputs; i++){
+            for (int i = 0; i < num_inputs; i++) {
                 read_in(newsockfd, &intshare, sizeof(IntShare));
-                std::string pk(intshare.pk,intshare.pk+32);
+                std::string pk(intshare.pk, intshare.pk + 32);
 
-                if(intshare_map.find(pk) != intshare_map.end() or (intshare.val >= int_sum_max)){
+                if (intshare_map.find(pk) != intshare_map.end() 
+                    or (intshare.val >= int_sum_max)) {
                     continue; //Reject the input
-                }
-                else{
-                    intshare_valid_map[pk] = true;
-                    shares[i] = intshare.val;
                 }
                 intshares.push_back(intshare);
                 intshare_map[pk] = intshare.val;
@@ -416,7 +405,7 @@ int main(int argc, char** argv){
 
             uint32_t shares[num_inputs];
 
-            for(int i = 0; i < num_inputs; i++){
+            for (int i = 0; i < num_inputs; i++) {
                 read_in(newsockfd, &andshare, sizeof(AndShare));
                 std::string pk(andshare.pk,andshare.pk+32);
                 
@@ -507,9 +496,9 @@ int main(int argc, char** argv){
 
             uint32_t shares[num_inputs];
 
-            for(int i = 0; i < num_inputs; i++){
+            for (int i = 0; i < num_inputs; i++) {
                 read_in(newsockfd, &orshare, sizeof(OrShare));
-                std::string pk(orshare.pk,orshare.pk+32);
+                std::string pk(orshare.pk, orshare.pk + 32);
                 
                 if(orshare_map.find(pk) != orshare_map.end()){
                     continue; //Reject this input
@@ -593,19 +582,17 @@ int main(int argc, char** argv){
             MaxShare maxshare;
 
             const size_t num_inputs = msg.num_of_inputs;
-            int B = msg.max_inp;
+            const int B = msg.max_inp;
             uint32_t shares[num_inputs * (B + 1)];
-            // int share_sz = (msg.max_inp + 1)*sizeof(uint32_t);
             std::cout <<  "Num inputs : " << num_inputs << std::endl;
 
-            for(int i = 0; i < num_inputs; i++){
+            for (int i = 0; i < num_inputs; i++) {
                 read_in(newsockfd, &maxshare, sizeof(MaxShare));
+                std::string pk(maxshare.pk, maxshare.pk + 32);
 
-                std::string pk(maxshare.pk,maxshare.pk+32);
+                for (int j = 0; j <= B; j++)
+                    read_in(newsockfd, &(shares[i*(B+1)+j]), sizeof(uint32_t));
 
-                for(int j = 0; j <= B; j++){
-                    read_in(newsockfd, &(shares[i*(B+1) + j]), sizeof(uint32_t));
-                }
 
                 std::cout << pk << " Share : " << i << std::endl; 
                 // for(int j = 0; j <= B; j++)
@@ -615,7 +602,7 @@ int main(int argc, char** argv){
                 if(maxshare_valid_map.find(pk) != maxshare_valid_map.end())
                     continue;
                 maxshare_valid_map[pk] = true;
-                
+
                 maxshare.arr = &shares[i*(B+1)];
                 maxshare_map[pk] = maxshare.arr;
                 maxshares.push_back(maxshare);
@@ -718,7 +705,7 @@ int main(int argc, char** argv){
             maxshares.clear();
             maxshare_map.clear();
             maxshare_valid_map.clear();
-        } else if(msg.type == VAR_OP) {
+        } else if (msg.type == VAR_OP) {
             // Alternate idea: make each of these a function. Var calls intsum twice, then snip. 
             std::cout << "VAR_OP" << std::endl;
 
@@ -746,9 +733,9 @@ int main(int argc, char** argv){
                 ClientPacket packet = nullptr;
                 client_share_receiver.client_packet(packet);
 
-                if((varshare_map.find(pk) != varshare_map.end())
-                   or (varshare.val >= small_max) 
-                   or (varshare.val_squared >= var_max)) {
+                if ((varshare_map.find(pk) != varshare_map.end())
+                    or (varshare.val >= small_max) 
+                    or (varshare.val_squared >= var_max)) {
                     std::cout << " invalid" << std::endl;
                     continue;  // Reject the input
                 }
@@ -793,7 +780,7 @@ int main(int argc, char** argv){
                     bool other_valid;
                     read_in(serverfd, &other_valid, sizeof(bool));
 
-                    std::cout << " got other valid: " << (other_valid ? "Yes": "No") << std::endl;
+                    std::cout << " got other valid: " << std::boolalpha << other_valid << std::endl;
                     if (!other_valid)
                         continue;
 
@@ -811,7 +798,7 @@ int main(int argc, char** argv){
                     }
 
                     bool circuit_valid = run_snip(circuit, packet, randomX, server_share_sender, server_share_receiver, server_num);
-                    std::cout << " Circuit for " << i << " validity: " << (circuit_valid ? "Yes" : "No") << std::endl;
+                    std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
                     send_out(serverfd, &circuit_valid, sizeof(circuit_valid));
                 }
 
@@ -845,11 +832,13 @@ int main(int argc, char** argv){
 
                     bool is_valid = (varshare_map.find(pk) != varshare_map.end());
                     std::cout << " is_valid = " << is_valid << std::endl;
-                    send_out(serverfd, &is_valid, sizeof(bool));
 
                     valid[i] = is_valid;
                     if (!is_valid)
                         continue;
+
+                    // Communicate validity, to run snips less.
+                    send_out(serverfd, &is_valid, sizeof(bool));
 
                     shares[i] = varshare_map[pk];
                     shares_squared[i] = varshare_map_squared[pk];
@@ -863,14 +852,14 @@ int main(int argc, char** argv){
                     }
 
                     bool circuit_valid = run_snip(circuit, packet, randomX, server_share_sender, server_share_receiver, server_num);
-                    std::cout << " Circuit for " << i << " validity: " << (circuit_valid ? "Yes" : "No") << std::endl;
+                    std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
                     if (!circuit_valid) {
                         valid[i] = false;
                     }
 
                     bool other_valid;
                     read_in(serverfd, &other_valid, sizeof(bool));
-                    std::cout << " Other circuit valid: " << (other_valid ? "Yes": "No") << std::endl;
+                    std::cout << " Other circuit valid: " << std::boolalpha << other_valid << std::endl;
                     if (!other_valid) {
                         valid[i] = false;
                     }

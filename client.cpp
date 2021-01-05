@@ -368,9 +368,7 @@ int main(int argc, char** argv){
         uint32_t or_encoded_array[B+1];
         prg.random_data(values, numreqs*sizeof(uint32_t));
 
-
-
-        for(int i = 0; i <= msg.max_inp; i++)
+        for(int i = 0; i <= B; i++)
             or_encoded_array[i] = 0;
 
         send_to_server(0,&msg,sizeof(msg),0);
@@ -378,17 +376,15 @@ int main(int argc, char** argv){
 
         for(int i = 0; i < numreqs; i++){
             MaxShare maxshare0, maxshare1;
-            values[i] = (i * i)%(B+1);  // TODO: random?
+            values[i] = (i * i + 1)%(B+1);  // TODO: random?
             std::cout << "value[" << i << "] = " << values[i] << std::endl;
             prg.random_data(or_encoded_array, (B+1)*sizeof(uint32_t));
             prg.random_data(shares0, (B+1)*sizeof(uint32_t));
             for(int j = values[i] + 1; j <= B ; j++)
                 or_encoded_array[j] = 0;
 
-            for(int j = 0; j <= msg.max_inp ; j++){
+            for(int j = 0; j <= B; j++)
                 shares1[j] = shares0[j] ^ or_encoded_array[j];
-                // std::cout << shares0[j] << "   " << shares1[j] << endl;
-            }
 
             memcpy(maxshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
             memcpy(maxshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
