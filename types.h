@@ -43,17 +43,11 @@ struct VarShare {
 
 enum messageType{
     BIT_SUM,
-    INIT_BIT_SUM,
     INT_SUM,
-    INIT_INT_SUM,
     AND_OP,
-    INIT_AND_OP,
     OR_OP,
-    INIT_OR_OP,
     MAX_OP,
-    INIT_MAX_OP,
     VAR_OP,
-    INIT_VAR_OP
 };
 
 struct initMsg{

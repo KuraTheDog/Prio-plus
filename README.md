@@ -2,9 +2,25 @@
 
 1. Install [emp-ot](https://github.com/emp-toolkit/emp-ot)
 2. Install Boost
-3. cd AggrProject && mkdir build
-4. cd build && cmake ..
-5. make
+3. `cd AggrProject && mkdir build`
+4. `cd build && cmake ..`
+5. `make`
+
+# Usage example
+
+1. make
+2. Run `./bin/server 0 8880 8800 8801 8`
+3. In another window, run `./bin/server 1 8880 8800 8801 8`
+4. In another window, run `./bin/client 10 8880 8881 VAROP 8`
+5. Repeat step 4 as desired with different num_inputs and operands. 
+
+* Client arguments are `server_num Client_listen_port Server_listen_port Other_server_port max_bits`
+* Client arguments are `num_inputs server0_port server1_port operand max_bits`
+
+Ports and max bits need to be consistent across runs.
+Max bits is only used for int based summations.
+
+# Outline
 
 bit/int sum protocol
 
