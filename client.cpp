@@ -230,7 +230,7 @@ int main(int argc, char** argv){
         uint32_t encoded_values[numreqs];
         uint32_t shares0[numreqs];
         uint32_t shares1[numreqs];
-        uint64_t ans = 0;
+        uint32_t ans = 1;
 
         emp::PRG prg(fix_key);
 
@@ -240,8 +240,10 @@ int main(int argc, char** argv){
         prg.random_data(shares0, numreqs*sizeof(uint32_t));
 
         for(int i = 0; i < numreqs; i++){
-            values[i] = 1; // Take the parity as the real value
-            
+            // values[i] = values[i]&1; // Take the parity as the real value
+            values[i] = 1;
+            std::cout << "val[" << i << "] = " << values[i] << std::endl;
+            ans &= values[i];
         }
 
         for(int i = 0; i < numreqs; i++){   // encode step. x_i = 1 -> enc(x_i) = 0 else enc(x_i) = r
@@ -291,7 +293,7 @@ int main(int argc, char** argv){
         uint32_t encoded_values[numreqs];
         uint32_t shares0[numreqs];
         uint32_t shares1[numreqs];
-        uint64_t ans = 0;
+        uint32_t ans = 0;
 
         emp::PRG prg(fix_key);
 
@@ -300,12 +302,16 @@ int main(int argc, char** argv){
         prg.random_data(encoded_values, numreqs*sizeof(uint32_t));
         prg.random_data(shares0, numreqs*sizeof(uint32_t));
 
-        for(int i = 0; i < numreqs; i++)
+        for(int i = 0; i < numreqs; i++) {
             values[i] = values[i]&1; // Take the parity as the real value
+            // values[i] = 0;
+            std::cout << "val[" << i << "] = " << values[i] << std::endl;
+            ans |= values[i];
+        }
 
         for(int i = 0; i < numreqs; i++){   // encode step. x_i = 1 -> enc(x_i) = 0 else enc(x_i) = r
             if(values[i] == 0){
-                encoded_values[i] = 1;
+                encoded_values[i] = 0;
             }
         }
 
