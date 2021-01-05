@@ -283,9 +283,7 @@ int main(int argc, char** argv){
                         send_out(sockfd_init,&bitshares[i].pk,32);
                         shares[i] = bitshares[i].val;
                     }
-                    NetIO *io;
-
-                    io = new NetIO(SERVER0_IP,60051);
+                    NetIO* io = new NetIO(SERVER0_IP,60051);
                     uint64_t b = bitsum_ot_receiver(io,&shares[0],num_inputs);
                     std::cout << "From receiver: " << b << std::endl;
                     send_out(sockfd_init,&b,sizeof(uint64_t));
@@ -312,9 +310,7 @@ int main(int argc, char** argv){
                     shares[i] = bitshare_map[pk_str];
                 }
             }
-            NetIO *io;
-            
-            io = new NetIO(nullptr,60051);
+            NetIO* io = new NetIO(nullptr,60051);
             uint64_t a = bitsum_ot_sender(io,&shares[0],&valid[0],num_inputs);
             std::cout << "From sender: " << a<< std::endl;
             uint64_t b;
@@ -359,22 +355,21 @@ int main(int argc, char** argv){
                     std::cout << "server 1 fork to send init_int_sum" << std::endl;
                     initMsg msg;
                     msg.type = INIT_INT_SUM;
-                    msg.num_of_inputs = intshares.size();
-                    uint32_t *shares = new uint32_t[intshares.size()];
+                    const size_t num_inputs = intshares.size();
+                    msg.num_of_inputs = num_inputs;
+                    uint32_t shares[num_inputs];
 
                     int sockfd_init;
                     server1_connect(sockfd_init, other_port);
 
                     send_out(sockfd_init, &msg, sizeof(initMsg));
 
-                    for(int i = 0; i < intshares.size(); i++){
+                    for(int i = 0; i < num_inputs; i++){
                         send_out(sockfd_init,&intshares[i].pk,32);
                         shares[i] = intshares[i].val;
                     }
-                    NetIO *io;
-
-                    io = new NetIO(SERVER0_IP,60051);
-                    uint64_t b = intsum_ot_receiver(io,&shares[0],intshares.size(),num_bits);
+                    NetIO* io = new NetIO(SERVER0_IP,60051);
+                    uint64_t b = intsum_ot_receiver(io,&shares[0],num_inputs,num_bits);
                     send_out(sockfd_init, &b, sizeof(uint64_t));
                     std::cout << "Sending to server0: " << b << std::endl;
                 }
@@ -402,9 +397,7 @@ int main(int argc, char** argv){
                     shares[i] = intshare_map[pk_str];
                 }
             }
-            NetIO *io;
-            
-            io = new NetIO(nullptr,60051);
+            NetIO* io = new NetIO(nullptr,60051);
             uint64_t a = intsum_ot_sender(io,&shares[0],&valid[0],num_inputs,num_bits);
             uint64_t b;
 
@@ -603,7 +596,7 @@ int main(int argc, char** argv){
 
             const size_t num_inputs = msg.num_of_inputs;
             int B = msg.max_inp;
-            uint32_t* shares = new uint32_t[num_inputs*(msg.max_inp + 1)];
+            uint32_t shares[num_inputs * (B + 1)];
             // int share_sz = (msg.max_inp + 1)*sizeof(uint32_t);
             std::cout <<  "Num inputs : " << num_inputs << std::endl;
 
@@ -646,7 +639,7 @@ int main(int argc, char** argv){
                     server1_connect(sockfd_init, other_port);
 
                     send_out(sockfd_init, &msg, sizeof(initMsg));
-                    uint32_t* b = new uint32_t[B+1];
+                    uint32_t b[B+1];
                     for(int i = 0; i <= B; i++)
                         b[i] = 0;
 
@@ -911,6 +904,7 @@ int main(int argc, char** argv){
             float ans = ex2 - (ex * ex);
             std::cout << "Ans: " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
 
+            // Clear globals
             varshares.clear();
             varshare_map.clear();
             varshare_map_squared.clear();

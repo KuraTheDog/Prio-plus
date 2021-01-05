@@ -134,6 +134,8 @@ uint64_t bitsum_ot_receiver(NetIO *io,bool *shares, int n){
             sum += ans[i];
     }
 
+    delete[] r;
+
     return sum;
 }
 
@@ -166,6 +168,8 @@ uint64_t intsum_ot_receiver(NetIO *io, uint32_t *shares, int n, int num_bits){
             }
         }  
     }
+
+    delete[] r;
 
     return sum;
 }
