@@ -134,6 +134,14 @@ struct Gate {
         fmpz_init(WireValue);
     }
 
+    Gate(GateType gatetype, Gate* pL, Gate* pR){
+        type = gatetype;
+        ParentL = pL;
+        ParentR = pR;
+        fmpz_init(Constant);
+        fmpz_init(WireValue);
+    }
+
     ~Gate() {
         fmpz_clear(Constant);
         fmpz_clear(WireValue);
@@ -398,8 +406,38 @@ Circuit* CheckVar(){
 
 
 
-// Circuit* CheckLinReg() {
+Circuit* CheckLinReg(int num_fields) {
+    int num_inputs = num_fields + (num_fields * (num_fields+1))/2;
 
-// }
+    Circuit* out = new Circuit();
+
+    for(int i = 0; i < num_inputs; i++){
+        Gate* inp = new Gate(Gate_Input);
+        out->addGate(inp);
+    }
+
+    int k = num_fields;
+
+    for(int i = 0; i < num_fields; i++){
+        for(int j = i; j < num_fields; j++){
+            Gate* x_i = out->gates[i];
+            Gate* x_j = out->gates[j];
+            Gate* x_i_j = out->gates[k];
+            k++;
+            
+            Gate* mul = new Gate(Gate_Mul, x_i, x_j);
+
+            Gate* inv = MulByNegOne(x_i_j);
+            Gate* add = new Gate(Gate_Add, mul, inv);
+
+            out->addGate(mul);
+            out->addGate(inv);
+            out->addGate(add);
+            out->addZeroGate(add);
+        }
+    }
+
+    return out;
+}
 
 #endif
