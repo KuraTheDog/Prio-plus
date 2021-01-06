@@ -147,8 +147,8 @@ bool run_snip(Circuit* circuit, const ClientPacket packet, const fmpz_t randomX,
     return circuit_valid;
 }
 
+// For AND and OR
 returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, bool &ans) {
-    std::vector<IntShare> shares;
     std::unordered_map<std::string, uint32_t> share_map;
 
     IntShare share;
@@ -160,7 +160,6 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 
         if (share_map.find(pk) != share_map.end())
             continue;
-        shares.push_back(share);
         share_map[pk] = share.val;
     }
 
@@ -177,16 +176,16 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
     std::cout << " Child for server chat" << std::endl;
 
     if (server_num == 1) {
-        const size_t num_inputs = shares.size();
+        const size_t num_inputs = share_map.size();
         send_out(serverfd, &num_inputs, sizeof(size_t));
         uint32_t b = 0;
-        for (int i = 0; i < num_inputs; i++) {
-            send_out(serverfd, &shares[i].pk, PK_LENGTH);
+        for (const auto& share : share_map) {
+            send_out(serverfd, &share.first[0], PK_LENGTH);
             bool other_valid;
             read_in(serverfd, &other_valid, sizeof(bool));
             if (!other_valid)
                 continue;
-            b ^= shares[i].val;
+            b ^= share.second;
         }
         send_out(serverfd, &b, sizeof(uint32_t));
         std::cout << "Sending b: " << b << std::endl;
@@ -246,10 +245,10 @@ int main(int argc, char** argv) {
     // Server 1 connects, via sockfd_server
     int sockfd_server, newsockfd_server, serverfd = 0;
     if (server_num == 0) {
-        server0_listen(sockfd_server, newsockfd_server, server_port);
+        server0_listen(sockfd_server, newsockfd_server, server_port, 1);
         serverfd = newsockfd_server;
     } else if (server_num == 1) {
-        server1_connect(sockfd_server, server_port);
+        server1_connect(sockfd_server, server_port, 1);
         serverfd = sockfd_server;
     } else {
         error_exit("Can only handle servers #0 and #1");
@@ -273,7 +272,7 @@ int main(int argc, char** argv) {
     int sockfd, newsockfd;
     sockaddr_in addr;
 
-    bind_and_listen(addr, sockfd, client_port);
+    bind_and_listen(addr, sockfd, client_port, 1);
 
     while(1) {
         socklen_t addrlen = sizeof(addr);
