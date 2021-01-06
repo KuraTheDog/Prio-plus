@@ -10,7 +10,7 @@
 
 1. make
 2. Run `./bin/server 0 8880 8800 8801 8`
-3. In another window, run `./bin/server 1 8880 8800 8801 8`
+3. In another window, run `./bin/server 1 8881 8801 8800 8`
 4. In another window, run `./bin/client 10 8880 8881 VAROP 8`
 5. Repeat step 4 as desired with different num_inputs and operands. 
 
