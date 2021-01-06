@@ -253,22 +253,22 @@ int main(int argc, char** argv) {
 
         std::cerr << "NUM REQS " << numreqs << std::endl;
 
-        send_to_server(0,&msg,sizeof(msg),0);
-        send_to_server(1,&msg,sizeof(msg),0);
+        send_to_server(0,&msg,sizeof(initMsg),0);
+        send_to_server(1,&msg,sizeof(initMsg),0);
 
         for (int i = 0; i < numreqs; i++) {
-            AndShare andshare0, andshare1;
+            IntShare share0, share1;
 
-            memcpy(andshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            andshare0.val = shares0[i];
-            memcpy(andshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            memcpy(share0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            share0.val = shares0[i];
+            memcpy(share0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
 
-            memcpy(andshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            andshare1.val = shares1[i];
-            memcpy(andshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            memcpy(share1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            share1.val = shares1[i];
+            memcpy(share1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
 
-            send_to_server(0,(void *)&andshare0,sizeof(andshare0),0);
-            send_to_server(1,(void *)&andshare1,sizeof(andshare1),0);
+            send_to_server(0,(void *)&share0,sizeof(IntShare),0);
+            send_to_server(1,(void *)&share1,sizeof(IntShare),0);
         }
 
         std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
@@ -321,18 +321,18 @@ int main(int argc, char** argv) {
         send_to_server(1,&msg,sizeof(msg),0);
 
         for (int i = 0; i < numreqs; i++) {
-            OrShare orshare0, orshare1;
+            IntShare share0, share1;
 
-            memcpy(orshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            orshare0.val = shares0[i];
-            memcpy(orshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            memcpy(share0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            share0.val = shares0[i];
+            memcpy(share0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
 
-            memcpy(orshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            orshare1.val = shares1[i];
-            memcpy(orshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            memcpy(share1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            share1.val = shares1[i];
+            memcpy(share1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
 
-            send_to_server(0,(void *)&orshare0,sizeof(orshare0),0);
-            send_to_server(1,(void *)&orshare1,sizeof(orshare1),0);
+            send_to_server(0,(void *)&share0,sizeof(share0),0);
+            send_to_server(1,(void *)&share1,sizeof(share1),0);
         }
 
         std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;

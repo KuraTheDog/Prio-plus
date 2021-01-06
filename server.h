@@ -11,6 +11,13 @@ extern "C" {
     #include "poly/poly_once.h"
 }
 
+// Return type of different ops
+enum returnType {
+    RET_INVALID,    // Too many inputs invalid
+    RET_ANS,        // Success, Returning ans. For the one thread that does the computation
+    RET_NO_ANS,     // Success, no ans. For forking and support server.
+};
+
 // Only used in unused BatchPre.Interp
 struct BatchPoly {
     fmpz_mod_poly_t fpoly;

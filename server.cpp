@@ -147,6 +147,82 @@ bool run_snip(Circuit* circuit, const ClientPacket packet, const fmpz_t randomX,
     return circuit_valid;
 }
 
+returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, bool &ans) {
+    std::vector<IntShare> shares;
+    std::unordered_map<std::string, uint32_t> share_map;
+
+    IntShare share;
+    const size_t num_inputs = msg.num_of_inputs;
+
+    for (int i = 0; i < num_inputs; i++) {
+        read_in(clientfd, &share, sizeof(IntShare));
+        std::string pk(share.pk, share.pk + PK_LENGTH);
+
+        if (share_map.find(pk) != share_map.end())
+            continue;
+        shares.push_back(share);
+        share_map[pk] = share.val;
+    }
+
+    // TODO: return INVALID if too many invalid.
+
+    std::cout << "Received " << msg.num_of_inputs << " shares" << std::endl;
+
+    std::cout << "Forking for server chats" << std::endl;
+    pid_t pid = fork();
+    if (pid > 0) {
+        std::cout << " Parent leaving." << std::endl;
+        return RET_NO_ANS;
+    }
+    std::cout << " Child for server chat" << std::endl;
+
+    if (server_num == 1) {
+        const size_t num_inputs = shares.size();
+        send_out(serverfd, &num_inputs, sizeof(size_t));
+        uint32_t b = 0;
+        for (int i = 0; i < num_inputs; i++) {
+            send_out(serverfd, &shares[i].pk, PK_LENGTH);
+            bool other_valid;
+            read_in(serverfd, &other_valid, sizeof(bool));
+            if (!other_valid)
+                continue;
+            b ^= shares[i].val;
+        }
+        send_out(serverfd, &b, sizeof(uint32_t));
+        std::cout << "Sending b: " << b << std::endl;
+        return RET_NO_ANS;
+    } else {
+        size_t num_inputs;
+        read_in(serverfd, &num_inputs, sizeof(size_t));
+        uint32_t a = 0;
+
+        for (int i = 0; i < num_inputs; i++) {
+            char pk_buf[PK_LENGTH];
+            read_in(serverfd, &pk_buf[0], PK_LENGTH);
+            std::string pk(pk_buf, pk_buf + PK_LENGTH);
+
+            bool is_valid = (share_map.find(pk) != share_map.end());
+            send_out(serverfd, &is_valid, sizeof(bool));
+            if (!is_valid)
+                continue;
+            a ^= share_map[pk];
+        }
+        std::cout << "Have a: " << a << std::endl;
+        uint32_t b;
+        read_in(serverfd, &b, sizeof(uint32_t));
+        std::cout << "Got b: " << b << std::endl;
+        uint32_t aggr = a ^ b;
+        if (msg.type == AND_OP) {
+            ans = (aggr == 0);
+        } else if (msg.type == OR_OP) {
+            ans = (aggr != 0);
+        } else {
+            error_exit("Message type incorrect for xor_op");
+        }
+        return RET_ANS;
+    }
+}
+
 int main(int argc, char** argv) {
     if (argc < 4) {
         std::cout << "Usage: ./bin/server server_num(0/1) this_client_port server0_port INT_SUM_MAX_bits" << endl;
@@ -361,141 +437,24 @@ int main(int argc, char** argv) {
             std::cout << "AND_OP" << std::endl;
             auto start = clock_start();  // for benchmark
 
-            std::vector<AndShare> andshares;
-            std::unordered_map<std::string,uint32_t> andshare_map;
-
-            AndShare andshare;
-            const size_t num_inputs = msg.num_of_inputs;
-
-            for (int i = 0; i < num_inputs; i++) {
-                read_in(newsockfd, &andshare, sizeof(AndShare));
-                std::string pk(andshare.pk, andshare.pk + PK_LENGTH);
-                
-                if (andshare_map.find(pk) != andshare_map.end())
-                    continue;
-                andshares.push_back(andshare);
-                andshare_map[pk] = andshare.val;
+            bool ans;
+            returnType ret = xor_op(msg, newsockfd, serverfd, server_num, ans);
+            if (ret == RET_ANS) {
+                std::cout << "Ans: " << std::boolalpha << ans << std::endl;
             }
 
-            std::cerr << "Received " << msg.num_of_inputs << " shares" << std::endl;
-
-            std::cout << "Forking for server chats" << std::endl;
-            pid_t pid = fork();
-            if (pid == 0) {
-                std::cout << " Forked Child leaving." << std::endl;
-                continue;
-            }
-            std::cout << " Parent for server chat" << std::endl;
-
-            if (server_num == 1) {
-                const size_t num_inputs = andshares.size();
-                send_out(serverfd, &num_inputs, sizeof(size_t));
-                uint32_t b = 0;
-                for (int i = 0; i < num_inputs; i++) {
-                    send_out(serverfd, &andshares[i].pk, PK_LENGTH);
-                    bool other_valid;
-                    read_in(serverfd, &other_valid, sizeof(bool));
-                    if (!other_valid)
-                        continue;
-                    b ^= andshares[i].val;
-                }
-                send_out(serverfd, &b, sizeof(uint32_t));
-                std::cout << "Sending b: " << b << std::endl;
-            } else {
-                size_t num_inputs;
-                read_in(serverfd, &num_inputs, sizeof(size_t));
-
-                uint32_t a = 0;
-
-                for (int i = 0; i < num_inputs; i++) {
-                    char pk_buf[PK_LENGTH];
-                    read_in(serverfd, &pk_buf[0], PK_LENGTH);
-                    std::string pk(pk_buf, pk_buf + PK_LENGTH);
-
-                    bool is_valid = (andshare_map.find(pk) != andshare_map.end());
-                    send_out(serverfd, &is_valid, sizeof(bool));
-                    if (!is_valid)
-                        continue;
-                    a ^= andshare_map[pk];
-                }
-                std::cout << "Have a: " << a << std::endl;
-                uint32_t b;
-                read_in(serverfd, &b, sizeof(uint32_t));
-                std::cout << "Got b: " << b << std::endl;
-                uint32_t aggr = a ^ b;
-                std::cout << "Aggr = " << aggr << std::endl;
-                std::cout << "Ans: " << std::boolalpha << (aggr == 0) << std::endl;
-            }
             long long t = time_from(start);
             std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == OR_OP) {
             std::cout << "OR_OP" << std::endl;
             auto start = clock_start();  // for benchmark
-            std::vector<OrShare> orshares;
-            std::unordered_map<std::string,uint32_t> orshare_map;
 
-            OrShare orshare;
-            const size_t num_inputs = msg.num_of_inputs;
-
-            for (int i = 0; i < num_inputs; i++) {
-                read_in(newsockfd, &orshare, sizeof(OrShare));
-                std::string pk(orshare.pk, orshare.pk + PK_LENGTH);
-                
-                if (orshare_map.find(pk) != orshare_map.end())
-                    continue;
-                orshares.push_back(orshare);
-                orshare_map[pk] = orshare.val;
+            bool ans;
+            returnType ret = xor_op(msg, newsockfd, serverfd, server_num, ans);
+            if (ret == RET_ANS) {
+                std::cout << "Ans: " << std::boolalpha << ans << std::endl;
             }
 
-            std::cerr << "Received " << msg.num_of_inputs << " shares" << std::endl;
-
-            std::cout << "Forking for server chats" << std::endl;
-            pid_t pid = fork();
-            if (pid == 0) {
-                std::cout << " Forked Child leaving." << std::endl;
-                continue;
-            }
-            std::cout << " Parent for server chat" << std::endl;
-
-            if (server_num == 1) {
-                const size_t num_inputs = orshares.size();
-                send_out(serverfd, &num_inputs, sizeof(size_t));
-                uint32_t b = 0;
-                for (int i =0; i < num_inputs; i++) {
-                    send_out(serverfd, &orshares[i].pk, PK_LENGTH);
-                    bool other_valid;
-                    read_in(serverfd, &other_valid, sizeof(bool));
-                    if (!other_valid)
-                        continue;
-                    b ^= orshares[i].val;
-                }
-                send_out(serverfd, &b, sizeof(uint32_t));
-                std::cout << "Sending b: " << b << std::endl;
-            } else {
-                size_t num_inputs;
-                read_in(serverfd, &num_inputs, sizeof(size_t));
-
-                uint32_t a = 0;
-
-                for (int i = 0; i < num_inputs; i++) {
-                    char pk_buf[PK_LENGTH];
-                    read_in(serverfd, &pk_buf[0], PK_LENGTH);
-                    std::string pk(pk_buf, pk_buf + PK_LENGTH);
-
-                    bool is_valid = (orshare_map.find(pk) != orshare_map.end());
-                    send_out(serverfd, &is_valid, sizeof(bool));
-                    if (!is_valid)
-                        continue;
-                    a ^= orshare_map[pk];
-                }
-                std::cout << "Have a: " << a << std::endl;
-                uint32_t b;
-                read_in(serverfd, &b, sizeof(uint32_t));
-                std::cout << "Got b: " << b << std::endl;
-                uint32_t aggr = a ^ b;
-                std::cout << "Aggr = " << aggr << std::endl;
-                std::cout << "Ans: " << std::boolalpha << (aggr != 0) << std::endl;
-            }
             long long t = time_from(start);
             std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == MAX_OP) {

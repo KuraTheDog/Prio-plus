@@ -9,19 +9,10 @@ struct BitShare{
     char signature[PK_LENGTH];
 };
 
+/*
+For INT_SUM, AND_OP, OR_OP
+*/
 struct IntShare{
-    char pk[PK_LENGTH];
-    unsigned int val;
-    char signature[PK_LENGTH];
-};
-
-struct AndShare{
-    char pk[PK_LENGTH];
-    unsigned int val;
-    char signature[PK_LENGTH];
-};
-
-struct OrShare{
     char pk[PK_LENGTH];
     unsigned int val;
     char signature[PK_LENGTH];
