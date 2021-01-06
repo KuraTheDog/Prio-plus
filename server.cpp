@@ -165,6 +165,7 @@ int main(int argc, char** argv) {
 
     init_constants();
 
+    // Set serverfd. 
     // Server 0 listens, via newsockfd_server.
     // Server 1 connects, via sockfd_server
     int sockfd_server, newsockfd_server, serverfd = 0;
@@ -281,7 +282,7 @@ int main(int argc, char** argv) {
                 std::cout << "Ans : " << aggr << std::endl;
             }
             long long t = time_from(start);
-            std::cout << "Time taken : " << t << std::endl;
+            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == INT_SUM) {
             std::cout << "INT_SUM" << std::endl;
             auto start = clock_start();  // for benchmark
@@ -355,7 +356,7 @@ int main(int argc, char** argv) {
                 std::cout << "Ans : " << aggr << std::endl;
             }
             long long t = time_from(start);
-            std::cout << "Time taken : " << t << std::endl;
+            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == AND_OP) {
             std::cout << "AND_OP" << std::endl;
             auto start = clock_start();  // for benchmark
@@ -426,7 +427,7 @@ int main(int argc, char** argv) {
                 std::cout << "Ans: " << std::boolalpha << (aggr == 0) << std::endl;
             }
             long long t = time_from(start);
-            std::cout << "Time taken : " << t << std::endl;
+            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == OR_OP) {
             std::cout << "OR_OP" << std::endl;
             auto start = clock_start();  // for benchmark
@@ -496,7 +497,7 @@ int main(int argc, char** argv) {
                 std::cout << "Ans: " << std::boolalpha << (aggr != 0) << std::endl;
             }
             long long t = time_from(start);
-            std::cout << "Time taken : " << t << std::endl;
+            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == MAX_OP) {
             std::cout << "MAX_OP" << std::endl;
             auto start = clock_start();  // for benchmark
@@ -589,7 +590,7 @@ int main(int argc, char** argv) {
                 }
             }
             long long t = time_from(start);
-            std::cout << "Time taken : " << t << std::endl;
+            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == VAR_OP) {
             // Alternate idea: make each of these a function. Var calls intsum twice, then snip. 
             std::cout << "VAR_OP" << std::endl;
@@ -769,7 +770,7 @@ int main(int argc, char** argv) {
                 std::cout << "Ans: " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
             }
             long long t = time_from(start);
-            std::cout << "Time taken : " << t << std::endl;
+            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
         } else {
             std::cout << "Unrecognized message type: " << msg.type << std::endl;
         }
