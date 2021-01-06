@@ -148,22 +148,20 @@ bool run_snip(Circuit* circuit, const ClientPacket packet, const fmpz_t randomX,
 }
 
 int main(int argc, char** argv) {
-    if (argc < 5) {
-        std::cout << "Usage: ./bin/server server_num(0/1) this_client_port this_server_port other_server_port INT_SUM_MAX_bits" << endl;
+    if (argc < 4) {
+        std::cout << "Usage: ./bin/server server_num(0/1) this_client_port server0_port INT_SUM_MAX_bits" << endl;
     }
 
     const int server_num = atoi(argv[1]);  // Server # 1 or # 2
     const int client_port = atoi(argv[2]); // port of this server, for the client
     const int server_port = atoi(argv[3]); // port of this server, for the other server
-    const int other_port = atoi(argv[4]);  // port of the other server
 
     std::cout << "This server is server # " << server_num << std::endl;
     std::cout << "  Listening for client on " << client_port << std::endl;
     std::cout << "  Listening for server on " << server_port << std::endl;
-    std::cout << "  Other server's port is  " << other_port  << std::endl;
 
-    if (argc >= 5)
-        num_bits = atoi(argv[5]);
+    if (argc >= 4)
+        num_bits = atoi(argv[4]);
 
     init_constants();
 
@@ -174,7 +172,7 @@ int main(int argc, char** argv) {
         server0_listen(sockfd_server, newsockfd_server, server_port);
         serverfd = newsockfd_server;
     } else if (server_num == 1) {
-        server1_connect(sockfd_server, other_port);
+        server1_connect(sockfd_server, server_port);
         serverfd = sockfd_server;
     } else {
         error_exit("Can only handle servers #0 and #1");

@@ -9,16 +9,17 @@
 # Usage example
 
 1. make
-2. Run `./bin/server 0 8880 8800 8801 8`
-3. In another window, run `./bin/server 1 8881 8801 8800 8`
-4. In another window, run `./bin/client 10 8880 8881 VAROP 8`
+2. Run `./bin/server 0 8800 8888 8`
+3. In another window, run `./bin/server 1 8801 8888 8`
+4. In another window, run `./bin/client 10 8800 8801 VAROP 8`
 5. Repeat step 4 as desired with different num_inputs and operands. 
 
-* Client arguments are `server_num Client_listen_port Server_listen_port Other_server_port max_bits`
+* Client arguments are `server_num Client_listen_port server_0_port max_bits`
 * Client arguments are `num_inputs server0_port server1_port operand max_bits`
 
 Ports and max bits need to be consistent across runs.
 Max bits is only used for int based summations.
+Server 0 port tells Server 0 which port to open, and server 1 which port of server 0 is open.
 
 # Outline
 
