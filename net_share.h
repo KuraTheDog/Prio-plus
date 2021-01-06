@@ -1,10 +1,10 @@
 /* 
 For sending fmtp_t objects over sockets.
 
-Uses fdopen to use built in fmpz functions to send/receive via files.
-
 ShareSender: Sends over the socket.
 ShareReceiver: Receives over the socket. Takes as argument the variable to set.
+
+Note: being a class is no longer necessary, but still clear/helpful.
 
 E.g. 
 
