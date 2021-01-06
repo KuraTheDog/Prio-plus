@@ -138,14 +138,14 @@ int main(int argc, char** argv) {
             std::string pk_str = pub_key_to_hex((uint64_t*)&b[i]);
 
             // Client i sends share to server 0
-            memcpy(bitshare0.pk,&pk_str.c_str()[0],32);
+            memcpy(bitshare0.pk,&pk_str.c_str()[0],PK_LENGTH);
             bitshare0.val = shares0[i];
-            memcpy(bitshare0.signature,&pk_str.c_str()[0],32);  // sign with pk?
+            memcpy(bitshare0.signature,&pk_str.c_str()[0],PK_LENGTH);  // sign with pk?
 
             // Client i sends share to server 1
-            memcpy(bitshare1.pk,&pk_str.c_str()[0],32);
+            memcpy(bitshare1.pk,&pk_str.c_str()[0],PK_LENGTH);
             bitshare1.val = shares1[i];
-            memcpy(bitshare1.signature,&pk_str.c_str()[0],32);
+            memcpy(bitshare1.signature,&pk_str.c_str()[0],PK_LENGTH);
 
             send_to_server(0,(void *)&bitshare0,sizeof(bitshare0),0);
             send_to_server(1,(void *)&bitshare1,sizeof(bitshare1),0);
@@ -192,13 +192,13 @@ int main(int argc, char** argv) {
 
         for (int i = 0; i < numreqs; i++) {
             IntShare intshare0,intshare1;
-            memcpy(intshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(intshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
             intshare0.val = shares0[i];
-            memcpy(intshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(intshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
 
-            memcpy(intshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(intshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
             intshare1.val = shares1[i];
-            memcpy(intshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(intshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
             std::cout << "key[" << i << "] = " << pub_key_to_hex((uint64_t*)&b[i]) << endl;
 
             send_to_server(0,(void *)&intshare0,sizeof(intshare0),0);
@@ -259,13 +259,13 @@ int main(int argc, char** argv) {
         for (int i = 0; i < numreqs; i++) {
             AndShare andshare0, andshare1;
 
-            memcpy(andshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(andshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
             andshare0.val = shares0[i];
-            memcpy(andshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(andshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
 
-            memcpy(andshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(andshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
             andshare1.val = shares1[i];
-            memcpy(andshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(andshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
 
             send_to_server(0,(void *)&andshare0,sizeof(andshare0),0);
             send_to_server(1,(void *)&andshare1,sizeof(andshare1),0);
@@ -323,13 +323,13 @@ int main(int argc, char** argv) {
         for (int i = 0; i < numreqs; i++) {
             OrShare orshare0, orshare1;
 
-            memcpy(orshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(orshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
             orshare0.val = shares0[i];
-            memcpy(orshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(orshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
 
-            memcpy(orshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(orshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
             orshare1.val = shares1[i];
-            memcpy(orshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(orshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
 
             send_to_server(0,(void *)&orshare0,sizeof(orshare0),0);
             send_to_server(1,(void *)&orshare1,sizeof(orshare1),0);
@@ -379,12 +379,12 @@ int main(int argc, char** argv) {
             for (int j = 0; j <= B; j++)
                 shares1[j] = shares0[j] ^ or_encoded_array[j];
 
-            memcpy(maxshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
-            memcpy(maxshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(maxshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            memcpy(maxshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
             maxshare0.arr = shares0;
 
-            memcpy(maxshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
-            memcpy(maxshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(maxshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            memcpy(maxshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
             maxshare1.arr = shares1;
 
             send_maxshare(maxshare0,0,B);
@@ -451,15 +451,15 @@ int main(int argc, char** argv) {
 
         for (int i = 0; i < numreqs; i++) {
             VarShare varshare0, varshare1;
-            memcpy(varshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(varshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
             varshare0.val = shares0[i];
             varshare0.val_squared = shares0_squared[i];
-            memcpy(varshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(varshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
 
-            memcpy(varshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(varshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
             varshare1.val = shares1[i];
             varshare1.val_squared = shares1_squared[i];
-            memcpy(varshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],32);
+            memcpy(varshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
 
             // std::cout << "key[" << i << "] = " << pub_key_to_hex((uint64_t*)&b[i]) << endl;
 

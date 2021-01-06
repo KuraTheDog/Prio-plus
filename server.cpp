@@ -171,10 +171,10 @@ int main(int argc, char** argv) {
     // Server 1 connects, via sockfd_server
     int sockfd_server, newsockfd_server, serverfd = 0;
     if (server_num == 0) {
-        server0_listen(sockfd_server, newsockfd_server, server_port, 1);
+        server0_listen(sockfd_server, newsockfd_server, server_port);
         serverfd = newsockfd_server;
     } else if (server_num == 1) {
-        server1_connect(sockfd_server, other_port, 1);
+        server1_connect(sockfd_server, other_port);
         serverfd = sockfd_server;
     } else {
         error_exit("Can only handle servers #0 and #1");
@@ -225,7 +225,7 @@ int main(int argc, char** argv) {
             for (int i = 0; i < num_inputs; i++) {
                 // read in client's share
                 read_in(newsockfd, &bitshare, sizeof(BitShare));
-                std::string pk(bitshare.pk, bitshare.pk + 32);
+                std::string pk(bitshare.pk, bitshare.pk + PK_LENGTH);
                 // public key already seen, duplicate, so skip over.
                 if (bitshare_map.find(pk) != bitshare_map.end()
                     or (bitshare.val != 0 and bitshare.val != 1))
@@ -249,7 +249,7 @@ int main(int argc, char** argv) {
 
                 bool shares[num_inputs];
                 for (int i = 0; i < num_inputs; i++) {
-                    send_out(serverfd, &bitshares[i].pk, 32);
+                    send_out(serverfd, &bitshares[i].pk, PK_LENGTH);
                     shares[i] = bitshares[i].val;
                 }
                 NetIO* io = new NetIO(SERVER0_IP, 60051);
@@ -263,9 +263,9 @@ int main(int argc, char** argv) {
                 bool valid[num_inputs];
 
                 for (int i = 0; i < num_inputs; i++) {
-                    char pk_buf[32];
-                    read_in(serverfd, &pk_buf[0], 32);
-                    std::string pk(pk_buf, pk_buf + 32);
+                    char pk_buf[PK_LENGTH];
+                    read_in(serverfd, &pk_buf[0], PK_LENGTH);
+                    std::string pk(pk_buf, pk_buf + PK_LENGTH);
 
                     bool is_valid = (bitshare_map.find(pk) != bitshare_map.end());
                     valid[i] = is_valid;
@@ -297,7 +297,7 @@ int main(int argc, char** argv) {
 
             for (int i = 0; i < num_inputs; i++) {
                 read_in(newsockfd, &intshare, sizeof(IntShare));
-                std::string pk(intshare.pk, intshare.pk + 32);
+                std::string pk(intshare.pk, intshare.pk + PK_LENGTH);
 
                 if (intshare_map.find(pk) != intshare_map.end() 
                     or (intshare.val >= int_sum_max)) {
@@ -323,7 +323,7 @@ int main(int argc, char** argv) {
 
                 uint32_t shares[num_inputs];
                 for (int i = 0; i < num_inputs; i++) {
-                    send_out(serverfd, &intshares[i].pk, 32);
+                    send_out(serverfd, &intshares[i].pk, PK_LENGTH);
                     shares[i] = intshares[i].val;
                 }
                 NetIO* io = new NetIO(SERVER0_IP, 60051);
@@ -337,9 +337,9 @@ int main(int argc, char** argv) {
                 bool valid[num_inputs];
 
                 for (int i = 0; i < num_inputs; i++) {
-                    char pk_buf[32];
-                    read_in(serverfd, &pk_buf[0], 32);
-                    std::string pk(pk_buf, pk_buf + 32);
+                    char pk_buf[PK_LENGTH];
+                    read_in(serverfd, &pk_buf[0], PK_LENGTH);
+                    std::string pk(pk_buf, pk_buf + PK_LENGTH);
 
                     bool is_valid = (intshare_map.find(pk) != intshare_map.end());
                     valid[i] = is_valid;
@@ -370,7 +370,7 @@ int main(int argc, char** argv) {
 
             for (int i = 0; i < num_inputs; i++) {
                 read_in(newsockfd, &andshare, sizeof(AndShare));
-                std::string pk(andshare.pk, andshare.pk + 32);
+                std::string pk(andshare.pk, andshare.pk + PK_LENGTH);
                 
                 if (andshare_map.find(pk) != andshare_map.end())
                     continue;
@@ -393,7 +393,7 @@ int main(int argc, char** argv) {
                 send_out(serverfd, &num_inputs, sizeof(size_t));
                 uint32_t b = 0;
                 for (int i = 0; i < num_inputs; i++) {
-                    send_out(serverfd, &andshares[i].pk, 32);
+                    send_out(serverfd, &andshares[i].pk, PK_LENGTH);
                     bool other_valid;
                     read_in(serverfd, &other_valid, sizeof(bool));
                     if (!other_valid)
@@ -409,9 +409,9 @@ int main(int argc, char** argv) {
                 uint32_t a = 0;
 
                 for (int i = 0; i < num_inputs; i++) {
-                    char pk_buf[32];
-                    read_in(serverfd, &pk_buf[0], 32);
-                    std::string pk(pk_buf, pk_buf + 32);
+                    char pk_buf[PK_LENGTH];
+                    read_in(serverfd, &pk_buf[0], PK_LENGTH);
+                    std::string pk(pk_buf, pk_buf + PK_LENGTH);
 
                     bool is_valid = (andshare_map.find(pk) != andshare_map.end());
                     send_out(serverfd, &is_valid, sizeof(bool));
@@ -440,7 +440,7 @@ int main(int argc, char** argv) {
 
             for (int i = 0; i < num_inputs; i++) {
                 read_in(newsockfd, &orshare, sizeof(OrShare));
-                std::string pk(orshare.pk, orshare.pk + 32);
+                std::string pk(orshare.pk, orshare.pk + PK_LENGTH);
                 
                 if (orshare_map.find(pk) != orshare_map.end())
                     continue;
@@ -463,7 +463,7 @@ int main(int argc, char** argv) {
                 send_out(serverfd, &num_inputs, sizeof(size_t));
                 uint32_t b = 0;
                 for (int i =0; i < num_inputs; i++) {
-                    send_out(serverfd, &orshares[i].pk, 32);
+                    send_out(serverfd, &orshares[i].pk, PK_LENGTH);
                     bool other_valid;
                     read_in(serverfd, &other_valid, sizeof(bool));
                     if (!other_valid)
@@ -479,9 +479,9 @@ int main(int argc, char** argv) {
                 uint32_t a = 0;
 
                 for (int i = 0; i < num_inputs; i++) {
-                    char pk_buf[32];
-                    read_in(serverfd, &pk_buf[0], 32);
-                    std::string pk(pk_buf, pk_buf + 32);
+                    char pk_buf[PK_LENGTH];
+                    read_in(serverfd, &pk_buf[0], PK_LENGTH);
+                    std::string pk(pk_buf, pk_buf + PK_LENGTH);
 
                     bool is_valid = (orshare_map.find(pk) != orshare_map.end());
                     send_out(serverfd, &is_valid, sizeof(bool));
@@ -514,16 +514,11 @@ int main(int argc, char** argv) {
 
             for (int i = 0; i < num_inputs; i++) {
                 read_in(newsockfd, &maxshare, sizeof(MaxShare));
-                std::string pk(maxshare.pk, maxshare.pk + 32);
+                std::string pk(maxshare.pk, maxshare.pk + PK_LENGTH);
 
                 for (int j = 0; j <= B; j++)
                     read_in(newsockfd, &(shares[i*(B+1)+j]), sizeof(uint32_t));
 
-
-                std::cout << pk << " Share : " << i << std::endl; 
-                // for(int j = 0; j <= B; j++)
-                //     std::cout << i*(B+1) + j << "  " << shares[i*(B+1) + j] << "   ";
-                // std::cout << std::endl;
                 if (maxshare_map.find(pk) != maxshare_map.end())
                     continue;
 
@@ -550,7 +545,7 @@ int main(int argc, char** argv) {
                     b[j] = 0;
 
                 for (int i = 0; i < num_inputs; i++) {
-                    send_out(serverfd, &maxshares[i].pk, 32);
+                    send_out(serverfd, &maxshares[i].pk, PK_LENGTH);
                     bool other_valid;
                     read_in(serverfd, &other_valid, sizeof(bool));
                     if (!other_valid)
@@ -571,9 +566,9 @@ int main(int argc, char** argv) {
                     a[j] = 0;
 
                 for (int i = 0; i < num_inputs; i++) {
-                    char pk_buf[32];
-                    read_in(serverfd, &pk_buf[0], 32);
-                    std::string pk(pk_buf, pk_buf + 32);
+                    char pk_buf[PK_LENGTH];
+                    read_in(serverfd, &pk_buf[0], PK_LENGTH);
+                    std::string pk(pk_buf, pk_buf + PK_LENGTH);
 
                     bool is_valid = (maxshare_map.find(pk) != maxshare_map.end());
                     send_out(serverfd, &is_valid, sizeof(bool));
@@ -621,7 +616,7 @@ int main(int argc, char** argv) {
                 std::cout << "i = " << i << std::endl;
                 int bytes_read = read_in(newsockfd, &varshare, sizeof(VarShare));
                 if (bytes_read == 0) error_exit("Read 0 bytes. Connection closed?");
-                std::string pk(varshare.pk, varshare.pk+32);
+                std::string pk(varshare.pk, varshare.pk + PK_LENGTH);
 
                 ClientPacket packet = nullptr;
                 client_share_receiver.client_packet(packet);
@@ -668,7 +663,7 @@ int main(int argc, char** argv) {
 
                 for (int i = 0; i < num_inputs; i++) {
                     std::cout << "i = " << i << std::endl;
-                    send_out(serverfd, &varshares[i].pk, 32);
+                    send_out(serverfd, &varshares[i].pk, PK_LENGTH);
 
                     bool other_valid;
                     read_in(serverfd, &other_valid, sizeof(bool));
@@ -677,7 +672,7 @@ int main(int argc, char** argv) {
                     if (!other_valid)
                         continue;
 
-                    std::string pk(varshares[i].pk, varshares[i].pk+32);
+                    std::string pk(varshares[i].pk, varshares[i].pk + PK_LENGTH);
                     shares[i] = varshares[i].val;
                     shares_squared[i] = varshares[i].val_squared;
                     ClientPacket packet = varshare_map_packets[pk];
@@ -719,9 +714,9 @@ int main(int argc, char** argv) {
 
                 for (int i = 0; i < num_inputs; i++) {
                     std::cout << "i = " << i << std::endl;
-                    char pk_buf[32];
-                    read_in(serverfd, &pk_buf[0], 32);
-                    std::string pk(pk_buf, pk_buf + 32);
+                    char pk_buf[PK_LENGTH];
+                    read_in(serverfd, &pk_buf[0], PK_LENGTH);
+                    std::string pk(pk_buf, pk_buf + PK_LENGTH);
 
                     bool is_valid = (varshare_map.find(pk) != varshare_map.end());
                     std::cout << " is_valid = " << is_valid << std::endl;

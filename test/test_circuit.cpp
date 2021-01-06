@@ -109,8 +109,6 @@ void test_CheckVar() {
   fmpz_add(tmp, checker_0->evalH, checker_1->evalH);
   fmpz_mod(tmp, tmp, Int_Modulus);
   std::cout << "r * h(r) = "; fmpz_print(tmp); std::cout << std::endl;
-
-
 }
 
 int main(int argc, char* argv[])

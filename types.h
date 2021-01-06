@@ -1,44 +1,43 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-// TODO: 32 as global constant.
+#define PK_LENGTH 32
 
 struct BitShare{
-    char pk[32];
+    char pk[PK_LENGTH];
     unsigned int val;
-    char signature[32];
+    char signature[PK_LENGTH];
 };
 
 struct IntShare{
-    char pk[32];
+    char pk[PK_LENGTH];
     unsigned int val;
-    char signature[32];
+    char signature[PK_LENGTH];
 };
 
 struct AndShare{
-    char pk[32];
+    char pk[PK_LENGTH];
     unsigned int val;
-    char signature[32];
+    char signature[PK_LENGTH];
 };
 
 struct OrShare{
-    char pk[32];
+    char pk[PK_LENGTH];
     unsigned int val;
-    char signature[32];
+    char signature[PK_LENGTH];
 };
 
 struct MaxShare{
     uint32_t* arr;
-    char pk[32];
-    char signature[32];
+    char pk[PK_LENGTH];
+    char signature[PK_LENGTH];
 };
 
 struct VarShare {
-    char pk[32];
+    char pk[PK_LENGTH];
     unsigned int val;
     unsigned int val_squared;
-    // TODO: snips
-    char signature[32];
+    char signature[PK_LENGTH];
 };
 
 enum messageType{
