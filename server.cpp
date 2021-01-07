@@ -1,7 +1,7 @@
-#include <sys/socket.h> 
-#include <netinet/in.h> 
-#include <cstdlib> 
-#include <iostream> 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <cstdlib>
+#include <iostream>
 #include <unistd.h>
 
 #include <vector>
@@ -19,11 +19,6 @@
 // #define SERVER0_IP "52.87.230.64"
 // #define SERVER1_IP "54.213.189.18"
 
-/* TODO: Split client and server ports
-server client_in, server_in, other_server
-Servers chat on server_in/other_server
-So server can connect to client + other server
-*/
 
 uint32_t int_sum_max;
 uint32_t num_bits;
@@ -51,7 +46,7 @@ size_t send_out(const int sockfd, const void* buf, const size_t len) {
 }
 
 void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port, const int reuse = 1) {
-    sockfd = socket(AF_INET,SOCK_STREAM,0);
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd == -1)
         error_exit("Socket creation failed");
@@ -66,7 +61,7 @@ void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port, const int r
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
 
-    if (bind(sockfd,(struct sockaddr*)&addr,sizeof(addr)) < 0) {
+    if (bind(sockfd, (sockaddr*)&addr, sizeof(addr)) < 0) {
         std::cerr << "Failed to bind to port: " << port << std::endl;
         error_exit("Bind to port failed");
     }
@@ -109,7 +104,7 @@ void server1_connect(int& sockfd, const int port, const int reuse = 0) {
 }
 
 bool run_snip(Circuit* circuit, const ClientPacket packet, const fmpz_t randomX, 
-              const ShareSender sender, const ShareReceiver receiver, const int server_num) {
+              const int serverfd, const int server_num) {
     Checker* checker = new Checker(circuit, server_num);
     checker->setReq(packet);
     CheckerPreComp* pre = new CheckerPreComp(circuit);
@@ -118,11 +113,11 @@ bool run_snip(Circuit* circuit, const ClientPacket packet, const fmpz_t randomX,
     CorShare* cor_share_other = new CorShare();
 
     if (server_num == 0) {
-        sender.CorShare(cor_share);
-        receiver.CorShare(cor_share_other);
+        send_CorShare(serverfd, cor_share);
+        recv_CorShare(serverfd, cor_share_other);
     } else {
-        receiver.CorShare(cor_share_other);
-        sender.CorShare(cor_share);
+        recv_CorShare(serverfd, cor_share_other);
+        send_CorShare(serverfd, cor_share);
     }
 
     Cor* cor = checker->CorFn(cor_share, cor_share_other);
@@ -132,11 +127,11 @@ bool run_snip(Circuit* circuit, const ClientPacket packet, const fmpz_t randomX,
     checker->OutShare(valid_share, cor);
 
     if (server_num == 0) {
-        sender.fmpz(valid_share);
-        receiver.fmpz(valid_share_other);
+        send_fmpz(serverfd, valid_share);
+        recv_fmpz(serverfd, valid_share_other);
     } else {
-        receiver.fmpz(valid_share_other);
-        sender.fmpz(valid_share);
+        recv_fmpz(serverfd, valid_share_other);
+        send_fmpz(serverfd, valid_share);
     }
 
     bool circuit_valid = checker->OutputIsValid(valid_share, valid_share_other);
@@ -345,20 +340,18 @@ int main(int argc, char** argv) {
     } else {
         error_exit("Can only handle servers #0 and #1");
     }
-    ShareSender server_share_sender(serverfd);
-    ShareReceiver server_share_receiver(serverfd);
 
     // Share the same randomX.
     // TODO: change every once in a while.
     fmpz_t randomX;
     fmpz_init(randomX);
     if (server_num == 0) {
-        server_share_receiver.fmpz(randomX);
+        recv_fmpz(serverfd, randomX);
         std::cout << "Got randomX: "; fmpz_print(randomX); std::cout << std::endl;
     } else {
         fmpz_randm(randomX, seed, Int_Modulus);
         std::cout << "Sending randomX: "; fmpz_print(randomX); std::cout << std::endl;
-        server_share_sender.fmpz(randomX);
+        send_fmpz(serverfd, randomX);
     }
 
     int sockfd, newsockfd;
@@ -588,8 +581,6 @@ int main(int argc, char** argv) {
             std::cout << "small_max: " << small_max << std::endl;
             std::cout << "var_max: " << var_max << std::endl;
 
-            ShareReceiver client_share_receiver(newsockfd);
-
             for (int i = 0; i < num_inputs; i++) {
                 std::cout << "i = " << i << std::endl;
                 int bytes_read = read_in(newsockfd, &varshare, sizeof(VarShare));
@@ -597,7 +588,7 @@ int main(int argc, char** argv) {
                 std::string pk(varshare.pk, varshare.pk + PK_LENGTH);
 
                 ClientPacket packet = nullptr;
-                client_share_receiver.client_packet(packet);
+                recv_ClientPacket(newsockfd, packet);
 
                 if ((varshare_map.find(pk) != varshare_map.end())
                     or (varshare.val >= small_max) 
@@ -663,7 +654,7 @@ int main(int argc, char** argv) {
                         have_roots_init = true;
                     }
 
-                    bool circuit_valid = run_snip(circuit, packet, randomX, server_share_sender, server_share_receiver, server_num);
+                    bool circuit_valid = run_snip(circuit, packet, randomX, serverfd, server_num);
                     std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
                     send_out(serverfd, &circuit_valid, sizeof(circuit_valid));
                 }
@@ -717,7 +708,7 @@ int main(int argc, char** argv) {
                         have_roots_init = true;
                     }
 
-                    bool circuit_valid = run_snip(circuit, packet, randomX, server_share_sender, server_share_receiver, server_num);
+                    bool circuit_valid = run_snip(circuit, packet, randomX, serverfd, server_num);
                     std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
                     if (!circuit_valid) {
                         valid[i] = false;

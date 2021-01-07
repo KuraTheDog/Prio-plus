@@ -267,9 +267,6 @@ int main(int argc, char** argv) {
 
     init_constants();
 
-    ShareSender share_sender0(sockfd0);
-    ShareSender share_sender1(sockfd1);
-
     if (protocol == "BITSUM") {
         emp::block *b = new block[numreqs];  // public keys
         bool shares0[numreqs];  // shares going to 0
@@ -473,10 +470,8 @@ int main(int argc, char** argv) {
             share_polynomials(var_circuit, p0, p1);
 
             // Send p0 to server0, p1 to server1
-            int n = share_sender0.client_packet(p0);
-            // std::cout << "Sent " << n << " bytes to server0, f0 = ";
-            // fmpz_print(p0->f0_s); std::cout << std::endl;
-            n = share_sender1.client_packet(p1);
+            send_ClientPacket(sockfd0, p0);
+            send_ClientPacket(sockfd1, p1);
             delete p0;
             delete p1;
         }
