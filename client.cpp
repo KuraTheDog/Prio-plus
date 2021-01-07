@@ -58,6 +58,163 @@ int send_to_server(const int server, const void* buffer, const size_t n, const i
     return ret;
 }
 
+void xor_op(const std::string protocol, const size_t numreqs) {
+    initMsg msg;
+    msg.num_of_inputs = numreqs;
+    emp::block* b = new block[numreqs];
+    uint32_t values[numreqs];
+    uint32_t encoded_values[numreqs];
+    uint32_t shares0[numreqs];
+    uint32_t shares1[numreqs];
+    uint32_t ans;
+    if (protocol == "ANDOP") {
+        msg.type = AND_OP;
+        ans = 1;
+    }
+    if (protocol == "OROP") {
+        msg.type = OR_OP;
+        ans = 0;
+    }
+
+    emp::PRG prg(fix_key);
+
+    prg.random_block(b, numreqs);
+    prg.random_data(values, numreqs*sizeof(uint32_t));
+    prg.random_data(encoded_values, numreqs*sizeof(uint32_t));
+    prg.random_data(shares0, numreqs*sizeof(uint32_t));
+
+    for (int i = 0; i < numreqs; i++) {
+        values[i] = values[i]&1; // Take the parity as the real value
+        // values[i] = 1;
+        std::cout << "val[" << i << "] = " << values[i] << std::endl;
+        if (protocol == "ANDOP")
+            ans &= values[i];
+        if (protocol == "OROP")
+            ans |= values[i];
+    }
+
+    // encode step. set to all 0's for values that don't force the ans.
+    if (protocol == "ANDOP")
+        for (int i = 0; i < numreqs; i++)
+            if (values[i] == 1)
+                encoded_values[i] = 0;
+    if (protocol == "OROP")
+        for (int i = 0; i < numreqs; i++)
+            if (values[i] == 0)
+                encoded_values[i] = 0;
+
+    // Share splitting. Same as int sum. Sum of shares = encoded value
+    for (int i = 0; i < numreqs; i++)
+        shares1[i] = encoded_values[i]^shares0[i];
+
+    std::cerr << "NUM REQS " << numreqs << std::endl;
+
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
+
+    for (int i = 0; i < numreqs; i++) {
+        IntShare share0, share1;
+        const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
+
+        memcpy(share0.pk, &pk[0], PK_LENGTH);
+        share0.val = shares0[i];
+        memcpy(share0.signature, &pk[0], PK_LENGTH);
+
+        memcpy(share1.pk, &pk[0], PK_LENGTH);
+        share1.val = shares1[i];
+        memcpy(share1.signature, &pk[0], PK_LENGTH);
+
+        send_to_server(0, &share0, sizeof(IntShare));
+        send_to_server(1, &share1, sizeof(IntShare));
+    }
+
+    std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
+    close(sockfd0);
+    close(sockfd1);
+
+    delete[] b;
+}
+
+void max_op(const std::string protocol, const size_t numreqs) {
+    initMsg msg;
+    msg.num_of_inputs = numreqs;
+    msg.max_inp = 250;
+    emp::PRG prg(fix_key);
+    int B = msg.max_inp;
+    int ans;
+    if (protocol == "MAXOP") {
+        msg.type = MAX_OP;
+        ans = 0;
+    }
+    if (protocol == "MINOP") {
+        msg.type = MIN_OP;
+        ans = B;
+    }
+
+    std::cerr << "NUM REQS " << numreqs << std::endl;
+
+    emp::block *b = new block[numreqs];
+    prg.random_block(b,numreqs);
+
+    uint32_t values[numreqs];
+    uint32_t shares0[B+1];
+    uint32_t shares1[B+1];
+    uint32_t or_encoded_array[B+1];
+    prg.random_data(values, numreqs*sizeof(uint32_t));
+
+    for (int i = 0; i <= B; i++)
+        or_encoded_array[i] = 0;
+
+    send_to_server(0, &msg,sizeof(initMsg), 0);
+    send_to_server(1, &msg,sizeof(initMsg), 0);
+
+    for (int i = 0; i < numreqs; i++) {
+        MaxShare maxshare0, maxshare1;
+        values[i] = values[i] % (B + 1);
+        std::cout << "value[" << i << "] = " << values[i] << std::endl;
+        if (protocol == "MAXOP")
+            ans = (values[i] > ans? values[i] : ans);
+        if (protocol == "MINOP")
+            ans = (values[i] < ans? values[i] : ans);
+
+        prg.random_data(or_encoded_array, (B+1)*sizeof(uint32_t));
+        prg.random_data(shares0, (B+1)*sizeof(uint32_t));
+
+        // min(x) = -max(-x) = B - max(B - x)
+        int v;
+        if (protocol == "MAXOP")
+            v = values[i];
+        if (protocol == "MINOP")
+            v = B - values[i];
+
+        for (int j = v + 1; j <= B ; j++)
+            or_encoded_array[j] = 0;
+
+        for (int j = 0; j <= B; j++)
+            shares1[j] = shares0[j] ^ or_encoded_array[j];
+
+        const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
+
+        memcpy(maxshare0.pk, &pk[0], PK_LENGTH);
+        memcpy(maxshare0.signature, &pk[0], PK_LENGTH);
+        maxshare0.arr = shares0;
+
+        memcpy(maxshare1.pk, &pk[0], PK_LENGTH);
+        memcpy(maxshare1.signature, &pk[0], PK_LENGTH);
+        maxshare1.arr = shares1;
+
+        send_maxshare(maxshare0, 0, B);
+        send_maxshare(maxshare1, 1, B);
+    }
+
+    std::cout << std::endl;
+    std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
+    close(sockfd0);
+    close(sockfd1);
+
+    delete[] b;
+}
+
 int main(int argc, char** argv) {
     if (argc < 4) {
         std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits" << endl;
@@ -215,256 +372,24 @@ int main(int argc, char** argv) {
     }
 
     else if (protocol == "ANDOP") {
-        std::cout << "Uploading all and shares. " << numreqs << std::endl;
-        emp::block *b = new block[numreqs];
-
-        uint32_t values[numreqs];
-        uint32_t encoded_values[numreqs];
-        uint32_t shares0[numreqs];
-        uint32_t shares1[numreqs];
-        uint32_t ans = 1;
-
-        emp::PRG prg(fix_key);
-
-        prg.random_block(b,numreqs);
-        prg.random_data(values, numreqs*sizeof(uint32_t));
-        prg.random_data(encoded_values, numreqs*sizeof(uint32_t));
-        prg.random_data(shares0, numreqs*sizeof(uint32_t));
-
-        for (int i = 0; i < numreqs; i++) {
-            // values[i] = values[i]&1; // Take the parity as the real value
-            values[i] = 1;
-            std::cout << "val[" << i << "] = " << values[i] << std::endl;
-            ans &= values[i];
-        }
-
-        // encode step. x_i = 1 -> enc(x_i) = 0 else enc(x_i) = r
-        for (int i = 0; i < numreqs; i++) {
-            if (values[i] == 1) {
-                encoded_values[i] = 0;
-            }
-        }
-
-        // Share splitting. Same as int sum. Sum of shares = encoded value
-        for (int i = 0; i < numreqs; i++)            
-            shares1[i] = encoded_values[i]^shares0[i];
-        
-        initMsg msg;
-        msg.num_of_inputs = numreqs;
-        msg.type = AND_OP;
-
-        std::cerr << "NUM REQS " << numreqs << std::endl;
-
-        send_to_server(0,&msg,sizeof(initMsg),0);
-        send_to_server(1,&msg,sizeof(initMsg),0);
-
-        for (int i = 0; i < numreqs; i++) {
-            IntShare share0, share1;
-
-            memcpy(share0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            share0.val = shares0[i];
-            memcpy(share0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-
-            memcpy(share1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            share1.val = shares1[i];
-            memcpy(share1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-
-            send_to_server(0,(void *)&share0,sizeof(IntShare),0);
-            send_to_server(1,(void *)&share1,sizeof(IntShare),0);
-        }
-
-        std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
-        close(sockfd0);
-        close(sockfd1);
-
-        delete[] b;
+        std::cout << "Uploading all AND shares: " << numreqs << std::endl;
+        xor_op(protocol, numreqs);
     }
 
     else if (protocol == "OROP") {
-        emp::block *b = new block[numreqs];
-
-        uint32_t values[numreqs];
-        uint32_t encoded_values[numreqs];
-        uint32_t shares0[numreqs];
-        uint32_t shares1[numreqs];
-        uint32_t ans = 0;
-
-        emp::PRG prg(fix_key);
-
-        prg.random_block(b,numreqs);
-        prg.random_data(values, numreqs*sizeof(uint32_t));
-        prg.random_data(encoded_values, numreqs*sizeof(uint32_t));
-        prg.random_data(shares0, numreqs*sizeof(uint32_t));
-
-        for (int i = 0; i < numreqs; i++) {
-            values[i] = values[i]&1; // Take the parity as the real value
-            // values[i] = 0;
-            std::cout << "val[" << i << "] = " << values[i] << std::endl;
-            ans |= values[i];
-        }
-        // encode step. x_i = 1 -> enc(x_i) = 0 else enc(x_i) = r
-        for (int i = 0; i < numreqs; i++) {
-            if (values[i] == 0) {
-                encoded_values[i] = 0;
-            }
-        }
-
-        // Share splitting. Same as int sum. Sum of shares = encoded value
-        for (int i = 0; i < numreqs; i++)
-            shares1[i] = encoded_values[i]^shares0[i];
-        
-        initMsg msg;
-        msg.num_of_inputs = numreqs;
-        msg.type = OR_OP;
-
-        std::cerr << "NUM REQS " << numreqs << std::endl;
-
-        send_to_server(0,&msg,sizeof(msg),0);
-        send_to_server(1,&msg,sizeof(msg),0);
-
-        for (int i = 0; i < numreqs; i++) {
-            IntShare share0, share1;
-
-            memcpy(share0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            share0.val = shares0[i];
-            memcpy(share0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-
-            memcpy(share1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            share1.val = shares1[i];
-            memcpy(share1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-
-            send_to_server(0,(void *)&share0,sizeof(share0),0);
-            send_to_server(1,(void *)&share1,sizeof(share1),0);
-        }
-
-        std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
-        close(sockfd0);
-        close(sockfd1);
-
-        delete[] b;
+        std::cout << "Uploading all OR shares: " << numreqs << std::endl;
+        xor_op(protocol, numreqs);
     }
 
     else if (protocol == "MAXOP") {
-        initMsg msg;
-        msg.num_of_inputs = numreqs;
-        msg.type = MAX_OP;
-        msg.max_inp = 250;
-        emp::PRG prg(fix_key);
-        int B = msg.max_inp;
-        int ans = 0;
-
-        std::cerr << "NUM REQS " << numreqs << std::endl;
-
-        emp::block *b = new block[numreqs];
-        prg.random_block(b,numreqs);
-
-        uint32_t values[numreqs];
-        uint32_t shares0[B+1];
-        uint32_t shares1[B+1];
-        uint32_t or_encoded_array[B+1];
-        prg.random_data(values, numreqs*sizeof(uint32_t));
-
-        for (int i = 0; i <= B; i++)
-            or_encoded_array[i] = 0;
-
-        send_to_server(0,&msg,sizeof(msg),0);
-        send_to_server(1,&msg,sizeof(msg),0);
-
-        for (int i = 0; i < numreqs; i++) {
-            MaxShare maxshare0, maxshare1;
-            // values[i] = (i * i + 1)%(B+1);  // TODO: random?
-            values[i] = values[i] % (B + 1);
-            std::cout << "value[" << i << "] = " << values[i] << std::endl;
-            ans = (values[i] > ans? values[i] : ans);
-            prg.random_data(or_encoded_array, (B+1)*sizeof(uint32_t));
-            prg.random_data(shares0, (B+1)*sizeof(uint32_t));
-            for (int j = values[i] + 1; j <= B ; j++)
-                or_encoded_array[j] = 0;
-
-            for (int j = 0; j <= B; j++)
-                shares1[j] = shares0[j] ^ or_encoded_array[j];
-
-            memcpy(maxshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            memcpy(maxshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            maxshare0.arr = shares0;
-
-            memcpy(maxshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            memcpy(maxshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            maxshare1.arr = shares1;
-
-            send_maxshare(maxshare0,0,B);
-            send_maxshare(maxshare1,1,B);
-
-        }
-
-        std::cout << std::endl;
-        std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
-        close(sockfd0);
-        close(sockfd1);
-
-        delete[] b;
+        std::cout << "Uploading all MAX shares: " << numreqs << std::endl;
+        max_op(protocol, numreqs);
     }
 
     else if (protocol == "MINOP") {
         // Min(x) = - max(-x) = b - max(b - x)
-        initMsg msg;
-        msg.num_of_inputs = numreqs;
-        msg.type = MIN_OP;
-        msg.max_inp = 250;
-        emp::PRG prg(fix_key);
-        int B = msg.max_inp;
-        int ans = B;
-
-        std::cerr << "NUM REQS " << numreqs << std::endl;
-
-        emp::block *b = new block[numreqs];
-        prg.random_block(b,numreqs);
-
-        uint32_t values[numreqs];
-        uint32_t shares0[B+1];
-        uint32_t shares1[B+1];
-        uint32_t or_encoded_array[B+1];
-        prg.random_data(values, numreqs*sizeof(uint32_t));
-
-        for (int i = 0; i <= B; i++)
-            or_encoded_array[i] = 0;
-
-        send_to_server(0,&msg,sizeof(msg),0);
-        send_to_server(1,&msg,sizeof(msg),0);
-
-        for (int i = 0; i < numreqs; i++) {
-            MaxShare maxshare0, maxshare1;
-            // values[i] = (i * i + 1)%(B+1);  // TODO: random?
-            values[i] = values[i] % (B + 1);
-            std::cout << "value[" << i << "] = " << values[i] << std::endl;
-            ans = (values[i] < ans? values[i] : ans);
-            prg.random_data(or_encoded_array, (B+1)*sizeof(uint32_t));
-            prg.random_data(shares0, (B+1)*sizeof(uint32_t));
-            for (int j = (B - values[i]) + 1; j <= B ; j++)
-                or_encoded_array[j] = 0;
-
-            for (int j = 0; j <= B; j++)
-                shares1[j] = shares0[j] ^ or_encoded_array[j];
-
-            memcpy(maxshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            memcpy(maxshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            maxshare0.arr = shares0;
-
-            memcpy(maxshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            memcpy(maxshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            maxshare1.arr = shares1;
-
-            send_maxshare(maxshare0,0,B);
-            send_maxshare(maxshare1,1,B);
-
-        }
-
-        std::cout << std::endl;
-        std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
-        close(sockfd0);
-        close(sockfd1);
-
-        delete[] b;
+        std::cout << "Uploading all MIN shares: " << numreqs << std::endl;
+        max_op(protocol, numreqs);
     }
 
     else if (protocol == "VAROP") {
