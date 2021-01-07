@@ -14,7 +14,7 @@
 4. In another window, run `./bin/client 10 8800 8801 VAROP 8`
 5. Repeat step 4 as desired with different num_inputs and operands. 
 
-* Client arguments are `server_num Client_listen_port server_0_port max_bits`
+* Server arguments are `server_num Client_listen_port server_0_port max_bits`
 * Client arguments are `num_inputs server0_port server1_port operand max_bits`
 
 Ports and max bits need to be consistent across runs.
