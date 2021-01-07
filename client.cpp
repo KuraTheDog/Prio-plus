@@ -491,6 +491,10 @@ int main(int argc, char** argv) {
         delete[] b;
     }
 
+    else if(protocol == "LINREGOP") {
+        
+    }
+
     else {
         std::cout << "Unrecognized protocol: " << protocol << std::endl;
     }
