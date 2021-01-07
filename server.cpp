@@ -222,6 +222,92 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
     }
 }
 
+// For MAX and MIN
+returnType max_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, int &ans) {
+    std::unordered_map<std::string, uint32_t*> share_map;
+
+    MaxShare share;
+    const size_t num_inputs = msg.num_of_inputs;
+    const int B = msg.max_inp;
+    const size_t share_sz = (B+1) * sizeof(uint32_t);
+    // Need this to have all share arrays stay in memory, for server1 later.
+    uint32_t shares[num_inputs * (B + 1)];
+
+    for (int i = 0; i < num_inputs; i++) {
+        read_in(clientfd, &share, sizeof(MaxShare));
+        std::string pk(share.pk, share.pk + PK_LENGTH);
+
+        read_in(clientfd, &shares[i*(B+1)], share_sz);
+
+        if (share_map.find(pk) != share_map.end())
+            continue;
+        share_map[pk] = &shares[i*(B+1)];
+    }
+
+    // TODO: return INVALID if too many invalid.
+
+    std::cout << "Received " << msg.num_of_inputs << " shares" << std::endl;
+
+    std::cout << "Forking for server chats" << std::endl;
+    pid_t pid = fork();
+    if (pid > 0) {
+        std::cout << " Parent leaving." << std::endl;
+        return RET_NO_ANS;
+    }
+    std::cout << " Child for server chat" << std::endl;
+
+    if (server_num == 1) {
+        const size_t num_inputs = share_map.size();
+        send_out(serverfd, &num_inputs, sizeof(size_t));
+        uint32_t b[B+1];
+        memset(b, 0, sizeof(b));
+        
+        for (const auto& share : share_map) {
+            send_out(serverfd, &share.first[0], PK_LENGTH);
+            bool other_valid;
+            read_in(serverfd, &other_valid, sizeof(bool));
+            if (!other_valid)
+                continue;
+            for (int j = 0; j <= B; j++)
+                b[j] ^= share.second[j];
+        }
+        send_out(serverfd, &b[0], share_sz);
+        return RET_NO_ANS;
+    } else {
+        size_t num_inputs;
+        read_in(serverfd, &num_inputs, sizeof(size_t));
+        uint32_t a[B+1];
+        memset(a, 0, sizeof(a));
+
+        for (int i =0; i < num_inputs; i++) {
+            char pk_buf[PK_LENGTH];
+            read_in(serverfd, &pk_buf[0], PK_LENGTH);
+            std::string pk(pk_buf, pk_buf + PK_LENGTH);
+
+            bool is_valid = (share_map.find(pk) != share_map.end());
+            send_out(serverfd, &is_valid, sizeof(bool));
+            if (!is_valid)
+                continue;
+
+            for (int j = 0; j <= B; j++)
+                a[j] ^= share_map[pk][j];
+        }
+        uint32_t b[B+1];
+        read_in(serverfd, &b[0], share_sz);
+        for (int j = B; j >= 0; j--) {
+            // std::cout << "a,b[" << j << "] = " << a[j] << ", " << b[j] << std::endl;
+            if (a[j] != b[j]) {
+                ans = j;
+                return RET_ANS;
+            }
+        }
+        // Shouldn't reach.
+        return RET_INVALID;
+    }
+
+    return RET_INVALID;
+}
+
 int main(int argc, char** argv) {
     if (argc < 4) {
         std::cout << "Usage: ./bin/server server_num(0/1) this_client_port server0_port INT_SUM_MAX_bits" << endl;
@@ -460,92 +546,10 @@ int main(int argc, char** argv) {
             std::cout << "MAX_OP" << std::endl;
             auto start = clock_start();  // for benchmark
 
-            std::vector<MaxShare> maxshares;
-            std::unordered_map<std::string, uint32_t*> maxshare_map;
-
-            MaxShare maxshare;
-            const size_t num_inputs = msg.num_of_inputs;
-            const int B = msg.max_inp;
-            uint32_t shares[num_inputs * (B + 1)];
-            std::cout <<  "Num inputs : " << num_inputs << std::endl;
-
-            for (int i = 0; i < num_inputs; i++) {
-                read_in(newsockfd, &maxshare, sizeof(MaxShare));
-                std::string pk(maxshare.pk, maxshare.pk + PK_LENGTH);
-
-                for (int j = 0; j <= B; j++)
-                    read_in(newsockfd, &(shares[i*(B+1)+j]), sizeof(uint32_t));
-
-                if (maxshare_map.find(pk) != maxshare_map.end())
-                    continue;
-
-                maxshare.arr = &shares[i*(B+1)];
-                maxshare_map[pk] = maxshare.arr;
-                maxshares.push_back(maxshare);
-            }
-
-            std::cerr << "Received " << msg.num_of_inputs << " shares" << std::endl;
-
-            std::cout << "Forking for server chats" << std::endl;
-            pid_t pid = fork();
-            if (pid == 0) {
-                std::cout << " Forked Child leaving." << std::endl;
-                continue;
-            }
-            std::cout << " Parent for server chat" << std::endl;
-
-            if (server_num == 1) {
-                const size_t num_inputs = maxshares.size();
-                send_out(serverfd, &num_inputs, sizeof(size_t));
-                uint32_t b[B+1];
-                for (int j = 0; j <= B; j++)
-                    b[j] = 0;
-
-                for (int i = 0; i < num_inputs; i++) {
-                    send_out(serverfd, &maxshares[i].pk, PK_LENGTH);
-                    bool other_valid;
-                    read_in(serverfd, &other_valid, sizeof(bool));
-                    if (!other_valid)
-                        continue;
-                    for (int j = 0; j <= B; j++)
-                        b[j] ^= shares[i*(B+1)+j];
-                }
-                for (int j = 0; j <= B; j++)
-                    send_out(serverfd, &b[j], sizeof(uint32_t));
-            } else {
-                size_t num_inputs;
-                read_in(serverfd, &num_inputs, sizeof(size_t));
-                uint32_t share[B+1];
-                int share_sz = (B+1)*sizeof(uint32_t);
-                uint32_t a[B+1];
-
-                for (int j = 0; j <= B; j++)
-                    a[j] = 0;
-
-                for (int i = 0; i < num_inputs; i++) {
-                    char pk_buf[PK_LENGTH];
-                    read_in(serverfd, &pk_buf[0], PK_LENGTH);
-                    std::string pk(pk_buf, pk_buf + PK_LENGTH);
-
-                    bool is_valid = (maxshare_map.find(pk) != maxshare_map.end());
-                    send_out(serverfd, &is_valid, sizeof(bool));
-                    if (!is_valid)
-                        continue;
-                    memcpy(share, maxshare_map[pk], share_sz);
-                    for (int j = 0; j <= B; j++)
-                        a[j] ^= share[j];
-                }
-                uint32_t b[B+1];
-                for (int j = 0; j <= B; j++)
-                    read_in(serverfd, &(b[j]), sizeof(uint32_t));
-                for (int j = B; j >= 0; j--) {
-                    // std::cout << a[j] << " " << b[j] << std::endl;
-                    a[j] ^= b[j];
-                    if (a[j] != 0) {
-                        std::cout << "Maximum: " << j << std::endl;
-                        break;
-                    }
-                }
+            int ans;
+            returnType ret = max_op(msg, newsockfd, serverfd, server_num, ans);
+            if (ret == RET_ANS) {
+                std::cout << "Ans: " << ans << std::endl;
             }
             long long t = time_from(start);
             std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;

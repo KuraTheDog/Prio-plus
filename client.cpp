@@ -349,6 +349,7 @@ int main(int argc, char** argv) {
         msg.max_inp = 250;
         emp::PRG prg(fix_key);
         int B = msg.max_inp;
+        int ans = 0;
 
         std::cerr << "NUM REQS " << numreqs << std::endl;
 
@@ -369,8 +370,10 @@ int main(int argc, char** argv) {
 
         for (int i = 0; i < numreqs; i++) {
             MaxShare maxshare0, maxshare1;
-            values[i] = (i * i + 1)%(B+1);  // TODO: random?
+            // values[i] = (i * i + 1)%(B+1);  // TODO: random?
+            values[i] = values[i] % (B + 1);
             std::cout << "value[" << i << "] = " << values[i] << std::endl;
+            ans = (values[i] > ans? values[i] : ans);
             prg.random_data(or_encoded_array, (B+1)*sizeof(uint32_t));
             prg.random_data(shares0, (B+1)*sizeof(uint32_t));
             for (int j = values[i] + 1; j <= B ; j++)
@@ -393,7 +396,7 @@ int main(int argc, char** argv) {
         }
 
         std::cout << std::endl;
-        // std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
+        std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
         close(sockfd0);
         close(sockfd1);
 
