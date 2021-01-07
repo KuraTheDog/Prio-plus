@@ -1,10 +1,10 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include "prio.h"
-#include "share.h"
 #include "circuit.h"
 #include "fmpz_utils.h"
+#include "prio.h"
+#include "share.h"
 
 extern "C" {
     #include "poly/poly_batch.h"

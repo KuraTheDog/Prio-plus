@@ -1,8 +1,9 @@
 #ifndef PRIO_H
 #define PRIO_H
 
-#include <string>
 #include <gmpxx.h>
+
+#include <string>
 
 extern "C" {
   #include "flint/flint.h"

@@ -1,4 +1,3 @@
-
 #include "fft.h"
 #include "util.h"
 

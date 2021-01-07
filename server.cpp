@@ -1,18 +1,18 @@
-#include <sys/socket.h>
+#include "server.h"
+
+#include <math.h>  // sqrt
 #include <netinet/in.h>
-#include <cstdlib>
-#include <iostream>
+#include <sys/socket.h>
 #include <unistd.h>
 
-#include <vector>
+#include <cstdlib>
+#include <iostream>
 #include <unordered_map>
 #include <string>
 
-#include "types.h"
-#include "proto.h"
-#include <math.h>  // sqrt
-#include "server.h"
 #include "net_share.h"
+#include "proto.h"
+#include "types.h"
 
 #define SERVER0_IP "127.0.0.1"
 #define SERVER1_IP "127.0.0.1"
@@ -20,6 +20,7 @@
 // #define SERVER0_IP "52.87.230.64"
 // #define SERVER1_IP "54.213.189.18"
 
+#define INVALID_THRESHOLD = 0.5
 
 uint32_t int_sum_max;
 uint32_t num_bits;

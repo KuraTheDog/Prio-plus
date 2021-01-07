@@ -1,11 +1,10 @@
+#include "poly_once.h"
 
 #include <stdlib.h>
 #include <string.h>
 
 #include "poly_batch.h"
-#include "poly_once.h"
 #include "util.h"
-
 
 void 
 precomp_x_init(precomp_x_t *pre_x, const precomp_t *pre, const fmpz_t x)

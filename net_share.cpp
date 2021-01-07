@@ -1,7 +1,8 @@
+#include "net_share.h"
+
 #include <sys/socket.h>
 
 #include "fmpz_utils.h"
-#include "net_share.h"
 
 /* Core functions */
 

@@ -6,12 +6,12 @@ Creates "sender" and "receiver", and sends a bunch of struct.h objects from send
 g++ -std=c++11 -o test_net_share test_net_share.cpp ../fmpz_utils.cpp ../share.cpp -lgmp -lflint -g && ./test_net_share
 */
 
-#include <iostream>
-
-#include <unistd.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <unistd.h>
+
+#include <iostream>
 
 #include "../fmpz_utils.h"
 #include "../net_share.h"

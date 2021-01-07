@@ -2,21 +2,23 @@
 Simulates a group of num_submission clients that communicate with the servers.
 */
 
-#include <sys/socket.h> 
-#include <netinet/in.h> 
-#include <arpa/inet.h>
-#include <cstdlib> 
-#include <iostream> 
-#include <math.h>  // sqrt
-#include <unistd.h>
-#include <string>
-#include <sstream>
-
-#include "types.h"
-#include "proto.h"
-#include "circuit.h"
 #include "client.h"
+
+#include <arpa/inet.h>
+#include <math.h>  // sqrt
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include <cstdlib>
+#include <iostream>
+#include <sstream>
+#include <string>
+
+#include "circuit.h"
 #include "net_share.h"
+#include "proto.h"
+#include "types.h"
 
 // #define SERVER0_IP "52.87.230.64"
 // #define SERVER1_IP "54.213.189.18"
