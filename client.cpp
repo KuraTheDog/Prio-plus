@@ -7,6 +7,7 @@ Simulates a group of num_submission clients that communicate with the servers.
 #include <arpa/inet.h>
 #include <cstdlib> 
 #include <iostream> 
+#include <math.h>  // sqrt
 #include <unistd.h>
 #include <string>
 #include <sstream>
@@ -129,8 +130,6 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     }
 
     std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
-    close(sockfd0);
-    close(sockfd1);
 
     delete[] b;
 }
@@ -207,10 +206,92 @@ void max_op(const std::string protocol, const size_t numreqs) {
         send_maxshare(maxshare1, 1, B);
     }
 
-    std::cout << std::endl;
     std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
-    close(sockfd0);
-    close(sockfd1);
+
+    delete[] b;
+}
+
+void var_op(const std::string protocol, const size_t numreqs) {
+    emp::block *b = new block[numreqs];
+    // shares of x
+    uint32_t shares0[numreqs];
+    uint32_t shares1[numreqs];
+    // shares of x^2
+    uint32_t shares0_squared[numreqs];
+    uint32_t shares1_squared[numreqs];
+    uint32_t real_vals[numreqs];
+    int sum = 0, sumsquared = 0;
+
+    emp::PRG prg(fix_key);
+    prg.random_block(b, numreqs);
+    prg.random_data(real_vals, numreqs*sizeof(uint32_t));
+    prg.random_data(shares0, numreqs*sizeof(uint32_t));
+    prg.random_data(shares0_squared, numreqs*sizeof(uint32_t));
+
+    for (int i = 0; i < numreqs; i++) {
+        real_vals[i] = real_vals[i] % small_max_int;
+        shares0[i] = shares0[i] % small_max_int;
+        shares1[i] = real_vals[i] ^ shares0[i];
+        uint32_t squared = real_vals[i] * real_vals[i];
+        shares0_squared[i] = shares0_squared[i] % max_int;
+        shares1_squared[i] = squared ^ shares0_squared[i];
+        sum += real_vals[i];
+        sumsquared += squared;
+    }
+
+    initMsg msg;
+    msg.num_of_inputs = numreqs;
+    if (protocol == "VAROP")
+        msg.type = VAR_OP;
+    if (protocol == "STDDEVOP")
+        msg.type = STDDEV_OP;
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
+
+    fmpz_t inp[2];
+    fmpz_init(inp[0]);
+    fmpz_init(inp[1]);
+
+    for (int i = 0; i < numreqs; i++) {
+        VarShare share0, share1;
+        const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
+
+        memcpy(share0.pk, &pk[0], PK_LENGTH);
+        share0.val = shares0[i];
+        share0.val_squared = shares0_squared[i];
+        memcpy(share0.signature, &pk[0], PK_LENGTH);
+
+        memcpy(share1.pk, &pk[0], PK_LENGTH);
+        share1.val = shares1[i];
+        share1.val_squared = shares1_squared[i];
+        memcpy(share1.signature, &pk[0], PK_LENGTH);
+
+        send_to_server(0, &share0, sizeof(VarShare));
+        send_to_server(1, &share1, sizeof(VarShare));
+        // SNIP: proof that x^2 = x_squared
+        fmpz_set_si(inp[0], real_vals[i]);
+        fmpz_set_si(inp[1], real_vals[i] * real_vals[i]);
+        Circuit* circuit = CheckVar();
+        // Run through circuit to set wires
+        circuit->Eval(inp);
+        ClientPacket p0, p1;
+        share_polynomials(circuit, p0, p1);
+        send_ClientPacket(sockfd0, p0);
+        send_ClientPacket(sockfd1, p1);
+        delete p0;
+        delete p1;
+    }
+
+    std::cout << "sum: " << sum << std::endl;
+    std::cout << "sumsquared: " << sumsquared << std::endl;
+
+    const double ex = 1. * sum / numreqs;
+    const double ex2 = 1. * sumsquared / numreqs;
+    double ans = ex2 - (ex * ex);
+    std::cout << "E[X^2] - E[X]^2 = " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
+    if (protocol == "STDDEVOP")
+        ans = sqrt(ans);
+    std::cout << "True Ans: " << ans << std::endl;
 
     delete[] b;
 }
@@ -226,7 +307,7 @@ int main(int argc, char** argv) {
 
     std::string protocol(argv[4]);
 
-    if (protocol == "INTSUM" or protocol == "VAROP") {
+    if (argc >= 5) {
         int num_bits = atoi(argv[5]);
         max_int = 1 << num_bits;
         small_max_int = 1 << (num_bits / 2);
@@ -310,8 +391,6 @@ int main(int argc, char** argv) {
         }
 
         std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
-        close(sockfd0);
-        close(sockfd1);
 
         delete[] b;
     }
@@ -362,8 +441,6 @@ int main(int argc, char** argv) {
         }
 
         std::cout << "Uploaded all shares. True Ans : " << ans << std::endl;
-        close(sockfd0);
-        close(sockfd1);
 
         delete[] b;
     }
@@ -390,100 +467,14 @@ int main(int argc, char** argv) {
     }
 
     else if (protocol == "VAROP") {
-        // Alternate idea: make each of these a function. Var calls intsum twice, then snip. 
-        emp::block *b = new block[numreqs];
-        // shares of x
-        uint32_t shares0[numreqs];
-        uint32_t shares1[numreqs];
-        // shares of x^2
-        uint32_t shares0_squared[numreqs];
-        uint32_t shares1_squared[numreqs];
-        uint32_t real_vals[numreqs];
-        int sum = 0, sumsquared = 0;
-        float ans, ex, ex2;
+        std::cout << "Uploading all VAR shares: " << numreqs << std::endl;
+        var_op(protocol, numreqs);
+    }
 
-        emp::PRG prg(fix_key);
-
-        prg.random_block(b,numreqs);
-        prg.random_data(shares0,numreqs*sizeof(uint32_t));
-        prg.random_data(shares1,numreqs*sizeof(uint32_t));
-        prg.random_data(shares0_squared,numreqs*sizeof(uint32_t));
-
-        // Since we are squaring, we have base values half as many bits.
-
-        for (int i = 0; i < numreqs; i++) {
-            shares0[i] = shares0[i] % small_max_int;
-            shares1[i] = shares1[i] % small_max_int;
-            real_vals[i] = shares0[i]^shares1[i];
-            std::cout << "real_vals[" << i << "] = " << real_vals[i] << " = " << shares0[i] << " ^ " << shares1[i] << std::endl;
-
-            shares0_squared[i] = shares0_squared[i] % max_int;
-            uint32_t squared = real_vals[i] * real_vals[i];
-            shares1_squared[i] = squared ^ shares0_squared[i];
-            std::cout << "  real_vals[" << i << "]^2 = " << squared << " = " << shares0_squared[i] << " ^ " << shares1_squared[i] << std::endl;
-            sum += real_vals[i];
-            sumsquared += squared;
-        }
-
-        initMsg msg;
-        msg.num_of_inputs = numreqs;
-        msg.type = VAR_OP;
-
-        send_to_server(0, &msg, sizeof(initMsg));
-        send_to_server(1, &msg, sizeof(initMsg));
-
-        std::cout << "numreqs: " << numreqs << std::endl;
-
-        fmpz_t inp[2];
-        fmpz_init(inp[0]);
-        fmpz_init(inp[1]);
-
-        for (int i = 0; i < numreqs; i++) {
-            VarShare varshare0, varshare1;
-            const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
-
-            memcpy(varshare0.pk, &pk[0], PK_LENGTH);
-            varshare0.val = shares0[i];
-            varshare0.val_squared = shares0_squared[i];
-            memcpy(varshare0.signature, &pk[0], PK_LENGTH);
-
-            memcpy(varshare1.pk, &pk[0], PK_LENGTH);
-            varshare1.val = shares1[i];
-            varshare1.val_squared = shares1_squared[i];
-            memcpy(varshare1.signature, &pk[0], PK_LENGTH);
-
-            // std::cout << "key[" << i << "] = " << pub_key_to_hex((uint64_t*)&b[i]) << endl;
-
-            // std::cout << "  0: (" << shares0[i] << ", " << shares0_squared[i] << ")" << std::endl;
-            // std::cout << "  1: (" << shares1[i] << ", " << shares1_squared[i] << ")" << std::endl;
-
-            send_to_server(0, &varshare0, sizeof(varshare0));
-            send_to_server(1, &varshare1, sizeof(varshare1));
-
-            // SNIP: proof that x^2 = x_squared
-            fmpz_set_si(inp[0], real_vals[i]);
-            fmpz_set_si(inp[1], real_vals[i] * real_vals[i]);
-            Circuit* var_circuit = CheckVar();
-            // Run through circuit to set wires.
-            var_circuit->Eval(inp);
-            ClientPacket p0, p1;
-            share_polynomials(var_circuit, p0, p1);
-
-            // Send p0 to server0, p1 to server1
-            send_ClientPacket(sockfd0, p0);
-            send_ClientPacket(sockfd1, p1);
-            delete p0;
-            delete p1;
-        }
-
-        ex = 1. * sum / numreqs;
-        ex2 = 1. * sumsquared / numreqs;
-        ans = ex2 - (ex * ex);
-        std::cout << "Uploaded all shares. True Ans : " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
-        close(sockfd0);
-        close(sockfd1);
-
-        delete[] b;
+    else if (protocol == "STDDEVOP") {
+        // Stddev(x) = sqrt(Var(x))
+        std::cout << "Uploading all STDDEV shares: " << numreqs << std::endl;
+        var_op(protocol, numreqs);
     }
 
     else if(protocol == "LINREGOP") {
@@ -493,6 +484,9 @@ int main(int argc, char** argv) {
     else {
         std::cout << "Unrecognized protocol: " << protocol << std::endl;
     }
+
+    close(sockfd0);
+    close(sockfd1);
 
     return 0;
 }

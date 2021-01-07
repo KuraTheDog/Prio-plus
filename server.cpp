@@ -10,6 +10,7 @@
 
 #include "types.h"
 #include "proto.h"
+#include <math.h>  // sqrt
 #include "server.h"
 #include "net_share.h"
 
@@ -22,6 +23,10 @@
 
 uint32_t int_sum_max;
 uint32_t num_bits;
+
+// Can keep this the same most of the time.
+// TODO: change once in a while.
+fmpz_t randomX;
 
 // TODO: const 60051 for netio?
 
@@ -309,6 +314,168 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
     return RET_INVALID;
 }
 
+// For var, stddev
+returnType var_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, double &ans) {
+    // typedef tuple <int, char, char> sharetype;
+    std::unordered_map<std::string, uint32_t> share_map;
+    std::unordered_map<std::string, uint32_t> share_map_squared;
+    std::unordered_map<std::string, ClientPacket> share_map_packets;
+
+    VarShare share; 
+    // We have x^2 < max, so we want x < sqrt(max)
+    const uint32_t small_max = 1 << (num_bits / 2);
+    const uint32_t square_max = 1 << num_bits;
+    const size_t num_inputs = msg.num_of_inputs;
+
+    for (int i = 0; i < num_inputs; i++) {
+        read_in(clientfd, &share, sizeof(VarShare));
+        std::string pk(share.pk, share.pk + PK_LENGTH);
+
+        ClientPacket packet = nullptr;
+        recv_ClientPacket(clientfd, packet);
+
+        if ((share_map.find(pk) != share_map.end())
+            or (share.val >= small_max)
+            or (share.val_squared >= square_max))
+            continue;
+        std::cout << "valid share[" << i << "] = " << share.val << ", " << share.val_squared << std::endl;
+        share_map[pk] = share.val;
+        share_map_squared[pk] = share.val_squared;
+        share_map_packets[pk] = packet;
+    }
+
+    // TODO: return INVALID if too many invalid.
+
+    std::cout << "Received " << msg.num_of_inputs << " shares" << std::endl;
+
+    std::cout << "Forking for server chats" << std::endl;
+    pid_t pid = fork();
+    if (pid > 0) {
+        std::cout << " Parent leaving." << std::endl;
+        return RET_NO_ANS;
+    }
+    std::cout << " Child for server chat" << std::endl;
+
+    if (server_num == 1) {
+        const size_t num_inputs = share_map.size();
+        send_out(serverfd, &num_inputs, sizeof(size_t));
+
+        // For OT
+        uint32_t shares[num_inputs];
+        uint32_t shares_squared[num_inputs];
+
+        bool have_roots_init = false;  // Only run once for N
+
+        int i = 0;
+        for (const auto& share : share_map) {
+            std::string pk = share.first;
+            send_out(serverfd, &pk[0], PK_LENGTH);
+            bool other_valid;
+            read_in(serverfd, &other_valid, sizeof(bool));
+
+            shares[i] = share.second;
+            shares_squared[i] = share_map_squared[pk];
+            ClientPacket packet = share_map_packets[pk];
+            i++;
+
+            if (!other_valid)
+                continue;
+
+            // SNIPS
+            Circuit* circuit = CheckVar();
+            if (not have_roots_init) {
+                const int N = NextPowerofTwo(circuit->NumMulGates() + 1);
+                init_roots(N);
+                have_roots_init = true;
+            }
+
+            bool circuit_valid = run_snip(circuit, packet, randomX, serverfd, server_num);
+            std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
+            send_out(serverfd, &circuit_valid, sizeof(bool));
+        }
+
+        // Compute result
+        NetIO* io = new NetIO(SERVER0_IP, 60051);
+        uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
+        std::cout << "Sending b = " << b << std::endl;
+        send_out(serverfd, &b, sizeof(uint64_t));
+
+        uint64_t b2 = intsum_ot_receiver(io, &shares_squared[0], num_inputs, num_bits);
+        std::cout << "Sending b2 = " << b << std::endl;
+        send_out(serverfd, &b2, sizeof(uint64_t));
+        return RET_NO_ANS;
+    } else {
+        size_t num_inputs;
+        read_in(serverfd, &num_inputs, sizeof(size_t));
+
+        // For OT
+        uint32_t shares[num_inputs];
+        uint32_t shares_squared[num_inputs];
+        bool valid[num_inputs];
+
+        bool have_roots_init = false;
+
+        for (int i = 0; i < num_inputs; i++) {
+            char pk_buf[PK_LENGTH];
+            read_in(serverfd, &pk_buf[0], PK_LENGTH);
+            std::string pk(pk_buf, pk_buf + PK_LENGTH);
+
+            bool is_valid = (share_map.find(pk) != share_map.end());
+            valid[i] = is_valid;
+            if (!is_valid)
+                continue;
+
+            send_out(serverfd, &is_valid, sizeof(bool));
+
+            shares[i] = share_map[pk];
+            shares_squared[i] = share_map_squared[pk];
+            ClientPacket packet = share_map_packets[pk];
+
+            Circuit* circuit = CheckVar();
+            if (not have_roots_init) {
+                const int N = NextPowerofTwo(circuit->NumMulGates() + 1);
+                init_roots(N);
+                have_roots_init = true;
+            }
+
+            bool circuit_valid = run_snip(circuit, packet, randomX, serverfd, server_num);
+            if (!circuit_valid)
+                valid[i] = false;
+            std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
+
+            bool other_valid;
+            read_in(serverfd, &other_valid, sizeof(bool));
+            if (!other_valid)
+                valid[i] = false;
+            std::cout << " Other Circuit for " << i << " validity: " << std::boolalpha << other_valid << std::endl;
+        }
+        // Compute result
+        NetIO* io = new NetIO(nullptr, 60051);
+        uint64_t a = intsum_ot_sender(io, &shares[0], &valid[0], num_inputs, num_bits);
+        std::cout << "have a: " << a << std::endl;
+        uint64_t a2 = intsum_ot_sender(io, &shares_squared[0], &valid[0], num_inputs, num_bits);
+        std::cout << "have a2: " << a2 << std::endl;
+        uint64_t b, b2;
+
+        read_in(serverfd, &b, sizeof(uint64_t));
+        std::cout << "got b: " << b << std::endl;
+        read_in(serverfd, &b2, sizeof(uint64_t));
+        std::cout << "got b2: " << b2 << std::endl;
+
+        const double ex = 1.0 * (a + b) / num_inputs;
+        const double ex2 = 1.0 * (a2 + b2) / num_inputs;
+        ans = ex2 - (ex * ex);
+        if (msg.type == VAR_OP) {
+            std::cout << "Ans: " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
+        }
+        if (msg.type == STDDEV_OP) {
+            ans = sqrt(ans);
+            std::cout << "Ans: sqrt(" << ex2 << " - (" << ex << ")^2) = " << ans << std::endl;
+        }
+        return RET_ANS;
+    }
+}
+
 int main(int argc, char** argv) {
     if (argc < 4) {
         std::cout << "Usage: ./bin/server server_num(0/1) this_client_port server0_port INT_SUM_MAX_bits" << endl;
@@ -341,9 +508,6 @@ int main(int argc, char** argv) {
         error_exit("Can only handle servers #0 and #1");
     }
 
-    // Share the same randomX.
-    // TODO: change every once in a while.
-    fmpz_t randomX;
     fmpz_init(randomX);
     if (server_num == 0) {
         recv_fmpz(serverfd, randomX);
@@ -375,7 +539,6 @@ int main(int argc, char** argv) {
             std::cout << "BIT_SUM" << std::endl;
             auto start = clock_start();  // for benchmark
 
-            std::vector<BitShare> bitshares;
             std::unordered_map<std::string, int> bitshare_map;
 
             BitShare bitshare;
@@ -389,7 +552,6 @@ int main(int argc, char** argv) {
                 if (bitshare_map.find(pk) != bitshare_map.end()
                     or (bitshare.val != 0 and bitshare.val != 1))
                     continue;
-                bitshares.push_back(bitshare);
                 bitshare_map[pk] = bitshare.val;
             }
             std::cerr << "Received " << msg.num_of_inputs << " shares" << std::endl;
@@ -403,13 +565,15 @@ int main(int argc, char** argv) {
             std::cout << " Parent for server chat" << std::endl;
 
             if (server_num == 1) {
-                const size_t num_inputs = bitshares.size();
+                const size_t num_inputs = bitshare_map.size();
                 send_out(serverfd, &num_inputs, sizeof(size_t));
 
                 bool shares[num_inputs];
-                for (int i = 0; i < num_inputs; i++) {
-                    send_out(serverfd, &bitshares[i].pk, PK_LENGTH);
-                    shares[i] = bitshares[i].val;
+                int i = 0;
+                for (const auto& share : bitshare_map) {
+                    send_out(serverfd, &share.first[0], PK_LENGTH);
+                    shares[i] = share.second;
+                    i++;
                 }
                 NetIO* io = new NetIO(SERVER0_IP, 60051);
                 uint64_t b = bitsum_ot_receiver(io, &shares[0], num_inputs);
@@ -447,7 +611,6 @@ int main(int argc, char** argv) {
             std::cout << "INT_SUM" << std::endl;
             auto start = clock_start();  // for benchmark
 
-            std::vector<IntShare> intshares;
             std::unordered_map<std::string, uint32_t> intshare_map;
 
             IntShare intshare;
@@ -462,7 +625,6 @@ int main(int argc, char** argv) {
                     or (intshare.val >= int_sum_max)) {
                     continue; //Reject the input
                 }
-                intshares.push_back(intshare);
                 intshare_map[pk] = intshare.val;
             }
 
@@ -477,13 +639,15 @@ int main(int argc, char** argv) {
             std::cout << " Parent for server chat" << std::endl;
 
             if (server_num == 1) {
-                const size_t num_inputs = intshares.size();
+                const size_t num_inputs = intshare_map.size();
                 send_out(serverfd, &num_inputs, sizeof(size_t));
 
                 uint32_t shares[num_inputs];
-                for (int i = 0; i < num_inputs; i++) {
-                    send_out(serverfd, &intshares[i].pk, PK_LENGTH);
-                    shares[i] = intshares[i].val;
+                int i = 0;
+                for (const auto& share : intshare_map) {
+                    send_out(serverfd, &share.first[0], PK_LENGTH);
+                    shares[i] = share.second;
+                    i++;
                 }
                 NetIO* io = new NetIO(SERVER0_IP, 60051);
                 uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
@@ -564,180 +728,24 @@ int main(int argc, char** argv) {
             long long t = time_from(start);
             std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == VAR_OP) {
-            // Alternate idea: make each of these a function. Var calls intsum twice, then snip. 
             std::cout << "VAR_OP" << std::endl;
             auto start = clock_start();  // for benchmark
 
-            std::vector<VarShare> varshares;
-            std::unordered_map<std::string, uint32_t> varshare_map;
-            std::unordered_map<std::string, uint32_t> varshare_map_squared;
-            std::unordered_map<std::string, ClientPacket> varshare_map_packets;
-
-            VarShare varshare;
-            const uint32_t small_max = 1 << (num_bits / 2);  // for values
-            const uint32_t var_max = 1 << num_bits;      // for values squared
-            const size_t num_inputs = msg.num_of_inputs;
-
-            std::cout << "small_max: " << small_max << std::endl;
-            std::cout << "var_max: " << var_max << std::endl;
-
-            for (int i = 0; i < num_inputs; i++) {
-                std::cout << "i = " << i << std::endl;
-                int bytes_read = read_in(newsockfd, &varshare, sizeof(VarShare));
-                if (bytes_read == 0) error_exit("Read 0 bytes. Connection closed?");
-                std::string pk(varshare.pk, varshare.pk + PK_LENGTH);
-
-                ClientPacket packet = nullptr;
-                recv_ClientPacket(newsockfd, packet);
-
-                if ((varshare_map.find(pk) != varshare_map.end())
-                    or (varshare.val >= small_max) 
-                    or (varshare.val_squared >= var_max)) {
-                    std::cout << " invalid" << std::endl;
-                    continue;  // Reject the input
-                }
-
-                std::cout << " valid" << std::endl;
-                varshares.push_back(varshare);
-                varshare_map[pk] = varshare.val;
-                varshare_map_squared[pk] = varshare.val_squared;
-                varshare_map_packets[pk] = packet;
+            double ans;
+            returnType ret = var_op(msg, newsockfd, serverfd, server_num, ans);
+            if (ret == RET_ANS) {
+                std::cout << "Ans: " << ans << std::endl;
             }
+            long long t = time_from(start);
+            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
+        } else if (msg.type == STDDEV_OP) {
+            std::cout << "STDDEV_OP" << std::endl;
+            auto start = clock_start();  // for benchmark
 
-            std::cout << "Received " << num_inputs << " shares" << std::endl;
-            std::cout << varshares.size() << " are valid" << std::endl;
-
-            // Client shares complete. Communicate with each other.
-
-            std::cout << "Forking for server chats" << std::endl;
-            pid_t pid = fork();
-            if (pid == 0) {
-                std::cout << " Forked Child leaving." << std::endl;
-                continue;
-            }
-            std::cout << " Parent for server chat" << std::endl;
-
-            if (server_num == 1) {
-                std::cout << "Server 1 chatting" << std::endl;
-                size_t num_inputs = varshares.size();
-                uint32_t shares[num_inputs];
-                uint32_t shares_squared[num_inputs];
-
-                std::cout << "sending num inputs: " << num_inputs << std::endl;
-                // communicates number of valid on this side.
-                send_out(serverfd, &num_inputs, sizeof(size_t));
-
-                // Only run roots_init once on N.
-                bool have_roots_init = false;
-
-                for (int i = 0; i < num_inputs; i++) {
-                    std::cout << "i = " << i << std::endl;
-                    send_out(serverfd, &varshares[i].pk, PK_LENGTH);
-
-                    bool other_valid;
-                    read_in(serverfd, &other_valid, sizeof(bool));
-
-                    std::cout << " got other valid: " << std::boolalpha << other_valid << std::endl;
-                    if (!other_valid)
-                        continue;
-
-                    std::string pk(varshares[i].pk, varshares[i].pk + PK_LENGTH);
-                    shares[i] = varshares[i].val;
-                    shares_squared[i] = varshares[i].val_squared;
-                    ClientPacket packet = varshare_map_packets[pk];
-
-                    // SNIPS
-                    Circuit* circuit = CheckVar();
-                    if (not have_roots_init) {
-                        int N = NextPowerofTwo(circuit->NumMulGates() + 1);
-                        init_roots(N);
-                        have_roots_init = true;
-                    }
-
-                    bool circuit_valid = run_snip(circuit, packet, randomX, serverfd, server_num);
-                    std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
-                    send_out(serverfd, &circuit_valid, sizeof(circuit_valid));
-                }
-
-                // Compute result
-                NetIO* io = new NetIO(SERVER0_IP, 60051);
-                uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
-                std::cout << "Sending b = " << b << std::endl;
-                send_out(serverfd, &b, sizeof(uint64_t));
-
-                uint64_t b2 = intsum_ot_receiver(io, &shares_squared[0], num_inputs, num_bits);
-                std::cout << "Sending b2 = " << b << std::endl;
-                send_out(serverfd, &b2, sizeof(uint64_t));
-            } else {
-                size_t num_inputs;
-                std::cout << "waiting for num inputs" << std::endl;
-                read_in(serverfd, &num_inputs, sizeof(size_t));
-
-                std::cout << "num inputs: " << num_inputs << std::endl;
-
-                uint32_t shares[num_inputs];
-                uint32_t shares_squared[num_inputs];
-                bool valid[num_inputs];
-
-                bool have_roots_init = false;
-
-                for (int i = 0; i < num_inputs; i++) {
-                    std::cout << "i = " << i << std::endl;
-                    char pk_buf[PK_LENGTH];
-                    read_in(serverfd, &pk_buf[0], PK_LENGTH);
-                    std::string pk(pk_buf, pk_buf + PK_LENGTH);
-
-                    bool is_valid = (varshare_map.find(pk) != varshare_map.end());
-                    std::cout << " is_valid = " << is_valid << std::endl;
-
-                    valid[i] = is_valid;
-                    if (!is_valid)
-                        continue;
-
-                    // Communicate validity, to run snips less.
-                    send_out(serverfd, &is_valid, sizeof(bool));
-
-                    shares[i] = varshare_map[pk];
-                    shares_squared[i] = varshare_map_squared[pk];
-                    ClientPacket packet = varshare_map_packets[pk];
-
-                    Circuit* circuit = CheckVar();
-                    if (not have_roots_init) {
-                        int N = NextPowerofTwo(circuit->NumMulGates() + 1);
-                        init_roots(N);
-                        have_roots_init = true;
-                    }
-
-                    bool circuit_valid = run_snip(circuit, packet, randomX, serverfd, server_num);
-                    std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
-                    if (!circuit_valid) {
-                        valid[i] = false;
-                    }
-
-                    bool other_valid;
-                    read_in(serverfd, &other_valid, sizeof(bool));
-                    std::cout << " Other circuit valid: " << std::boolalpha << other_valid << std::endl;
-                    if (!other_valid) {
-                        valid[i] = false;
-                    }
-                }
-
-                // Compute result
-                NetIO* io = new NetIO(nullptr, 60051);
-                uint64_t a = intsum_ot_sender(io, &shares[0], &valid[0], num_inputs, num_bits);
-                std::cout << "have a: " << a << std::endl;
-                uint64_t a2 = intsum_ot_sender(io, &shares_squared[0], &valid[0], num_inputs, num_bits);
-                std::cout << "have a2: " << a2 << std::endl;
-                uint64_t b, b2;
-
-                read_in(serverfd, &b, sizeof(uint64_t));
-                std::cout << "got b: " << b << std::endl;
-                read_in(serverfd, &b2, sizeof(uint64_t));
-                std::cout << "got b2: " << b2 << std::endl;
-                float ex = 1.0 * (a + b) / num_inputs;
-                float ex2 = 1.0 * (a2 + b2) / num_inputs;
-                float ans = ex2 - (ex * ex);
-                std::cout << "Ans: " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
+            double ans;
+            returnType ret = var_op(msg, newsockfd, serverfd, server_num, ans);
+            if (ret == RET_ANS) {
+                std::cout << "Ans: " << ans << std::endl;
             }
             long long t = time_from(start);
             std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
