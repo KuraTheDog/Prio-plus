@@ -55,7 +55,7 @@ void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port, const int r
 
     if (sockfd == -1)
         error_exit("Socket creation failed");
-    
+
     if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)))
         error_exit("Sockopt failed");
     if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)))
@@ -261,7 +261,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         send_out(serverfd, &num_inputs, sizeof(size_t));
         uint32_t b[B+1];
         memset(b, 0, sizeof(b));
-        
+
         for (const auto& share : share_map) {
             send_out(serverfd, &share.first[0], PK_LENGTH);
             bool other_valid;
@@ -373,11 +373,11 @@ int main(int argc, char** argv) {
 
         newsockfd = accept(sockfd,(struct sockaddr*)&addr,&addrlen);
         if (newsockfd < 0) error_exit("Connection creation failure");
-        
+
         // Get an initMsg
         initMsg msg;
         read_in(newsockfd, &msg, sizeof(initMsg));
-        
+
         if (msg.type == BIT_SUM) {
             std::cout << "BIT_SUM" << std::endl;
             auto start = clock_start();  // for benchmark

@@ -171,7 +171,7 @@ struct Checker {
         fmpz_set(pointsF[0],req->f0_s);
         fmpz_set(pointsG[0],req->g0_s);
         fmpz_set(pointsH[0],req->h0_s);
-        
+
         // For all multiplication triples a_i * b_i = c_i,
         //    polynomial [f(x)] has [f(i)] = [a_i]
         //    polynomial [g(x)] has [g(i)] = [b_i]
@@ -317,7 +317,7 @@ struct Checker {
     bool OutputIsValid(const fmpz_t output0, const fmpz_t output1){
         fmpz_t out;
         fmpz_init(out);
-        
+
         fmpz_add(out,output0,output1);
         fmpz_mod(out,out,Int_Modulus);
 

@@ -279,7 +279,6 @@ struct Circuit {
     void ImportWires(const ClientPacket p, const int server_num){
         int i = 0;
 
-
         for(auto gate : gates){
             switch (gate->type)
             {
@@ -370,7 +369,6 @@ Circuit* CheckMul(Gate* L, Gate* R, Gate* Prod) {
     return out;
 }
 
-
 // Returns circuit for x^2 == y. For Varience and StdDev.
 Circuit* CheckVar(){
     Gate* x = new Gate(Gate_Input);
@@ -397,8 +395,6 @@ Circuit* CheckVar(){
 
     return out;
 }
-
-
 
 // Circuit* CheckLinReg() {
 
