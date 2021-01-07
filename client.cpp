@@ -51,7 +51,7 @@ void send_maxshare(const MaxShare& maxshare, const int server_num, const int B) 
 }
 
 // Wrapper around send, with error catching.
-int send_to_server(const int server, const void* buffer, const size_t n, const int flags) {
+int send_to_server(const int server, const void* buffer, const size_t n, const int flags = 0) {
     int socket = (server == 0 ? sockfd0 : sockfd1);
     int ret = send(socket, buffer, n, flags);
     if (ret < 0) error_exit("Failed to send to server ");
@@ -102,10 +102,10 @@ int main(int argc, char** argv) {
     inet_pton(AF_INET,SERVER0_IP,&server0.sin_addr);
     inet_pton(AF_INET,SERVER1_IP,&server1.sin_addr);
     std::cout << "Connecting to server 0" << std::endl;
-    if (connect(sockfd0,(sockaddr*)&server0,sizeof(server0)) < 0)
+    if (connect(sockfd0, (sockaddr*)&server0, sizeof(server0)) < 0)
         error_exit("Can't connect to server0");
     std::cout << "Connecting to server 1" << std::endl;
-    if (connect(sockfd1,(sockaddr*)&server1,sizeof(server1)) < 0)
+    if (connect(sockfd1, (sockaddr*)&server1, sizeof(server1)) < 0)
         error_exit("Can't connect to server1");
 
     init_constants();
@@ -129,26 +129,26 @@ int main(int argc, char** argv) {
         msg.type = BIT_SUM;
         msg.num_of_inputs = numreqs;
         std::cerr << "NUM REQS " << numreqs << std::endl;
-        send_to_server(0,&msg,sizeof(msg),0);
-        send_to_server(1,&msg,sizeof(msg),0);
+        send_to_server(0, &msg, sizeof(initMsg));
+        send_to_server(1, &msg, sizeof(initMsg));
 
         int ans = 0;  // true answer
         for (int i = 0; i < numreqs; i++) {
             BitShare bitshare0,bitshare1;
-            std::string pk_str = pub_key_to_hex((uint64_t*)&b[i]);
+            const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
 
             // Client i sends share to server 0
-            memcpy(bitshare0.pk,&pk_str.c_str()[0],PK_LENGTH);
+            memcpy(bitshare0.pk, &pk[0],PK_LENGTH);
             bitshare0.val = shares0[i];
-            memcpy(bitshare0.signature,&pk_str.c_str()[0],PK_LENGTH);  // sign with pk?
+            memcpy(bitshare0.signature, &pk[0],PK_LENGTH);  // sign with pk?
 
             // Client i sends share to server 1
-            memcpy(bitshare1.pk,&pk_str.c_str()[0],PK_LENGTH);
+            memcpy(bitshare1.pk, &pk[0], PK_LENGTH);
             bitshare1.val = shares1[i];
-            memcpy(bitshare1.signature,&pk_str.c_str()[0],PK_LENGTH);
+            memcpy(bitshare1.signature, &pk[0], PK_LENGTH);
 
-            send_to_server(0,(void *)&bitshare0,sizeof(bitshare0),0);
-            send_to_server(1,(void *)&bitshare1,sizeof(bitshare1),0);
+            send_to_server(0, &bitshare0, sizeof(BitShare));
+            send_to_server(1, &bitshare1, sizeof(BitShare));
 
             // update truth
             real_vals[i] = shares0[i]^shares1[i];
@@ -187,22 +187,24 @@ int main(int argc, char** argv) {
         msg.num_of_inputs = numreqs;
         msg.type = INT_SUM;
 
-        send_to_server(0,&msg,sizeof(msg),0);
-        send_to_server(1,&msg,sizeof(msg),0);
+        send_to_server(0, &msg, sizeof(initMsg));
+        send_to_server(1, &msg, sizeof(initMsg));
 
         for (int i = 0; i < numreqs; i++) {
             IntShare intshare0,intshare1;
-            memcpy(intshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
-            intshare0.val = shares0[i];
-            memcpy(intshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
 
-            memcpy(intshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            memcpy(intshare0.pk, &pk[0], PK_LENGTH);
+            intshare0.val = shares0[i];
+            memcpy(intshare0.signature, &pk[0], PK_LENGTH);
+
+            memcpy(intshare1.pk, &pk[0], PK_LENGTH);
             intshare1.val = shares1[i];
-            memcpy(intshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            memcpy(intshare1.signature, &pk[0], PK_LENGTH);
             std::cout << "key[" << i << "] = " << pub_key_to_hex((uint64_t*)&b[i]) << endl;
 
-            send_to_server(0,(void *)&intshare0,sizeof(intshare0),0);
-            send_to_server(1,(void *)&intshare1,sizeof(intshare1),0);
+            send_to_server(0, &intshare0, sizeof(intshare0));
+            send_to_server(1, &intshare1, sizeof(intshare1));
         }
 
         std::cout << "Uploaded all shares. True Ans : " << ans << std::endl;
@@ -505,8 +507,8 @@ int main(int argc, char** argv) {
         msg.num_of_inputs = numreqs;
         msg.type = VAR_OP;
 
-        send_to_server(0, &msg, sizeof(msg), 0);
-        send_to_server(1, &msg, sizeof(msg), 0);
+        send_to_server(0, &msg, sizeof(initMsg));
+        send_to_server(1, &msg, sizeof(initMsg));
 
         std::cout << "numreqs: " << numreqs << std::endl;
 
@@ -516,23 +518,25 @@ int main(int argc, char** argv) {
 
         for (int i = 0; i < numreqs; i++) {
             VarShare varshare0, varshare1;
-            memcpy(varshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
+
+            memcpy(varshare0.pk, &pk[0], PK_LENGTH);
             varshare0.val = shares0[i];
             varshare0.val_squared = shares0_squared[i];
-            memcpy(varshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            memcpy(varshare0.signature, &pk[0], PK_LENGTH);
 
-            memcpy(varshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            memcpy(varshare1.pk, &pk[0], PK_LENGTH);
             varshare1.val = shares1[i];
             varshare1.val_squared = shares1_squared[i];
-            memcpy(varshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            memcpy(varshare1.signature, &pk[0], PK_LENGTH);
 
             // std::cout << "key[" << i << "] = " << pub_key_to_hex((uint64_t*)&b[i]) << endl;
 
             // std::cout << "  0: (" << shares0[i] << ", " << shares0_squared[i] << ")" << std::endl;
             // std::cout << "  1: (" << shares1[i] << ", " << shares1_squared[i] << ")" << std::endl;
 
-            send_to_server(0, (void *)&varshare0, sizeof(varshare0), 0);
-            send_to_server(1, (void *)&varshare1, sizeof(varshare1), 0);
+            send_to_server(0, &varshare0, sizeof(varshare0));
+            send_to_server(1, &varshare1, sizeof(varshare1));
 
             // SNIP: proof that x^2 = x_squared
             fmpz_set_si(inp[0], real_vals[i]);
