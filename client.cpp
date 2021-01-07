@@ -403,6 +403,68 @@ int main(int argc, char** argv) {
         delete[] b;
     }
 
+    else if (protocol == "MINOP") {
+        // Min(x) = - max(-x) = b - max(b - x)
+        initMsg msg;
+        msg.num_of_inputs = numreqs;
+        msg.type = MIN_OP;
+        msg.max_inp = 250;
+        emp::PRG prg(fix_key);
+        int B = msg.max_inp;
+        int ans = B;
+
+        std::cerr << "NUM REQS " << numreqs << std::endl;
+
+        emp::block *b = new block[numreqs];
+        prg.random_block(b,numreqs);
+
+        uint32_t values[numreqs];
+        uint32_t shares0[B+1];
+        uint32_t shares1[B+1];
+        uint32_t or_encoded_array[B+1];
+        prg.random_data(values, numreqs*sizeof(uint32_t));
+
+        for (int i = 0; i <= B; i++)
+            or_encoded_array[i] = 0;
+
+        send_to_server(0,&msg,sizeof(msg),0);
+        send_to_server(1,&msg,sizeof(msg),0);
+
+        for (int i = 0; i < numreqs; i++) {
+            MaxShare maxshare0, maxshare1;
+            // values[i] = (i * i + 1)%(B+1);  // TODO: random?
+            values[i] = values[i] % (B + 1);
+            std::cout << "value[" << i << "] = " << values[i] << std::endl;
+            ans = (values[i] < ans? values[i] : ans);
+            prg.random_data(or_encoded_array, (B+1)*sizeof(uint32_t));
+            prg.random_data(shares0, (B+1)*sizeof(uint32_t));
+            for (int j = (B - values[i]) + 1; j <= B ; j++)
+                or_encoded_array[j] = 0;
+
+            for (int j = 0; j <= B; j++)
+                shares1[j] = shares0[j] ^ or_encoded_array[j];
+
+            memcpy(maxshare0.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            memcpy(maxshare0.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            maxshare0.arr = shares0;
+
+            memcpy(maxshare1.pk,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            memcpy(maxshare1.signature,&pub_key_to_hex((uint64_t*)&b[i]).c_str()[0],PK_LENGTH);
+            maxshare1.arr = shares1;
+
+            send_maxshare(maxshare0,0,B);
+            send_maxshare(maxshare1,1,B);
+
+        }
+
+        std::cout << std::endl;
+        std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
+        close(sockfd0);
+        close(sockfd1);
+
+        delete[] b;
+    }
+
     else if (protocol == "VAROP") {
         // Alternate idea: make each of these a function. Var calls intsum twice, then snip. 
         emp::block *b = new block[numreqs];

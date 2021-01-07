@@ -37,6 +37,7 @@ enum messageType{
     AND_OP,
     OR_OP,
     MAX_OP,
+    MIN_OP,
     VAR_OP,
 };
 

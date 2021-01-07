@@ -297,7 +297,13 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         for (int j = B; j >= 0; j--) {
             // std::cout << "a,b[" << j << "] = " << a[j] << ", " << b[j] << std::endl;
             if (a[j] != b[j]) {
-                ans = j;
+                if (msg.type == MAX_OP) {
+                    ans = j;
+                } else if (msg.type == MIN_OP) {
+                    ans = B - j;
+                } else {
+                    error_exit("Message type incorrect for max_op");
+                }
                 return RET_ANS;
             }
         }
@@ -544,6 +550,17 @@ int main(int argc, char** argv) {
             std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == MAX_OP) {
             std::cout << "MAX_OP" << std::endl;
+            auto start = clock_start();  // for benchmark
+
+            int ans;
+            returnType ret = max_op(msg, newsockfd, serverfd, server_num, ans);
+            if (ret == RET_ANS) {
+                std::cout << "Ans: " << ans << std::endl;
+            }
+            long long t = time_from(start);
+            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
+        } else if (msg.type == MIN_OP) {
+            std::cout << "MIN_OP" << std::endl;
             auto start = clock_start();  // for benchmark
 
             int ans;
