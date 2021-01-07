@@ -1,6 +1,8 @@
 #ifndef CIRCUIT_H
 #define CIRCUIT_H
 
+#include <vector>
+
 #include "fmpz_utils.h"
 #include "prio.h"
 #include "share.h"
