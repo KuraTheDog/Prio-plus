@@ -23,6 +23,57 @@ int recv_int(const int sockfd, int& x) {
     return bytes_read;
 }
 
+int send_size(const int sockfd, const size_t x) {
+    size_t x_conv = htonl(x);
+    const char* data = (const char*) &x_conv;
+    return send(sockfd, data, sizeof(size_t), 0);
+}
+
+int recv_size(const int sockfd, size_t& x) {
+    int bytes_read = 0, tmp;
+    char buf[sizeof(size_t)];
+    while (bytes_read < sizeof(size_t)) {
+        tmp = recv(sockfd, &buf + bytes_read, sizeof(size_t) - bytes_read, 0);
+        if (tmp <= 0) return tmp; else bytes_read += tmp;
+    }
+    x = ntohl(*((size_t*)buf));
+    return bytes_read;
+}
+
+int send_uint32(const int sockfd, const uint32_t x) {
+    uint32_t x_conv = htonl(x);
+    const char* data = (const char*) &x_conv;
+    return send(sockfd, data, sizeof(uint32_t), 0);
+}
+
+int recv_uint32(const int sockfd, uint32_t& x) {
+    int bytes_read = 0, tmp;
+    char buf[sizeof(uint32_t)];
+    while (bytes_read < sizeof(uint32_t)) {
+        tmp = recv(sockfd, &buf + bytes_read, sizeof(uint32_t) - bytes_read, 0);
+        if (tmp <= 0) return tmp; else bytes_read += tmp;
+    }
+    x = ntohl(*((uint32_t*)buf));
+    return bytes_read;
+}
+
+int send_uint64(const int sockfd, const uint64_t x) {
+    uint64_t x_conv = htonll(x);
+    const char* data = (const char*) &x_conv;
+    return send(sockfd, data, sizeof(uint64_t), 0);
+}
+
+int recv_uint64(const int sockfd, uint64_t& x) {
+    char buf[sizeof(uint64_t)];
+    int bytes_read = 0, tmp;
+    while (bytes_read < sizeof(uint64_t)) {
+        tmp = recv(sockfd, &buf + bytes_read, sizeof(uint64_t) - bytes_read, 0);
+        if (tmp <= 0) return tmp; else bytes_read += tmp;
+    }
+    x = ntohll(*((uint64_t*)buf));
+    return bytes_read;
+}
+
 int send_ulong(const int sockfd, const ulong x) {
     ulong x_conv = htonll(x);
     const char* data = (const char*) &x_conv;
@@ -45,7 +96,7 @@ int send_fmpz(const int sockfd, const fmpz_t x) {
     size_t len = fmpz_size(x);
     ulong arr[len];
     fmpz_get_ui_array(arr, len, x);
-    ret = send_int(sockfd, len);
+    ret = send_size(sockfd, len);
     if (ret <= 0) return ret; else total += ret;
     for (int i = 0; i < len; i++) {
         ret = send_ulong(sockfd, arr[i]);
@@ -55,9 +106,10 @@ int send_fmpz(const int sockfd, const fmpz_t x) {
 }
 
 int recv_fmpz(const int sockfd, fmpz_t x) {
-    int total = 0, ret, len;
+    int total = 0, ret;
+    size_t len;
     ulong tmp;
-    ret = recv_int(sockfd, len);
+    ret = recv_size(sockfd, len);
     if (ret <= 0) return ret; else total += ret;
     if (len == 0) {
         fmpz_set_ui(x, 0);

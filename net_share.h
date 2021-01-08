@@ -1,6 +1,8 @@
 /* 
 For sending fmtp_t objects over sockets.
 
+Also has htonl/ntohl wrappers for sending various int-like types.
+
 See test/test_net_share.cpp for a full example.
 
 Returns total bytes sent on success, or first fail return of an internal step (typically 0 or negative)
@@ -13,7 +15,6 @@ TODO: maybe hide/delete/comment out ones we don't use.
 #ifndef NET_SHARE_H
 #define NET_SHARE_H
 
-#include "fmpz_utils.h"
 #include "share.h"
 
 extern "C" {
@@ -36,6 +37,15 @@ string: best is base 62, so 62/256 ~ 25% space efficiency. So needs ~4x bits com
 
 int send_int(const int sockfd, const int x);
 int recv_int(const int sockfd, int& x);
+
+int send_size(const int sockfd, const size_t x);
+int recv_size(const int sockfd, size_t& x);
+
+int send_uint32(const int sockfd, const uint32_t x);
+int recv_uint32(const int sockfd, uint32_t& x);
+
+int send_uint64(const int sockfd, const uint64_t x);
+int recv_uint64(const int sockfd, uint64_t& x);
 
 int send_ulong(const int sockfd, const ulong x);
 int recv_ulong(const int sockfd, ulong& x);

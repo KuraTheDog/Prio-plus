@@ -86,6 +86,14 @@ void run_sender(int sockfd) {
     fmpz_t number;
     fmpz_init(number);
 
+    uint32_t i = 1 << 20;
+    n = send_uint32(sockfd, i);
+    std::cout << "send: size = " << n << ", uint32_t: " << i << std::endl;
+
+    uint64_t j = 1ul << 50;
+    n = send_uint64(sockfd, j);
+    std::cout << "send: size = " << n << ", uint64_t: " << j << std::endl;
+
     // Small number
     fmpz_set_d(number, 12345);
     n = send_fmpz(sockfd, number);
@@ -132,6 +140,14 @@ void run_receiver(int newsockfd) {
     int n;
     fmpz_t number;
     fmpz_init(number);
+
+    uint32_t i;
+    n = recv_uint32(newsockfd, i);
+    std::cout << "recv: size = " << n << ", uint32_t: " << i << std::endl;
+
+    uint64_t j;
+    n = recv_uint64(newsockfd, j);
+    std::cout << "recv: size = " << n << ", uint64_t: " << j << std::endl;
 
     n = recv_fmpz(newsockfd, number);
     std::cout << "recv: size = " << n << ", fmpz: ";
