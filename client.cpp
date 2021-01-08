@@ -2,6 +2,8 @@
 Simulates a group of num_submission clients that communicate with the servers.
 */
 
+// TODO: Do we need htonl/ntohl wrappers on shares?
+
 #include "client.h"
 
 #include <arpa/inet.h>

@@ -178,7 +178,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
-        send_out(serverfd, &num_inputs, sizeof(size_t));
+        send_size(serverfd, num_inputs);
         uint32_t b = 0;
         for (const auto& share : share_map) {
             send_out(serverfd, &share.first[0], PK_LENGTH);
@@ -188,12 +188,12 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
                 continue;
             b ^= share.second;
         }
-        send_out(serverfd, &b, sizeof(uint32_t));
+        send_uint32(serverfd, b);
         std::cout << "Sending b: " << b << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs;
-        read_in(serverfd, &num_inputs, sizeof(size_t));
+        recv_size(serverfd, num_inputs);
         uint32_t a = 0;
 
         for (int i = 0; i < num_inputs; i++) {
@@ -209,7 +209,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
         }
         std::cout << "Have a: " << a << std::endl;
         uint32_t b;
-        read_in(serverfd, &b, sizeof(uint32_t));
+        recv_uint32(serverfd, b);
         std::cout << "Got b: " << b << std::endl;
         uint32_t aggr = a ^ b;
         if (msg.type == AND_OP) {
@@ -224,6 +224,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 }
 
 // For MAX and MIN
+// TODO: does this need htonl/ntohl wrappers for int arrays?
 returnType max_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, int &ans) {
     std::unordered_map<std::string, uint32_t*> share_map;
 
@@ -259,7 +260,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
-        send_out(serverfd, &num_inputs, sizeof(size_t));
+        send_size(serverfd, num_inputs);
         uint32_t b[B+1];
         memset(b, 0, sizeof(b));
 
@@ -276,7 +277,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         return RET_NO_ANS;
     } else {
         size_t num_inputs;
-        read_in(serverfd, &num_inputs, sizeof(size_t));
+        recv_size(serverfd, num_inputs);
         uint32_t a[B+1];
         memset(a, 0, sizeof(a));
 
@@ -359,7 +360,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
-        send_out(serverfd, &num_inputs, sizeof(size_t));
+        send_size(serverfd, num_inputs);
 
         // For OT
         uint32_t shares[num_inputs];
@@ -399,15 +400,15 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         NetIO* io = new NetIO(SERVER0_IP, 60051);
         uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
         std::cout << "Sending b = " << b << std::endl;
-        send_out(serverfd, &b, sizeof(uint64_t));
+        send_uint64(serverfd, b);
 
         uint64_t b2 = intsum_ot_receiver(io, &shares_squared[0], num_inputs, num_bits);
         std::cout << "Sending b2 = " << b << std::endl;
-        send_out(serverfd, &b2, sizeof(uint64_t));
+        send_uint64(serverfd, b2);
         return RET_NO_ANS;
     } else {
         size_t num_inputs;
-        read_in(serverfd, &num_inputs, sizeof(size_t));
+        recv_size(serverfd, num_inputs);
 
         // For OT
         uint32_t shares[num_inputs];
@@ -458,9 +459,9 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         std::cout << "have a2: " << a2 << std::endl;
         uint64_t b, b2;
 
-        read_in(serverfd, &b, sizeof(uint64_t));
+        recv_uint64(serverfd, b);
         std::cout << "got b: " << b << std::endl;
-        read_in(serverfd, &b2, sizeof(uint64_t));
+        recv_uint64(serverfd, b2);
         std::cout << "got b2: " << b2 << std::endl;
 
         const double ex = 1.0 * (a + b) / num_inputs;
@@ -567,7 +568,7 @@ int main(int argc, char** argv) {
 
             if (server_num == 1) {
                 const size_t num_inputs = bitshare_map.size();
-                send_out(serverfd, &num_inputs, sizeof(size_t));
+                send_size(serverfd, num_inputs);
 
                 bool shares[num_inputs];
                 int i = 0;
@@ -579,10 +580,10 @@ int main(int argc, char** argv) {
                 NetIO* io = new NetIO(SERVER0_IP, 60051);
                 uint64_t b = bitsum_ot_receiver(io, &shares[0], num_inputs);
                 std::cout << "Sending b: " << b << std::endl;
-                send_out(serverfd, &b, sizeof(uint64_t));
+                send_uint64(serverfd, b);
             } else {
                 size_t num_inputs;
-                read_in(serverfd, &num_inputs, sizeof(size_t));
+                recv_size(serverfd, num_inputs);
                 bool shares[num_inputs];
                 bool valid[num_inputs];
 
@@ -601,7 +602,7 @@ int main(int argc, char** argv) {
                 uint64_t a = bitsum_ot_sender(io, &shares[0], &valid[0], num_inputs);
                 std::cout << "Have a: " << a << std::endl;
                 uint64_t b;
-                read_in(serverfd, &b, sizeof(uint64_t));
+                recv_uint64(serverfd, b);
                 std::cout << "Got b: " << b << std::endl;
                 uint64_t aggr = a + b;
                 std::cout << "Ans : " << aggr << std::endl;
@@ -641,7 +642,7 @@ int main(int argc, char** argv) {
 
             if (server_num == 1) {
                 const size_t num_inputs = intshare_map.size();
-                send_out(serverfd, &num_inputs, sizeof(size_t));
+                send_size(serverfd, num_inputs);
 
                 uint32_t shares[num_inputs];
                 int i = 0;
@@ -653,10 +654,10 @@ int main(int argc, char** argv) {
                 NetIO* io = new NetIO(SERVER0_IP, 60051);
                 uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
                 std::cout << "Sending b: " << b << std::endl;
-                send_out(serverfd, &b, sizeof(uint64_t));
+                send_uint64(serverfd, b);
             } else {
                 size_t num_inputs;
-                read_in(serverfd, &num_inputs, sizeof(size_t));
+                recv_size(serverfd, num_inputs);
                 uint32_t shares[num_inputs];
                 bool valid[num_inputs];
 
@@ -675,7 +676,7 @@ int main(int argc, char** argv) {
                 uint64_t a = intsum_ot_sender(io, &shares[0], &valid[0], num_inputs, num_bits);
                 std::cout << "Have a: " << a << std::endl;
                 uint64_t b;
-                read_in(serverfd, &b, sizeof(uint64_t));
+                recv_uint64(serverfd, b);
                 std::cout << "Got b: " << b << std::endl;
                 uint64_t aggr = a + b;
                 std::cout << "Ans : " << aggr << std::endl;
