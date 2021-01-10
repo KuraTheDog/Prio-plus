@@ -20,7 +20,7 @@
 // #define SERVER0_IP "52.87.230.64"
 // #define SERVER1_IP "54.213.189.18"
 
-#define INVALID_THRESHOLD = 0.5
+#define INVALID_THRESHOLD 0.5
 
 uint32_t int_sum_max;
 uint32_t num_bits;
@@ -109,8 +109,19 @@ void server1_connect(int& sockfd, const int port, const int reuse = 0) {
     std::cout << "  Connected\n";
 }
 
-bool run_snip(Circuit* circuit, const ClientPacket packet, const fmpz_t randomX, 
-              const int serverfd, const int server_num) {
+// Gets a new randomX, syncs it between servers.
+void sync_randomX(const int serverfd, const int server_num, fmpz_t randomX) {
+    if (server_num == 0) {
+        recv_fmpz(serverfd, randomX);
+        std::cout << "Got randomX: "; fmpz_print(randomX); std::cout << std::endl;
+    } else {
+        fmpz_randm(randomX, seed, Int_Modulus);
+        std::cout << "Sending randomX: "; fmpz_print(randomX); std::cout << std::endl;
+        send_fmpz(serverfd, randomX);
+    }
+}
+
+bool run_snip(Circuit* circuit, const ClientPacket packet, const int serverfd, const int server_num) {
     Checker* checker = new Checker(circuit, server_num);
     checker->setReq(packet);
     CheckerPreComp* pre = new CheckerPreComp(circuit);
@@ -318,10 +329,8 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 
 // For var, stddev
 returnType var_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, double &ans) {
-    // typedef tuple <int, char, char> sharetype;
-    std::unordered_map<std::string, uint32_t> share_map;
-    std::unordered_map<std::string, uint32_t> share_map_squared;
-    std::unordered_map<std::string, ClientPacket> share_map_packets;
+    typedef std::tuple <uint32_t, uint32_t, ClientPacket> sharetype;
+    std::unordered_map<std::string, sharetype> share_map;
 
     VarShare share; 
     // We have x^2 < max, so we want x < sqrt(max)
@@ -341,9 +350,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             or (share.val_squared >= square_max))
             continue;
         std::cout << "valid share[" << i << "] = " << share.val << ", " << share.val_squared << std::endl;
-        share_map[pk] = share.val;
-        share_map_squared[pk] = share.val_squared;
-        share_map_packets[pk] = packet;
+        share_map[pk] = {share.val, share.val_squared, packet};
     }
 
     // TODO: return INVALID if too many invalid.
@@ -375,9 +382,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             bool other_valid;
             read_in(serverfd, &other_valid, sizeof(bool));
 
-            shares[i] = share.second;
-            shares_squared[i] = share_map_squared[pk];
-            ClientPacket packet = share_map_packets[pk];
+            ClientPacket packet;
+            std::tie(shares[i], shares_squared[i], packet) = share.second;
             i++;
 
             if (!other_valid)
@@ -391,7 +397,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
                 have_roots_init = true;
             }
 
-            bool circuit_valid = run_snip(circuit, packet, randomX, serverfd, server_num);
+            bool circuit_valid = run_snip(circuit, packet, serverfd, server_num);
             std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
             send_out(serverfd, &circuit_valid, sizeof(bool));
         }
@@ -429,9 +435,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
             send_out(serverfd, &is_valid, sizeof(bool));
 
-            shares[i] = share_map[pk];
-            shares_squared[i] = share_map_squared[pk];
-            ClientPacket packet = share_map_packets[pk];
+            ClientPacket packet;
+            std::tie(shares[i], shares_squared[i], packet) = share_map[pk];
 
             Circuit* circuit = CheckVar();
             if (not have_roots_init) {
@@ -440,7 +445,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
                 have_roots_init = true;
             }
 
-            bool circuit_valid = run_snip(circuit, packet, randomX, serverfd, server_num);
+            bool circuit_valid = run_snip(circuit, packet, serverfd, server_num);
             if (!circuit_valid)
                 valid[i] = false;
             std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
@@ -491,7 +496,7 @@ int main(int argc, char** argv) {
     std::cout << "  Listening for client on " << client_port << std::endl;
     std::cout << "  Listening for server on " << server_port << std::endl;
 
-    if (argc >= 4)
+    if (argc >= 5)
         num_bits = atoi(argv[4]);
 
     init_constants();
@@ -511,14 +516,7 @@ int main(int argc, char** argv) {
     }
 
     fmpz_init(randomX);
-    if (server_num == 0) {
-        recv_fmpz(serverfd, randomX);
-        std::cout << "Got randomX: "; fmpz_print(randomX); std::cout << std::endl;
-    } else {
-        fmpz_randm(randomX, seed, Int_Modulus);
-        std::cout << "Sending randomX: "; fmpz_print(randomX); std::cout << std::endl;
-        send_fmpz(serverfd, randomX);
-    }
+    sync_randomX(serverfd, server_num, randomX);
 
     int sockfd, newsockfd;
     sockaddr_in addr;

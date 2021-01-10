@@ -133,7 +133,7 @@ void xor_op(const std::string protocol, const size_t numreqs) {
         send_to_server(1, &share1, sizeof(IntShare));
     }
 
-    std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
+    std::cout << "Uploaded all shares. " << "Ans : " << std::boolalpha << ans << std::endl;
 
     delete[] b;
 }
@@ -311,7 +311,7 @@ int main(int argc, char** argv) {
 
     std::string protocol(argv[4]);
 
-    if (argc >= 5) {
+    if (argc >= 6) {
         int num_bits = atoi(argv[5]);
         max_int = 1 << num_bits;
         small_max_int = 1 << (num_bits / 2);
