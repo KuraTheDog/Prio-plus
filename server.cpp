@@ -164,20 +164,22 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
     std::unordered_map<std::string, uint32_t> share_map;
 
     IntShare share;
-    const size_t num_inputs = msg.num_of_inputs;
+    const size_t total_inputs = msg.num_of_inputs;
 
-    for (int i = 0; i < num_inputs; i++) {
+    for (int i = 0; i < total_inputs; i++) {
         read_in(clientfd, &share, sizeof(IntShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
-        if (share_map.find(pk) != share_map.end())
+        std::cout << "got pk: " << pk << std::endl;
+
+        if (share_map.find(pk) != share_map.end()) {
+            std::cout << " duplicate, skipping" << std::endl;
             continue;
+        }
         share_map[pk] = share.val;
     }
 
-    // TODO: return INVALID if too many invalid.
-
-    std::cout << "Received " << msg.num_of_inputs << " shares" << std::endl;
+    std::cout << "Received " << total_inputs << " total shares" << std::endl;
 
     std::cout << "Forking for server chats" << std::endl;
     pid_t pid = fork();
@@ -203,7 +205,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
         std::cout << "Sending b: " << b << std::endl;
         return RET_NO_ANS;
     } else {
-        size_t num_inputs;
+        size_t num_inputs, num_valid = 0;
         recv_size(serverfd, num_inputs);
         uint32_t a = 0;
 
@@ -216,13 +218,22 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
             send_out(serverfd, &is_valid, sizeof(bool));
             if (!is_valid)
                 continue;
+            num_valid++;
             a ^= share_map[pk];
         }
+
         std::cout << "Have a: " << a << std::endl;
         uint32_t b;
         recv_uint32(serverfd, b);
         std::cout << "Got b: " << b << std::endl;
         uint32_t aggr = a ^ b;
+
+        std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+        if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
+            std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+            return RET_INVALID;
+        }
+
         if (msg.type == AND_OP) {
             ans = (aggr == 0);
         } else if (msg.type == OR_OP) {
@@ -240,13 +251,13 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
     std::unordered_map<std::string, uint32_t*> share_map;
 
     MaxShare share;
-    const size_t num_inputs = msg.num_of_inputs;
+    const size_t total_inputs = msg.num_of_inputs;
     const int B = msg.max_inp;
     const size_t share_sz = (B+1) * sizeof(uint32_t);
     // Need this to have all share arrays stay in memory, for server1 later.
-    uint32_t shares[num_inputs * (B + 1)];
+    uint32_t shares[total_inputs * (B + 1)];
 
-    for (int i = 0; i < num_inputs; i++) {
+    for (int i = 0; i < total_inputs; i++) {
         read_in(clientfd, &share, sizeof(MaxShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
@@ -259,7 +270,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     // TODO: return INVALID if too many invalid.
 
-    std::cout << "Received " << msg.num_of_inputs << " shares" << std::endl;
+    std::cout << "Received " << total_inputs << " shares" << std::endl;
 
     std::cout << "Forking for server chats" << std::endl;
     pid_t pid = fork();
@@ -287,7 +298,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         send_out(serverfd, &b[0], share_sz);
         return RET_NO_ANS;
     } else {
-        size_t num_inputs;
+        size_t num_inputs, num_valid = 0;;
         recv_size(serverfd, num_inputs);
         uint32_t a[B+1];
         memset(a, 0, sizeof(a));
@@ -302,11 +313,19 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
             if (!is_valid)
                 continue;
 
+            num_valid++;
             for (int j = 0; j <= B; j++)
                 a[j] ^= share_map[pk][j];
         }
         uint32_t b[B+1];
         read_in(serverfd, &b[0], share_sz);
+
+        std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+        if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
+            std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+            return RET_INVALID;
+        }
+
         for (int j = B; j >= 0; j--) {
             // std::cout << "a,b[" << j << "] = " << a[j] << ", " << b[j] << std::endl;
             if (a[j] != b[j]) {
