@@ -355,26 +355,29 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     // We have x^2 < max, so we want x < sqrt(max)
     const uint32_t small_max = 1 << (num_bits / 2);
     const uint32_t square_max = 1 << num_bits;
-    const size_t num_inputs = msg.num_of_inputs;
+    const size_t total_inputs = msg.num_of_inputs;
 
-    for (int i = 0; i < num_inputs; i++) {
+    for (int i = 0; i < total_inputs; i++) {
         read_in(clientfd, &share, sizeof(VarShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
         ClientPacket packet = nullptr;
         recv_ClientPacket(clientfd, packet);
 
+        // std::cout << "share[" << i << "] = " << share.val << ", " << share.val_squared << std::endl;
+        // std::cout << " WireShares[0] = "; fmpz_print(packet->WireShares[0]); std::cout << std::endl;
+        // std::cout << " WireShares[1] = "; fmpz_print(packet->WireShares[1]); std::cout << std::endl;
+
         if ((share_map.find(pk) != share_map.end())
             or (share.val >= small_max)
             or (share.val_squared >= square_max))
             continue;
-        std::cout << "valid share[" << i << "] = " << share.val << ", " << share.val_squared << std::endl;
         share_map[pk] = {share.val, share.val_squared, packet};
     }
 
     // TODO: return INVALID if too many invalid.
 
-    std::cout << "Received " << msg.num_of_inputs << " shares" << std::endl;
+    std::cout << "Received " << total_inputs << " shares" << std::endl;
 
     std::cout << "Forking for server chats" << std::endl;
     pid_t pid = fork();
@@ -394,7 +397,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
         bool have_roots_init = false;  // Only run once for N
 
-        int i = 0;
+        size_t i = 0;
         for (const auto& share : share_map) {
             std::string pk = share.first;
             send_out(serverfd, &pk[0], PK_LENGTH);
@@ -417,7 +420,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             }
 
             bool circuit_valid = run_snip(circuit, packet, serverfd, server_num);
-            std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
+            std::cout << " Circuit for " << i - 1 << " validity: " << std::boolalpha << circuit_valid << std::endl;
             send_out(serverfd, &circuit_valid, sizeof(bool));
         }
 
@@ -432,7 +435,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         send_uint64(serverfd, b2);
         return RET_NO_ANS;
     } else {
-        size_t num_inputs;
+        size_t num_inputs, num_valid = 0;
         recv_size(serverfd, num_inputs);
 
         // For OT
@@ -449,10 +452,9 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
             bool is_valid = (share_map.find(pk) != share_map.end());
             valid[i] = is_valid;
+            send_out(serverfd, &is_valid, sizeof(bool));
             if (!is_valid)
                 continue;
-
-            send_out(serverfd, &is_valid, sizeof(bool));
 
             ClientPacket packet;
             std::tie(shares[i], shares_squared[i], packet) = share_map[pk];
@@ -474,6 +476,9 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             if (!other_valid)
                 valid[i] = false;
             std::cout << " Other Circuit for " << i << " validity: " << std::boolalpha << other_valid << std::endl;
+
+            if (valid[i])
+                num_valid++;
         }
         // Compute result
         NetIO* io = new NetIO(nullptr, 60051);
@@ -488,8 +493,14 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         recv_uint64(serverfd, b2);
         std::cout << "got b2: " << b2 << std::endl;
 
-        const double ex = 1.0 * (a + b) / num_inputs;
-        const double ex2 = 1.0 * (a2 + b2) / num_inputs;
+        std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+        if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
+            std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+            return RET_INVALID;
+        }
+
+        const double ex = 1.0 * (a + b) / num_valid;
+        const double ex2 = 1.0 * (a2 + b2) / num_valid;
         ans = ex2 - (ex * ex);
         if (msg.type == VAR_OP) {
             std::cout << "Ans: " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;

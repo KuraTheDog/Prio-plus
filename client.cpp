@@ -386,15 +386,15 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
         memcpy(share0.pk, &pk[0], PK_LENGTH);
         memcpy(share0.signature, &pk[0], PK_LENGTH);
         share0.arr = shares0;
-        if (include_invalid && i == 0)
+        if (i == 0)
             share0.pk[0] = 'q';
-        if (include_invalid && i == 2)
+        if (i == 2)
             memcpy(share0.pk, &prev_pk[0], PK_LENGTH);
 
         memcpy(share1.pk, &pk[0], PK_LENGTH);
         memcpy(share1.signature, &pk[0], PK_LENGTH);
         share1.arr = shares1;
-        if (include_invalid && i == 4)
+        if (i == 4)
             memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
 
         send_maxshare(share0, 0, B);
@@ -482,6 +482,137 @@ void var_op(const std::string protocol, const size_t numreqs) {
 
     const double ex = 1. * sum / numreqs;
     const double ex2 = 1. * sumsquared / numreqs;
+    double ans = ex2 - (ex * ex);
+    std::cout << "E[X^2] - E[X]^2 = " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
+    if (protocol == "STDDEVOP")
+        ans = sqrt(ans);
+    std::cout << "True Ans: " << ans << std::endl;
+
+    delete[] b;
+}
+
+/* 0: x > max
+   1: x shares > max
+   2: x^2 shares > max
+   3: x^2 = x * x + junk, run through snip
+   4: x^2 = x * x + junk, run snip with correct x^2  NOT CAUGHT, Server doesn't check equality
+   5: p0 misc corruption
+   6: pk mismatch
+   8: share0 has same pk as 7
+   10: share1 has same pk as 9
+*/ 
+void var_op_invalid(const std::string protocol, const size_t numreqs) {
+    emp::block *b = new block[numreqs];
+    // shares of x
+    uint32_t shares0[numreqs];
+    uint32_t shares1[numreqs];
+    // shares of x^2
+    uint32_t shares0_squared[numreqs];
+    uint32_t shares1_squared[numreqs];
+    uint32_t real_vals[numreqs];
+    int sum = 0, sumsquared = 0, numvalid = 0;
+
+    emp::PRG prg(fix_key);
+    prg.random_block(b, numreqs);
+    prg.random_data(real_vals, numreqs*sizeof(uint32_t));
+    prg.random_data(shares0, numreqs*sizeof(uint32_t));
+    prg.random_data(shares0_squared, numreqs*sizeof(uint32_t));
+
+    std::cout << "small_max_int: " << small_max_int << std::endl;
+    std::cout << "max_int: " << max_int << std::endl;
+
+    for (int i = 0; i < numreqs; i++) {
+        if (i != 0)  // x not capped
+            real_vals[i] = real_vals[i] % small_max_int;
+        if (i != 1)  // x shares not capped
+            shares0[i] = shares0[i] % small_max_int;
+        shares1[i] = real_vals[i] ^ shares0[i];
+        uint32_t squared = real_vals[i] * real_vals[i];
+        if (i == 3)  // x^2 != x * x
+            squared = (squared + 10) % max_int;
+        if (i != 2)  // x^2 not capped
+            shares0_squared[i] = shares0_squared[i] % max_int;
+        shares1_squared[i] = squared ^ shares0_squared[i];
+
+        std::cout << i << ": " << real_vals[i] << " = " << shares0[i] << "^" << shares1[i];
+        std::cout << ", " << squared << " = " << shares0_squared[i] << "^" << shares1_squared[i];
+        if (i <= 3 or i == 5 or i == 6 or i == 8 or i == 10) {
+            std::cout << " (invalid)" << std::endl;
+        } else {
+            std::cout << std::endl;
+            sum += real_vals[i];
+            sumsquared += squared;
+            numvalid++;
+        }
+    }
+
+    initMsg msg;
+    msg.num_of_inputs = numreqs;
+    if (protocol == "VAROP")
+        msg.type = VAR_OP;
+    if (protocol == "STDDEVOP")
+        msg.type = STDDEV_OP;
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
+
+    fmpz_t inp[2];
+    fmpz_init(inp[0]);
+    fmpz_init(inp[1]);
+
+    std::string pk_str = "";
+
+    for (int i = 0; i < numreqs; i++) {
+        VarShare share0, share1;
+        const char* prev_pk = pk_str.c_str();
+        pk_str = pub_key_to_hex((uint64_t*)&b[i]);
+        const char* pk = pk_str.c_str();
+
+        memcpy(share0.pk, &pk[0], PK_LENGTH);
+        share0.val = shares0[i];
+        share0.val_squared = shares0_squared[i];
+        memcpy(share0.signature, &pk[0], PK_LENGTH);
+        if (i == 6)
+            share0.pk[0] = 'q';
+        if (i == 8)
+            memcpy(share0.pk, &prev_pk[0], PK_LENGTH);
+
+        memcpy(share1.pk, &pk[0], PK_LENGTH);
+        share1.val = shares1[i];
+        share1.val_squared = shares1_squared[i];
+        memcpy(share1.signature, &pk[0], PK_LENGTH);
+        if (i == 10)
+            memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
+
+        send_to_server(0, &share0, sizeof(VarShare));
+        send_to_server(1, &share1, sizeof(VarShare));
+        // SNIP: proof that x^2 = x_squared
+        fmpz_set_si(inp[0], real_vals[i]);
+        fmpz_set_si(inp[1], real_vals[i] * real_vals[i]);
+        if (i == 3)
+            fmpz_set_si(inp[1], (real_vals[i] * real_vals[i] + 10) % max_int);
+        Circuit* circuit = CheckVar();
+        // Run through circuit to set wires
+        circuit->Eval(inp);
+        ClientPacket p0, p1;
+        share_polynomials(circuit, p0, p1);
+        if (i == 5) {
+            // So clients can still break server if they provide bad N here.
+            // Since they are used as loop bounds, and we get fun segfaults etc.
+            // p0->N = 1;
+            fmpz_add_si(p0->f0_s, p0->f0_s, 10);
+        }
+        send_ClientPacket(sockfd0, p0);
+        send_ClientPacket(sockfd1, p1);
+        delete p0;
+        delete p1;
+    }
+
+    std::cout << "sum: " << sum << std::endl;
+    std::cout << "sumsquared: " << sumsquared << std::endl;
+    std::cout << "numvalid: " << numvalid << std::endl;
+
+    const double ex = 1. * sum / numvalid;
+    const double ex2 = 1. * sumsquared / numvalid;
     double ans = ex2 - (ex * ex);
     std::cout << "E[X^2] - E[X]^2 = " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
     if (protocol == "STDDEVOP")
@@ -683,13 +814,19 @@ int main(int argc, char** argv) {
 
     else if (protocol == "VAROP") {
         std::cout << "Uploading all VAR shares: " << numreqs << std::endl;
-        var_op(protocol, numreqs);
+        if (include_invalid)
+            var_op_invalid(protocol, numreqs);
+        else
+            var_op(protocol, numreqs);
     }
 
     else if (protocol == "STDDEVOP") {
         // Stddev(x) = sqrt(Var(x))
         std::cout << "Uploading all STDDEV shares: " << numreqs << std::endl;
-        var_op(protocol, numreqs);
+        if (include_invalid)
+            var_op_invalid(protocol, numreqs);
+        else
+            var_op(protocol, numreqs);
     }
 
     else if(protocol == "LINREGOP") {
