@@ -2,7 +2,7 @@
 Simulates a group of num_submission clients that communicate with the servers.
 */
 
-// TODO: Do we need htonl/ntohl wrappers on shares?
+// TODO: Eventually htonl/ntohl wrappers on shares. Fine when client/server on same machine.
 
 #include "client.h"
 

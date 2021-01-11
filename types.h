@@ -3,21 +3,21 @@
 
 #define PK_LENGTH 32
 
-struct BitShare{
+struct BitShare {
     char pk[PK_LENGTH];
     unsigned int val;
     char signature[PK_LENGTH];
 };
 
 // For INT_SUM, AND_OP, OR_OP
-struct IntShare{
+struct IntShare {
     char pk[PK_LENGTH];
     unsigned int val;
     char signature[PK_LENGTH];
 };
 
 // For Max, Min
-struct MaxShare{
+struct MaxShare {
     uint32_t* arr;
     char pk[PK_LENGTH];
     char signature[PK_LENGTH];
@@ -31,7 +31,7 @@ struct VarShare {
     char signature[PK_LENGTH];
 };
 
-enum messageType{
+enum messageType {
     BIT_SUM,
     INT_SUM,
     AND_OP,
@@ -42,7 +42,7 @@ enum messageType{
     STDDEV_OP,
 };
 
-struct initMsg{
+struct initMsg {
     messageType type;
     int num_of_inputs;
     int max_inp;

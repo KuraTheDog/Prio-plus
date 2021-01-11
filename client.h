@@ -10,7 +10,7 @@ extern "C" {
     #include "poly/fft.h"
 }
 
-void share_polynomials(const Circuit* circuit, ClientPacket& p0, ClientPacket& p1){
+void share_polynomials(const Circuit* circuit, ClientPacket& p0, ClientPacket& p1) {
     auto mulgates = circuit->MulGates();
 
     int n = mulgates.size() + 1;
@@ -36,7 +36,7 @@ void share_polynomials(const Circuit* circuit, ClientPacket& p0, ClientPacket& p
     fmpz_mod(h0,h0,Int_Modulus);
 
     // u_i, v_i = left, right of i^th mult gate.
-    for(int i = 1; i < n; i++){
+    for (int i = 1; i < n; i++) {
         fmpz_set(pointsF[i],mulgates[i-1]->ParentL->WireValue);
         fmpz_set(pointsG[i],mulgates[i-1]->ParentR->WireValue);
     }
@@ -57,7 +57,7 @@ void share_polynomials(const Circuit* circuit, ClientPacket& p0, ClientPacket& p
     // std::cout << "]" << std::endl;
 
     // Initialize roots (nth roots of unity) and invroots (their inverse)
-    if(roots == nullptr){
+    if (roots == nullptr) {
         init_roots(N);
     }
 
@@ -117,7 +117,7 @@ void share_polynomials(const Circuit* circuit, ClientPacket& p0, ClientPacket& p
     // h_points[j] = evalF(2j + 1) * evalG(2j + 1), split into shares
     fmpz_t h_val;
     fmpz_init(h_val);
-    for(int j = 0; j < N; j++){
+    for (int j = 0; j < N; j++) {
         fmpz_mul(h_val, evalsF[2 * j + 1], evalsG[2 * j + 1]);
         fmpz_mod(h_val, h_val, Int_Modulus);
         SplitShare(h_val, p0->h_points[j], p1->h_points[j]);
@@ -129,8 +129,7 @@ void share_polynomials(const Circuit* circuit, ClientPacket& p0, ClientPacket& p
     SplitShare(h0,p0->h0_s,p1->h0_s);
 
     // Split outputs of input/mult gate shares.
-    int num_wire_shares = 0;
-    circuit->GetWireShares(&p0->WireShares,&p1->WireShares,num_wire_shares);
+    circuit->GetWireShares(&p0->WireShares,&p1->WireShares);
 
     auto triple = NewBeaverTriple();
     auto triple_shares = BeaverTripleShares(triple);

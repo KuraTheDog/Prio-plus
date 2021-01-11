@@ -69,7 +69,7 @@ void init_roots(const int N) {
     fmpz_set_ui(invroots[0],1);
     fmpz_set_ui(roots2[0],1);
 
-    for(int i = 1; i < N; i++){
+    for (int i = 1; i < N; i++) {
         fmpz_mul(roots[i],roots[i-1],g_);
         fmpz_mul(invroots[i],invroots[i-1],ginv_);
 
@@ -77,31 +77,31 @@ void init_roots(const int N) {
         fmpz_mod(invroots[i],invroots[i],Int_Modulus);
     }
 
-    for(int i = 1; i < 2 * N; i++){
+    for (int i = 1; i < 2 * N; i++) {
         fmpz_mul(roots2[i], roots2[i-1], ghalf_);
         fmpz_mod(roots2[i],roots2[i],Int_Modulus);
     }
 
-    std::cout << " roots = {";
-    for (int i = 0; i < N; i++) {
-        if (i > 0) std::cout << ", ";
-        fmpz_print(roots[i]);
-    }
-    std::cout << "}" << std::endl;
+    // std::cout << " roots = {";
+    // for (int i = 0; i < N; i++) {
+    //     if (i > 0) std::cout << ", ";
+    //     fmpz_print(roots[i]);
+    // }
+    // std::cout << "}" << std::endl;
 
-    std::cout << " invroots = {";
-    for (int i = 0; i < N; i++) {
-        if (i > 0) std::cout << ", ";
-        fmpz_print(invroots[i]);
-    }
-    std::cout << "}" << std::endl;
+    // std::cout << " invroots = {";
+    // for (int i = 0; i < N; i++) {
+    //     if (i > 0) std::cout << ", ";
+    //     fmpz_print(invroots[i]);
+    // }
+    // std::cout << "}" << std::endl;
 
-    std::cout << " roots2 = {";
-    for (int i = 0; i < 2 * N; i++) {
-        if (i > 0) std::cout << ", ";
-        fmpz_print(roots2[i]);
-    }
-    std::cout << "}" << std::endl;
+    // std::cout << " roots2 = {";
+    // for (int i = 0; i < 2 * N; i++) {
+    //     if (i > 0) std::cout << ", ";
+    //     fmpz_print(roots2[i]);
+    // }
+    // std::cout << "}" << std::endl;
 
     fmpz_clear(g_);
     fmpz_clear(ginv_);
@@ -123,7 +123,7 @@ struct Gate {
     fmpz_t Constant;
     fmpz_t WireValue;
 
-    Gate(){
+    Gate() {
         ParentL = ParentR = nullptr;
         fmpz_init(Constant);
         fmpz_init(WireValue);
@@ -136,7 +136,7 @@ struct Gate {
         fmpz_init(WireValue);
     }
 
-    Gate(GateType gatetype, Gate* pL, Gate* pR){
+    Gate(GateType gatetype, Gate* pL, Gate* pR) {
         type = gatetype;
         ParentL = pL;
         ParentR = pR;
@@ -156,23 +156,23 @@ struct Circuit {
     std::vector<Gate*> result_zero;  // Gates that must be zero for eval to pass.
     int max_bits;                    // 
 
-    Circuit(int n = 31){
+    Circuit(int n = 31) {
         max_bits = n;
     }
 
-    void addGate(Gate* gate){
+    void addGate(Gate* gate) {
         gates.push_back(gate);
     }
 
-    void addZeroGate(Gate* zerogate){
+    void addZeroGate(Gate* zerogate) {
         result_zero.push_back(zerogate);
     }
 
     // Evals circuit on the input, returns if all result_zero gates are zero.
-    bool Eval(fmpz_t *inps){
+    bool Eval(fmpz_t *inps) {
         int inp_count = 0;
         // std::cout << "EVAL" << std::endl;
-        for(int i = 0; i < gates.size(); i++){
+        for (int i = 0; i < gates.size(); i++) {
             
             switch (gates[i]->type)
             {
@@ -220,7 +220,7 @@ struct Circuit {
         }
         bool res = true;
 
-        for(auto zero_gate : this->result_zero)
+        for (auto zero_gate : this->result_zero)
             res = res and fmpz_is_zero(zero_gate->WireValue);
 
         return res;
@@ -229,16 +229,16 @@ struct Circuit {
     std::vector<Gate*> MulGates() const {
         std::vector<Gate*> res;
 
-        for(auto gate : this->gates){
-            if(gate->type == Gate_Mul)
+        for (auto gate : this->gates) {
+            if (gate->type == Gate_Mul)
                 res.push_back(gate);
         }
 
         return res;
     }
 
-    int NumMulGates() const {
-        int total = 0;
+    size_t NumMulGates() const {
+        size_t total = 0;
         for (auto gate: this->gates) {
             if (gate->type == Gate_Mul)
                 total += 1;
@@ -246,8 +246,8 @@ struct Circuit {
         return total;
     }
 
-    int NumMulInpGates() const {
-        int total = 0;
+    size_t NumMulInpGates() const {
+        size_t total = 0;
         for (auto gate: this->gates) {
             if (gate->type == Gate_Mul or gate->type == Gate_Input)
                 total += 1;
@@ -255,28 +255,23 @@ struct Circuit {
         return total;
     }
 
-    void GetWireShares(fmpz_t** shares0, fmpz_t** shares1, int& n) const {
-        n = 0;
-        for(auto gate : gates){
-            if(gate->type == Gate_Input or gate->type == Gate_Mul){
-                n++;
-            }
-        }
+    void GetWireShares(fmpz_t** shares0, fmpz_t** shares1) const {
+        const size_t n = NumMulInpGates();
 
         fmpz_t* forServer0 = (fmpz_t *) malloc(n*sizeof(fmpz_t));
         fmpz_t* forServer1 = (fmpz_t *) malloc(n*sizeof(fmpz_t));
 
-        for(int i = 0; i < n; i++){
+        for (int i = 0; i < n; i++) {
             fmpz_init(forServer0[i]);
             fmpz_init(forServer1[i]);
         }
 
-        int i = 0;
+        size_t i = 0;
 
         // deal with input gates modification as they should be XOR shared for length checks
-        for(auto gate : gates) {
-            if(gate->type == Gate_Mul or gate->type == Gate_Input){
-                SplitShare(gate->WireValue,forServer0[i],forServer1[i]);
+        for (auto gate : gates) {
+            if (gate->type == Gate_Mul or gate->type == Gate_Input) {
+                SplitShare(gate->WireValue, forServer0[i], forServer1[i]);
                 i++;
             }
         }
@@ -284,10 +279,10 @@ struct Circuit {
         *shares0 = forServer0; *shares1 = forServer1;
     }
 
-    void ImportWires(const ClientPacket p, const int server_num){
-        int i = 0;
+    void ImportWires(const ClientPacket p, const int server_num) {
+        size_t i = 0;
 
-        for(auto gate : gates){
+        for (auto gate : gates) {
             switch (gate->type)
             {
             case Gate_Input:
@@ -303,7 +298,7 @@ struct Circuit {
                 i++;
                 break;
             case Gate_AddConst:
-                if(server_num == 0)
+                if (server_num == 0)
                     fmpz_add(gate->WireValue,gate->ParentL->WireValue,gate->Constant);
                 else
                     fmpz_set(gate->WireValue,gate->ParentL->WireValue);
@@ -320,9 +315,9 @@ struct Circuit {
     }
 };
 
-int NextPowerofTwo(const int n){
+int NextPowerofTwo(const int n) {
     int ans = 1;
-    while(n > ans){
+    while(n > ans) {
         ans *= 2;
     }
 
@@ -332,7 +327,7 @@ int NextPowerofTwo(const int n){
 Circuit* AndCircuits(std::vector<Circuit*>& circuits) {
     Circuit* out = new Circuit();
 
-    for(int i = 0; i < circuits.size(); i++){
+    for (int i = 0; i < circuits.size(); i++) {
         out->gates.insert(out->gates.end(),circuits[i]->gates.begin(),circuits[i]->gates.end());
         out->outputs.insert(out->outputs.end(),circuits[i]->outputs.begin(),circuits[i]->outputs.end());
         out->result_zero.insert(out->result_zero.end(),circuits[i]->result_zero.begin(),circuits[i]->result_zero.end());
@@ -378,7 +373,7 @@ Circuit* CheckMul(Gate* L, Gate* R, Gate* Prod) {
 }
 
 // Returns circuit for x^2 == y. For Varience and StdDev.
-Circuit* CheckVar(){
+Circuit* CheckVar() {
     Gate* x = new Gate(Gate_Input);
     Gate* y = new Gate(Gate_Input);
 
@@ -411,15 +406,15 @@ Circuit* CheckLinReg(int num_fields) {
 
     Circuit* out = new Circuit();
 
-    for(int i = 0; i < num_inputs; i++){
+    for (int i = 0; i < num_inputs; i++) {
         Gate* inp = new Gate(Gate_Input);
         out->addGate(inp);
     }
 
     int k = num_fields;
 
-    for(int i = 0; i < num_fields; i++){
-        for(int j = i; j < num_fields; j++){
+    for (int i = 0; i < num_fields; i++) {
+        for (int j = i; j < num_fields; j++) {
             Gate* x_i = out->gates[i];
             Gate* x_j = out->gates[j];
             Gate* x_i_j = out->gates[k];

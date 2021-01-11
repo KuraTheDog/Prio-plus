@@ -91,7 +91,8 @@ void test_CheckVar() {
 
   std::cout << "out0 : "; fmpz_print(out0); std::cout << ", out1 : "; fmpz_print(out1); std::cout << std::endl;  
 
-  std::cout << "Result0 : " << result0 << " , Result1 : " << result1 << std::endl;
+  std::cout << "Result0 : " << std::boolalpha << result0 << std::endl;
+  std::cout << "Result1 : " << std::boolalpha << result1 << std::endl;
 
   std::cout << "^v^v^ Shared validation: " << std::endl;
   fmpz_t tmp, rgr;

@@ -44,7 +44,7 @@ struct BatchPre {
     // Newbatch
     BatchPre(const fmpz_t *xPointsIn, const int n) {
         // std::cout << " new BatchPre , n = " << n << ", xPointsIn = [";
-        // for(int i =0; i < n; i++){
+        // for (int i =0; i < n; i++) {
         //     if (i > 0) std::cout << ", ";
         //     fmpz_print(xPointsIn[i]);
         // }
@@ -135,7 +135,7 @@ struct Checker {
     fmpz_t evalG;  // [r * g(r)]
     fmpz_t evalH;  // [r * h(r)]
 
-    Checker(Circuit* c, const int idx){
+    Checker(Circuit* c, const int idx) {
         ckt = c;
         serveridx = idx;
         n = ckt->NumMulGates()+1;
@@ -159,12 +159,12 @@ struct Checker {
         fmpz_clear(evalH);
     }
 
-    void setReq(const ClientPacket pkt){
+    void setReq(const ClientPacket pkt) {
         req = pkt;
         ckt->ImportWires(pkt, serveridx);
     }
 
-    void evalPoly(const CheckerPreComp *pre){
+    void evalPoly(const CheckerPreComp *pre) {
         // std::cout << "evalPoly" << std::endl;
         std::vector<Gate*> mulgates = ckt->MulGates();
         // Get constant terms from packet
@@ -175,7 +175,7 @@ struct Checker {
         // For all multiplication triples a_i * b_i = c_i,
         //    polynomial [f(x)] has [f(i)] = [a_i]
         //    polynomial [g(x)] has [g(i)] = [b_i]
-        for(int i = 1; i < n; i++){
+        for (int i = 1; i < n; i++) {
             fmpz_set(pointsF[i],mulgates[i-1]->ParentL->WireValue);
             fmpz_set(pointsG[i],mulgates[i-1]->ParentR->WireValue);
             // Set even values of h to be output wires.
@@ -183,7 +183,7 @@ struct Checker {
         }
 
         // Grab odd values of h from the packet.
-        for(int j = 0; j < N; j++){
+        for (int j = 0; j < N; j++) {
             fmpz_set(pointsH[2 * j + 1], req->h_points[j]);
         }
 
@@ -222,7 +222,7 @@ struct Checker {
         // std::cout << "r * h(r) = "; fmpz_print(evalH); std::cout << std::endl;
     }
 
-    CorShare* CorShareFn(const CheckerPreComp *pre){
+    CorShare* CorShareFn(const CheckerPreComp *pre) {
         evalPoly(pre);
         // std::cout << "CorShareFn" << std::endl;
         CorShare* out = new CorShare();
@@ -236,7 +236,7 @@ struct Checker {
         return out;
     }
 
-    Cor* CorFn(const CorShare* cs0, const CorShare* cs1){
+    Cor* CorFn(const CorShare* cs0, const CorShare* cs1) {
         Cor* out = new Cor();
         // std::cout << "CorFn" << std::endl;
         fmpz_add(out->D,cs0->shareD, cs1->shareD);
@@ -249,13 +249,13 @@ struct Checker {
     }
 
     // To be fixed. Both servers need to use same random seed. Using constant 1 instead now.
-    void randSum(fmpz_t out, const fmpz_t* arr){
+    void randSum(fmpz_t out, const fmpz_t* arr) {
         int len = ckt->result_zero.size() + 1;
 
         fmpz_t tmp;
         fmpz_init(tmp);
 
-        for(int i = 0; i < len; i++){
+        for (int i = 0; i < len; i++) {
             // fmpz_randm(tmp,seed,Int_Modulus);
             fmpz_set_ui(tmp,1);
             fmpz_mul(tmp,tmp,arr[i]);
@@ -276,7 +276,7 @@ struct Checker {
         fmpz_init(mulCheck);
         fmpz_init(term);
 
-        if(serveridx == 0){
+        if (serveridx == 0) {
             fmpz_mul(mulCheck, corIn->D, corIn->E);
             fmpz_mod(mulCheck, mulCheck, Int_Modulus);
         }
@@ -303,7 +303,7 @@ struct Checker {
 
         fmpz_set(arr[0], mulCheck);
 
-        for(int i = 0; i < num_zero_gates; i++){
+        for (int i = 0; i < num_zero_gates; i++) {
             fmpz_set(arr[i+1],ckt->result_zero[i]->WireValue);
         }
 
@@ -314,7 +314,7 @@ struct Checker {
         fmpz_clear(term);
     }
 
-    bool OutputIsValid(const fmpz_t output0, const fmpz_t output1){
+    bool OutputIsValid(const fmpz_t output0, const fmpz_t output1) {
         fmpz_t out;
         fmpz_init(out);
 

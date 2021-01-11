@@ -11,7 +11,7 @@ extern "C" {
 fmpz_t Int_Modulus;
 flint_rand_t seed;
 
-void init_client_packet(ClientPacket &p, const int N, const int NumMulInpGates){
+void init_client_packet(ClientPacket &p, const int N, const int NumMulInpGates) {
     p = new client_packet();
 
     p->N = N;
@@ -28,14 +28,14 @@ void init_client_packet(ClientPacket &p, const int N, const int NumMulInpGates){
     p->triple_share = new BeaverTripleShare();
 }
 
-void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B){
+void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B) {
     fmpz_randm(A,seed,Int_Modulus);
     fmpz_sub(B,val,A);
     fmpz_mod(B,B,Int_Modulus);
 }
 
 // Unused?
-void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B, const int num_bits){
+void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B, const int num_bits) {
     // num_bits < 32
     uint32_t mod = 1 << num_bits;
 
