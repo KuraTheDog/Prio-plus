@@ -40,6 +40,13 @@ struct VarShare {
     char signature[PK_LENGTH];
 };
 
+struct LinRegShare {
+    char pk[PK_LENGTH];
+    uint32_t num_fields;
+    uint32_t* vals;
+    char signature[PK_LENGTH];
+};
+
 enum messageType{
     BIT_SUM,
     INT_SUM,
