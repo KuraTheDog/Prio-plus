@@ -13,9 +13,9 @@ g++ -std=c++11 -o test_net_share test_net_share.cpp ../fmpz_utils.cpp ../share.c
 
 #include <iostream>
 
+#include "../constants.h"
 #include "../fmpz_utils.h"
 #include "../net_share.h"
-#include "../prio.h"
 
 int PORT = 8888;
 
@@ -182,7 +182,7 @@ void run_receiver(int newsockfd) {
 }
 
 int main(int argc, char** argv) {
-    /* Initialize prio.h globals constants.
+    /* Initialize constants.h globals constants.
     Mostly for Int_Modulus, for use by share.h. */
     fmpz_init(Int_Modulus);
     fmpz_set_str(Int_Modulus,Int_Modulus_str.c_str(),16);

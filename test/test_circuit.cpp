@@ -3,6 +3,7 @@
 #include <gmpxx.h>
 
 #include "../circuit.h"
+#include "../constants.h"
 #include "../share.h"
 #include "../client.h"
 #include "../server.h"

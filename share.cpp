@@ -1,15 +1,12 @@
 #include "share.h"
 
+#include "constants.h"
 #include "fmpz_utils.h"
-#include "prio.h"
 
 extern "C" {
   #include "flint/flint.h"
   #include "flint/fmpz.h"
 };
-
-fmpz_t Int_Modulus;
-flint_rand_t seed;
 
 void init_client_packet(ClientPacket &p, const int N, const int NumMulInpGates) {
     p = new client_packet();

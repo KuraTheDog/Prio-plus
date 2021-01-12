@@ -2,8 +2,8 @@
 #define CLIENT_H
 
 #include "circuit.h"
+#include "constants.h"
 #include "fmpz_utils.h"
-#include "prio.h"
 #include "share.h"
 
 extern "C" {
