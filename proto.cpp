@@ -258,3 +258,84 @@ uint64_t xor_to_sum_share_receiver(NetIO *io, uint32_t share, int num_bits){
 
     return sum;
 }
+
+void set_block(block &b, bool f){
+    uint64_t *p = (uint64_t*) &b;
+    p[0] = 0;
+    if(f){
+        p[1] = 1;
+    }
+    else
+    {
+        p[0] = 0;
+    }
+}
+
+void block_to_boolean(block *B, bool *b, int len){
+
+    for(int i = 0; i < len; i++){
+        uint64_t* p = (uint64_t*) &(B[i]);
+        b[i] = (p[1]) ? true : false;
+    }
+
+}
+
+vector<bbt> gen_boolean_beaver_triples(NetIO *io, int server_num, int m){
+    PRG prg;
+    vector<bbt> ans;
+    bool x[m], y[m], z[m], r[m], b[m];
+    prg.random_bool(x, m);
+    prg.random_bool(y, m);
+    prg.random_bool(r, m);
+
+    if(server_num == 0){
+        block b0[m], b1[m], B[m];
+        
+        for(int i = 0; i < m; i++){
+            set_block(b0[i], r[i]);
+            set_block(b1[i], (x[i] != r[i])); // r[i] XOR x[i]
+        }
+
+        IKNP<NetIO> ot(io);
+        ot.send(b0,b1,m);
+
+        ot.recv(B,y,m);
+
+        block_to_boolean(B, b, m);
+
+        for(int i = 0; i < m ; i++){
+            z[i] = b[i] != (r[i] != (x[i] and y[i])); // z[i] = r_A xor x_A.y_A xor r_B xor x_B.y_A
+            std::cout << x[i] << " " << y[i] << " " <<  z[i] << std::endl;
+        }
+    }
+    else if(server_num == 1){
+        block b0[m], b1[m], B[m];
+        IKNP<NetIO> ot(io);
+
+        ot.recv(B,y,m);
+
+        block_to_boolean(B,b,m);
+
+        for(int i = 0; i < m; i++){
+            set_block(b0[i], r[i]);
+            set_block(b1[i], (x[i] != r[i])); // r[i] XOR x[i]
+        }
+
+        ot.send(b0,b1,m);
+
+        for(int i = 0; i < m ; i++){
+            z[i] = b[i] != (r[i] != (x[i] and y[i])); 
+            std::cout << x[i] << " " << y[i] << " " <<  z[i] << std::endl;
+        }
+    }
+    else {
+        std::cout << "Error : server_num invalid" << std::endl;
+        return ans;
+    }
+
+    for(int i = 0 ; i < m ; i++){
+        ans.push_back(bbt(x[i],y[i],z[i]));
+    }
+    
+    return ans;
+}

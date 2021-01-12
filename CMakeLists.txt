@@ -26,7 +26,6 @@ include(cmake/common.cmake)
 find_package(EMP-TOOL REQUIRED)
 include_directories(${EMP-TOOL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
-# Targets greeter_[async_](client|server)
 foreach(_target
   server client)
   add_executable(${_target} "${_target}.cpp" 
@@ -43,7 +42,7 @@ foreach(_target
 endforeach()
 
 foreach(_target
-  test_net_share test_circuit)
+  test_net_share test_circuit test_linreg test_proto)
   add_executable(${_target} "test/${_target}.cpp" 
                  "constants.cpp" "proto.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp"
                  "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c"
