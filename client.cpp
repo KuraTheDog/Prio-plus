@@ -64,14 +64,222 @@ int send_to_server(const int server, const void* buffer, const size_t n, const i
     return ret;
 }
 
+void bit_sum(const std::string protocol, const size_t numreqs) {
+    initMsg msg;
+    msg.num_of_inputs = numreqs;
+    msg.type = BIT_SUM;
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
+
+    emp::block* b = new block[numreqs];
+    bool real_vals[numreqs];
+    bool shares0[numreqs];
+    bool shares1[numreqs];
+
+    emp::PRG prg(fix_key);
+    prg.random_block(b, numreqs);
+    prg.random_bool(real_vals, numreqs);
+    prg.random_bool(shares0, numreqs);
+
+    int ans = 0;
+    for (int i = 0; i < numreqs; i++) {
+        BitShare share0, share1;
+        const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
+
+        shares1[i] = real_vals[i]^shares0[i];
+        ans += (real_vals[i] ? 1 : 0);
+
+        memcpy(share0.pk, &pk[0],PK_LENGTH);
+        share0.val = shares0[i];
+        memcpy(share0.signature, &pk[0],PK_LENGTH);
+
+        memcpy(share1.pk, &pk[0], PK_LENGTH);
+        share1.val = shares1[i];
+        memcpy(share1.signature, &pk[0], PK_LENGTH);
+
+        send_to_server(0, &share0, sizeof(BitShare));
+        send_to_server(1, &share1, sizeof(BitShare));
+    }
+    std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
+
+    delete[] b;
+}
+
+/* 0: pk mismatch
+   2: share0 has same pk as 1
+   4: share1 has same pk as 3
+*/
+void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
+    initMsg msg;
+    msg.num_of_inputs = numreqs;
+    msg.type = BIT_SUM;
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
+
+    emp::block* b = new block[numreqs];
+    bool real_vals[numreqs];
+    bool shares0[numreqs];
+    bool shares1[numreqs];
+
+    emp::PRG prg(fix_key);
+    prg.random_block(b, numreqs);
+    prg.random_bool(real_vals, numreqs);
+    prg.random_bool(shares0, numreqs);
+
+    int ans = 0;
+    std::string pk_str = "";
+    for (int i = 0; i < numreqs; i++) {
+        BitShare share0, share1;
+        const char* prev_pk = pk_str.c_str();
+        pk_str = pub_key_to_hex((uint64_t*)&b[i]);
+        const char* pk = pk_str.c_str();
+
+        shares1[i] = real_vals[i]^shares0[i];
+        std::cout << i << ": " << std::boolalpha << shares0[i] << " ^ " << shares1[i] << " = " << real_vals[i];
+        if (i == 0 or i == 2 or i == 4) {
+            std::cout << " (invalid)" << std::endl;
+        } else {
+            std::cout << std::endl;
+            ans += (real_vals[i] ? 1 : 0);
+        }
+
+        memcpy(share0.pk, &pk[0],PK_LENGTH);
+        share0.val = shares0[i];
+        memcpy(share0.signature, &pk[0],PK_LENGTH);
+        if (i == 0)
+            share0.pk[0] = 'q';
+        if (i == 2)
+            memcpy(share0.pk, &prev_pk[0], PK_LENGTH);
+
+        memcpy(share1.pk, &pk[0], PK_LENGTH);
+        share1.val = shares1[i];
+        memcpy(share1.signature, &pk[0], PK_LENGTH);
+        if (i == 4)
+            memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
+
+        send_to_server(0, &share0, sizeof(BitShare));
+        send_to_server(1, &share1, sizeof(BitShare));
+    }
+    std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
+
+    delete[] b;
+}
+
+void int_sum(const std::string protocol, const size_t numreqs) {
+    initMsg msg;
+    msg.num_of_inputs = numreqs;
+    msg.type = INT_SUM;
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
+
+    emp::block* b = new block[numreqs];
+    uint32_t real_vals[numreqs];
+    uint32_t shares0[numreqs];
+    uint32_t shares1[numreqs];
+    uint64_t ans = 0;
+
+    emp::PRG prg(fix_key);
+    prg.random_block(b, numreqs);
+    prg.random_data(real_vals, numreqs * sizeof(uint32_t));
+    prg.random_data(shares0, numreqs * sizeof(uint32_t));
+
+    for (int i = 0; i < numreqs; i++) {
+        real_vals[i] = real_vals[i] % max_int;
+        shares0[i] = shares0[i] % max_int;
+        shares1[i] = real_vals[i] ^ shares0[i];
+        std::cout << "real_vals[" << i << "] = " << real_vals[i] << " = " << shares0[i] << " ^ " << shares1[i] << std::endl;
+        ans += real_vals[i];
+
+        IntShare share0, share1;
+        const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
+
+        memcpy(share0.pk, &pk[0], PK_LENGTH);
+        share0.val = shares0[i];
+        memcpy(share0.signature, &pk[0], PK_LENGTH);
+
+        memcpy(share1.pk, &pk[0], PK_LENGTH);
+        share1.val = shares1[i];
+        memcpy(share1.signature, &pk[0], PK_LENGTH);
+
+        send_to_server(0, &share0, sizeof(IntShare));
+        send_to_server(1, &share1, sizeof(IntShare));
+    }
+
+    std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
+
+    delete[] b;
+}
+
+/* 0: x > max
+   1: x share > max
+   2: pk mismatch
+   4: share0 has same pk as 3
+   6: share1 has same pk as 5
+*/
+void int_sum_invalid(const std::string protocol, const size_t numreqs) {
+    initMsg msg;
+    msg.num_of_inputs = numreqs;
+    msg.type = INT_SUM;
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
+
+    emp::block* b = new block[numreqs];
+    uint32_t real_vals[numreqs];
+    uint32_t shares0[numreqs];
+    uint32_t shares1[numreqs];
+    uint64_t ans = 0;
+
+    emp::PRG prg(fix_key);
+    prg.random_block(b, numreqs);
+    prg.random_data(real_vals, numreqs * sizeof(uint32_t));
+    prg.random_data(shares0, numreqs * sizeof(uint32_t));
+
+    std::string pk_str = "";
+    for (int i = 0; i < numreqs; i++) {
+        if (i != 0)
+            real_vals[i] = real_vals[i] % max_int;
+        if (i != 1)
+            shares0[i] = shares0[i] % max_int;
+        shares1[i] = real_vals[i] ^ shares0[i];
+        std::cout << "real_vals[" << i << "] = " << real_vals[i] << " = " << shares0[i] << " ^ " << shares1[i];
+        if (i <= 2 or i == 4 or i == 6) {
+            std::cout << " (invalid)" << std::endl;
+        } else {
+            std::cout << std::endl;
+            ans += real_vals[i];
+        }
+
+        IntShare share0, share1;
+        const char* prev_pk = pk_str.c_str();
+        pk_str = pub_key_to_hex((uint64_t*)&b[i]);
+        const char* pk = pk_str.c_str();
+
+        memcpy(share0.pk, &pk[0], PK_LENGTH);
+        share0.val = shares0[i];
+        memcpy(share0.signature, &pk[0], PK_LENGTH);
+        if (i == 2)
+            share0.pk[0] = 'q';
+        if (i == 4)
+            memcpy(share0.pk, &prev_pk[0], PK_LENGTH);
+
+        memcpy(share1.pk, &pk[0], PK_LENGTH);
+        share1.val = shares1[i];
+        memcpy(share1.signature, &pk[0], PK_LENGTH);
+        if (i == 6)
+            memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
+
+        send_to_server(0, &share0, sizeof(IntShare));
+        send_to_server(1, &share1, sizeof(IntShare));
+    }
+
+    std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
+
+    delete[] b;
+}
+
 void xor_op(const std::string protocol, const size_t numreqs) {
     initMsg msg;
     msg.num_of_inputs = numreqs;
-    emp::block* b = new block[numreqs];
-    uint32_t values[numreqs];
-    uint32_t encoded_values[numreqs];
-    uint32_t shares0[numreqs];
-    uint32_t shares1[numreqs];
     uint32_t ans;
     if (protocol == "ANDOP") {
         msg.type = AND_OP;
@@ -81,6 +289,14 @@ void xor_op(const std::string protocol, const size_t numreqs) {
         msg.type = OR_OP;
         ans = 0;
     }
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
+
+    emp::block* b = new block[numreqs];
+    uint32_t values[numreqs];
+    uint32_t encoded_values[numreqs];
+    uint32_t shares0[numreqs];
+    uint32_t shares1[numreqs];
 
     emp::PRG prg(fix_key);
 
@@ -113,11 +329,6 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     for (int i = 0; i < numreqs; i++)
         shares1[i] = encoded_values[i]^shares0[i];
 
-    std::cerr << "NUM REQS " << numreqs << std::endl;
-
-    send_to_server(0, &msg, sizeof(initMsg));
-    send_to_server(1, &msg, sizeof(initMsg));
-
     for (int i = 0; i < numreqs; i++) {
         IntShare share0, share1;
         const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
@@ -134,7 +345,7 @@ void xor_op(const std::string protocol, const size_t numreqs) {
         send_to_server(1, &share1, sizeof(IntShare));
     }
 
-    std::cout << "Uploaded all shares. " << "Ans : " << std::boolalpha << ans << std::endl;
+    std::cout << "Uploaded all shares. Ans : " << std::boolalpha << ans << std::endl;
 
     delete[] b;
 }
@@ -200,8 +411,6 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
     for (int i = 0; i < numreqs; i++)
         shares1[i] = encoded_values[i]^shares0[i];
 
-    std::cerr << "NUM REQS " << numreqs << std::endl;
-
     std::string pk_str = "";
 
     for (int i = 0; i < numreqs; i++) {
@@ -228,7 +437,7 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
         send_to_server(1, &share1, sizeof(IntShare));
     }
 
-    std::cout << "Uploaded all shares. " << "Ans : " << std::boolalpha << ans << std::endl;
+    std::cout << "Uploaded all shares. Ans : " << std::boolalpha << ans << std::endl;
 
     delete[] b;
 }
@@ -251,17 +460,15 @@ void max_op(const std::string protocol, const size_t numreqs) {
     send_to_server(0, &msg,sizeof(initMsg), 0);
     send_to_server(1, &msg,sizeof(initMsg), 0);
 
-    std::cerr << "NUM REQS " << numreqs << std::endl;
-
     emp::PRG prg(fix_key);
 
     emp::block *b = new block[numreqs];
     prg.random_block(b,numreqs);
 
     uint32_t values[numreqs];
+    uint32_t or_encoded_array[B+1];
     uint32_t shares0[B+1];
     uint32_t shares1[B+1];
-    uint32_t or_encoded_array[B+1];
     prg.random_data(values, numreqs*sizeof(uint32_t));
 
     for (int i = 0; i <= B; i++)
@@ -306,7 +513,7 @@ void max_op(const std::string protocol, const size_t numreqs) {
         send_maxshare(share1, 1, B);
     }
 
-    std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
+    std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
 
     delete[] b;
 }
@@ -331,15 +538,13 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
         ans = B;
     }
 
-    std::cerr << "NUM REQS " << numreqs << std::endl;
-
     emp::block *b = new block[numreqs];
     prg.random_block(b,numreqs);
 
     uint32_t values[numreqs];
+    uint32_t or_encoded_array[B+1];
     uint32_t shares0[B+1];
     uint32_t shares1[B+1];
-    uint32_t or_encoded_array[B+1];
     prg.random_data(values, numreqs*sizeof(uint32_t));
 
     for (int i = 0; i <= B; i++)
@@ -402,20 +607,29 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
         send_maxshare(share1, 1, B);
     }
 
-    std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
+    std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
 
     delete[] b;
 }
 
 void var_op(const std::string protocol, const size_t numreqs) {
+    initMsg msg;
+    msg.num_of_inputs = numreqs;
+    if (protocol == "VAROP")
+        msg.type = VAR_OP;
+    if (protocol == "STDDEVOP")
+        msg.type = STDDEV_OP;
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
+
     emp::block *b = new block[numreqs];
+    uint32_t real_vals[numreqs];
     // shares of x
     uint32_t shares0[numreqs];
     uint32_t shares1[numreqs];
     // shares of x^2
     uint32_t shares0_squared[numreqs];
     uint32_t shares1_squared[numreqs];
-    uint32_t real_vals[numreqs];
     int sum = 0, sumsquared = 0;
 
     emp::PRG prg(fix_key);
@@ -423,6 +637,10 @@ void var_op(const std::string protocol, const size_t numreqs) {
     prg.random_data(real_vals, numreqs*sizeof(uint32_t));
     prg.random_data(shares0, numreqs*sizeof(uint32_t));
     prg.random_data(shares0_squared, numreqs*sizeof(uint32_t));
+
+    fmpz_t inp[2];
+    fmpz_init(inp[0]);
+    fmpz_init(inp[1]);
 
     for (int i = 0; i < numreqs; i++) {
         real_vals[i] = real_vals[i] % small_max_int;
@@ -433,22 +651,7 @@ void var_op(const std::string protocol, const size_t numreqs) {
         shares1_squared[i] = squared ^ shares0_squared[i];
         sum += real_vals[i];
         sumsquared += squared;
-    }
 
-    initMsg msg;
-    msg.num_of_inputs = numreqs;
-    if (protocol == "VAROP")
-        msg.type = VAR_OP;
-    if (protocol == "STDDEVOP")
-        msg.type = STDDEV_OP;
-    send_to_server(0, &msg, sizeof(initMsg));
-    send_to_server(1, &msg, sizeof(initMsg));
-
-    fmpz_t inp[2];
-    fmpz_init(inp[0]);
-    fmpz_init(inp[1]);
-
-    for (int i = 0; i < numreqs; i++) {
         VarShare share0, share1;
         const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
 
@@ -503,14 +706,23 @@ void var_op(const std::string protocol, const size_t numreqs) {
    10: share1 has same pk as 9
 */
 void var_op_invalid(const std::string protocol, const size_t numreqs) {
+    initMsg msg;
+    msg.num_of_inputs = numreqs;
+    if (protocol == "VAROP")
+        msg.type = VAR_OP;
+    if (protocol == "STDDEVOP")
+        msg.type = STDDEV_OP;
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
+
     emp::block *b = new block[numreqs];
+    uint32_t real_vals[numreqs];
     // shares of x
     uint32_t shares0[numreqs];
     uint32_t shares1[numreqs];
     // shares of x^2
     uint32_t shares0_squared[numreqs];
     uint32_t shares1_squared[numreqs];
-    uint32_t real_vals[numreqs];
     int sum = 0, sumsquared = 0, numvalid = 0;
 
     emp::PRG prg(fix_key);
@@ -521,6 +733,12 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
 
     std::cout << "small_max_int: " << small_max_int << std::endl;
     std::cout << "max_int: " << max_int << std::endl;
+
+    fmpz_t inp[2];
+    fmpz_init(inp[0]);
+    fmpz_init(inp[1]);
+
+    std::string pk_str = "";
 
     for (int i = 0; i < numreqs; i++) {
         if (i != 0)  // x not capped
@@ -545,24 +763,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
             sumsquared += squared;
             numvalid++;
         }
-    }
 
-    initMsg msg;
-    msg.num_of_inputs = numreqs;
-    if (protocol == "VAROP")
-        msg.type = VAR_OP;
-    if (protocol == "STDDEVOP")
-        msg.type = STDDEV_OP;
-    send_to_server(0, &msg, sizeof(initMsg));
-    send_to_server(1, &msg, sizeof(initMsg));
-
-    fmpz_t inp[2];
-    fmpz_init(inp[0]);
-    fmpz_init(inp[1]);
-
-    std::string pk_str = "";
-
-    for (int i = 0; i < numreqs; i++) {
         VarShare share0, share1;
         const char* prev_pk = pk_str.c_str();
         pk_str = pub_key_to_hex((uint64_t*)&b[i]);
@@ -684,100 +885,19 @@ int main(int argc, char** argv) {
     init_constants();
 
     if (protocol == "BITSUM") {
-        emp::block *b = new block[numreqs];  // public keys
-        bool shares0[numreqs];  // shares going to 0
-        bool shares1[numreqs];  // shares going to 1
-        bool real_vals[numreqs];  // actual values
-
-        emp::PRG prg(fix_key);  // use fixed key
-        prg.random_block(b,numreqs);  // randomize b per client
-        prg.random_bool(shares0,numreqs);  // randomize server 0 shares per client
-        prg.random_bool(shares1,numreqs);  // randomize server 1 shares per client
-
-        // send initialize message to servers
-        initMsg msg;
-        msg.type = BIT_SUM;
-        msg.num_of_inputs = numreqs;
-        std::cerr << "NUM REQS " << numreqs << std::endl;
-        send_to_server(0, &msg, sizeof(initMsg));
-        send_to_server(1, &msg, sizeof(initMsg));
-
-        int ans = 0;  // true answer
-        for (int i = 0; i < numreqs; i++) {
-            BitShare bitshare0,bitshare1;
-            const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
-
-            // Client i sends share to server 0
-            memcpy(bitshare0.pk, &pk[0],PK_LENGTH);
-            bitshare0.val = shares0[i];
-            memcpy(bitshare0.signature, &pk[0],PK_LENGTH);  // sign with pk?
-
-            // Client i sends share to server 1
-            memcpy(bitshare1.pk, &pk[0], PK_LENGTH);
-            bitshare1.val = shares1[i];
-            memcpy(bitshare1.signature, &pk[0], PK_LENGTH);
-
-            send_to_server(0, &bitshare0, sizeof(BitShare));
-            send_to_server(1, &bitshare1, sizeof(BitShare));
-
-            // update truth
-            real_vals[i] = shares0[i]^shares1[i];
-            ans += (real_vals[i] ? 1 : 0);
-        }
-
-        std::cout << "Uploaded all shares. " << "Ans : " << ans << std::endl;
-
-        delete[] b;
+        std::cout << "Uploading all BITSUM shares: " << numreqs << std::endl;
+        if (include_invalid)
+            bit_sum_invalid(protocol, numreqs);
+        else
+            bit_sum(protocol, numreqs);
     }
 
     else if (protocol == "INTSUM") {
-        emp::block *b = new block[numreqs];
-        uint32_t shares0[numreqs];
-        uint32_t shares1[numreqs];
-        uint32_t real_vals[numreqs];
-        uint64_t ans = 0;
-
-        emp::PRG prg(fix_key);
-
-        prg.random_block(b,numreqs);
-        prg.random_data(shares0,numreqs*sizeof(uint32_t));
-        prg.random_data(shares1,numreqs*sizeof(uint32_t));
-
-        for (int i = 0; i < numreqs; i++) {
-            shares0[i] = shares0[i]%max_int;
-            shares1[i] = shares1[i]%max_int;
-            real_vals[i] = shares0[i]^shares1[i];
-            std::cout << "real_vals[" << i << "] = " << real_vals[i] << " = " << shares0[i] << " ^ " << shares1[i] << std::endl;
-            ans += real_vals[i];
-        }
-
-        initMsg msg;
-        msg.num_of_inputs = numreqs;
-        msg.type = INT_SUM;
-
-        send_to_server(0, &msg, sizeof(initMsg));
-        send_to_server(1, &msg, sizeof(initMsg));
-
-        for (int i = 0; i < numreqs; i++) {
-            IntShare intshare0,intshare1;
-            const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
-
-            memcpy(intshare0.pk, &pk[0], PK_LENGTH);
-            intshare0.val = shares0[i];
-            memcpy(intshare0.signature, &pk[0], PK_LENGTH);
-
-            memcpy(intshare1.pk, &pk[0], PK_LENGTH);
-            intshare1.val = shares1[i];
-            memcpy(intshare1.signature, &pk[0], PK_LENGTH);
-            std::cout << "key[" << i << "] = " << pub_key_to_hex((uint64_t*)&b[i]) << endl;
-
-            send_to_server(0, &intshare0, sizeof(intshare0));
-            send_to_server(1, &intshare1, sizeof(intshare1));
-        }
-
-        std::cout << "Uploaded all shares. True Ans : " << ans << std::endl;
-
-        delete[] b;
+        std::cout << "Uploading all INTSUM shares: " << numreqs << std::endl;
+        if (include_invalid)
+            int_sum_invalid(protocol, numreqs);
+        else
+            int_sum(protocol, numreqs);
     }
 
     else if (protocol == "ANDOP") {

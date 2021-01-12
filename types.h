@@ -5,14 +5,14 @@
 
 struct BitShare {
     char pk[PK_LENGTH];
-    unsigned int val;
+    bool val;
     char signature[PK_LENGTH];
 };
 
 // For INT_SUM, AND_OP, OR_OP
 struct IntShare {
     char pk[PK_LENGTH];
-    unsigned int val;
+    uint32_t val;
     char signature[PK_LENGTH];
 };
 
@@ -26,8 +26,8 @@ struct MaxShare {
 // For Var, Stddev
 struct VarShare {
     char pk[PK_LENGTH];
-    unsigned int val;
-    unsigned int val_squared;
+    uint32_t val;
+    uint32_t val_squared;
     char signature[PK_LENGTH];
 };
 
