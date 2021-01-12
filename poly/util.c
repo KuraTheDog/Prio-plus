@@ -1,4 +1,3 @@
-
 #include "util.h"
 
 char *fmpz_array_to_str(int n_points, fmpz_t *input) 

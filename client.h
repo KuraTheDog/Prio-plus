@@ -108,7 +108,7 @@ void share_polynomials(const Circuit* circuit, ClientPacket& p0, ClientPacket& p
     //     fmpz_print(evalsG[i]);
     // }
     // std::cout << "]" << std::endl;
-    
+
     init_client_packet(p0, N, NumMulInpGates);
     init_client_packet(p1, N, NumMulInpGates);
 
@@ -122,16 +122,16 @@ void share_polynomials(const Circuit* circuit, ClientPacket& p0, ClientPacket& p
         fmpz_mod(h_val, h_val, Int_Modulus);
         SplitShare(h_val, p0->h_points[j], p1->h_points[j]);
     }
-    
+
     // split f(0), g(0), h(0) into shares.
     SplitShare(pointsF[0],p0->f0_s,p1->f0_s);
     SplitShare(pointsG[0],p0->g0_s,p1->g0_s);
     SplitShare(h0,p0->h0_s,p1->h0_s);
-    
+
     // Split outputs of input/mult gate shares.
     int num_wire_shares = 0;
     circuit->GetWireShares(&p0->WireShares,&p1->WireShares,num_wire_shares);
-    
+
     auto triple = NewBeaverTriple();
     auto triple_shares = BeaverTripleShares(triple);
 

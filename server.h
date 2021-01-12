@@ -1,15 +1,22 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include "prio.h"
-#include "share.h"
 #include "circuit.h"
 #include "fmpz_utils.h"
+#include "prio.h"
+#include "share.h"
 
 extern "C" {
     #include "poly/poly_batch.h"
     #include "poly/poly_once.h"
 }
+
+// Return type of different ops
+enum returnType {
+    RET_INVALID,    // Too many inputs invalid
+    RET_ANS,        // Success, Returning ans. For the one thread that does the computation
+    RET_NO_ANS,     // Success, no ans. For forking and support server.
+};
 
 // Only used in unused BatchPre.Interp
 struct BatchPoly {
@@ -164,7 +171,7 @@ struct Checker {
         fmpz_set(pointsF[0],req->f0_s);
         fmpz_set(pointsG[0],req->g0_s);
         fmpz_set(pointsH[0],req->h0_s);
-        
+
         // For all multiplication triples a_i * b_i = c_i,
         //    polynomial [f(x)] has [f(i)] = [a_i]
         //    polynomial [g(x)] has [g(i)] = [b_i]
@@ -310,7 +317,7 @@ struct Checker {
     bool OutputIsValid(const fmpz_t output0, const fmpz_t output1){
         fmpz_t out;
         fmpz_init(out);
-        
+
         fmpz_add(out,output0,output1);
         fmpz_mod(out,out,Int_Modulus);
 

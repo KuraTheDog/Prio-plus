@@ -1,10 +1,9 @@
+#include "poly_batch.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "util.h"
-#include "poly_batch.h"
-
 
 static void fast_linear_comp(fmpz_mod_poly_t poly, const struct tree_s *pre, const int n_points, fmpz_t *pointsX, fmpz_t *pointsY);
 static void fast_interpolate(fmpz_mod_poly_t poly, const struct precomp_s *pre, const fmpz_t *pointsY);

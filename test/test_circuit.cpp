@@ -1,15 +1,16 @@
 #include <iostream>
-#include <gmpxx.h>
 
-extern "C" {
-  #include "flint/flint.h"
-  #include "flint/fmpz.h"
-};
+#include <gmpxx.h>
 
 #include "../circuit.h"
 #include "../share.h"
 #include "../client.h"
 #include "../server.h"
+
+extern "C" {
+  #include "flint/flint.h"
+  #include "flint/fmpz.h"
+};
 
 void test_CheckVar() {
   std::cout << "Testing CheckVar Eval and share_polynomials" << std::endl;

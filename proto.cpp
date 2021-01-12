@@ -110,7 +110,7 @@ uint64_t intsum_ot_sender(NetIO *io,uint32_t *shares, bool *valid, int n, int nu
 
             sum += local_share;
         }
-            
+
     }
 
     return sum;
@@ -186,23 +186,23 @@ uint64_t xor_to_sum_share_sender(NetIO *io, uint32_t share, int num_bits){
     uint64_t sum = 0;
     prg.random_data(r,num_bits*sizeof(uint64_t));
 
-    
+
     uint32_t num = share;
     // std::cout << "Share : " << num << "  valid " << valid[i] << std::endl;
     // std::cout << "Valid : " << valid[i] << " num bits " << num_bits << std::endl;
     for(int j = 0; j < num_bits; j++){
         // std::cout << num%2 << std::endl;
         bool_shares[j] = num%2;
-        
+
         // std::cout << "r[" << j << "] : " << r[j] << std::endl;
         num = num >> 1;
     }
-    
+
     for(int j = 0; j < num_bits; j++){
         b0[j] = ((bool_shares[j])*(1<<(j)) - r[j]);
         b1[j] = ((1 - bool_shares[j])*(1<<(j)) - r[j]);
     }
-    
+
 
     block *b0_ot = new block[num_bits];
     block *b1_ot = new block[num_bits];
@@ -224,7 +224,7 @@ uint64_t xor_to_sum_share_sender(NetIO *io, uint32_t share, int num_bits){
     delete[] b1_ot;
     delete[] b0_ot;
 
-    
+
     uint64_t local_share = 0;
     for(int j = 0; j < num_bits; j++)
         local_share += r[j];

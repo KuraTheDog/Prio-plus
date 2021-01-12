@@ -1,6 +1,8 @@
 #ifndef CIRCUIT_H
 #define CIRCUIT_H
 
+#include <vector>
+
 #include "fmpz_utils.h"
 #include "prio.h"
 #include "share.h"
@@ -285,7 +287,6 @@ struct Circuit {
     void ImportWires(const ClientPacket p, const int server_num){
         int i = 0;
 
-
         for(auto gate : gates){
             switch (gate->type)
             {
@@ -375,7 +376,6 @@ Circuit* CheckMul(Gate* L, Gate* R, Gate* Prod) {
 
     return out;
 }
-
 
 // Returns circuit for x^2 == y. For Varience and StdDev.
 Circuit* CheckVar(){

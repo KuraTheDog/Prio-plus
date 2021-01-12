@@ -5,9 +5,3 @@ Makefile
 bin/
 cmake_install.cmake
 
-#compiled things
-test/a.out
-test/test_net_share
-test/test_circuit
-test/*.dSYM/
-test/*.o
