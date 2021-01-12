@@ -15,7 +15,7 @@ void init_client_packet(ClientPacket &p, const int N, const int NumMulInpGates) 
     p->NWires = NumMulInpGates;
 
     new_fmpz_array(&p->WireShares, NumMulInpGates);
-    
+
     fmpz_init(p->f0_s);
     fmpz_init(p->g0_s);
     fmpz_init(p->h0_s);

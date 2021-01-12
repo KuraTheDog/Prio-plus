@@ -27,5 +27,4 @@ fmpz_init_from_gostr(fmpz_t out, char *in)
   free(in);
 }
 
-char *fmpz_array_to_str(int n, fmpz_t *input); 
-
+char *fmpz_array_to_str(int n, fmpz_t *input);

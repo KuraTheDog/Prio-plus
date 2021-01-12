@@ -52,7 +52,7 @@ struct BatchPre {
         poly_batch_precomp_init(&pre, Int_Modulus, n, xPointsIn);
     }
 
-    // Unused. 
+    // Unused.
     BatchPoly* Interp(const fmpz_t* yPointsIn, const int n) {
         BatchPoly* bpoly = new BatchPoly();
 
@@ -187,7 +187,7 @@ struct Checker {
             fmpz_set(pointsH[2 * j + 1], req->h_points[j]);
         }
 
-        // set evals 
+        // set evals
         // std::cout << " pointsF = [";
         // for (int i = 0; i < N; i++) {
         //     if (i > 0) std::cout << ", ";
@@ -264,7 +264,7 @@ struct Checker {
             fmpz_add(out,out,tmp);
         }
 
-        fmpz_mod(out, out, Int_Modulus); 
+        fmpz_mod(out, out, Int_Modulus);
 
         fmpz_clear(tmp);
     }

@@ -90,7 +90,7 @@ void test_CheckVar() {
   bool result0 = checker_0->OutputIsValid(out0,out1);
   bool result1 = checker_1->OutputIsValid(out0,out1);
 
-  std::cout << "out0 : "; fmpz_print(out0); std::cout << ", out1 : "; fmpz_print(out1); std::cout << std::endl;  
+  std::cout << "out0 : "; fmpz_print(out0); std::cout << ", out1 : "; fmpz_print(out1); std::cout << std::endl;
 
   std::cout << "Result0 : " << std::boolalpha << result0 << std::endl;
   std::cout << "Result1 : " << std::boolalpha << result1 << std::endl;

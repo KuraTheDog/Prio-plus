@@ -57,7 +57,7 @@ struct Circuit {
     std::vector<Gate*> gates;        // All gates
     std::vector<Gate*> outputs;      // ?
     std::vector<Gate*> result_zero;  // Gates that must be zero for eval to pass.
-    int max_bits;                    // 
+    int max_bits;                    //
 
     Circuit(int n = 31) {
         max_bits = n;
@@ -76,7 +76,7 @@ struct Circuit {
         int inp_count = 0;
         // std::cout << "EVAL" << std::endl;
         for (int i = 0; i < gates.size(); i++) {
-            
+
             switch (gates[i]->type)
             {
             case Gate_Input:
@@ -322,7 +322,7 @@ Circuit* CheckLinReg(int num_fields) {
             Gate* x_j = out->gates[j];
             Gate* x_i_j = out->gates[k];
             k++;
-            
+
             Gate* mul = new Gate(Gate_Mul, x_i, x_j);
 
             Gate* inv = MulByNegOne(x_i_j);

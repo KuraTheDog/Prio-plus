@@ -4,8 +4,8 @@
 #include <flint/fmpz_mod_poly.h>
 
 struct tree_s {
-  fmpz_mod_poly_t poly; 
-  struct tree_s *left; 
+  fmpz_mod_poly_t poly;
+  struct tree_s *left;
   struct tree_s *right;
 };
 

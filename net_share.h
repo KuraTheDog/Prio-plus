@@ -1,4 +1,4 @@
-/* 
+/*
 For sending fmtp_t objects over sockets.
 
 Also has htonl/ntohl wrappers for sending various int-like types.
@@ -22,15 +22,15 @@ extern "C" {
     #include "flint/fmpz.h"
 };
 
-/* 
+/*
 Other ideas:
 fmpz_in_raw, fmpz_out_raw. Has trouble with using socket for other things.
     can have send_int map to it, but e.g. server has trouble with other general use.
 fmpz_sng + fmpz_get_ui_array: best for really large numbers?
-fmpz_get_str: best for small numbers. 
+fmpz_get_str: best for small numbers.
 
 ulong array: Always uses ulongs. 32 or 64 bits. "perfect" space efficiency, for really large numbers.
-string: best is base 62, so 62/256 ~ 25% space efficiency. So needs ~4x bits compared to numbers. 
+string: best is base 62, so 62/256 ~ 25% space efficiency. So needs ~4x bits compared to numbers.
 */
 
 /* Core functions */

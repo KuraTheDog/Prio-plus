@@ -4,7 +4,7 @@
 #include <sodium.h>
 
 int encrypt_bitsum_share(){
-    
+
 }
 
 int decrypt_bitsum_share(){

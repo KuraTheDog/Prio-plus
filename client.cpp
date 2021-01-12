@@ -142,15 +142,10 @@ void xor_op(const std::string protocol, const size_t numreqs) {
 /* 0: pk mismatch
    2: share0 has same pk as 1
    4: share1 has same pk as 3
-*/ 
+*/
 void xor_op_invalid(const std::string protocol, const size_t numreqs) {
     initMsg msg;
     msg.num_of_inputs = numreqs;
-    emp::block* b = new block[numreqs];
-    uint32_t values[numreqs];
-    uint32_t encoded_values[numreqs];
-    uint32_t shares0[numreqs];
-    uint32_t shares1[numreqs];
     uint32_t ans;
     if (protocol == "ANDOP") {
         msg.type = AND_OP;
@@ -160,6 +155,14 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
         msg.type = OR_OP;
         ans = 0;
     }
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
+
+    emp::block* b = new block[numreqs];
+    uint32_t values[numreqs];
+    uint32_t encoded_values[numreqs];
+    uint32_t shares0[numreqs];
+    uint32_t shares1[numreqs];
 
     emp::PRG prg(fix_key);
 
@@ -199,9 +202,6 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
 
     std::cerr << "NUM REQS " << numreqs << std::endl;
 
-    send_to_server(0, &msg, sizeof(initMsg));
-    send_to_server(1, &msg, sizeof(initMsg));
-
     std::string pk_str = "";
 
     for (int i = 0; i < numreqs; i++) {
@@ -234,12 +234,12 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
 }
 
 void max_op(const std::string protocol, const size_t numreqs) {
+    const int B = 250;
+
     initMsg msg;
     msg.num_of_inputs = numreqs;
-    msg.max_inp = 250;
-    emp::PRG prg(fix_key);
-    int B = msg.max_inp;
-    int ans;
+    msg.max_inp = B;
+    uint32_t ans;
     if (protocol == "MAXOP") {
         msg.type = MAX_OP;
         ans = 0;
@@ -248,8 +248,12 @@ void max_op(const std::string protocol, const size_t numreqs) {
         msg.type = MIN_OP;
         ans = B;
     }
+    send_to_server(0, &msg,sizeof(initMsg), 0);
+    send_to_server(1, &msg,sizeof(initMsg), 0);
 
     std::cerr << "NUM REQS " << numreqs << std::endl;
+
+    emp::PRG prg(fix_key);
 
     emp::block *b = new block[numreqs];
     prg.random_block(b,numreqs);
@@ -262,9 +266,6 @@ void max_op(const std::string protocol, const size_t numreqs) {
 
     for (int i = 0; i <= B; i++)
         or_encoded_array[i] = 0;
-
-    send_to_server(0, &msg,sizeof(initMsg), 0);
-    send_to_server(1, &msg,sizeof(initMsg), 0);
 
     for (int i = 0; i < numreqs; i++) {
         MaxShare share0, share1;
@@ -313,7 +314,7 @@ void max_op(const std::string protocol, const size_t numreqs) {
 /* 0: pk mismatch
    2: share0 has same pk as 1
    4: share1 has same pk as 3
-*/ 
+*/
 void max_op_invalid(const std::string protocol, const size_t numreqs) {
     initMsg msg;
     msg.num_of_inputs = numreqs;
@@ -500,7 +501,7 @@ void var_op(const std::string protocol, const size_t numreqs) {
    6: pk mismatch
    8: share0 has same pk as 7
    10: share1 has same pk as 9
-*/ 
+*/
 void var_op_invalid(const std::string protocol, const size_t numreqs) {
     emp::block *b = new block[numreqs];
     // shares of x
@@ -830,7 +831,7 @@ int main(int argc, char** argv) {
     }
 
     else if(protocol == "LINREGOP") {
-        
+
     }
 
     else {

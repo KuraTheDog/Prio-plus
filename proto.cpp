@@ -166,7 +166,7 @@ uint64_t intsum_ot_receiver(NetIO *io, uint32_t *shares, int n, int num_bits){
                 uint64_t *p = (uint64_t*)&r[i*num_bits+j];
                 sum += p[1];
             }
-        }  
+        }
     }
 
     delete[] r;
@@ -290,7 +290,7 @@ vector<bbt> gen_boolean_beaver_triples(NetIO *io, int server_num, int m){
 
     if(server_num == 0){
         block b0[m], b1[m], B[m];
-        
+
         for(int i = 0; i < m; i++){
             set_block(b0[i], r[i]);
             set_block(b1[i], (x[i] != r[i])); // r[i] XOR x[i]
@@ -324,7 +324,7 @@ vector<bbt> gen_boolean_beaver_triples(NetIO *io, int server_num, int m){
         ot.send(b0,b1,m);
 
         for(int i = 0; i < m ; i++){
-            z[i] = b[i] != (r[i] != (x[i] and y[i])); 
+            z[i] = b[i] != (r[i] != (x[i] and y[i]));
             std::cout << x[i] << " " << y[i] << " " <<  z[i] << std::endl;
         }
     }
@@ -336,6 +336,6 @@ vector<bbt> gen_boolean_beaver_triples(NetIO *io, int server_num, int m){
     for(int i = 0 ; i < m ; i++){
         ans.push_back(bbt(x[i],y[i],z[i]));
     }
-    
+
     return ans;
 }
