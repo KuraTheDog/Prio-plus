@@ -72,7 +72,7 @@ void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port, const int r
         error_exit("Bind to port failed");
     }
 
-    if (listen(sockfd,2) < 0)
+    if (listen(sockfd, 2) < 0)
         error_exit("Listen failed");   
 }
 
@@ -119,6 +119,13 @@ void sync_randomX(const int serverfd, const int server_num, fmpz_t randomX) {
         std::cout << "Sending randomX: "; fmpz_print(randomX); std::cout << std::endl;
         send_fmpz(serverfd, randomX);
     }
+}
+
+std::string get_pk(const int serverfd) {
+    char pk_buf[PK_LENGTH];
+    read_in(serverfd, &pk_buf[0], PK_LENGTH);
+    std::string pk(pk_buf, pk_buf + PK_LENGTH);
+    return pk;
 }
 
 bool run_snip(Circuit* circuit, const ClientPacket packet, const int serverfd, const int server_num) {
@@ -174,13 +181,8 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
     }
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
 
-    std::cout << "Forking for server chats" << std::endl;
-    pid_t pid = fork();
-    if (pid > 0) {
-        std::cout << " Parent leaving." << std::endl;
+    if (fork() > 0)
         return RET_NO_ANS;
-    }
-    std::cout << " Child for server chat" << std::endl;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -204,9 +206,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
         bool valid[num_inputs];
 
         for (int i = 0; i < num_inputs; i++) {
-            char pk_buf[PK_LENGTH];
-            read_in(serverfd, &pk_buf[0], PK_LENGTH);
-            std::string pk(pk_buf, pk_buf + PK_LENGTH);
+            std::string pk = get_pk(serverfd);
 
             bool is_valid = (share_map.find(pk) != share_map.end());
             valid[i] = is_valid;
@@ -252,13 +252,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
 
-    std::cout << "Forking for server chats" << std::endl;
-    pid_t pid = fork();
-    if (pid > 0) {
-        std::cout << " Parent leaving." << std::endl;
+    if (fork() > 0)
         return RET_NO_ANS;
-    }
-    std::cout << " Child for server chat" << std::endl;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -282,9 +277,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         bool valid[num_inputs];
 
         for (int i = 0; i < num_inputs; i++) {
-            char pk_buf[PK_LENGTH];
-            read_in(serverfd, &pk_buf[0], PK_LENGTH);
-            std::string pk(pk_buf, pk_buf + PK_LENGTH);
+            std::string pk = get_pk(serverfd);
 
             bool is_valid = (share_map.find(pk) != share_map.end());
             valid[i] = is_valid;
@@ -328,13 +321,8 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
 
-    std::cout << "Forking for server chats" << std::endl;
-    pid_t pid = fork();
-    if (pid > 0) {
-        std::cout << " Parent leaving." << std::endl;
+    if (fork() > 0)
         return RET_NO_ANS;
-    }
-    std::cout << " Child for server chat" << std::endl;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -357,9 +345,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
         uint32_t a = 0;
 
         for (int i = 0; i < num_inputs; i++) {
-            char pk_buf[PK_LENGTH];
-            read_in(serverfd, &pk_buf[0], PK_LENGTH);
-            std::string pk(pk_buf, pk_buf + PK_LENGTH);
+            std::string pk = get_pk(serverfd);
 
             bool is_valid = (share_map.find(pk) != share_map.end());
             send_out(serverfd, &is_valid, sizeof(bool));
@@ -419,13 +405,8 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     std::cout << "Received " << total_inputs << " shares" << std::endl;
 
-    std::cout << "Forking for server chats" << std::endl;
-    pid_t pid = fork();
-    if (pid > 0) {
-        std::cout << " Parent leaving." << std::endl;
+    if (fork() > 0)
         return RET_NO_ANS;
-    }
-    std::cout << " Child for server chat" << std::endl;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -451,9 +432,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         memset(a, 0, sizeof(a));
 
         for (int i =0; i < num_inputs; i++) {
-            char pk_buf[PK_LENGTH];
-            read_in(serverfd, &pk_buf[0], PK_LENGTH);
-            std::string pk(pk_buf, pk_buf + PK_LENGTH);
+            std::string pk = get_pk(serverfd);
 
             bool is_valid = (share_map.find(pk) != share_map.end());
             send_out(serverfd, &is_valid, sizeof(bool));
@@ -474,7 +453,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         }
 
         for (int j = B; j >= 0; j--) {
-            // std::cout << "a,b[" << j << "] = " << a[j] << ", " << b[j] << std::endl;
+            // std::cout << "a, b[" << j << "] = " << a[j] << ", " << b[j] << std::endl;
             if (a[j] != b[j]) {
                 if (msg.type == MAX_OP) {
                     ans = j;
@@ -512,8 +491,6 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         recv_ClientPacket(clientfd, packet);
 
         // std::cout << "share[" << i << "] = " << share.val << ", " << share.val_squared << std::endl;
-        // std::cout << " WireShares[0] = "; fmpz_print(packet->WireShares[0]); std::cout << std::endl;
-        // std::cout << " WireShares[1] = "; fmpz_print(packet->WireShares[1]); std::cout << std::endl;
 
         if ((share_map.find(pk) != share_map.end())
             or (share.val >= small_max)
@@ -526,13 +503,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     std::cout << "Received " << total_inputs << " shares" << std::endl;
 
-    std::cout << "Forking for server chats" << std::endl;
-    pid_t pid = fork();
-    if (pid > 0) {
-        std::cout << " Parent leaving." << std::endl;
+    if (fork() > 0)
         return RET_NO_ANS;
-    }
-    std::cout << " Child for server chat" << std::endl;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -593,9 +565,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         bool have_roots_init = false;
 
         for (int i = 0; i < num_inputs; i++) {
-            char pk_buf[PK_LENGTH];
-            read_in(serverfd, &pk_buf[0], PK_LENGTH);
-            std::string pk(pk_buf, pk_buf + PK_LENGTH);
+            std::string pk = get_pk(serverfd);
 
             bool is_valid = (share_map.find(pk) != share_map.end());
             valid[i] = is_valid;
@@ -705,7 +675,7 @@ int main(int argc, char** argv) {
 
         std::cout << "waiting for connection..." << std::endl;
 
-        newsockfd = accept(sockfd,(struct sockaddr*)&addr,&addrlen);
+        newsockfd = accept(sockfd, (struct sockaddr*)&addr, &addrlen);
         if (newsockfd < 0) error_exit("Connection creation failure");
 
         // Get an initMsg
@@ -807,10 +777,7 @@ int main(int argc, char** argv) {
         } else {
             std::cout << "Unrecognized message type: " << msg.type << std::endl;
         }
-
-        std::cout << "end of loop" << std::endl << std::endl;
         close(newsockfd);
     }
-
     return 0;
 }

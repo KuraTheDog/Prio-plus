@@ -49,11 +49,11 @@ std::string pub_key_to_hex(const uint64_t *key) {
 void send_maxshare(const MaxShare& maxshare, const int server_num, const int B) {
     int sock = (server_num == 0) ? sockfd0 : sockfd1;
 
-    int s = send(sock,(void *)&maxshare,sizeof(MaxShare),0);
+    int s = send(sock, (void *)&maxshare, sizeof(MaxShare), 0);
     // std::cout << "sent : " << s << " bytes" << std::endl;
 
     for (int i = 0; i <= B; i++)
-        s = send(sock,(void *)&(maxshare.arr[i]),sizeof(uint32_t),0);
+        s = send(sock, (void *)&(maxshare.arr[i]), sizeof(uint32_t), 0);
 }
 
 // Wrapper around send, with error catching.
@@ -89,9 +89,9 @@ void bit_sum(const std::string protocol, const size_t numreqs) {
         shares1[i] = real_vals[i]^shares0[i];
         ans += (real_vals[i] ? 1 : 0);
 
-        memcpy(share0.pk, &pk[0],PK_LENGTH);
+        memcpy(share0.pk, &pk[0], PK_LENGTH);
         share0.val = shares0[i];
-        memcpy(share0.signature, &pk[0],PK_LENGTH);
+        memcpy(share0.signature, &pk[0], PK_LENGTH);
 
         memcpy(share1.pk, &pk[0], PK_LENGTH);
         share1.val = shares1[i];
@@ -143,9 +143,9 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
             ans += (real_vals[i] ? 1 : 0);
         }
 
-        memcpy(share0.pk, &pk[0],PK_LENGTH);
+        memcpy(share0.pk, &pk[0], PK_LENGTH);
         share0.val = shares0[i];
-        memcpy(share0.signature, &pk[0],PK_LENGTH);
+        memcpy(share0.signature, &pk[0], PK_LENGTH);
         if (i == 0)
             share0.pk[0] = 'q';
         if (i == 2)
@@ -187,7 +187,6 @@ void int_sum(const std::string protocol, const size_t numreqs) {
         real_vals[i] = real_vals[i] % max_int;
         shares0[i] = shares0[i] % max_int;
         shares1[i] = real_vals[i] ^ shares0[i];
-        std::cout << "real_vals[" << i << "] = " << real_vals[i] << " = " << shares0[i] << " ^ " << shares1[i] << std::endl;
         ans += real_vals[i];
 
         IntShare share0, share1;
@@ -280,20 +279,20 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
 void xor_op(const std::string protocol, const size_t numreqs) {
     initMsg msg;
     msg.num_of_inputs = numreqs;
-    uint32_t ans;
+    bool ans;
     if (protocol == "ANDOP") {
         msg.type = AND_OP;
-        ans = 1;
+        ans = true;
     }
     if (protocol == "OROP") {
         msg.type = OR_OP;
-        ans = 0;
+        ans = false;
     }
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
     emp::block* b = new block[numreqs];
-    uint32_t values[numreqs];
+    bool values[numreqs];
     uint32_t encoded_values[numreqs];
     uint32_t shares0[numreqs];
     uint32_t shares1[numreqs];
@@ -301,14 +300,11 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     emp::PRG prg(fix_key);
 
     prg.random_block(b, numreqs);
-    prg.random_data(values, numreqs*sizeof(uint32_t));
-    prg.random_data(encoded_values, numreqs*sizeof(uint32_t));
-    prg.random_data(shares0, numreqs*sizeof(uint32_t));
+    prg.random_bool(values, numreqs);
+    prg.random_data(encoded_values, numreqs * sizeof(uint32_t));
+    prg.random_data(shares0, numreqs * sizeof(uint32_t));
 
     for (int i = 0; i < numreqs; i++) {
-        values[i] = values[i]&1; // Take the parity as the real value
-        // values[i] = 1;
-        std::cout << "val[" << i << "] = " << values[i] << std::endl;
         if (protocol == "ANDOP")
             ans &= values[i];
         if (protocol == "OROP")
@@ -318,18 +314,17 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     // encode step. set to all 0's for values that don't force the ans.
     if (protocol == "ANDOP")
         for (int i = 0; i < numreqs; i++)
-            if (values[i] == 1)
+            if (values[i])
                 encoded_values[i] = 0;
     if (protocol == "OROP")
         for (int i = 0; i < numreqs; i++)
-            if (values[i] == 0)
+            if (!values[i])
                 encoded_values[i] = 0;
 
     // Share splitting. Same as int sum. Sum of shares = encoded value
-    for (int i = 0; i < numreqs; i++)
-        shares1[i] = encoded_values[i]^shares0[i];
-
     for (int i = 0; i < numreqs; i++) {
+        shares1[i] = encoded_values[i] ^ shares0[i];
+
         IntShare share0, share1;
         const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
 
@@ -357,20 +352,20 @@ void xor_op(const std::string protocol, const size_t numreqs) {
 void xor_op_invalid(const std::string protocol, const size_t numreqs) {
     initMsg msg;
     msg.num_of_inputs = numreqs;
-    uint32_t ans;
+    bool ans;
     if (protocol == "ANDOP") {
         msg.type = AND_OP;
-        ans = 1;
+        ans = true;
     }
     if (protocol == "OROP") {
         msg.type = OR_OP;
-        ans = 0;
+        ans = false;
     }
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
     emp::block* b = new block[numreqs];
-    uint32_t values[numreqs];
+    bool values[numreqs];
     uint32_t encoded_values[numreqs];
     uint32_t shares0[numreqs];
     uint32_t shares1[numreqs];
@@ -378,14 +373,12 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
     emp::PRG prg(fix_key);
 
     prg.random_block(b, numreqs);
-    prg.random_data(values, numreqs*sizeof(uint32_t));
-    prg.random_data(encoded_values, numreqs*sizeof(uint32_t));
-    prg.random_data(shares0, numreqs*sizeof(uint32_t));
+    prg.random_bool(values, numreqs);
+    prg.random_data(encoded_values, numreqs * sizeof(uint32_t));
+    prg.random_data(shares0, numreqs * sizeof(uint32_t));
 
     for (int i = 0; i < numreqs; i++) {
-        values[i] = values[i]&1; // Take the parity as the real value
-        // values[i] = 1;
-        std::cout << "val[" << i << "] = " << values[i];
+        std::cout << "val[" << i << "] = " << std::boolalpha << values[i];
         if (i == 0 or i == 2 or i == 4) {
             std::cout << " (invalid) " << std::endl;;
             continue;
@@ -400,20 +393,19 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
     // encode step. set to all 0's for values that don't force the ans.
     if (protocol == "ANDOP")
         for (int i = 0; i < numreqs; i++)
-            if (values[i] == 1)
+            if (values[i])
                 encoded_values[i] = 0;
     if (protocol == "OROP")
         for (int i = 0; i < numreqs; i++)
-            if (values[i] == 0)
+            if (!values[i])
                 encoded_values[i] = 0;
-
-    // Share splitting. Same as int sum. Sum of shares = encoded value
-    for (int i = 0; i < numreqs; i++)
-        shares1[i] = encoded_values[i]^shares0[i];
 
     std::string pk_str = "";
 
+    // Share splitting. Same as int sum. Sum of shares = encoded value
     for (int i = 0; i < numreqs; i++) {
+        shares1[i] = encoded_values[i] ^ shares0[i];
+
         IntShare share0, share1;
         const char* prev_pk = pk_str.c_str();
         pk_str = pub_key_to_hex((uint64_t*)&b[i]);
@@ -457,27 +449,23 @@ void max_op(const std::string protocol, const size_t numreqs) {
         msg.type = MIN_OP;
         ans = B;
     }
-    send_to_server(0, &msg,sizeof(initMsg), 0);
-    send_to_server(1, &msg,sizeof(initMsg), 0);
+    send_to_server(0, &msg, sizeof(initMsg), 0);
+    send_to_server(1, &msg, sizeof(initMsg), 0);
 
     emp::PRG prg(fix_key);
 
     emp::block *b = new block[numreqs];
-    prg.random_block(b,numreqs);
+    prg.random_block(b, numreqs);
 
     uint32_t values[numreqs];
     uint32_t or_encoded_array[B+1];
     uint32_t shares0[B+1];
     uint32_t shares1[B+1];
-    prg.random_data(values, numreqs*sizeof(uint32_t));
-
-    for (int i = 0; i <= B; i++)
-        or_encoded_array[i] = 0;
+    prg.random_data(values, numreqs * sizeof(uint32_t));
 
     for (int i = 0; i < numreqs; i++) {
         MaxShare share0, share1;
         values[i] = values[i] % (B + 1);
-        std::cout << "value[" << i << "] = " << values[i] << std::endl;
         if (protocol == "MAXOP")
             ans = (values[i] > ans? values[i] : ans);
         if (protocol == "MINOP")
@@ -539,19 +527,16 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
     }
 
     emp::block *b = new block[numreqs];
-    prg.random_block(b,numreqs);
+    prg.random_block(b, numreqs);
 
     uint32_t values[numreqs];
     uint32_t or_encoded_array[B+1];
     uint32_t shares0[B+1];
     uint32_t shares1[B+1];
-    prg.random_data(values, numreqs*sizeof(uint32_t));
+    prg.random_data(values, numreqs * sizeof(uint32_t));
 
-    for (int i = 0; i <= B; i++)
-        or_encoded_array[i] = 0;
-
-    send_to_server(0, &msg,sizeof(initMsg), 0);
-    send_to_server(1, &msg,sizeof(initMsg), 0);
+    send_to_server(0, &msg, sizeof(initMsg), 0);
+    send_to_server(1, &msg, sizeof(initMsg), 0);
 
     std::string pk_str = "";
 
@@ -634,9 +619,9 @@ void var_op(const std::string protocol, const size_t numreqs) {
 
     emp::PRG prg(fix_key);
     prg.random_block(b, numreqs);
-    prg.random_data(real_vals, numreqs*sizeof(uint32_t));
-    prg.random_data(shares0, numreqs*sizeof(uint32_t));
-    prg.random_data(shares0_squared, numreqs*sizeof(uint32_t));
+    prg.random_data(real_vals, numreqs * sizeof(uint32_t));
+    prg.random_data(shares0, numreqs * sizeof(uint32_t));
+    prg.random_data(shares0_squared, numreqs * sizeof(uint32_t));
 
     fmpz_t inp[2];
     fmpz_init(inp[0]);
@@ -727,9 +712,9 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
 
     emp::PRG prg(fix_key);
     prg.random_block(b, numreqs);
-    prg.random_data(real_vals, numreqs*sizeof(uint32_t));
-    prg.random_data(shares0, numreqs*sizeof(uint32_t));
-    prg.random_data(shares0_squared, numreqs*sizeof(uint32_t));
+    prg.random_data(real_vals, numreqs * sizeof(uint32_t));
+    prg.random_data(shares0, numreqs * sizeof(uint32_t));
+    prg.random_data(shares0_squared, numreqs * sizeof(uint32_t));
 
     std::cout << "small_max_int: " << small_max_int << std::endl;
     std::cout << "max_int: " << max_int << std::endl;
@@ -853,8 +838,8 @@ int main(int argc, char** argv) {
 
     struct sockaddr_in server1, server0;
 
-    sockfd0 = socket(AF_INET,SOCK_STREAM,0);
-    sockfd1 = socket(AF_INET,SOCK_STREAM,0);
+    sockfd0 = socket(AF_INET, SOCK_STREAM, 0);
+    sockfd1 = socket(AF_INET, SOCK_STREAM, 0);
 
     if (sockfd0 < 0 or sockfd1 < 0) error_exit("Socket creation failed!");
     int sockopt = 0;
@@ -873,8 +858,8 @@ int main(int argc, char** argv) {
     server0.sin_family = AF_INET;
     server1.sin_family = AF_INET;
 
-    inet_pton(AF_INET,SERVER0_IP,&server0.sin_addr);
-    inet_pton(AF_INET,SERVER1_IP,&server1.sin_addr);
+    inet_pton(AF_INET, SERVER0_IP, &server0.sin_addr);
+    inet_pton(AF_INET, SERVER1_IP, &server1.sin_addr);
     std::cout << "Connecting to server 0" << std::endl;
     if (connect(sockfd0, (sockaddr*)&server0, sizeof(server0)) < 0)
         error_exit("Can't connect to server0");
