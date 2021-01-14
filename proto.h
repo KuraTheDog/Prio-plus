@@ -30,6 +30,6 @@ uint64_t bitsum_ot_receiver(NetIO *io,bool *shares, int n);
 
 uint64_t intsum_ot_receiver(NetIO *io, uint32_t *shares, int n, int num_bits);
 
-vector<bbt> gen_boolean_beaver_triples(NetIO *io, int server_num, int m);
+vector<bbt> gen_boolean_beaver_triples(int server_num, int m);
 
 #endif

@@ -1,5 +1,8 @@
 #include "proto.h"
 
+#define SERVER0_IP "127.0.0.1"
+#define SERVER1_IP "127.0.0.1"
+
 uint64_t bitsum_ot_sender(NetIO *io,bool *shares, bool *valid, int n){
     PRG prg(fix_key);
 
@@ -267,7 +270,7 @@ void set_block(block &b, bool f){
     }
     else
     {
-        p[0] = 0;
+        p[1] = 0;
     }
 }
 
@@ -275,12 +278,20 @@ void block_to_boolean(block *B, bool *b, int len){
 
     for(int i = 0; i < len; i++){
         uint64_t* p = (uint64_t*) &(B[i]);
-        b[i] = (p[1]) ? true : false;
+        b[i] = (p[1] == 1) ? true : false;
     }
 
 }
 
-vector<bbt> gen_boolean_beaver_triples(NetIO *io, int server_num, int m){
+void print_block(block var) 
+{
+    uint64_t v64val[2];
+    memcpy(v64val, &var, sizeof(v64val));
+    printf("%.16llx %.16llx\n", v64val[1], v64val[0]);
+}
+
+// Ref : https://crypto.stackexchange.com/questions/41651/what-are-the-ways-to-generate-beaver-triples-for-multiplication-gate
+vector<bbt> gen_boolean_beaver_triples(int server_num, int m){
     PRG prg;
     vector<bbt> ans;
     bool x[m], y[m], z[m], r[m], b[m];
@@ -288,49 +299,52 @@ vector<bbt> gen_boolean_beaver_triples(NetIO *io, int server_num, int m){
     prg.random_bool(y, m);
     prg.random_bool(r, m);
 
+    // for(int i = 0; i < m; i++){
+    //     std::cout << "x = " << x[i] << ", y = " << y[i] << ", r = " << r[i] << std::endl;
+    // }
+
+    block b0[m], b1[m], B[m];
+
+    for(int i = 0; i < m; i++){
+        set_block(b0[i], r[i]);
+        set_block(b1[i], (x[i] != r[i])); // r[i] XOR x[i]
+    }
+
+    NetIO* io1 = new NetIO(server_num == 0 ? nullptr : SERVER0_IP, 60051);
+    NetIO* io2 = new NetIO(server_num == 1 ? nullptr : SERVER1_IP, 60052);
+
     if(server_num == 0){
-        block b0[m], b1[m], B[m];
-        
-        for(int i = 0; i < m; i++){
-            set_block(b0[i], r[i]);
-            set_block(b1[i], (x[i] != r[i])); // r[i] XOR x[i]
-        }
+        io1->sync();
+        IKNP<NetIO> ot1(io1);
+        std::cout << "OT1 send" << std::endl;
+        ot1.send(b0,b1,m);
+        io1->flush();
 
-        IKNP<NetIO> ot(io);
-        ot.send(b0,b1,m);
-
-        ot.recv(B,y,m);
-
-        block_to_boolean(B, b, m);
-
-        for(int i = 0; i < m ; i++){
-            z[i] = b[i] != (r[i] != (x[i] and y[i])); // z[i] = r_A xor x_A.y_A xor r_B xor x_B.y_A
-            std::cout << x[i] << " " << y[i] << " " <<  z[i] << std::endl;
-        }
+        io2->sync();
+        IKNP<NetIO> ot2(io2);
+        std::cout << "OT2 recv" << std::endl;
+        ot2.recv(B,y,m);
+        io2->flush();
     }
     else if(server_num == 1){
-        block b0[m], b1[m], B[m];
-        IKNP<NetIO> ot(io);
+        io1->sync();
+        IKNP<NetIO> ot1(io1);
+        std::cout << "OT1 recv" << std::endl;
+        ot1.recv(B,y,m);
+        io1->flush();
 
-        ot.recv(B,y,m);
-
-        block_to_boolean(B,b,m);
-
-        for(int i = 0; i < m; i++){
-            set_block(b0[i], r[i]);
-            set_block(b1[i], (x[i] != r[i])); // r[i] XOR x[i]
-        }
-
-        ot.send(b0,b1,m);
-
-        for(int i = 0; i < m ; i++){
-            z[i] = b[i] != (r[i] != (x[i] and y[i])); 
-            std::cout << x[i] << " " << y[i] << " " <<  z[i] << std::endl;
-        }
+        io2->sync();
+        IKNP<NetIO> ot2(io2);
+        std::cout << "OT2 send" << std::endl;
+        ot2.send(b0,b1,m);
+        io2->flush();
     }
-    else {
-        std::cout << "Error : server_num invalid" << std::endl;
-        return ans;
+
+    block_to_boolean(B,b,m);
+
+    for(int i = 0; i < m ; i++){
+        z[i] = b[i] != (r[i] != (x[i] and y[i])); // z[i] = r_A xor x_A.y_A xor r_B xor x_B.y_A
+        std::cout << x[i] << " " << y[i] << " " <<  z[i] << std::endl;
     }
 
     for(int i = 0 ; i < m ; i++){

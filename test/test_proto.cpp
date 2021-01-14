@@ -11,9 +11,7 @@ int main(int argc, char** argv){
     const int server_num = atoi(argv[1]);
     const int m = atoi(argv[2]);
 
-    NetIO* io = new NetIO(server_num ? SERVER0_IP : nullptr, 60051);
-
-    gen_boolean_beaver_triples(io,server_num,m);
+    gen_boolean_beaver_triples(server_num,m);
 
     return 0;
 }
