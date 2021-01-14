@@ -6,12 +6,10 @@
 #include "poly_batch.h"
 #include "util.h"
 
-void 
-precomp_x_init(precomp_x_t *pre_x, const precomp_t *pre, const fmpz_t x)
-{
+void precomp_x_init(precomp_x_t *pre_x, const precomp_t *pre, const fmpz_t x) {
   fmpz_init_set(pre_x->modulus, pre->modulus);
 
-  // If the x value at which we want to evaluate is already an x_value 
+  // If the x value at which we want to evaluate is already an x_value
   // we've used, there's no need to do any interpolation,
   // so just short-circuit the computation and return this
   // value.
@@ -40,7 +38,7 @@ precomp_x_init(precomp_x_t *pre_x, const precomp_t *pre, const fmpz_t x)
   // where the C_i's are stored as s_points in the "pre" struct.
   fmpz_t prod;
   fmpz_t tmp;
-  fmpz_init(tmp); 
+  fmpz_init(tmp);
 
   fmpz_init_set_ui(prod, 1);
   for (int i = 0; i < pre_x->n_points; i++) {
@@ -61,13 +59,11 @@ precomp_x_init(precomp_x_t *pre_x, const precomp_t *pre, const fmpz_t x)
     fmpz_mod(pre_x->coeffs[i], tmp, pre_x->modulus);
   }
 
-  fmpz_clear(tmp); 
-  fmpz_clear(prod); 
+  fmpz_clear(tmp);
+  fmpz_clear(prod);
 }
 
-void
-precomp_x_clear(precomp_x_t *pre_x)
-{
+void precomp_x_clear(precomp_x_t *pre_x) {
   if (pre_x->short_x >= 0)
     return;
 
@@ -79,8 +75,7 @@ precomp_x_clear(precomp_x_t *pre_x)
   fmpz_clear(pre_x->modulus);
 }
 
-void precomp_x_eval(precomp_x_t *pre_x, const fmpz_t *yValues, fmpz_t out)
-{
+void precomp_x_eval(precomp_x_t *pre_x, const fmpz_t *yValues, fmpz_t out) {
   fmpz_init(out);
   if (pre_x->short_x >= 0) {
     fmpz_set(out, yValues[pre_x->short_x]);
@@ -101,4 +96,3 @@ void precomp_x_eval(precomp_x_t *pre_x, const fmpz_t *yValues, fmpz_t out)
   }
   fmpz_clear(tmp);
 }
-

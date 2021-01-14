@@ -2,8 +2,8 @@
 #define SERVER_H
 
 #include "circuit.h"
+#include "constants.h"
 #include "fmpz_utils.h"
-#include "prio.h"
 #include "share.h"
 
 extern "C" {
@@ -44,7 +44,7 @@ struct BatchPre {
     // Newbatch
     BatchPre(const fmpz_t *xPointsIn, const int n) {
         // std::cout << " new BatchPre , n = " << n << ", xPointsIn = [";
-        // for(int i =0; i < n; i++){
+        // for (int i =0; i < n; i++) {
         //     if (i > 0) std::cout << ", ";
         //     fmpz_print(xPointsIn[i]);
         // }
@@ -52,13 +52,13 @@ struct BatchPre {
         poly_batch_precomp_init(&pre, Int_Modulus, n, xPointsIn);
     }
 
-    // Unused. 
+    // Unused.
     BatchPoly* Interp(const fmpz_t* yPointsIn, const int n) {
         BatchPoly* bpoly = new BatchPoly();
 
         poly_batch_init(bpoly->fpoly, &pre);
 
-        poly_batch_interpolate(bpoly->fpoly,&pre,yPointsIn);
+        poly_batch_interpolate(bpoly->fpoly, &pre, yPointsIn);
 
         return bpoly;
     }
@@ -76,12 +76,6 @@ struct PreX {
     PreX(BatchPre* b, const fmpz_t x) {
         batchPre = b;
         precomp_x_init(&pre, &batchPre->pre, x);
-        // std::cout << " PreX coeffs: [";
-        // for (int i = 0; i < pre.n_points; i++) {
-        //     if (i > 0) std::cout << ", ";
-        //     fmpz_print(pre.coeffs[i]);
-        // }
-        // std::cout << "]" << std::endl;
     }
 
     ~PreX() {
@@ -135,7 +129,7 @@ struct Checker {
     fmpz_t evalG;  // [r * g(r)]
     fmpz_t evalH;  // [r * h(r)]
 
-    Checker(Circuit* c, const int idx){
+    Checker(Circuit* c, const int idx) {
         ckt = c;
         serveridx = idx;
         n = ckt->NumMulGates()+1;
@@ -159,70 +153,45 @@ struct Checker {
         fmpz_clear(evalH);
     }
 
-    void setReq(const ClientPacket pkt){
+    void setReq(const ClientPacket pkt) {
         req = pkt;
         ckt->ImportWires(pkt, serveridx);
     }
 
-    void evalPoly(const CheckerPreComp *pre){
+    void evalPoly(const CheckerPreComp *pre) {
         // std::cout << "evalPoly" << std::endl;
         std::vector<Gate*> mulgates = ckt->MulGates();
         // Get constant terms from packet
-        fmpz_set(pointsF[0],req->f0_s);
-        fmpz_set(pointsG[0],req->g0_s);
-        fmpz_set(pointsH[0],req->h0_s);
+        fmpz_set(pointsF[0], req->f0_s);
+        fmpz_set(pointsG[0], req->g0_s);
+        fmpz_set(pointsH[0], req->h0_s);
 
-        // For all multiplication triples a_i * b_i = c_i,
+        // For all multiplication triples a_i * b_i = c_i
         //    polynomial [f(x)] has [f(i)] = [a_i]
         //    polynomial [g(x)] has [g(i)] = [b_i]
-        for(int i = 1; i < n; i++){
-            fmpz_set(pointsF[i],mulgates[i-1]->ParentL->WireValue);
-            fmpz_set(pointsG[i],mulgates[i-1]->ParentR->WireValue);
+        for (int i = 1; i < n; i++) {
+            fmpz_set(pointsF[i], mulgates[i-1]->ParentL->WireValue);
+            fmpz_set(pointsG[i], mulgates[i-1]->ParentR->WireValue);
             // Set even values of h to be output wires.
-            fmpz_set(pointsH[2*i],mulgates[i-1]->WireValue);
+            fmpz_set(pointsH[2*i], mulgates[i-1]->WireValue);
         }
 
         // Grab odd values of h from the packet.
-        for(int j = 0; j < N; j++){
+        for (int j = 0; j < N; j++) {
             fmpz_set(pointsH[2 * j + 1], req->h_points[j]);
         }
 
-        // set evals 
-        // std::cout << " pointsF = [";
-        // for (int i = 0; i < N; i++) {
-        //     if (i > 0) std::cout << ", ";
-        //     fmpz_print(pointsF[i]);
-        // }
-        // std::cout << "]" << std::endl;
+        // set evals
         pre->xN->Eval(pointsF, evalF);
-        // std::cout << "f(r) = "; fmpz_print(evalF); std::cout << std::endl;
-
-        // std::cout << " pointsG = [";
-        // for (int i = 0; i < N; i++) {
-        //     if (i > 0) std::cout << ", ";
-        //     fmpz_print(pointsG[i]);
-        // }
-        // std::cout << "]" << std::endl;
         pre->xN->Eval(pointsG, evalG);
-        // std::cout << "g(r) = "; fmpz_print(evalG); std::cout << std::endl;
         fmpz_mul(evalG, evalG, pre->x);
         fmpz_mod(evalG, evalG, Int_Modulus);
-        // std::cout << "r * g(r) = "; fmpz_print(evalG); std::cout << std::endl;
-
-        // std::cout << " pointsH = [";
-        // for (int i = 0; i < 2 * N; i++) {
-        //     if (i > 0) std::cout << ", ";
-        //     fmpz_print(pointsH[i]);
-        // }
-        // std::cout << "]" << std::endl;
         pre->x2N->Eval(pointsH, evalH);
-        // std::cout << "h(r) = "; fmpz_print(evalH); std::cout << std::endl;
         fmpz_mul(evalH, evalH, pre->x);
         fmpz_mod(evalH, evalH, Int_Modulus);
-        // std::cout << "r * h(r) = "; fmpz_print(evalH); std::cout << std::endl;
     }
 
-    CorShare* CorShareFn(const CheckerPreComp *pre){
+    CorShare* CorShareFn(const CheckerPreComp *pre) {
         evalPoly(pre);
         // std::cout << "CorShareFn" << std::endl;
         CorShare* out = new CorShare();
@@ -230,41 +199,41 @@ struct Checker {
         fmpz_sub(out->shareD, evalF, req->triple_share->shareA);
         fmpz_mod(out->shareD, out->shareD, Int_Modulus);
 
-        fmpz_sub(out->shareE, evalG,req->triple_share->shareB);
+        fmpz_sub(out->shareE, evalG, req->triple_share->shareB);
         fmpz_mod(out->shareE, out->shareE, Int_Modulus);
 
         return out;
     }
 
-    Cor* CorFn(const CorShare* cs0, const CorShare* cs1){
+    Cor* CorFn(const CorShare* cs0, const CorShare* cs1) {
         Cor* out = new Cor();
         // std::cout << "CorFn" << std::endl;
-        fmpz_add(out->D,cs0->shareD, cs1->shareD);
+        fmpz_add(out->D, cs0->shareD, cs1->shareD);
         fmpz_mod(out->D, out->D, Int_Modulus);
 
-        fmpz_add(out->E,cs0->shareE, cs1->shareE);
+        fmpz_add(out->E, cs0->shareE, cs1->shareE);
         fmpz_mod(out->E, out->E, Int_Modulus);
 
         return out;
     }
 
     // To be fixed. Both servers need to use same random seed. Using constant 1 instead now.
-    void randSum(fmpz_t out, const fmpz_t* arr){
+    void randSum(fmpz_t out, const fmpz_t* arr) {
         int len = ckt->result_zero.size() + 1;
 
         fmpz_t tmp;
         fmpz_init(tmp);
 
-        for(int i = 0; i < len; i++){
-            // fmpz_randm(tmp,seed,Int_Modulus);
-            fmpz_set_ui(tmp,1);
-            fmpz_mul(tmp,tmp,arr[i]);
-            fmpz_mod(tmp,tmp,Int_Modulus);
+        for (int i = 0; i < len; i++) {
+            // fmpz_randm(tmp, seed, Int_Modulus);
+            fmpz_set_ui(tmp, 1);
+            fmpz_mul(tmp, tmp, arr[i]);
+            fmpz_mod(tmp, tmp, Int_Modulus);
 
-            fmpz_add(out,out,tmp);
+            fmpz_add(out, out, tmp);
         }
 
-        fmpz_mod(out, out, Int_Modulus); 
+        fmpz_mod(out, out, Int_Modulus);
 
         fmpz_clear(tmp);
     }
@@ -276,52 +245,50 @@ struct Checker {
         fmpz_init(mulCheck);
         fmpz_init(term);
 
-        if(serveridx == 0){
+        if (serveridx == 0) {
             fmpz_mul(mulCheck, corIn->D, corIn->E);
             fmpz_mod(mulCheck, mulCheck, Int_Modulus);
         }
 
         fmpz_mul(term, corIn->D, req->triple_share->shareB);
         fmpz_mod(term, term, Int_Modulus);
-        fmpz_add(mulCheck,mulCheck,term);
-        fmpz_mod(mulCheck,mulCheck,Int_Modulus);
+        fmpz_add(mulCheck, mulCheck, term);
+        fmpz_mod(mulCheck, mulCheck, Int_Modulus);
 
         fmpz_mul(term, corIn->E, req->triple_share->shareA);
         fmpz_mod(term, term, Int_Modulus);
-        fmpz_add(mulCheck,mulCheck,term);
-        fmpz_mod(mulCheck,mulCheck,Int_Modulus);
+        fmpz_add(mulCheck, mulCheck, term);
+        fmpz_mod(mulCheck, mulCheck, Int_Modulus);
 
-        fmpz_add(mulCheck,mulCheck,req->triple_share->shareC);
-        fmpz_mod(mulCheck,mulCheck,Int_Modulus);
+        fmpz_add(mulCheck, mulCheck, req->triple_share->shareC);
+        fmpz_mod(mulCheck, mulCheck, Int_Modulus);
 
         fmpz_sub(mulCheck, mulCheck, evalH);
-        fmpz_mod(mulCheck,mulCheck,Int_Modulus);
+        fmpz_mod(mulCheck, mulCheck, Int_Modulus);
 
         fmpz_t* arr;
         int num_zero_gates = ckt->result_zero.size();
-        new_fmpz_array(&arr,num_zero_gates+1);
+        new_fmpz_array(&arr, num_zero_gates+1);
 
         fmpz_set(arr[0], mulCheck);
 
-        for(int i = 0; i < num_zero_gates; i++){
-            fmpz_set(arr[i+1],ckt->result_zero[i]->WireValue);
+        for (int i = 0; i < num_zero_gates; i++) {
+            fmpz_set(arr[i+1], ckt->result_zero[i]->WireValue);
         }
 
         randSum(out, arr);
 
-        clear_fmpz_array(arr,num_zero_gates);
+        clear_fmpz_array(arr, num_zero_gates);
         fmpz_clear(mulCheck);
         fmpz_clear(term);
     }
 
-    bool OutputIsValid(const fmpz_t output0, const fmpz_t output1){
+    bool OutputIsValid(const fmpz_t output0, const fmpz_t output1) {
         fmpz_t out;
         fmpz_init(out);
 
-        fmpz_add(out,output0,output1);
-        fmpz_mod(out,out,Int_Modulus);
-
-        // std::cout << "Final Output : "; fmpz_print(out); std::cout << std::endl;
+        fmpz_add(out, output0, output1);
+        fmpz_mod(out, out, Int_Modulus);
 
         bool ans = fmpz_is_zero(out);
         fmpz_clear(out);

@@ -16,6 +16,7 @@
 
 * Server arguments are `server_num Client_listen_port server_0_port max_bits`
 * Client arguments are `num_inputs server0_port server1_port operand max_bits`
+  * Add `true` after `max_bits` to have some of the clients provide invalid inputs.
 
 Ports and max bits need to be consistent across runs.
 Max bits is only used for int based summations.
@@ -23,14 +24,17 @@ Server 0 port tells Server 0 which port to open, and server 1 which port of serv
 
 # Outline
 
-bit/int sum protocol
-
-client ---shares0--> server0, server1
-server1 ----Init_bit/int_sum msg ----> server0
-server1 ---pks of all submissions----> server0
-server1 starts a ot_receiver with choice bit as its bitshare
-server0 filters the pks sent by server1, creates b0, b1 (r, 1-r arrays) ot arrays and uses ot library to send them over
-each server gets sum of the values sent in the OT and exchange final results and sum it up.
+0. Servers connect to each other
+1. Client produces shares
+2. Client connects to servers, sends corresponding shares
+3. Servers recieve all shares
+4. Servers fork off a child to continue the steps, and has the parent return to listening for more client connections
+5. For each share, servers check if public keys line up
+6. If relevent, servers also do SNIPS validation for each share
+7. If relevant, Server 1 uses an OT Reciever with all of it's shares.
+8. Server 1 sends it's aggregate value to server 0. 
+9. If relevant, Server 0 uses an OT sender with it's shares, and the shared information about share validity.
+10. Server 0 computes it's own aggregate value, and combines it with the one from server 1 to produce a final answer.
 
 block - 128 bit number
-In the ot protocols, I use first 64 bits to encode validity(done at server0) and second 64 bits contain the actual digit.
+In the ot protocols, the first 64 bits to encode validity(done at server0) and second 64 bits contain the actual digit.

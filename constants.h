@@ -1,5 +1,5 @@
-#ifndef PRIO_H
-#define PRIO_H
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
 
 #include <gmpxx.h>
 
@@ -55,8 +55,10 @@ TODO: This is for fixed N, so caching this would be better.
 */
 extern fmpz_t *roots, *invroots, *roots2;
 
-void init_constants(); 
+void init_constants();
 
 void clear_constants();
+
+void init_roots(const int N);
 
 #endif

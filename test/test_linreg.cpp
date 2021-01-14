@@ -78,7 +78,7 @@ void test_CheckLinReg() {
   CheckerPreComp* pre1 = new CheckerPreComp(linreg_circuit1);
   pre1->setCheckerPrecomp(randomX);
   // checker_1->evalPoly(pre1);
-  
+
   auto corshare0 = checker_0->CorShareFn(pre0);
   auto corshare1 = checker_1->CorShareFn(pre1);
 
@@ -95,7 +95,7 @@ void test_CheckLinReg() {
   bool result0 = checker_0->OutputIsValid(out0,out1);
   bool result1 = checker_1->OutputIsValid(out0,out1);
 
-  std::cout << "out0 : "; fmpz_print(out0); std::cout << ", out1 : "; fmpz_print(out1); std::cout << std::endl;  
+  std::cout << "out0 : "; fmpz_print(out0); std::cout << ", out1 : "; fmpz_print(out1); std::cout << std::endl;
 
   std::cout << "Result0 : " << result0 << " , Result1 : " << result1 << std::endl;
 

@@ -1,7 +1,6 @@
 #include "util.h"
 
-char *fmpz_array_to_str(int n_points, fmpz_t *input) 
-{
+char *fmpz_array_to_str(int n_points, fmpz_t *input) {
   // Leave space for final NULL terminator
   size_t outlen = 1;
   for (int i = 0; i < n_points; i++) {
@@ -13,8 +12,8 @@ char *fmpz_array_to_str(int n_points, fmpz_t *input)
   for (int i = 0; i < n_points; i++) {
     fmpz_get_str(outp, 16, input[i]);
     fmpz_clear(input[i]);
-  
-    // Advance pointer until after \0 terminator  
+
+    // Advance pointer until after \0 terminator
     do outp++; while(*outp);
     *outp = '\n';
     outp++;

@@ -5,7 +5,7 @@
 
 #include <flint/fmpz_mod_poly.h>
 
-fmpz_t *fft_interpolate(fmpz_t mod, int nPoints, 
-    fmpz_t *roots, fmpz_t *ys, bool invert);
+fmpz_t *fft_interpolate(const fmpz_t mod, const int nPoints,
+    const fmpz_t *roots, const fmpz_t *ys, const bool invert);
 
 #endif

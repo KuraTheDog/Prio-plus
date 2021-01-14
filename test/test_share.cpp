@@ -30,7 +30,7 @@ void testBeaverTriple() {
     fmpz_init(B);
     fmpz_init(C);
     fmpz_init(prod);
-    
+
     fmpz_add(A,out[0].shareA,out[1].shareA);
     fmpz_mod(A,A,Int_Modulus);
     fmpz_add(B,out[0].shareB,out[1].shareB);

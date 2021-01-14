@@ -1,16 +1,13 @@
 #include "fft.h"
 #include "util.h"
 
-static void
-fft_recurse(fmpz_t *out, const fmpz_t mod, int n, fmpz_t *roots, fmpz_t *ys,
-    fmpz_t *tmp, fmpz_t *ySub, fmpz_t *rootsSub)
-{
+static void fft_recurse(fmpz_t *out, const fmpz_t mod, const int n, const fmpz_t *roots, const fmpz_t *ys, fmpz_t *tmp, fmpz_t *ySub, fmpz_t *rootsSub) {
   if (n == 1) {
     fmpz_set(out[0], ys[0]);
     return;
   }
 
-  // Recurse on the first half 
+  // Recurse on the first half
   for (int i=0; i<n/2; i++) {
     fmpz_add(ySub[i], ys[i], ys[i+(n/2)]);
     fmpz_mod(ySub[i], ySub[i], mod);
@@ -23,7 +20,7 @@ fft_recurse(fmpz_t *out, const fmpz_t mod, int n, fmpz_t *roots, fmpz_t *ys,
     fmpz_set(out[2*i], tmp[i]);
   }
 
-  // Recurse on the second half 
+  // Recurse on the second half
   for (int i=0; i<n/2; i++) {
     fmpz_sub(ySub[i], ys[i], ys[i+(n/2)]);
     fmpz_mod(ySub[i], ySub[i], mod);
@@ -37,9 +34,7 @@ fft_recurse(fmpz_t *out, const fmpz_t mod, int n, fmpz_t *roots, fmpz_t *ys,
   }
 }
 
-fmpz_t *fft_interpolate(fmpz_t mod, int nPoints, 
-    fmpz_t *roots, fmpz_t *ys, bool invert)
-{
+fmpz_t *fft_interpolate(const fmpz_t mod, const int nPoints, const fmpz_t *roots, const fmpz_t *ys, const bool invert) {
 
   fmpz_t *out = (fmpz_t*) malloc(sizeof(fmpz_t) *nPoints);
   fmpz_t tmp[nPoints];
@@ -64,7 +59,7 @@ fmpz_t *fft_interpolate(fmpz_t mod, int nPoints,
       fmpz_mul(out[i], out[i], n_inverse);
       fmpz_mod(out[i], out[i], mod);
     }
-    fmpz_clear(n_inverse); 
+    fmpz_clear(n_inverse);
   }
 
   for (int i=0; i<nPoints;i++) {
@@ -74,5 +69,4 @@ fmpz_t *fft_interpolate(fmpz_t mod, int nPoints,
   }
 
   return out;
-}  
-
+}
