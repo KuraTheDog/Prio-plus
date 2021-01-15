@@ -685,10 +685,13 @@ void var_op(const std::string protocol, const size_t numreqs) {
    2: x^2 shares > max
    3: x^2 = x * x + junk, run through snip
    4: x^2 = x * x + junk, run snip with correct x^2  NOT CAUGHT, Server doesn't check equality
-   5: p0 misc corruption
-   6: pk mismatch
-   8: share0 has same pk as 7
-   10: share1 has same pk as 9
+   5: p0 N corruption
+   6: p1 const value corruption
+   7: p0 wire corruption
+   8: p1 triple corruption
+   9: pk mismatch
+   11: share0 has same pk as 10
+   13: share1 has same pk as 12
 */
 void var_op_invalid(const std::string protocol, const size_t numreqs) {
     initMsg msg;
@@ -740,7 +743,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
 
         std::cout << i << ": " << real_vals[i] << " = " << shares0[i] << "^" << shares1[i];
         std::cout << ", " << squared << " = " << shares0_squared[i] << "^" << shares1_squared[i];
-        if (i <= 3 or i == 5 or i == 6 or i == 8 or i == 10) {
+        if ((i <= 9 and i != 4) or i == 11 or i == 13) {
             std::cout << " (invalid)" << std::endl;
         } else {
             std::cout << std::endl;
@@ -758,16 +761,16 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         share0.val = shares0[i];
         share0.val_squared = shares0_squared[i];
         memcpy(share0.signature, &pk[0], PK_LENGTH);
-        if (i == 6)
+        if (i == 9)
             share0.pk[0] = 'q';
-        if (i == 8)
+        if (i == 11)
             memcpy(share0.pk, &prev_pk[0], PK_LENGTH);
 
         memcpy(share1.pk, &pk[0], PK_LENGTH);
         share1.val = shares1[i];
         share1.val_squared = shares1_squared[i];
         memcpy(share1.signature, &pk[0], PK_LENGTH);
-        if (i == 10)
+        if (i == 13)
             memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
 
         send_to_server(0, &share0, sizeof(VarShare));
@@ -782,12 +785,14 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         circuit->Eval(inp);
         ClientPacket p0, p1;
         share_polynomials(circuit, p0, p1);
-        if (i == 5) {
-            // So clients can still break server if they provide bad N here.
-            // Since they are used as loop bounds, and we get fun segfaults etc.
-            // p0->N = 1;
-            fmpz_add_si(p0->f0_s, p0->f0_s, 10);
-        }
+        if (i == 5)
+            p0->NWires = 1;  // N is used in send wrapper, so has trouble
+        if (i == 6)
+            fmpz_add_si(p1->f0_s, p1->f0_s, 1);
+        if (i == 7)
+            fmpz_add_si(p0->WireShares[0], p0->WireShares[0], 1);
+        if (i == 8)
+            fmpz_add_si(p1->triple_share->shareA, p1->triple_share->shareA, 1);
         send_ClientPacket(sockfd0, p0);
         send_ClientPacket(sockfd1, p1);
         delete p0;
@@ -818,7 +823,7 @@ int main(int argc, char** argv) {
     const int port0 = atoi(argv[2]);
     const int port1 = atoi(argv[3]);
 
-    std::string protocol(argv[4]);
+    const std::string protocol(argv[4]);
 
     if (argc >= 6) {
         int num_bits = atoi(argv[5]);

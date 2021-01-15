@@ -483,6 +483,12 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     const uint32_t square_max = 1 << num_bits;
     const size_t total_inputs = msg.num_of_inputs;
 
+    // Just for getting sizes
+    Circuit* mock_circuit = CheckVar();
+    const size_t N = NextPowerofTwo(mock_circuit->NumMulGates() + 1);
+    const size_t NWires = mock_circuit->NumMulInpGates();
+    delete mock_circuit;
+
     for (int i = 0; i < total_inputs; i++) {
         read_in(clientfd, &share, sizeof(VarShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
@@ -494,7 +500,10 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
         if ((share_map.find(pk) != share_map.end())
             or (share.val >= small_max)
-            or (share.val_squared >= square_max))
+            or (share.val_squared >= square_max)
+            or (packet->N != N)
+            or (packet->NWires != NWires)
+            )
             continue;
         share_map[pk] = {share.val, share.val_squared, packet};
     }
@@ -533,7 +542,6 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             // SNIPS
             Circuit* circuit = CheckVar();
             if (not have_roots_init) {
-                const int N = NextPowerofTwo(circuit->NumMulGates() + 1);
                 init_roots(N);
                 have_roots_init = true;
             }
@@ -578,7 +586,6 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
             Circuit* circuit = CheckVar();
             if (not have_roots_init) {
-                const int N = NextPowerofTwo(circuit->NumMulGates() + 1);
                 init_roots(N);
                 have_roots_init = true;
             }
