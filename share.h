@@ -132,7 +132,7 @@ struct ClientSubmission {
 
 struct DaBit {
     fmpz_t bp;   // [b]_p, mod p
-    bool b2;   // [b]_2, bit
+    bool b2;     // [b]_2, bit
 
     DaBit() {
         fmpz_init(bp);
@@ -151,7 +151,7 @@ struct DaBit {
 struct EdaBit {
     fmpz_t r;  // [r]_p 
     const size_t n;
-    bool* b;
+    bool* b;   // {[b]_2}
 
     EdaBit(const size_t n) : n(n) {
         fmpz_init(r);
@@ -163,6 +163,7 @@ struct EdaBit {
         delete[] b;
     }
 
+    // Get b as an int. For easier math / xor comparison.
     int get_int_b() const {
         int pow = 1, ans = 0;
         for (int i = 0; i < n; i++) {
