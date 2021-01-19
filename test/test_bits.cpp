@@ -7,6 +7,7 @@
 
 #include "../constants.h"
 #include "../net_share.h"
+#include "../server.h"
 #include "../share.h"
 
 int PORT = 8888;
@@ -238,87 +239,34 @@ void localTest(const size_t n) {
 }
 
 void runServerTest(const int server_num, const int serverfd, const size_t n) {
-  // Create local
-  EdaBit* ebit0 = new EdaBit(n);
-  EdaBit* ebit1 = new EdaBit(n);
-  makeLocalEdaBit(ebit0, ebit1, n);
 
-  // Send other
-  EdaBit* tmp_ebit = new EdaBit(n);
-  if (server_num == 0) {
-    send_EdaBit(serverfd, ebit1, n);
-    recv_EdaBit(serverfd, tmp_ebit, n);
-    delete ebit1;
-    ebit1 = tmp_ebit;
-  } else {
-    recv_EdaBit(serverfd, tmp_ebit, n);
-    send_EdaBit(serverfd, ebit0, n);
-    delete ebit0;
-    ebit0 = tmp_ebit;
-  }
-
-  // final bit
-  EdaBit* ebit = new EdaBit(n);
-
-  // basic add r.
-  fmpz_add(ebit->r, ebit0->r, ebit1->r);
-  fmpz_mod(ebit->r, ebit->r, Int_Modulus);
-
-  // Add b via circuits.
-  // c_{i+1} = c_i xor ((x_i xor c_i) and (y_i xor c_i))
-  // output z_i = x_i xor y_i xor c_i
-  bool carry = 0;   // final carry
-  bool x, y, prod;  // addition calc
-  bool d, e, d_this, e_this, d_other, e_other;  // beaver calc
+  // TODO: use proper triple sharing
+  BooleanBeaverTriple triples[n];
   for (int i = 0; i < n; i++) {
-    ebit->b[i] = carry ^ ebit0->b[i] ^ ebit1->b[i];
-    x = carry ^ ebit0->b[i];
-    y = carry ^ ebit1->b[i];
-
-    // Local version. TODO: Actually do beaver triples.
-    bool a, b, c;
     if (server_num == 0) {
       fmpz_t tmp;
       fmpz_init(tmp);
       fmpz_randbits(tmp, seed, 5);
-      a = get_fmpz_bit(tmp, 0);
-      b = get_fmpz_bit(tmp, 1);
-      c = get_fmpz_bit(tmp, 2);
+      triples[i].a = get_fmpz_bit(tmp, 0);
+      triples[i].b = get_fmpz_bit(tmp, 1);
+      triples[i].c = get_fmpz_bit(tmp, 2);
       bool a2 = get_fmpz_bit(tmp, 3);
       bool b2 = get_fmpz_bit(tmp, 4);
-      bool c2 = c ^ ((a ^ a2) and (b ^ b2));
+      bool c2 = triples[i].c ^ ((triples[i].a ^ a2) and (triples[i].b ^ b2));
 
       send_bool(serverfd, a2);
       send_bool(serverfd, b2);
       send_bool(serverfd, c2);
       fmpz_clear(tmp);
     } else {
-      recv_bool(serverfd, a);
-      recv_bool(serverfd, b);
-      recv_bool(serverfd, c);
+      recv_bool(serverfd, triples[i].a);
+      recv_bool(serverfd, triples[i].b);
+      recv_bool(serverfd, triples[i].c);
     }
-
-    d_this = x ^ a;
-    e_this = y ^ b;
-    
-    send_bool(serverfd, d_this);
-    recv_bool(serverfd, d_other);
-    send_bool(serverfd, e_this);
-    recv_bool(serverfd, e_other);
-
-    d = d_this ^ d_other;
-    e = e_this ^ e_other;
-
-    prod = c ^ (x and e) ^ (y and d);
-    if (server_num == 0)
-      prod ^= (d and e);
-
-    carry ^= prod;
   }
 
-  // Adjust out carry
+  // TODO: Use proper dabit generation
   DaBit* dabit = new DaBit();
-  // TODO: create properly with servers/OTs.
   if (server_num == 0) {
     DaBit* dabit_other = new DaBit();
     makeLocalDaBit(dabit, dabit_other);
@@ -328,28 +276,7 @@ void runServerTest(const int server_num, const int serverfd, const size_t n) {
     recv_DaBit(serverfd, dabit);
   }
 
-  const bool v_this = carry ^ dabit->b2;
-  bool v_other;
-  send_bool(serverfd, v_this);
-  recv_bool(serverfd, v_other);
-  const bool v = v_this ^ v_other;
-
-  // subtract out 2^n * [b_n]^p from r
-  fmpz_t bpn;
-  fmpz_init(bpn);
-  // [b_n]_p = v +/- [b]_p. Sign based on v. only add v for one server.
-  if (v) {  // if v = 1, then [b_n]_p = (0/1) - [b]_p
-    fmpz_set_ui(bpn, server_num);
-    fmpz_sub(bpn, bpn, dabit->bp);
-    fmpz_mod(bpn, bpn, Int_Modulus);
-  } else {  // if v = 0, then [b_n]_p = [b]_p
-    fmpz_set(bpn, dabit->bp);
-  }
-
-  fmpz_submul_ui(ebit->r, bpn, 1 << n);
-  fmpz_mod(ebit->r, ebit->r, Int_Modulus);
-
-  fmpz_clear(bpn);
+  EdaBit* ebit = generateEdaBit(serverfd, server_num, n, triples, dabit);
 
   std::cout << "Final ebit" << server_num << ":\n";
   ebit->print();
@@ -374,8 +301,6 @@ void runServerTest(const int server_num, const int serverfd, const size_t n) {
   }
 
   delete dabit;
-  delete ebit0;
-  delete ebit1;
 }
 
 void serverTest(const size_t n) {

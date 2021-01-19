@@ -72,6 +72,11 @@ struct BeaverTripleShare {
     }
 };
 
+struct BooleanBeaverTriple {
+    bool a;
+    bool b;
+    bool c;
+};
 
 /* Shares one server has for checking multiplcation gates
    See share_polynomial.
