@@ -129,6 +129,13 @@ void run_sender(int sockfd) {
     n = send_ClientPacket(sockfd, packet2);
     std::cout << "send: size = " << n << ", packet, N = " << packet2->N << ", NWires = " << packet2->NWires << std::endl;
 
+    EdaBit* b0 = new EdaBit(4);
+    EdaBit* b1 = new EdaBit(4);
+    makeLocalEdaBit(b0, b1, 4);
+    n = send_EdaBit(sockfd, b0, 4);
+    std::cout << "send EdaBit size = " << n << std::endl;
+    b0->print();
+
     // Sanity: sending numbers still works
     fmpz_set_d(number, 54321);
     n = send_fmpz(sockfd, number);
@@ -175,6 +182,11 @@ void run_receiver(int newsockfd) {
     ClientPacket packet2 = nullptr;
     n = recv_ClientPacket(newsockfd, packet2);
     std::cout << "recv: size = " << n << ", packet, N = " << packet2->N << ". NWires = " << packet2->NWires << std::endl;
+
+    EdaBit* b = new EdaBit(4);
+    n = recv_EdaBit(newsockfd, b, 4);
+    std::cout << "recv EdaBit size = " << n << std::endl;
+    b->print();
 
     n = recv_fmpz(newsockfd, number);
     std::cout << "recv: size = " << n << ", fmpz: ";

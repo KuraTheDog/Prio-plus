@@ -74,4 +74,12 @@ int recv_BeaverTriple(const int sockfd, BeaverTriple *x);
 int send_BeaverTripleShare(const int sockfd, const BeaverTripleShare *x);
 int recv_BeaverTripleShare(const int sockfd, BeaverTripleShare *x);
 
+// Bits stuff
+int send_DaBit(const int sockfd, const DaBit* x);
+int recv_DaBit(const int sockfd, DaBit* x);
+
+// Assumes n is already known.
+int send_EdaBit(const int sockfd, const EdaBit* x, const size_t n);
+int recv_EdaBit(const int sockfd, EdaBit* x, const size_t n);
+
 #endif

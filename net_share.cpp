@@ -253,4 +253,40 @@ int recv_BeaverTripleShare(const int sockfd, BeaverTripleShare *x) {
     ret = recv_fmpz(sockfd, x->shareC);
     if (ret <= 0) return ret; else total += ret;
     return total;
-}}
+}
+
+int send_DaBit(const int sockfd, const DaBit* x) {
+    int total = 0, ret;
+    ret = send_fmpz(sockfd, x->bp);
+    if (ret <= 0) return ret; else total += ret;
+    ret = send(sockfd, &x->b2, sizeof(bool), 0);
+    if (ret <= 0) return ret; else total += ret;
+    return total;
+}
+
+int recv_DaBit(const int sockfd, DaBit* x) {
+    int total = 0, ret;
+    ret = recv_fmpz(sockfd, x->bp);
+    if (ret <= 0) return ret; else total += ret;
+    ret = recv_in(sockfd, &x->b2, sizeof(bool));
+    if (ret <= 0) return ret; else total += ret;
+    return total;
+}
+
+int send_EdaBit(const int sockfd, const EdaBit* x, const size_t n) {
+    int total = 0, ret;
+    ret = send_fmpz(sockfd, x->r);
+    if (ret <= 0) return ret; else total += ret;
+    ret = send(sockfd, &x->b[0], n * sizeof(bool), 0);
+    if (ret <= 0) return ret; else total += ret;
+    return total;
+}
+
+int recv_EdaBit(const int sockfd, EdaBit* x, const size_t n) {
+    int total = 0, ret;
+    ret = recv_fmpz(sockfd, x->r);
+    if (ret <= 0) return ret; else total += ret;
+    ret = recv_in(sockfd, &x->b[0], n * sizeof(bool));
+    if (ret <= 0) return ret; else total += ret;
+    return total;
+}
