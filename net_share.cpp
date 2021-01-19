@@ -16,6 +16,14 @@ int recv_in(const int sockfd, void* buf, const size_t len) {
     return bytes_read;
 }
 
+int send_bool(const int sockfd, const bool x) {
+    return send(sockfd, &x, sizeof(bool), 0);
+}
+
+int recv_bool(const int sockfd, bool& x) {
+    return recv_in(sockfd, &x, sizeof(bool));
+}
+
 int send_int(const int sockfd, const int x) {
     int x_conv = htonl(x);
     const char* data = (const char*) &x_conv;
@@ -259,7 +267,7 @@ int send_DaBit(const int sockfd, const DaBit* x) {
     int total = 0, ret;
     ret = send_fmpz(sockfd, x->bp);
     if (ret <= 0) return ret; else total += ret;
-    ret = send(sockfd, &x->b2, sizeof(bool), 0);
+    ret = send_bool(sockfd, x->b2);
     if (ret <= 0) return ret; else total += ret;
     return total;
 }
@@ -268,7 +276,7 @@ int recv_DaBit(const int sockfd, DaBit* x) {
     int total = 0, ret;
     ret = recv_fmpz(sockfd, x->bp);
     if (ret <= 0) return ret; else total += ret;
-    ret = recv_in(sockfd, &x->b2, sizeof(bool));
+    ret = recv_bool(sockfd, x->b2);
     if (ret <= 0) return ret; else total += ret;
     return total;
 }

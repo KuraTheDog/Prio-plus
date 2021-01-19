@@ -322,7 +322,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
         for (const auto& share : share_map) {
             send_out(serverfd, &share.first[0], PK_LENGTH);
             bool other_valid;
-            recv_in(serverfd, &other_valid, sizeof(bool));
+            recv_bool(serverfd, other_valid);
             if (!other_valid)
                 continue;
             b ^= share.second;
@@ -339,7 +339,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
             std::string pk = get_pk(serverfd);
 
             bool is_valid = (share_map.find(pk) != share_map.end());
-            send_out(serverfd, &is_valid, sizeof(bool));
+            send_bool(serverfd, is_valid);
             if (!is_valid)
                 continue;
             num_valid++;
@@ -408,7 +408,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         for (const auto& share : share_map) {
             send_out(serverfd, &share.first[0], PK_LENGTH);
             bool other_valid;
-            recv_in(serverfd, &other_valid, sizeof(bool));
+            recv_bool(serverfd, other_valid);
             if (!other_valid)
                 continue;
             for (int j = 0; j <= B; j++)
@@ -426,7 +426,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
             std::string pk = get_pk(serverfd);
 
             bool is_valid = (share_map.find(pk) != share_map.end());
-            send_out(serverfd, &is_valid, sizeof(bool));
+            send_bool(serverfd, is_valid);
             if (!is_valid)
                 continue;
 
@@ -521,7 +521,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             std::string pk = share.first;
             send_out(serverfd, &pk[0], PK_LENGTH);
             bool other_valid;
-            recv_in(serverfd, &other_valid, sizeof(bool));
+            recv_bool(serverfd, other_valid);
 
             ClientPacket packet;
             std::tie(shares[i], shares_squared[i], packet) = share.second;
@@ -539,7 +539,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
             bool circuit_valid = run_snip(circuit, packet, serverfd, server_num);
             std::cout << " Circuit for " << i - 1 << " validity: " << std::boolalpha << circuit_valid << std::endl;
-            send_out(serverfd, &circuit_valid, sizeof(bool));
+            send_bool(serverfd, circuit_valid);
         }
 
         // Compute result
@@ -568,7 +568,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
             bool is_valid = (share_map.find(pk) != share_map.end());
             valid[i] = is_valid;
-            send_out(serverfd, &is_valid, sizeof(bool));
+            send_bool(serverfd, is_valid);
             if (!is_valid)
                 continue;
 
@@ -587,7 +587,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
 
             bool other_valid;
-            recv_in(serverfd, &other_valid, sizeof(bool));
+            recv_bool(serverfd, other_valid);
             if (!other_valid)
                 valid[i] = false;
             std::cout << " Other Circuit for " << i << " validity: " << std::boolalpha << other_valid << std::endl;
