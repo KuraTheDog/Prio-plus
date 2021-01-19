@@ -42,7 +42,7 @@ foreach(_target
 endforeach()
 
 foreach(_target
-  test_net_share test_circuit test_linreg test_proto)
+  test_net_share test_circuit test_linreg test_proto test_bits)
   add_executable(${_target} "test/${_target}.cpp" 
                  "constants.cpp" "proto.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp"
                  "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c"
