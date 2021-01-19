@@ -300,17 +300,12 @@ void runServerTest(const int server_num, const int serverfd, const size_t n) {
 
     d_this = x ^ a;
     e_this = y ^ b;
-    if (server_num == 0) {
-      send_bool(serverfd, d_this);
-      recv_bool(serverfd, d_other);
-      send_bool(serverfd, e_this);
-      recv_bool(serverfd, e_other);
-    } else {
-      recv_bool(serverfd, d_other);
-      send_bool(serverfd, d_this);
-      recv_bool(serverfd, e_other);
-      send_bool(serverfd, e_this);
-    }
+    
+    send_bool(serverfd, d_this);
+    recv_bool(serverfd, d_other);
+    send_bool(serverfd, e_this);
+    recv_bool(serverfd, e_other);
+
     d = d_this ^ d_other;
     e = e_this ^ e_other;
 
@@ -335,13 +330,8 @@ void runServerTest(const int server_num, const int serverfd, const size_t n) {
 
   const bool v_this = carry ^ dabit->b2;
   bool v_other;
-  if (server_num == 0) {
-    send_bool(serverfd, v_this);
-    recv_bool(serverfd, v_other);
-  } else {
-    recv_bool(serverfd, v_other);
-    send_bool(serverfd, v_this);
-  }
+  send_bool(serverfd, v_this);
+  recv_bool(serverfd, v_other);
   const bool v = v_this ^ v_other;
 
   // subtract out 2^n * [b_n]^p from r

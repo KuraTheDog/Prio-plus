@@ -127,13 +127,8 @@ bool run_snip(Circuit* circuit, const ClientPacket packet, const int serverfd, c
     CorShare* cor_share = checker->CorShareFn(pre);
     CorShare* cor_share_other = new CorShare();
 
-    if (server_num == 0) {
-        send_CorShare(serverfd, cor_share);
-        recv_CorShare(serverfd, cor_share_other);
-    } else {
-        recv_CorShare(serverfd, cor_share_other);
-        send_CorShare(serverfd, cor_share);
-    }
+    send_CorShare(serverfd, cor_share);
+    recv_CorShare(serverfd, cor_share_other);
 
     Cor* cor = checker->CorFn(cor_share, cor_share_other);
     fmpz_t valid_share, valid_share_other;
@@ -141,13 +136,8 @@ bool run_snip(Circuit* circuit, const ClientPacket packet, const int serverfd, c
     fmpz_init(valid_share_other);
     checker->OutShare(valid_share, cor);
 
-    if (server_num == 0) {
-        send_fmpz(serverfd, valid_share);
-        recv_fmpz(serverfd, valid_share_other);
-    } else {
-        recv_fmpz(serverfd, valid_share_other);
-        send_fmpz(serverfd, valid_share);
-    }
+    send_fmpz(serverfd, valid_share);
+    recv_fmpz(serverfd, valid_share_other);
 
     bool circuit_valid = checker->OutputIsValid(valid_share, valid_share_other);
 
