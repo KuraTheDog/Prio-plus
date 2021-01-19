@@ -35,6 +35,9 @@ string: best is base 62, so 62/256 ~ 25% space efficiency. So needs ~4x bits com
 
 /* Core functions */
 
+// Send trivial. 
+int recv_in(const int sockfd, void* buf, const size_t len);
+
 int send_int(const int sockfd, const int x);
 int recv_int(const int sockfd, int& x);
 

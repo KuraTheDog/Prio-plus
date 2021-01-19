@@ -36,15 +36,6 @@ void error_exit(const char *msg) {
     exit(EXIT_FAILURE);
 }
 
-// Use example: type obj; read_in(sockfd, &obj, sizeof(type))
-size_t read_in(const int sockfd, void* buf, const size_t len) {
-    size_t bytes_read = 0;
-    char* bufptr = (char*) buf;
-    while (bytes_read < len)
-        bytes_read += recv(sockfd, bufptr + bytes_read, len - bytes_read, 0);
-    return bytes_read;
-}
-
 size_t send_out(const int sockfd, const void* buf, const size_t len) {
     size_t ret = send(sockfd, buf, len, 0);
     if (ret <= 0) error_exit("Failed to send");
@@ -123,7 +114,7 @@ void sync_randomX(const int serverfd, const int server_num, fmpz_t randomX) {
 
 std::string get_pk(const int serverfd) {
     char pk_buf[PK_LENGTH];
-    read_in(serverfd, &pk_buf[0], PK_LENGTH);
+    recv_in(serverfd, &pk_buf[0], PK_LENGTH);
     std::string pk(pk_buf, pk_buf + PK_LENGTH);
     return pk;
 }
@@ -173,7 +164,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
     const size_t total_inputs = msg.num_of_inputs;
 
     for (int i = 0; i < total_inputs; i++) {
-        read_in(clientfd, &share, sizeof(BitShare));
+        recv_in(clientfd, &share, sizeof(BitShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
         if (share_map.find(pk) != share_map.end())
             continue;
@@ -241,7 +232,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
     const size_t total_inputs = msg.num_of_inputs;
 
     for (int i = 0; i < total_inputs; i++) {
-        read_in(clientfd, &share, sizeof(IntShare));
+        recv_in(clientfd, &share, sizeof(IntShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
         if (share_map.find(pk) != share_map.end()
@@ -311,7 +302,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
     const size_t total_inputs = msg.num_of_inputs;
 
     for (int i = 0; i < total_inputs; i++) {
-        read_in(clientfd, &share, sizeof(IntShare));
+        recv_in(clientfd, &share, sizeof(IntShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
         if (share_map.find(pk) != share_map.end())
@@ -331,7 +322,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
         for (const auto& share : share_map) {
             send_out(serverfd, &share.first[0], PK_LENGTH);
             bool other_valid;
-            read_in(serverfd, &other_valid, sizeof(bool));
+            recv_in(serverfd, &other_valid, sizeof(bool));
             if (!other_valid)
                 continue;
             b ^= share.second;
@@ -391,10 +382,10 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
     uint32_t shares[total_inputs * (B + 1)];
 
     for (int i = 0; i < total_inputs; i++) {
-        read_in(clientfd, &share, sizeof(MaxShare));
+        recv_in(clientfd, &share, sizeof(MaxShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
-        read_in(clientfd, &shares[i*(B+1)], share_sz);
+        recv_in(clientfd, &shares[i*(B+1)], share_sz);
 
         if (share_map.find(pk) != share_map.end())
             continue;
@@ -417,7 +408,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         for (const auto& share : share_map) {
             send_out(serverfd, &share.first[0], PK_LENGTH);
             bool other_valid;
-            read_in(serverfd, &other_valid, sizeof(bool));
+            recv_in(serverfd, &other_valid, sizeof(bool));
             if (!other_valid)
                 continue;
             for (int j = 0; j <= B; j++)
@@ -444,7 +435,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
                 a[j] ^= share_map[pk][j];
         }
         uint32_t b[B+1];
-        read_in(serverfd, &b[0], share_sz);
+        recv_in(serverfd, &b[0], share_sz);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
@@ -490,7 +481,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     delete mock_circuit;
 
     for (int i = 0; i < total_inputs; i++) {
-        read_in(clientfd, &share, sizeof(VarShare));
+        recv_in(clientfd, &share, sizeof(VarShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
         ClientPacket packet = nullptr;
@@ -530,7 +521,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             std::string pk = share.first;
             send_out(serverfd, &pk[0], PK_LENGTH);
             bool other_valid;
-            read_in(serverfd, &other_valid, sizeof(bool));
+            recv_in(serverfd, &other_valid, sizeof(bool));
 
             ClientPacket packet;
             std::tie(shares[i], shares_squared[i], packet) = share.second;
@@ -596,7 +587,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
 
             bool other_valid;
-            read_in(serverfd, &other_valid, sizeof(bool));
+            recv_in(serverfd, &other_valid, sizeof(bool));
             if (!other_valid)
                 valid[i] = false;
             std::cout << " Other Circuit for " << i << " validity: " << std::boolalpha << other_valid << std::endl;
@@ -687,7 +678,7 @@ int main(int argc, char** argv) {
 
         // Get an initMsg
         initMsg msg;
-        read_in(newsockfd, &msg, sizeof(initMsg));
+        recv_in(newsockfd, &msg, sizeof(initMsg));
 
         if (msg.type == BIT_SUM) {
             std::cout << "BIT_SUM" << std::endl;

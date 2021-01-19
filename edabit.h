@@ -58,7 +58,6 @@ Single player's share
 
 struct EdaBit {
   fmpz_t r;  // [r]_p 
-  // fmpz_t b;  // "bit array" of [b_i]_2 as a number.
   const size_t n;
   bool* b;
 

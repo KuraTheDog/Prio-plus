@@ -6,6 +6,16 @@
 
 /* Core functions */
 
+int recv_in(const int sockfd, void* buf, const size_t len) {
+    int bytes_read = 0, tmp;
+    char* bufptr = (char*) buf;
+    while (bytes_read < len) {
+        tmp = recv(sockfd, bufptr + bytes_read, len - bytes_read, 0);
+        if (tmp <= 0) return tmp; else bytes_read += tmp;
+    }
+    return bytes_read;
+}
+
 int send_int(const int sockfd, const int x) {
     int x_conv = htonl(x);
     const char* data = (const char*) &x_conv;
@@ -13,14 +23,9 @@ int send_int(const int sockfd, const int x) {
 }
 
 int recv_int(const int sockfd, int& x) {
-    int bytes_read = 0, tmp;
-    char buf[sizeof(int)];
-    while (bytes_read < sizeof(int)) {
-        tmp = recv(sockfd, &buf + bytes_read, sizeof(int) - bytes_read, 0);
-        if (tmp <= 0) return tmp; else bytes_read += tmp;
-    }
-    x = ntohl(*((int*)buf));
-    return bytes_read;
+    int ret = recv_in(sockfd, &x, sizeof(int));
+    x = ntohl(x);
+    return ret;
 }
 
 int send_size(const int sockfd, const size_t x) {
@@ -30,14 +35,9 @@ int send_size(const int sockfd, const size_t x) {
 }
 
 int recv_size(const int sockfd, size_t& x) {
-    int bytes_read = 0, tmp;
-    char buf[sizeof(size_t)];
-    while (bytes_read < sizeof(size_t)) {
-        tmp = recv(sockfd, &buf + bytes_read, sizeof(size_t) - bytes_read, 0);
-        if (tmp <= 0) return tmp; else bytes_read += tmp;
-    }
-    x = ntohl(*((size_t*)buf));
-    return bytes_read;
+    int ret = recv_in(sockfd, &x, sizeof(size_t));
+    x = ntohl(x);
+    return ret;
 }
 
 int send_uint32(const int sockfd, const uint32_t x) {
@@ -47,14 +47,9 @@ int send_uint32(const int sockfd, const uint32_t x) {
 }
 
 int recv_uint32(const int sockfd, uint32_t& x) {
-    int bytes_read = 0, tmp;
-    char buf[sizeof(uint32_t)];
-    while (bytes_read < sizeof(uint32_t)) {
-        tmp = recv(sockfd, &buf + bytes_read, sizeof(uint32_t) - bytes_read, 0);
-        if (tmp <= 0) return tmp; else bytes_read += tmp;
-    }
-    x = ntohl(*((uint32_t*)buf));
-    return bytes_read;
+    int ret = recv_in(sockfd, &x, sizeof(uint32_t));
+    x = ntohl(x);
+    return ret;
 }
 
 int send_uint64(const int sockfd, const uint64_t x) {
@@ -64,14 +59,9 @@ int send_uint64(const int sockfd, const uint64_t x) {
 }
 
 int recv_uint64(const int sockfd, uint64_t& x) {
-    char buf[sizeof(uint64_t)];
-    int bytes_read = 0, tmp;
-    while (bytes_read < sizeof(uint64_t)) {
-        tmp = recv(sockfd, &buf + bytes_read, sizeof(uint64_t) - bytes_read, 0);
-        if (tmp <= 0) return tmp; else bytes_read += tmp;
-    }
-    x = ntohll(*((uint64_t*)buf));
-    return bytes_read;
+    int ret = recv_in(sockfd, &x, sizeof(uint64_t));
+    x = ntohll(x);
+    return ret;
 }
 
 int send_ulong(const int sockfd, const ulong x) {
@@ -81,14 +71,9 @@ int send_ulong(const int sockfd, const ulong x) {
 }
 
 int recv_ulong(const int sockfd, ulong& x) {
-    char buf[sizeof(ulong)];
-    int bytes_read = 0, tmp;
-    while (bytes_read < sizeof(ulong)) {
-        tmp = recv(sockfd, &buf + bytes_read, sizeof(ulong) - bytes_read, 0);
-        if (tmp <= 0) return tmp; else bytes_read += tmp;
-    }
-    x = ntohll(*((ulong*)buf));
-    return bytes_read;
+    int ret = recv_in(sockfd, &x, sizeof(ulong));
+    x = ntohll(x);
+    return ret;
 }
 
 int send_fmpz(const int sockfd, const fmpz_t x) {
@@ -268,4 +253,4 @@ int recv_BeaverTripleShare(const int sockfd, BeaverTripleShare *x) {
     ret = recv_fmpz(sockfd, x->shareC);
     if (ret <= 0) return ret; else total += ret;
     return total;
-}
+}}

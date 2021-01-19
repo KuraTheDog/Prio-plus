@@ -5,7 +5,7 @@
 #include "../server.h"
 
 void localTest() {
-int n = 6;
+  int n = 6;
   int pow = 1 << n;
   std::cout << "n = " << n << ", so pow = " << pow << std::endl;
 
