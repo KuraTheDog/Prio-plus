@@ -64,3 +64,58 @@ BeaverTripleShare* BeaverTripleShares(const BeaverTriple* inp) {
 
     return out;
 }
+
+void makeLocalDaBit(DaBit* bit0, DaBit* bit1) {
+    fmpz_t two;  // TODO: Is there a nicer way to do this?
+    fmpz_init_set_si(two, 2);
+
+    // random bit b
+    fmpz_t bit;
+    fmpz_init(bit);
+    fmpz_randm(bit, seed, two);
+
+    // random r
+    fmpz_randm(bit0->bp, seed, Int_Modulus);
+
+    // b - r
+    fmpz_sub(bit1->bp, bit, bit0->bp);
+    fmpz_mod(bit1->bp, bit1->bp, Int_Modulus);
+
+    // r mod 2. true if odd.
+    bit0->b2 = fmpz_is_odd(bit0->bp);
+
+    // 1 xor (b - r) mod 2 = (1 + b - r) mod 2, true if (b-r) even
+    bit1->b2 = fmpz_is_even(bit1->bp);
+
+    fmpz_clear(two);
+    fmpz_clear(bit);
+}
+
+void makeLocalEdaBit(EdaBit* ebit0, EdaBit* ebit1, const size_t n) {
+    DaBit* bit0 = new DaBit();
+    DaBit* bit1 = new DaBit();
+
+    fmpz_zero(ebit0->r);
+    fmpz_zero(ebit1->r);
+
+    fmpz_t pow;
+    fmpz_init_set_si(pow, 1);  // 2^i
+
+    for (int i = 0; i < n; i++) {
+        makeLocalDaBit(bit0, bit1);
+
+        ebit0->b[i] = bit0->b2;
+        ebit1->b[i] = bit1->b2;
+
+        fmpz_addmul(ebit0->r, pow, bit0->bp);
+        fmpz_mod(ebit0->r, ebit0->r, Int_Modulus);
+        fmpz_addmul(ebit1->r, pow, bit1->bp);
+        fmpz_mod(ebit1->r, ebit1->r, Int_Modulus);
+
+        fmpz_mul_si(pow, pow, 2);
+        fmpz_mod(pow, pow, Int_Modulus);
+    }
+    fmpz_clear(pow);
+    delete bit0;
+    delete bit1;
+}

@@ -1,8 +1,8 @@
 #include <iostream>
 
 #include "../constants.h"
-#include "../edabit.h"
 #include "../server.h"
+#include "../share.h"
 
 void localTest() {
   int n = 6;

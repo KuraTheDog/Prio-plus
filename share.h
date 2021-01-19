@@ -124,9 +124,59 @@ struct client_packet {
 
 typedef struct client_packet* ClientPacket;
 
+// Unused?
 struct ClientSubmission {
     fmpz_t* vals;
     BeaverTripleShare triple;
+};
+
+struct DaBit {
+    fmpz_t bp;   // [b]_p, mod p
+    bool b2;   // [b]_2, bit
+
+    DaBit() {
+        fmpz_init(bp);
+    }
+
+    ~DaBit() {
+        fmpz_clear(bp);
+    }
+
+    void print() const {
+        std::cout << " [b]_p = "; fmpz_print(bp); std::cout << std::endl;
+        std::cout << " [b]_2 = " << b2 << std::endl;
+    }
+};
+
+struct EdaBit {
+    fmpz_t r;  // [r]_p 
+    const size_t n;
+    bool* b;
+
+    EdaBit(const size_t n) : n(n) {
+        fmpz_init(r);
+        b = new bool[n];
+    }
+
+    ~EdaBit() {
+        fmpz_clear(r);
+        delete[] b;
+    }
+
+    int get_int_b() const {
+        int pow = 1, ans = 0;
+        for (int i = 0; i < n; i++) {
+            if (b[i])
+                ans += pow;
+            pow *= 2;
+        }
+        return ans;
+    }
+
+    void print() const {
+        std::cout << " r = "; fmpz_print(r); std::cout << std::endl;
+        std::cout << " b = " << get_int_b() << std::endl;
+    }
 };
 
 // Can this be an alternative constructor? Or the only one?
@@ -137,5 +187,8 @@ void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B);
 BeaverTriple* NewBeaverTriple();
 
 BeaverTripleShare* BeaverTripleShares(const BeaverTriple* inp);
+
+void makeLocalDaBit(DaBit* bit0, DaBit* bit1);
+void makeLocalEdaBit(EdaBit* ebit0, EdaBit* ebit1, const size_t n);
 
 #endif
