@@ -7,6 +7,7 @@
 
 #include "../constants.h"
 #include "../net_share.h"
+#include "../proto.h"
 #include "../server.h"
 #include "../share.h"
 
@@ -241,29 +242,7 @@ void localTest(const size_t n) {
 void runServerTest(const int server_num, const int serverfd, const size_t n) {
 
   // TODO: use proper triple sharing
-  BooleanBeaverTriple triples[n];
-  for (int i = 0; i < n; i++) {
-    if (server_num == 0) {
-      fmpz_t tmp;
-      fmpz_init(tmp);
-      fmpz_randbits(tmp, seed, 5);
-      triples[i].a = get_fmpz_bit(tmp, 0);
-      triples[i].b = get_fmpz_bit(tmp, 1);
-      triples[i].c = get_fmpz_bit(tmp, 2);
-      bool a2 = get_fmpz_bit(tmp, 3);
-      bool b2 = get_fmpz_bit(tmp, 4);
-      bool c2 = triples[i].c ^ ((triples[i].a ^ a2) and (triples[i].b ^ b2));
-
-      send_bool(serverfd, a2);
-      send_bool(serverfd, b2);
-      send_bool(serverfd, c2);
-      fmpz_clear(tmp);
-    } else {
-      recv_bool(serverfd, triples[i].a);
-      recv_bool(serverfd, triples[i].b);
-      recv_bool(serverfd, triples[i].c);
-    }
-  }
+  BooleanBeaverTriple* triples = gen_boolean_beaver_triples(server_num, n);
 
   // TODO: Use proper dabit generation
   DaBit* dabit = new DaBit();
@@ -277,6 +256,9 @@ void runServerTest(const int server_num, const int serverfd, const size_t n) {
   }
 
   EdaBit* ebit = generateEdaBit(serverfd, server_num, n, triples, dabit);
+
+  delete[] triples;
+  delete dabit;
 
   std::cout << "Final ebit" << server_num << ":\n";
   ebit->print();
@@ -299,8 +281,6 @@ void runServerTest(const int server_num, const int serverfd, const size_t n) {
     fmpz_clear(tmp);
     delete ebit_other;
   }
-
-  delete dabit;
 }
 
 void serverTest(const size_t n) {

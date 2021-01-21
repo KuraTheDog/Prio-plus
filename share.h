@@ -76,6 +76,12 @@ struct BooleanBeaverTriple {
     bool a;
     bool b;
     bool c;
+
+    void set(const bool a, const bool b, const bool c){
+        this->a = a;
+        this->b = b;
+        this->c = c;
+    }
 };
 
 /* Shares one server has for checking multiplcation gates

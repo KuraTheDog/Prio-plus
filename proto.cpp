@@ -291,9 +291,9 @@ void print_block(block var)
 }
 
 // Ref : https://crypto.stackexchange.com/questions/41651/what-are-the-ways-to-generate-beaver-triples-for-multiplication-gate
-vector<bbt> gen_boolean_beaver_triples(int server_num, int m){
+BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int m){
     PRG prg;
-    vector<bbt> ans;
+    BooleanBeaverTriple* ans = new BooleanBeaverTriple[m];
     bool x[m], y[m], z[m], r[m], b[m];
     prg.random_bool(x, m);
     prg.random_bool(y, m);
@@ -344,11 +344,11 @@ vector<bbt> gen_boolean_beaver_triples(int server_num, int m){
 
     for(int i = 0; i < m ; i++){
         z[i] = b[i] != (r[i] != (x[i] and y[i])); // z[i] = r_A xor x_A.y_A xor r_B xor x_B.y_A
-        std::cout << x[i] << " " << y[i] << " " <<  z[i] << std::endl;
+        // std::cout << x[i] << " " << y[i] << " " <<  z[i] << std::endl;
     }
 
     for(int i = 0 ; i < m ; i++){
-        ans.push_back(bbt(x[i],y[i],z[i]));
+        ans[i].set(x[i], y[i], z[i]);
     }
 
     return ans;
