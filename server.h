@@ -320,6 +320,44 @@ bool multiplyBoolShares(const int serverfd, const int server_num, const bool x, 
     return z;
 }
 
+void multiplyArithmeticShares(const int serverfd, const int server_num, const fmpz_t x, const fmpz_t y, fmpz_t z, const BeaverTriple* triple) {
+    fmpz_t d, d_other, e, e_other;
+
+    fmpz_init(d);
+    fmpz_init(e);
+    fmpz_init(d_other);
+    fmpz_init(e_other);
+
+    fmpz_add(d, x, triple->A);  // [x] - [a]
+    fmpz_mod(d, d, Int_Modulus);
+    fmpz_add(e, y, triple->B);  // [y] - [b]
+    fmpz_mod(e, e, Int_Modulus);
+
+    send_fmpz(serverfd, d);
+    recv_fmpz(serverfd, d_other);
+    send_fmpz(serverfd, e);
+    recv_fmpz(serverfd, e_other);
+
+    fmpz_add(d, d, d_other);  // x - a
+    fmpz_mod(d, d, Int_Modulus);
+    fmpz_add(e, e, e_other);  // y - b
+    fmpz_mod(e, e, Int_Modulus);
+
+    // [xy] = [c] + [x] e + [y] d - de
+    // optimization: mod more often? mod between mul and add?
+    fmpz_set(z, triple->C);
+    fmpz_addmul(z, x, e);
+    fmpz_addmul(z, y, d);
+    if (server_num == 0)
+        fmpz_submul(z, d, e);
+    fmpz_mod(z, z, Int_Modulus);
+
+    fmpz_clear(d);
+    fmpz_clear(d_other);
+    fmpz_clear(e);
+    fmpz_clear(e_other);
+}
+
 // Convert bit share [x]_2 into [x]_p using a daBit.
 void b2a_daBit(const int serverfd, const int server_num, const DaBit* dabit, const bool x, fmpz_t &xp) {
 
@@ -340,40 +378,82 @@ void b2a_daBit(const int serverfd, const int server_num, const DaBit* dabit, con
     }
 }
 
-EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n, const BooleanBeaverTriple* triples, const DaBit* dabit){
-    // Answer bit
-    EdaBit* ebit = new EdaBit(n);
+DaBit* generateDaBit(const int serverfd, const int server_num, const BeaverTriple* triple) {
+    // Answer
+    DaBit* dabit = new DaBit();
 
     // Create local
-    EdaBit* ebit0 = new EdaBit(n);
-    EdaBit* ebit1 = new EdaBit(n);
-    makeLocalEdaBit(ebit0, ebit1, n);
+    DaBit* dabit0 = new DaBit();
+    DaBit* dabit1 = new DaBit();
+    makeLocalDaBit(dabit0, dabit1);
 
     // Exchange
-    EdaBit* tmp_ebit = new EdaBit(n);
+    DaBit* tmp_dabit = new DaBit();
     if (server_num == 0) {
-        send_EdaBit(serverfd, ebit1, n);
-        recv_EdaBit(serverfd, tmp_ebit, n);
-        delete ebit1;
-        ebit1 = tmp_ebit;
+        send_DaBit(serverfd, dabit1);
+        recv_DaBit(serverfd, tmp_dabit);
+        delete dabit1;
+        dabit1 = tmp_dabit;
     } else {
-        recv_EdaBit(serverfd, tmp_ebit, n);
-        send_EdaBit(serverfd, ebit0, n);
-        delete ebit0;
-        ebit0 = tmp_ebit;
+        send_DaBit(serverfd, dabit0);
+        recv_DaBit(serverfd, tmp_dabit);
+        delete dabit0;
+        dabit0 = tmp_dabit;
+    }
+
+    // Xor boolean shares
+    dabit->b2 = dabit0->b2 ^ dabit1->b2;
+
+    // Xor arithmetic shares, using a xor b = a + b - 2ab
+    fmpz_t z;
+    fmpz_init(z);
+    multiplyArithmeticShares(serverfd, server_num, dabit0->bp, dabit1->bp, z, triple);
+
+    fmpz_add(dabit->bp, dabit0->bp, dabit1->bp);
+    fmpz_submul_ui(dabit->bp, z, 2);
+    fmpz_mod(dabit->bp, dabit->bp, Int_Modulus);
+
+    fmpz_clear(z);
+    delete dabit0;
+    delete dabit1;
+
+    return dabit;
+}
+
+EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n, const BooleanBeaverTriple* triples, const DaBit* dabit){
+    // Answer bit
+    EdaBit* edabit = new EdaBit(n);
+
+    // Create local
+    EdaBit* edabit0 = new EdaBit(n);
+    EdaBit* edabit1 = new EdaBit(n);
+    makeLocalEdaBit(edabit0, edabit1, n);
+
+    // Exchange
+    EdaBit* tmp_edabit = new EdaBit(n);
+    if (server_num == 0) {
+        send_EdaBit(serverfd, edabit1, n);
+        recv_EdaBit(serverfd, tmp_edabit, n);
+        delete edabit1;
+        edabit1 = tmp_edabit;
+    } else {
+        send_EdaBit(serverfd, edabit0, n);
+        recv_EdaBit(serverfd, tmp_edabit, n);
+        delete edabit0;
+        edabit0 = tmp_edabit;
     }
     // Add arithmetic shares
-    fmpz_add(ebit->r, ebit0->r, ebit1->r);
-    fmpz_mod(ebit->r, ebit->r, Int_Modulus);
+    fmpz_add(edabit->r, edabit0->r, edabit1->r);
+    fmpz_mod(edabit->r, edabit->r, Int_Modulus);
 
     // Add binary shares via circuit
     // c_{i+1} = c_i xor ((x_i xor c_i) and (y_i xor c_i))
     // output z_i = x_i xor y_i xor c_i
     bool carry = false;
     for (int i = 0; i < n; i++) {
-        ebit->b[i] = carry ^ ebit0->b[i] ^ ebit1->b[i];
-        bool x = carry ^ ebit0->b[i];
-        bool y = carry ^ ebit1->b[i];
+        edabit->b[i] = carry ^ edabit0->b[i] ^ edabit1->b[i];
+        bool x = carry ^ edabit0->b[i];
+        bool y = carry ^ edabit1->b[i];
         bool z = multiplyBoolShares(serverfd, server_num, x, y, triples[i]);
         carry ^= z;
     }
@@ -384,15 +464,14 @@ EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n,
     b2a_daBit(serverfd, server_num, dabit, carry, bpn);
 
     // Subtract out 2^n * [b_n]_p from r
-    fmpz_submul_ui(ebit->r, bpn, 1 << n);
-    fmpz_mod(ebit->r, ebit->r, Int_Modulus);
+    fmpz_submul_ui(edabit->r, bpn, 1 << n);
+    fmpz_mod(edabit->r, edabit->r, Int_Modulus);
 
     fmpz_clear(bpn);
+    delete edabit0;
+    delete edabit1;
 
-    delete ebit0;
-    delete ebit1;
-
-    return ebit;
+    return edabit;
 }
 
 #endif

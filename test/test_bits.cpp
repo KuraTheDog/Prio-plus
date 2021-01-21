@@ -84,15 +84,102 @@ int accept_receiver(int sockfd) {
   return newsockfd;
 }
 
+// Test version
+void makeBeaverTripleLocally(fmpz_t a0, fmpz_t a1, fmpz_t b0, fmpz_t b1, fmpz_t c0, fmpz_t c1) {
+  fmpz_init(a0);
+  fmpz_randm(a0, seed, Int_Modulus);
+  fmpz_init(a1);
+  fmpz_randm(a1, seed, Int_Modulus);
+  fmpz_init(b0);
+  fmpz_randm(b0, seed, Int_Modulus);
+  fmpz_init(b1);
+  fmpz_randm(b1, seed, Int_Modulus);
+  fmpz_init(c0);
+  fmpz_randm(c0, seed, Int_Modulus);
+
+  // c1 = (a0 + a1)(b0 + b1) - c0
+  fmpz_t tmp;
+  fmpz_init(c1);  
+  fmpz_add(c1, a0, a1);
+  fmpz_init(tmp);
+  fmpz_add(tmp, b0, b1);
+  fmpz_mul(c1, c1, tmp);
+  fmpz_sub(c1, c1, c0);
+  fmpz_mod(c1, c1, Int_Modulus);
+
+  fmpz_clear(tmp);
+}
+
+// Local version of generateDaBit
+void makeSharedDabitLocally(DaBit* dabit0, DaBit* dabit1) {
+  DaBit* dabit00 = new DaBit();
+  DaBit* dabit01 = new DaBit();
+  makeLocalDaBit(dabit00, dabit01);
+  DaBit* dabit10 = new DaBit();
+  DaBit* dabit11 = new DaBit();
+  makeLocalDaBit(dabit10, dabit11);
+
+  // do xors. 
+  // binary straightforward
+  dabit0->b2 = dabit00->b2 ^ dabit10->b2;
+  dabit1->b2 = dabit01->b2 ^ dabit11->b2;
+
+  // a xor b = a + b - 2ab
+  fmpz_t prod0, prod1;
+  fmpz_init(prod0);
+  fmpz_init(prod1);
+
+  // (a0 + a1)(b0 + b1) = (c0 + c1)
+  fmpz_t a0, a1, b0, b1, c0, c1;
+  makeBeaverTripleLocally(a0, a1, b0, b1, c0, c1);
+
+  fmpz_t d0;
+  fmpz_init(d0);
+  fmpz_add(d0, dabit00->bp, a0);  // x0 + a0
+  fmpz_t e0;
+  fmpz_init(e0);
+  fmpz_add(e0, dabit10->bp, b0);  // y0 + b0
+  fmpz_t d1;
+  fmpz_init(d1);
+  fmpz_add(d1, dabit01->bp, a1);  // x1 + a1
+  fmpz_t e1;
+  fmpz_init(e1);
+  fmpz_add(e1, dabit11->bp, b1);  // y1 + b1
+
+  fmpz_t d, e;
+  fmpz_init(d);
+  fmpz_init(e);
+  fmpz_add(d, d0, d1);  // x - a
+  fmpz_mod(d, d, Int_Modulus);
+  fmpz_add(e, e0, e1);  // y - b
+  fmpz_mod(e, e, Int_Modulus);
+
+  // [xy] = [c] + [x] e + [y] d - de
+  fmpz_set(prod0, c0);
+  fmpz_addmul(prod0, dabit00->bp, e);
+  fmpz_addmul(prod0, dabit10->bp, d);
+  fmpz_submul(prod0, d, e);
+  fmpz_mod(prod0, prod0, Int_Modulus);
+
+  fmpz_set(prod1, c1);
+  fmpz_addmul(prod1, dabit01->bp, e);
+  fmpz_addmul(prod1, dabit11->bp, d);
+  fmpz_mod(prod1, prod1, Int_Modulus);
+
+  fmpz_add(dabit0->bp, dabit00->bp, dabit10->bp);
+  fmpz_submul_ui(dabit0->bp, prod0, 2);
+  fmpz_mod(dabit0->bp, dabit0->bp, Int_Modulus);
+
+  fmpz_add(dabit1->bp, dabit01->bp, dabit11->bp);
+  fmpz_submul_ui(dabit1->bp, prod1, 2);
+  fmpz_mod(dabit1->bp, dabit1->bp, Int_Modulus);
+}
+
 void localTest(const size_t n) {
   std::cout << "Running Local Test" << std::endl;
 
   fmpz_t tmp;
   fmpz_init(tmp);
-
-  // random adjusting. comment to change seed.
-  // fmpz_randm(tmp, seed, Int_Modulus);
-  // fmpz_randm(tmp, seed, Int_Modulus);
 
   EdaBit* ebit00 = new EdaBit(n);  // 0's share of 0
   EdaBit* ebit01 = new EdaBit(n);  // 1's share of 0
@@ -106,23 +193,6 @@ void localTest(const size_t n) {
   // They move things around
   // 0 has ebit00, ebit10. 1 has ebit01, ebit11
 
-  // std::cout << "0 has ebit00: \n"; ebit00->print();
-  // std::cout << "0 has ebit10: \n"; ebit10->print();
-
-  // std::cout << "1 has ebit01: \n"; ebit01->print();
-  // std::cout << "1 has ebit11: \n"; ebit11->print();
-
-  // value checking
-  // fmpz_add(tmp, ebit00->r, ebit01->r);
-  // fmpz_mod(tmp, tmp, Int_Modulus);
-  // std::cout << "ebit00 and ebit01, sum = "; fmpz_print(tmp); std::cout << std::endl;
-  // std::cout << "ebit00 and ebit01, xor = " << (ebit00->get_int_b() ^ ebit01->get_int_b()) << std::endl;
-
-  // fmpz_add(tmp, ebit10->r, ebit11->r);
-  // fmpz_mod(tmp, tmp, Int_Modulus);
-  // std::cout << "ebit10 and ebit11, sum = "; fmpz_print(tmp); std::cout << std::endl;
-  // std::cout << "ebit10 and ebit11, xor = " << (ebit10->get_int_b() ^ ebit11->get_int_b()) << std::endl;
-
   // Final bits
   EdaBit* ebit0 = new EdaBit(n);
   EdaBit* ebit1 = new EdaBit(n);
@@ -130,11 +200,9 @@ void localTest(const size_t n) {
   // r'
   fmpz_add(ebit0->r, ebit00->r, ebit10->r);
   fmpz_mod(ebit0->r, ebit0->r, Int_Modulus);
-  // std::cout << "[r']^0 = "; fmpz_print(ebit0->r); std::cout << std::endl;
 
   fmpz_add(ebit1->r, ebit01->r, ebit11->r);
   fmpz_mod(ebit1->r, ebit1->r, Int_Modulus);
-  // std::cout << "[r']^1 = "; fmpz_print(ebit1->r); std::cout << std::endl;
 
   // bs
   // x0 = ebit00->b, y0 = ebit10->b
@@ -191,12 +259,14 @@ void localTest(const size_t n) {
   // b_p's
 
   // dabit for adjusting. Doing one bit convertToField
-  // TODO: actually do via servers
   DaBit* dabit0 = new DaBit();
   DaBit* dabit1 = new DaBit();
-  makeLocalDaBit(dabit0, dabit1);
-  // std::cout << "conversion dabit0\n"; dabit0->print();
-  // std::cout << "conversion dabit1\n"; dabit1->print();
+  
+  makeSharedDabitLocally(dabit0, dabit1);
+
+  std::cout << "conversion dabit0\n"; dabit0->print();
+  std::cout << "conversion dabit1\n"; dabit1->print();
+
   bool v0 = carry0 ^ dabit0->b2;
   bool v1 = carry1 ^ dabit1->b2;
   // 0 has v0, 1 has v1. Broadcast both so both know v.
@@ -241,19 +311,24 @@ void localTest(const size_t n) {
 
 void runServerTest(const int server_num, const int serverfd, const size_t n) {
 
-  // TODO: use proper triple sharing
   BooleanBeaverTriple* triples = gen_boolean_beaver_triples(server_num, n);
 
-  // TODO: Use proper dabit generation
-  DaBit* dabit = new DaBit();
+  // TODO: use proper triple generation
+  BeaverTriple* triple = new BeaverTriple();
   if (server_num == 0) {
-    DaBit* dabit_other = new DaBit();
-    makeLocalDaBit(dabit, dabit_other);
-    send_DaBit(serverfd, dabit_other);
-    delete dabit_other;
+    BeaverTriple* other_triple = new BeaverTriple();
+    makeBeaverTripleLocally(triple->A, other_triple->A,
+                            triple->B, other_triple->B,
+                            triple->C, other_triple->C);
+    send_BeaverTriple(serverfd, other_triple);
+    delete other_triple;
   } else {
-    recv_DaBit(serverfd, dabit);
+    recv_BeaverTriple(serverfd, triple);
   }
+
+  DaBit* dabit = generateDaBit(serverfd, server_num, triple);
+
+  delete triple;
 
   EdaBit* ebit = generateEdaBit(serverfd, server_num, n, triples, dabit);
 
@@ -293,8 +368,6 @@ void serverTest(const size_t n) {
 
     fmpz_t tmp;
     fmpz_init(tmp);
-    // fmpz_randm(tmp, seed, Int_Modulus);
-    // fmpz_randm(tmp, seed, Int_Modulus);
     fmpz_clear(tmp);
 
     runServerTest(0, cli_sockfd, n);
@@ -305,7 +378,9 @@ void serverTest(const size_t n) {
     // alter randomness to be different from the sender
     fmpz_t tmp;
     fmpz_init(tmp);
-    fmpz_randm(tmp, seed, Int_Modulus);
+    size_t rand_adjust = 4;
+    for (int i = 0; i < rand_adjust; i++)
+      fmpz_randm(tmp, seed, Int_Modulus);
     fmpz_clear(tmp);
 
     runServerTest(1, newsockfd, n);
@@ -321,6 +396,14 @@ int main(int argc, char* argv[]) {
   // Should be < log_2 Int_Modulus
   size_t n = 16;
   std::cout << "n = " << n << std::endl;
+
+  // random adjusting. different numbers adjust seed.
+  fmpz_t tmp;
+  fmpz_init(tmp);
+  size_t rand_adjust = 5;
+  for (int i = 0; i < rand_adjust; i++)
+    fmpz_randm(tmp, seed, Int_Modulus);
+  fmpz_clear(tmp);
 
   localTest(n);
   std::cout << std::endl;
