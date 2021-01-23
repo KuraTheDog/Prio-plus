@@ -104,6 +104,7 @@ uint64_t intsum_ot_sender(NetIO *io,uint32_t *shares, bool *valid, int n, int nu
 
     delete[] b1_ot;
     delete[] b0_ot;
+    delete ot;
 
     for(int i = 0; i < n; i++){
         if(valid[i]){
@@ -113,7 +114,6 @@ uint64_t intsum_ot_sender(NetIO *io,uint32_t *shares, bool *valid, int n, int nu
 
             sum += local_share;
         }
-
     }
 
     return sum;
@@ -138,6 +138,7 @@ uint64_t bitsum_ot_receiver(NetIO *io,bool *shares, int n){
     }
 
     delete[] r;
+    delete ot;
 
     return sum;
 }
@@ -173,6 +174,7 @@ uint64_t intsum_ot_receiver(NetIO *io, uint32_t *shares, int n, int num_bits){
     }
 
     delete[] r;
+    delete ot;
 
     return sum;
 }
@@ -226,7 +228,7 @@ uint64_t xor_to_sum_share_sender(NetIO *io, uint32_t share, int num_bits){
 
     delete[] b1_ot;
     delete[] b0_ot;
-
+    delete ot;
 
     uint64_t local_share = 0;
     for(int j = 0; j < num_bits; j++)
@@ -253,6 +255,7 @@ uint64_t xor_to_sum_share_receiver(NetIO *io, uint32_t share, int num_bits){
     IKNP<NetIO> *ot = new IKNP<NetIO>(io);
     ot->recv(r, bool_shares, num_bits);
     io->flush();
+    delete ot;
 
     for(int j = 0; j < num_bits; j++){
         uint64_t *p = (uint64_t*)&r[j];
@@ -339,6 +342,9 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
         ot2.send(b0,b1,m);
         io2->flush();
     }
+
+    delete io1;
+    delete io2;
 
     block_to_boolean(B,b,m);
 

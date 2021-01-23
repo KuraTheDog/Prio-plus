@@ -109,6 +109,13 @@ struct CheckerPreComp {
         xN = new PreX(degN, x);
         x2N = new PreX(deg2N, x);
     }
+
+    ~CheckerPreComp() {
+        delete degN;
+        delete deg2N;
+        delete xN;
+        delete x2N;
+    }
 };
 
 struct Checker {

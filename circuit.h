@@ -61,6 +61,12 @@ struct Circuit {
 
     Circuit(int n = 31) : max_bits(n) {}
 
+    ~Circuit() {
+        // All gates, so don't need to also go over outputs and result_zero
+        for (Gate* gate : gates)
+            delete gate;
+    }
+
     void addGate(Gate* gate) {
         gates.push_back(gate);
     }

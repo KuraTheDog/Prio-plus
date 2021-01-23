@@ -143,6 +143,8 @@ bool run_snip(Circuit* circuit, const ClientPacket packet, const int serverfd, c
 
     fmpz_clear(valid_share);
     fmpz_clear(valid_share_other);
+    delete checker;
+    delete pre;
 
     return circuit_valid;
 }
@@ -177,7 +179,8 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
         }
         NetIO* io = new NetIO(SERVER0_IP, 60051);
         uint64_t b = bitsum_ot_receiver(io, &shares[0], num_inputs);
-        std::cout << "Sending b: " << b << std::endl;
+        delete io;
+
         send_uint64(serverfd, b);
         return RET_NO_ANS;
     } else {
@@ -198,10 +201,10 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
         }
         NetIO* io = new NetIO(nullptr, 60051);
         uint64_t a = bitsum_ot_sender(io, &shares[0], &valid[0], num_inputs);
-        std::cout << "Have a: " << a << std::endl;
+        delete io;
+
         uint64_t b;
         recv_uint64(serverfd, b);
-        std::cout << "Got b: " << b << std::endl;
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
@@ -248,7 +251,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         }
         NetIO* io = new NetIO(SERVER0_IP, 60051);
         uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
-        std::cout << "Sending b: " << b << std::endl;
+        delete io;
+
         send_uint64(serverfd, b);
         return RET_NO_ANS;
     } else {
@@ -269,10 +273,10 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         }
         NetIO* io = new NetIO(nullptr, 60051);
         uint64_t a = intsum_ot_sender(io, &shares[0], &valid[0], num_inputs, num_bits);
-        std::cout << "Have a: " << a << std::endl;
+        delete io;
+
         uint64_t b;
         recv_uint64(serverfd, b);
-        std::cout << "Got b: " << b << std::endl;
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
@@ -318,7 +322,6 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
             b ^= share.second;
         }
         send_uint32(serverfd, b);
-        std::cout << "Sending b: " << b << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
@@ -336,10 +339,8 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
             a ^= share_map[pk];
         }
 
-        std::cout << "Have a: " << a << std::endl;
         uint32_t b;
         recv_uint32(serverfd, b);
-        std::cout << "Got b: " << b << std::endl;
         uint32_t aggr = a ^ b;
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
@@ -535,7 +536,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         // Compute result
         NetIO* io = new NetIO(SERVER0_IP, 60051);
         uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
-        std::cout << "Sending b = " << b << std::endl;
+        delete io;
+
         send_uint64(serverfd, b);
 
         uint64_t b2 = intsum_ot_receiver(io, &shares_squared[0], num_inputs, num_bits);
@@ -588,15 +590,12 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         // Compute result
         NetIO* io = new NetIO(nullptr, 60051);
         uint64_t a = intsum_ot_sender(io, &shares[0], &valid[0], num_inputs, num_bits);
-        std::cout << "have a: " << a << std::endl;
         uint64_t a2 = intsum_ot_sender(io, &shares_squared[0], &valid[0], num_inputs, num_bits);
-        std::cout << "have a2: " << a2 << std::endl;
-        uint64_t b, b2;
+        delete io;
 
+        uint64_t b, b2;
         recv_uint64(serverfd, b);
-        std::cout << "got b: " << b << std::endl;
         recv_uint64(serverfd, b2);
-        std::cout << "got b2: " << b2 << std::endl;
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
