@@ -26,4 +26,7 @@ DaBit* generateDaBit(const int serverfd, const int server_num, const BeaverTripl
 // Create a size n edaBit, consuming n boolean triples and a dabit
 EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n, const BooleanBeaverTriple* triples, const DaBit* dabit);
 
+// Return if [x2]_2 and [xp]_p encode the same value, using an edaBit and n triples
+bool validate_shares_match(const int serverfd, const int server_num, const fmpz_t x2, const fmpz_t xp, const size_t n, const EdaBit* edabit, const BooleanBeaverTriple* triples);
+
 #endif

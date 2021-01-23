@@ -373,6 +373,8 @@ void runServerTest(const int server_num, const int serverfd, const size_t n) {
 
   fmpz_t x;
   fmpz_init(x);
+  fmpz_t xp;
+  fmpz_init(xp);
 
   // Use bit
   std::cout << "converting with bit" << std::endl;
@@ -382,6 +384,8 @@ void runServerTest(const int server_num, const int serverfd, const size_t n) {
     fmpz_t x_true;  // true value
     fmpz_init(x_true);
     fmpz_randm(x_true, seed, pow);
+    fmpz_clear(pow);
+
     fmpz_randm(x, seed, pow);
     fmpz_t x_other;
     fmpz_init(x_other);
@@ -391,32 +395,28 @@ void runServerTest(const int server_num, const int serverfd, const size_t n) {
     std::cout << " ^ "; fmpz_print(x_other);
     std::cout << std::endl;
     send_fmpz(serverfd, x_other);
-    fmpz_clear(pow);
     fmpz_clear(x_other);
+
+    fmpz_randm(xp, seed, Int_Modulus);
+    fmpz_t xp_other;
+    fmpz_init(xp_other);
+    fmpz_sub(xp_other, x_true, xp);
+    fmpz_mod(xp_other, xp_other, Int_Modulus);
+    std::cout << " = "; fmpz_print(xp);
+    std::cout << " + "; fmpz_print(xp_other);
+    std::cout << std::endl;
+    send_fmpz(serverfd, xp_other);
+    fmpz_clear(xp_other);
   } else {
     recv_fmpz(serverfd, x);
+    recv_fmpz(serverfd, xp);
   }
 
   BooleanBeaverTriple* newtriples = gen_boolean_beaver_triples(server_num, n);
 
-  fmpz_t xp;
-  b2a_edaBit(serverfd, server_num, ebit, x, xp, newtriples);
+  bool valid = validate_shares_match(serverfd, server_num, x, xp, n, ebit, newtriples);
 
-  if (server_num == 0) {
-    fmpz_t xp_other;
-    fmpz_init(xp_other);
-    recv_fmpz(serverfd, xp_other);
-    fmpz_t sum;
-    fmpz_init(sum);
-    fmpz_add(sum, xp, xp_other);
-    fmpz_mod(sum, sum, Int_Modulus);
-    std::cout << "Converted Sum: "; fmpz_print(sum);
-    std::cout << " = "; fmpz_print(xp);
-    std::cout << " + "; fmpz_print(xp_other);
-    std::cout << std::endl;
-  } else {
-    send_fmpz(serverfd, xp);
-  }
+  std::cout << "Server " << server_num << " shares match: " << std::boolalpha << valid << std::endl;
 }
 
 void serverTest(const size_t n) {

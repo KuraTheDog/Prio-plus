@@ -217,3 +217,32 @@ EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n,
 
   return edabit;
 }
+
+bool validate_shares_match(const int serverfd, const int server_num, const fmpz_t x2, const fmpz_t xp, const size_t n, const EdaBit* edabit, const BooleanBeaverTriple* triples) {
+  if (edabit->n != n) return false;
+
+  // Compute [x2]_p
+  fmpz_t x2_p;
+  fmpz_init(x2_p);
+  b2a_edaBit(serverfd, server_num, edabit, x2, x2_p, triples);
+
+  // Validate: (x2_0 - xp_0) + (x2_1 - xp_1) = 0
+  fmpz_sub(x2_p, x2_p, xp);
+  fmpz_mod(x2_p, x2_p, Int_Modulus);
+  bool valid;
+  if (server_num == 0) {
+    fmpz_t other_x2_p;
+    fmpz_init(other_x2_p);
+    recv_fmpz(serverfd, other_x2_p);
+    fmpz_add(x2_p, x2_p, other_x2_p);
+    fmpz_mod(x2_p, x2_p, Int_Modulus);
+    valid = fmpz_is_zero(x2_p);
+    send_bool(serverfd, valid);
+    fmpz_clear(other_x2_p);
+  } else {
+    send_fmpz(serverfd, x2_p);
+    recv_bool(serverfd, valid);
+  }
+
+  return valid;
+}
