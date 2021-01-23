@@ -303,8 +303,8 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
         set_block(b1[i], (x[i] != r[i])); // r[i] XOR x[i]
     }
 
-    NetIO* io1 = new NetIO(server_num == 0 ? nullptr : SERVER0_IP, 60051);
-    NetIO* io2 = new NetIO(server_num == 1 ? nullptr : SERVER1_IP, 60052);
+    NetIO* io1 = new NetIO(server_num == 0 ? nullptr : SERVER0_IP, 60051, true);
+    NetIO* io2 = new NetIO(server_num == 1 ? nullptr : SERVER1_IP, 60052, true);
 
     if(server_num == 0){
         io1->sync();

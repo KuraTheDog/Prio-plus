@@ -188,7 +188,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
             shares[i] = share.second;
             i++;
         }
-        NetIO* const io = new NetIO(SERVER0_IP, 60051);
+        NetIO* const io = new NetIO(SERVER0_IP, 60051, true);
         uint64_t b = bitsum_ot_receiver(io, &shares[0], num_inputs);
         delete io;
 
@@ -210,7 +210,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
             num_valid++;
             shares[i] = share_map[pk];
         }
-        NetIO* const io = new NetIO(nullptr, 60051);
+        NetIO* const io = new NetIO(nullptr, 60051, true);
         uint64_t a = bitsum_ot_sender(io, &shares[0], &valid[0], num_inputs);
         delete io;
 
@@ -259,7 +259,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
             shares[i] = share.second;
             i++;
         }
-        NetIO* const io = new NetIO(SERVER0_IP, 60051);
+        NetIO* const io = new NetIO(SERVER0_IP, 60051, true);
         uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
         delete io;
 
@@ -281,7 +281,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
             num_valid++;
             shares[i] = share_map[pk];
         }
-        NetIO* const io = new NetIO(nullptr, 60051);
+        NetIO* const io = new NetIO(nullptr, 60051, true);
         uint64_t a = intsum_ot_sender(io, &shares[0], &valid[0], num_inputs, num_bits);
         delete io;
 
@@ -541,7 +541,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         }
 
         // Compute result
-        NetIO* const io = new NetIO(SERVER0_IP, 60051);
+        NetIO* const io = new NetIO(SERVER0_IP, 60051, true);
         uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
         send_uint64(serverfd, b);
 
@@ -594,7 +594,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
                 num_valid++;
         }
         // Compute result
-        NetIO* const io = new NetIO(nullptr, 60051);
+        NetIO* const io = new NetIO(nullptr, 60051, true);
         uint64_t a = intsum_ot_sender(io, &shares[0], &valid[0], num_inputs, num_bits);
         uint64_t a2 = intsum_ot_sender(io, &shares_squared[0], &valid[0], num_inputs, num_bits);
         delete io;
