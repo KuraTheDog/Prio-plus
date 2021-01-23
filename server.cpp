@@ -26,8 +26,11 @@ uint32_t int_sum_max;
 uint32_t num_bits;
 
 // Can keep this the same most of the time.
-// TODO: change once in a while.
+#define RANDOMX_THRESHOLD 1e6
+uint32_t randx_uses = 0;
 fmpz_t randomX;
+
+std::unordered_map<size_t, CheckerPreComp*> precomp_store;
 
 // TODO: const 60051 for netio?
 
@@ -122,7 +125,18 @@ std::string get_pk(const int serverfd) {
 bool run_snip(Circuit* const circuit, const ClientPacket packet, const int serverfd, const int server_num) {
     Checker* const checker = new Checker(circuit, server_num);
     checker->setReq(packet);
-    CheckerPreComp* const pre = new CheckerPreComp(circuit, randomX);
+    const size_t N = circuit->N();
+
+    CheckerPreComp* pre;
+    if (precomp_store.find(N) == precomp_store.end()) {
+        pre = new CheckerPreComp(N);
+        pre->setCheckerPrecomp(randomX);
+        precomp_store[N] = pre;
+    } else {
+        pre = precomp_store[N];
+    }
+    randx_uses += 1;
+
     CorShare* cor_share = checker->CorShareFn(pre);
     CorShare* cor_share_other = new CorShare();
 
@@ -143,7 +157,6 @@ bool run_snip(Circuit* const circuit, const ClientPacket packet, const int serve
     fmpz_clear(valid_share);
     fmpz_clear(valid_share_other);
     delete checker;
-    delete pre;
 
     return circuit_valid;
 }
@@ -462,7 +475,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     // Just for getting sizes
     Circuit* const mock_circuit = CheckVar();
-    const size_t N = NextPowerofTwo(mock_circuit->NumMulGates() + 1);
+    const size_t N = mock_circuit->N();
     const size_t NWires = mock_circuit->NumMulInpGates();
     delete mock_circuit;
 
@@ -651,6 +664,17 @@ int main(int argc, char** argv) {
     bind_and_listen(addr, sockfd, client_port, 1);
 
     while(1) {
+        // Refresh randomX if used too much
+        if (randx_uses > RANDOMX_THRESHOLD) {
+            randx_uses -= RANDOMX_THRESHOLD;
+            sync_randomX(serverfd, server_num, randomX);
+            // Update precomps
+            for (const auto& pair : precomp_store) {
+                pair.second -> clear_preX();
+                pair.second -> setCheckerPrecomp(randomX);
+            }
+        }
+
         socklen_t addrlen = sizeof(addr);
 
         std::cout << "waiting for connection..." << std::endl;

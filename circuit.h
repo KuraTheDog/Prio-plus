@@ -53,6 +53,13 @@ struct Gate {
     }
 };
 
+int NextPowerofTwo(const int n) {
+    int ans = 1;
+    while(n > ans)
+        ans *= 2;
+    return ans;
+}
+
 struct Circuit {
     std::vector<Gate*> gates;        // All gates
     std::vector<Gate*> outputs;      // only used by unused
@@ -148,6 +155,10 @@ struct Circuit {
         return total;
     }
 
+    size_t N() const {
+        return NextPowerofTwo(NumMulGates() + 1);
+    }
+
     size_t NumMulInpGates() const {
         size_t total = 0;
         for (auto gate: this->gates)
@@ -207,13 +218,6 @@ struct Circuit {
         }
     }
 };
-
-int NextPowerofTwo(const int n) {
-    int ans = 1;
-    while(n > ans)
-        ans *= 2;
-    return ans;
-}
 
 // Unused
 Circuit* AndCircuits(std::vector<Circuit*>& circuits) {

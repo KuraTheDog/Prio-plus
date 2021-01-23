@@ -59,7 +59,8 @@ void test_CheckVar() {
 
   checker_0->setReq(p0);
 
-  CheckerPreComp* pre0 = new CheckerPreComp(var_circuit, randomX);
+  CheckerPreComp* pre0 = new CheckerPreComp(var_circuit->N());
+  pre0->setCheckerPrecomp(randomX);
 
   std::cout << "-=-=-=-=-=-" << std::endl;
 
@@ -68,7 +69,8 @@ void test_CheckVar() {
 
   checker_1->setReq(p1);
 
-  CheckerPreComp* pre1 = new CheckerPreComp(var_circuit, randomX);
+  CheckerPreComp* pre1 = new CheckerPreComp(var_circuit->N());
+  pre1->setCheckerPrecomp(randomX);
 
   auto corshare0 = checker_0->CorShareFn(pre0);
   auto corshare1 = checker_1->CorShareFn(pre1);

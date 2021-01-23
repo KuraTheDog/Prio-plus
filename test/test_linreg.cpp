@@ -64,7 +64,8 @@ void test_CheckLinReg() {
 
   checker_0->setReq(p0);
 
-  CheckerPreComp* pre0 = new CheckerPreComp(linreg_circuit0, randomX);
+  CheckerPreComp* pre0 = new CheckerPreComp(linreg_circuit0->N());
+  pre0->setCheckerPrecomp(randomX);
   // checker_0->evalPoly(pre0, p0);
 
   std::cout << "-=-=-=-=-=-" << std::endl;
@@ -74,7 +75,8 @@ void test_CheckLinReg() {
 
   checker_1->setReq(p1);
 
-  CheckerPreComp* pre1 = new CheckerPreComp(linreg_circuit1, randomX);
+  CheckerPreComp* pre1 = new CheckerPreComp(linreg_circuit1->N());
+  pre1->setCheckerPrecomp(randomX);
   // checker_1->evalPoly(pre1);
 
   auto corshare0 = checker_0->CorShareFn(pre0);

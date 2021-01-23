@@ -94,24 +94,27 @@ struct CheckerPreComp {
     PreX *xN;
     PreX *x2N;
 
-    CheckerPreComp(const Circuit* const ckt, const fmpz_t val) {
-        int n = ckt->NumMulGates() + 1;
-        int N = NextPowerofTwo(n);
-
+    CheckerPreComp(const size_t N) {
         degN = new BatchPre(roots, N);
         deg2N = new BatchPre(roots2, 2 * N);
+    }
 
+    void setCheckerPrecomp(const fmpz_t val) {
         fmpz_init_set(x, val);
 
         xN = new PreX(degN, x);
         x2N = new PreX(deg2N, x);
     }
 
-    ~CheckerPreComp() {
-        delete degN;
-        delete deg2N;
+    void clear_preX() {
         delete xN;
         delete x2N;
+    }
+
+    ~CheckerPreComp() {
+        clear_preX();
+        delete degN;
+        delete deg2N;
     }
 };
 
@@ -161,7 +164,7 @@ struct Checker {
         ckt->ImportWires(pkt, serveridx);
     }
 
-    void evalPoly(const CheckerPreComp *pre) {
+    void evalPoly(const CheckerPreComp* const pre) {
         // std::cout << "evalPoly" << std::endl;
         std::vector<Gate*> mulgates = ckt->MulGates();
         // Get constant terms from packet
@@ -194,7 +197,7 @@ struct Checker {
         fmpz_mod(evalH, evalH, Int_Modulus);
     }
 
-    CorShare* CorShareFn(const CheckerPreComp *pre) {
+    CorShare* CorShareFn(const CheckerPreComp* const pre) {
         evalPoly(pre);
         // std::cout << "CorShareFn" << std::endl;
         CorShare* out = new CorShare();
