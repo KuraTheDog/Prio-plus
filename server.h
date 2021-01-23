@@ -41,7 +41,7 @@ struct BatchPre {
     precomp_t pre;
 
     // Newbatch
-    BatchPre(const fmpz_t *xPointsIn, const int n) {
+    BatchPre(const fmpz_t* const xPointsIn, const int n) {
         // std::cout << " new BatchPre , n = " << n << ", xPointsIn = [";
         // for (int i =0; i < n; i++) {
         //     if (i > 0) std::cout << ", ";
@@ -88,16 +88,16 @@ struct PreX {
 struct CheckerPreComp {
     fmpz_t x;
 
-    BatchPre *degN;
-    BatchPre *deg2N;
+    const BatchPre* degN;
+    const BatchPre* deg2N;
 
     PreX *xN;
     PreX *x2N;
 
-    CheckerPreComp(const size_t N) {
-        degN = new BatchPre(roots, N);
-        deg2N = new BatchPre(roots2, 2 * N);
-    }
+    CheckerPreComp(const size_t N)
+    : degN(new BatchPre(roots, N))
+    , deg2N(new BatchPre(roots2, 2 * N))
+    {}
 
     void setCheckerPrecomp(const fmpz_t val) {
         fmpz_init_set(x, val);
@@ -119,12 +119,12 @@ struct CheckerPreComp {
 };
 
 struct Checker {
-    int serveridx;     // id of this server
+    const int server_num;     // id of this server
     ClientPacket req;  // Client packet
-    Circuit *ckt;      // Validation circuit
+    Circuit* const ckt;      // Validation circuit
 
-    int n;  // number of mult gates
-    int N;  // NextPowerofTwo(n)
+    const size_t n;  // number of mult gates
+    const size_t N;  // NextPowerofTwo(n)
 
     fmpz_t *pointsF;  // Points on f. f(i) = ith mul gate left input
     fmpz_t *pointsG;  // Points on g. g(i) = ith mul gate right input
@@ -135,12 +135,11 @@ struct Checker {
     fmpz_t evalG;  // [r * g(r)]
     fmpz_t evalH;  // [r * h(r)]
 
-    Checker(Circuit* const c, const int idx) {
-        ckt = c;
-        serveridx = idx;
-        n = ckt->NumMulGates()+1;
-        N = NextPowerofTwo(n);
-
+    Checker(Circuit* const c, const int idx)
+    : server_num(idx)
+    , ckt(c)
+    , n(c->NumMulGates())
+    , N(c->N()) {
         new_fmpz_array(&pointsF, N);
         new_fmpz_array(&pointsG, N);
         new_fmpz_array(&pointsH, 2 * N);
@@ -161,7 +160,7 @@ struct Checker {
 
     void setReq(const ClientPacket pkt) {
         req = pkt;
-        ckt->ImportWires(pkt, serveridx);
+        ckt->ImportWires(pkt, server_num);
     }
 
     void evalPoly(const CheckerPreComp* const pre) {
@@ -175,11 +174,11 @@ struct Checker {
         // For all multiplication triples a_i * b_i = c_i
         //    polynomial [f(x)] has [f(i)] = [a_i]
         //    polynomial [g(x)] has [g(i)] = [b_i]
-        for (int i = 1; i < n; i++) {
-            fmpz_set(pointsF[i], mulgates[i-1]->ParentL->WireValue);
-            fmpz_set(pointsG[i], mulgates[i-1]->ParentR->WireValue);
+        for (int i = 0; i < n; i++) {
+            fmpz_set(pointsF[i+1], mulgates[i]->ParentL->WireValue);
+            fmpz_set(pointsG[i+1], mulgates[i]->ParentR->WireValue);
             // Set even values of h to be output wires.
-            fmpz_set(pointsH[2*i], mulgates[i-1]->WireValue);
+            fmpz_set(pointsH[2*(i + 1)], mulgates[i]->WireValue);
         }
 
         // Grab odd values of h from the packet.
@@ -211,7 +210,7 @@ struct Checker {
         return out;
     }
 
-    Cor* CorFn(const CorShare* const cs0, const CorShare* const cs1) {
+    Cor* CorFn(const CorShare* const cs0, const CorShare* const cs1) const {
         Cor* out = new Cor();
         // std::cout << "CorFn" << std::endl;
         fmpz_add(out->D, cs0->shareD, cs1->shareD);
@@ -224,7 +223,7 @@ struct Checker {
     }
 
     // To be fixed. Both servers need to use same random seed. Using constant 1 instead now.
-    void randSum(fmpz_t out, const fmpz_t* const arr) {
+    void randSum(fmpz_t out, const fmpz_t* const arr) const {
         int len = ckt->result_zero.size() + 1;
 
         fmpz_t tmp;
@@ -244,14 +243,14 @@ struct Checker {
         fmpz_clear(tmp);
     }
 
-    void OutShare(fmpz_t out, const Cor* const corIn) {
+    void OutShare(fmpz_t out, const Cor* const corIn) const {
         fmpz_t mulCheck;
         fmpz_t term;
 
         fmpz_init(mulCheck);
         fmpz_init(term);
 
-        if (serveridx == 0) {
+        if (server_num == 0) {
             fmpz_mul(mulCheck, corIn->D, corIn->E);
             fmpz_mod(mulCheck, mulCheck, Int_Modulus);
         }
@@ -289,7 +288,7 @@ struct Checker {
         fmpz_clear(term);
     }
 
-    bool OutputIsValid(const fmpz_t output0, const fmpz_t output1) {
+    bool OutputIsValid(const fmpz_t output0, const fmpz_t output1) const {
         fmpz_t out;
         fmpz_init(out);
 
