@@ -1,6 +1,6 @@
 #include "util.h"
 
-char *fmpz_array_to_str(int n_points, fmpz_t *input) {
+char *fmpz_array_to_str(const size_t n_points, const fmpz_t* const input) {
   // Leave space for final NULL terminator
   size_t outlen = 1;
   for (int i = 0; i < n_points; i++) {

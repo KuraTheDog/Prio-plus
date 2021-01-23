@@ -23,7 +23,7 @@ struct BatchPoly {
 
     // Below 2 are unused in test_circuit.
 
-    fmpz_t* Eval(const fmpz_t* xPointsIn, const int n) {
+    fmpz_t* Eval(const fmpz_t* const xPointsIn, const int n) {
         return poly_batch_evaluate(fpoly, n, xPointsIn);
     }
 
@@ -52,7 +52,7 @@ struct BatchPre {
     }
 
     // Unused.
-    BatchPoly* Interp(const fmpz_t* yPointsIn, const int n) {
+    BatchPoly* Interp(const fmpz_t* const yPointsIn, const int n) {
         BatchPoly* bpoly = new BatchPoly();
 
         poly_batch_init(bpoly->fpoly, &pre);
@@ -68,12 +68,11 @@ struct BatchPre {
 };
 
 struct PreX {
-    BatchPre *batchPre;
+    const BatchPre* const batchPre;
     precomp_x_t pre;
 
     // Replaces NewEvalPoint
-    PreX(BatchPre* b, const fmpz_t x) {
-        batchPre = b;
+    PreX(const BatchPre* const b, const fmpz_t x) : batchPre(b) {
         precomp_x_init(&pre, &batchPre->pre, x);
     }
 
@@ -81,7 +80,7 @@ struct PreX {
         precomp_x_clear(&pre);
     }
 
-    void Eval(const fmpz_t* yValues, fmpz_t out) {
+    void Eval(const fmpz_t* const yValues, fmpz_t out) {
         precomp_x_eval(&pre, yValues, out);
     }
 };
@@ -95,15 +94,13 @@ struct CheckerPreComp {
     PreX *xN;
     PreX *x2N;
 
-    CheckerPreComp(const Circuit* ckt) {
+    CheckerPreComp(const Circuit* const ckt, const fmpz_t val) {
         int n = ckt->NumMulGates() + 1;
         int N = NextPowerofTwo(n);
 
         degN = new BatchPre(roots, N);
         deg2N = new BatchPre(roots2, 2 * N);
-    }
 
-    void setCheckerPrecomp(const fmpz_t val) {
         fmpz_init_set(x, val);
 
         xN = new PreX(degN, x);
@@ -135,7 +132,7 @@ struct Checker {
     fmpz_t evalG;  // [r * g(r)]
     fmpz_t evalH;  // [r * h(r)]
 
-    Checker(Circuit* c, const int idx) {
+    Checker(Circuit* const c, const int idx) {
         ckt = c;
         serveridx = idx;
         n = ckt->NumMulGates()+1;
@@ -211,7 +208,7 @@ struct Checker {
         return out;
     }
 
-    Cor* CorFn(const CorShare* cs0, const CorShare* cs1) {
+    Cor* CorFn(const CorShare* const cs0, const CorShare* const cs1) {
         Cor* out = new Cor();
         // std::cout << "CorFn" << std::endl;
         fmpz_add(out->D, cs0->shareD, cs1->shareD);
@@ -224,7 +221,7 @@ struct Checker {
     }
 
     // To be fixed. Both servers need to use same random seed. Using constant 1 instead now.
-    void randSum(fmpz_t out, const fmpz_t* arr) {
+    void randSum(fmpz_t out, const fmpz_t* const arr) {
         int len = ckt->result_zero.size() + 1;
 
         fmpz_t tmp;
@@ -244,7 +241,7 @@ struct Checker {
         fmpz_clear(tmp);
     }
 
-    void OutShare(fmpz_t out, const Cor* corIn) {
+    void OutShare(fmpz_t out, const Cor* const corIn) {
         fmpz_t mulCheck;
         fmpz_t term;
 

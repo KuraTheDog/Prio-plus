@@ -20,7 +20,7 @@ void clear_fmpz_array(fmpz_t* arr, const int N) {
     free(arr);
 }
 
-void copy_fmpz_array(fmpz_t* dest, const fmpz_t* src, const int N) {
+void copy_fmpz_array(fmpz_t* dest, const fmpz_t* const src, const int N) {
     for (int i = 0; i < N; i++)
         fmpz_set(dest[i],src[i]);
 }
@@ -35,7 +35,7 @@ bool get_fmpz_bit(const fmpz_t x, const size_t n) {
 }
 
 // Turn bool (bit) array into fmpz_t
-void fmpz_from_bool_array(fmpz_t x, const bool* arr, const size_t n) {
+void fmpz_from_bool_array(fmpz_t x, const bool* const arr, const size_t n) {
   fmpz_zero(x);
   fmpz_t pow;
   fmpz_init_set_ui(pow, 1);

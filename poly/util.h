@@ -9,7 +9,7 @@ printf("\n");\
 } while(0);
 
 inline void *
-safe_malloc(size_t bytes)
+safe_malloc(const size_t bytes)
 {
   void *out = malloc(bytes);
   if (!out) {
@@ -27,4 +27,4 @@ fmpz_init_from_gostr(fmpz_t out, char *in)
   free(in);
 }
 
-char *fmpz_array_to_str(int n, fmpz_t *input);
+char *fmpz_array_to_str(const size_t n_points, const fmpz_t* const input);

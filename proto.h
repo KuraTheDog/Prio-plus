@@ -14,13 +14,13 @@ For BITSUM and INTSUM.
 
 using namespace emp;
 
-uint64_t bitsum_ot_sender(NetIO *io, bool *shares, bool *valid, int n);
+uint64_t bitsum_ot_sender(NetIO* const io, const bool* const shares, const bool* const valid, const size_t n);
 
-uint64_t intsum_ot_sender(NetIO *io, uint32_t *shares, bool *valid, int n, int num_bits);
+uint64_t intsum_ot_sender(NetIO* const io, const uint32_t* const shares, const bool* const valid, const size_t n, const size_t num_bits);
 
-uint64_t bitsum_ot_receiver(NetIO *io, bool *shares, int n);
+uint64_t bitsum_ot_receiver(NetIO* const io, const bool* const shares, const size_t n);
 
-uint64_t intsum_ot_receiver(NetIO *io, uint32_t *shares, int n, int num_bits);
+uint64_t intsum_ot_receiver(NetIO* const io, const uint32_t* const shares, const size_t n, const size_t num_bits);
 
 BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int m);
 

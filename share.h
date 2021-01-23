@@ -201,9 +201,9 @@ void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B);
 
 BeaverTriple* NewBeaverTriple();
 
-BeaverTripleShare* BeaverTripleShares(const BeaverTriple* inp);
+BeaverTripleShare* BeaverTripleShares(const BeaverTriple* const inp);
 
-void makeLocalDaBit(DaBit* bit0, DaBit* bit1);
-void makeLocalEdaBit(EdaBit* ebit0, EdaBit* ebit1, const size_t n);
+void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1);
+void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n);
 
 #endif

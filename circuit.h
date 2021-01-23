@@ -55,9 +55,9 @@ struct Gate {
 
 struct Circuit {
     std::vector<Gate*> gates;        // All gates
-    std::vector<Gate*> outputs;      // ?
+    std::vector<Gate*> outputs;      // only used by unused
     std::vector<Gate*> result_zero;  // Gates that must be zero for eval to pass.
-    const size_t max_bits;           //
+    const size_t max_bits;           // Unused?
 
     Circuit(int n = 31) : max_bits(n) {}
 
@@ -76,7 +76,7 @@ struct Circuit {
     }
 
     // Evals circuit on the input, returns if all result_zero gates are zero.
-    bool Eval(fmpz_t *inps) {
+    bool Eval(const fmpz_t* const inps) {
         int inp_count = 0;
         for (int i = 0; i < gates.size(); i++) {
 
@@ -215,6 +215,7 @@ int NextPowerofTwo(const int n) {
     return ans;
 }
 
+// Unused
 Circuit* AndCircuits(std::vector<Circuit*>& circuits) {
     Circuit* out = new Circuit();
 
@@ -227,7 +228,7 @@ Circuit* AndCircuits(std::vector<Circuit*>& circuits) {
     return out;
 }
 
-Gate* MulByNegOne(Gate* gate) {
+Gate* MulByNegOne(Gate* const gate) {
     Gate* out = new Gate(Gate_MulConst);
 
     fmpz_set_si(out->Constant, -1);
@@ -243,7 +244,7 @@ Various VALID(*) circuits.
 */
 
 // Returns circuit that checks L*R == Prod
-Circuit* CheckMul(Gate* L, Gate* R, Gate* Prod) {
+Circuit* CheckMul(Gate* const L, Gate* const R, Gate* const Prod) {
     Circuit* out = new Circuit();
 
     Gate* mul = new Gate(Gate_Mul);

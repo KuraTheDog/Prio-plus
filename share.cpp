@@ -55,7 +55,7 @@ BeaverTriple* NewBeaverTriple() {
     return out;
 }
 
-BeaverTripleShare* BeaverTripleShares(const BeaverTriple* inp) {
+BeaverTripleShare* BeaverTripleShares(const BeaverTriple* const inp) {
     BeaverTripleShare* out = new BeaverTripleShare[2];
 
     SplitShare(inp->A, out[0].shareA, out[1].shareA);
@@ -65,7 +65,7 @@ BeaverTripleShare* BeaverTripleShares(const BeaverTriple* inp) {
     return out;
 }
 
-void makeLocalDaBit(DaBit* bit0, DaBit* bit1) {
+void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {
     fmpz_t two;  // TODO: Is there a nicer way to do this?
     fmpz_init_set_si(two, 2);
 
@@ -91,7 +91,7 @@ void makeLocalDaBit(DaBit* bit0, DaBit* bit1) {
     fmpz_clear(bit);
 }
 
-void makeLocalEdaBit(EdaBit* ebit0, EdaBit* ebit1, const size_t n) {
+void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n) {
     DaBit* bit0 = new DaBit();
     DaBit* bit1 = new DaBit();
 

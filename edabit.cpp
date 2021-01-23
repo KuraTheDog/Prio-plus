@@ -27,7 +27,7 @@ bool multiplyBoolShares(const int serverfd, const int server_num, const bool x, 
   return z;
 }
 
-void multiplyArithmeticShares(const int serverfd, const int server_num, const fmpz_t x, const fmpz_t y, fmpz_t z, const BeaverTriple* triple) {
+void multiplyArithmeticShares(const int serverfd, const int server_num, const fmpz_t x, const fmpz_t y, fmpz_t z, const BeaverTriple* const triple) {
   fmpz_t d, d_other, e, e_other;
 
   fmpz_init(d);
@@ -66,7 +66,7 @@ void multiplyArithmeticShares(const int serverfd, const int server_num, const fm
 
 // c_{i+1} = c_i xor ((x_i xor c_i) and (y_i xor c_i))
 // output z_i = x_i xor y_i xor c_i
-bool addBinaryShares(const int serverfd, const int server_num, const size_t n, const bool* x, const bool* y, bool* z, const BooleanBeaverTriple* triples) {
+bool addBinaryShares(const int serverfd, const int server_num, const size_t n, const bool* const x, const bool* const y, bool* const z, const BooleanBeaverTriple* const triples) {
   bool carry = false;
   for (int i = 0; i < n; i++) {
     z[i] = carry ^ x[i] ^ y[i];
@@ -77,7 +77,7 @@ bool addBinaryShares(const int serverfd, const int server_num, const size_t n, c
   return carry;
 }
 
-void b2a_daBit(const int serverfd, const int server_num, const DaBit* dabit, const bool x, fmpz_t &xp) {
+void b2a_daBit(const int serverfd, const int server_num, const DaBit* const dabit, const bool x, fmpz_t& xp) {
   const bool v_this = x ^ dabit->b2;
   bool v_other;
   send_bool(serverfd, v_this);
@@ -95,7 +95,7 @@ void b2a_daBit(const int serverfd, const int server_num, const DaBit* dabit, con
   }
 }
 
-void b2a_edaBit(const int serverfd, const int server_num, const EdaBit* edabit, const fmpz_t x, fmpz_t &xp, const BooleanBeaverTriple* triples) {
+void b2a_edaBit(const int serverfd, const int server_num, const EdaBit* const edabit, const fmpz_t x, fmpz_t& xp, const BooleanBeaverTriple* const triples) {
   const size_t n = edabit->n;
 
   // Convert x2 to bool array
@@ -131,9 +131,9 @@ void b2a_edaBit(const int serverfd, const int server_num, const EdaBit* edabit, 
   fmpz_mod(xp, xp, Int_Modulus);
 }
 
-DaBit* generateDaBit(const int serverfd, const int server_num, const BeaverTriple* triple) {
+DaBit* generateDaBit(const int serverfd, const int server_num, const BeaverTriple* const  triple) {
   // Answer
-  DaBit* dabit = new DaBit();
+  DaBit* const dabit = new DaBit();
 
   // Create local
   DaBit* dabit0 = new DaBit();
@@ -173,9 +173,9 @@ DaBit* generateDaBit(const int serverfd, const int server_num, const BeaverTripl
   return dabit;
 }
 
-EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n, const BooleanBeaverTriple* triples, const DaBit* dabit) {
+EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n, const BooleanBeaverTriple* const triples, const DaBit* const dabit) {
   // Answer bit
-  EdaBit* edabit = new EdaBit(n);
+  EdaBit* const edabit = new EdaBit(n);
 
   // Create local
   EdaBit* edabit0 = new EdaBit(n);
@@ -218,7 +218,7 @@ EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n,
   return edabit;
 }
 
-bool validate_shares_match(const int serverfd, const int server_num, const fmpz_t x2, const fmpz_t xp, const size_t n, const EdaBit* edabit, const BooleanBeaverTriple* triples) {
+bool validate_shares_match(const int serverfd, const int server_num, const fmpz_t x2, const fmpz_t xp, const size_t n, const EdaBit* const edabit, const BooleanBeaverTriple* const triples) {
   if (edabit->n != n) return false;
 
   // Compute [x2]_p

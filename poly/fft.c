@@ -1,7 +1,7 @@
 #include "fft.h"
 #include "util.h"
 
-static void fft_recurse(fmpz_t *out, const fmpz_t mod, const int n, const fmpz_t *roots, const fmpz_t *ys, fmpz_t *tmp, fmpz_t *ySub, fmpz_t *rootsSub) {
+static void fft_recurse(fmpz_t* const out, const fmpz_t mod, const int n, const fmpz_t* const roots, const fmpz_t* const ys, fmpz_t* const tmp, fmpz_t* const ySub, fmpz_t* const rootsSub) {
   if (n == 1) {
     fmpz_set(out[0], ys[0]);
     return;
@@ -34,7 +34,7 @@ static void fft_recurse(fmpz_t *out, const fmpz_t mod, const int n, const fmpz_t
   }
 }
 
-fmpz_t *fft_interpolate(const fmpz_t mod, const int nPoints, const fmpz_t *roots, const fmpz_t *ys, const bool invert) {
+fmpz_t *fft_interpolate(const fmpz_t mod, const int nPoints, const fmpz_t* const roots, const fmpz_t* const ys, const bool invert) {
 
   fmpz_t *out = (fmpz_t*) malloc(sizeof(fmpz_t) *nPoints);
   fmpz_t tmp[nPoints];

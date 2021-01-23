@@ -36,7 +36,7 @@ string: best is base 62, so 62/256 ~ 25% space efficiency. So needs ~4x bits com
 /* Core functions */
 
 // Send trivial. 
-int recv_in(const int sockfd, void* buf, const size_t len);
+int recv_in(const int sockfd, void* const buf, const size_t len);
 
 int send_bool(const int sockfd, const bool x);
 int recv_bool(const int sockfd, bool& x);
@@ -61,28 +61,28 @@ int recv_fmpz(const int sockfd, fmpz_t x);
 
 /* Share functions */
 
-int send_Cor(const int sockfd, const Cor *x);
-int recv_Cor(const int sockfd, Cor *x);
+int send_Cor(const int sockfd, const Cor* const x);
+int recv_Cor(const int sockfd, Cor* const x);
 
-int send_CorShare(const int sockfd, const CorShare *x);
-int recv_CorShare(const int sockfd, CorShare *x);
+int send_CorShare(const int sockfd, const CorShare* const x);
+int recv_CorShare(const int sockfd, CorShare* const x);
 
 // ClientPacket = client_packet*
 int send_ClientPacket(const int sockfd, const ClientPacket x);
 int recv_ClientPacket(const int sockfd, ClientPacket &x);
 
-int send_BeaverTriple(const int sockfd, const BeaverTriple *x);
-int recv_BeaverTriple(const int sockfd, BeaverTriple *x);
+int send_BeaverTriple(const int sockfd, const BeaverTriple* const x);
+int recv_BeaverTriple(const int sockfd, BeaverTriple* const x);
 
-int send_BeaverTripleShare(const int sockfd, const BeaverTripleShare *x);
-int recv_BeaverTripleShare(const int sockfd, BeaverTripleShare *x);
+int send_BeaverTripleShare(const int sockfd, const BeaverTripleShare* const x);
+int recv_BeaverTripleShare(const int sockfd, BeaverTripleShare* const x);
 
 // Bits stuff
-int send_DaBit(const int sockfd, const DaBit* x);
-int recv_DaBit(const int sockfd, DaBit* x);
+int send_DaBit(const int sockfd, const DaBit* const x);
+int recv_DaBit(const int sockfd, DaBit* const x);
 
 // Assumes n is already known.
-int send_EdaBit(const int sockfd, const EdaBit* x, const size_t n);
-int recv_EdaBit(const int sockfd, EdaBit* x, const size_t n);
+int send_EdaBit(const int sockfd, const EdaBit* const x, const size_t n);
+int recv_EdaBit(const int sockfd, EdaBit* const x, const size_t n);
 
 #endif

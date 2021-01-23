@@ -31,12 +31,12 @@ fmpz_t randomX;
 
 // TODO: const 60051 for netio?
 
-void error_exit(const char *msg) {
+void error_exit(const char* const msg) {
     perror(msg);
     exit(EXIT_FAILURE);
 }
 
-size_t send_out(const int sockfd, const void* buf, const size_t len) {
+size_t send_out(const int sockfd, const void* const buf, const size_t len) {
     size_t ret = send(sockfd, buf, len, 0);
     if (ret <= 0) error_exit("Failed to send");
     return ret;
@@ -119,18 +119,17 @@ std::string get_pk(const int serverfd) {
     return pk;
 }
 
-bool run_snip(Circuit* circuit, const ClientPacket packet, const int serverfd, const int server_num) {
-    Checker* checker = new Checker(circuit, server_num);
+bool run_snip(Circuit* const circuit, const ClientPacket packet, const int serverfd, const int server_num) {
+    Checker* const checker = new Checker(circuit, server_num);
     checker->setReq(packet);
-    CheckerPreComp* pre = new CheckerPreComp(circuit);
-    pre->setCheckerPrecomp(randomX);
+    CheckerPreComp* const pre = new CheckerPreComp(circuit, randomX);
     CorShare* cor_share = checker->CorShareFn(pre);
     CorShare* cor_share_other = new CorShare();
 
     send_CorShare(serverfd, cor_share);
     recv_CorShare(serverfd, cor_share_other);
 
-    Cor* cor = checker->CorFn(cor_share, cor_share_other);
+    Cor* const cor = checker->CorFn(cor_share, cor_share_other);
     fmpz_t valid_share, valid_share_other;
     fmpz_init(valid_share);
     fmpz_init(valid_share_other);
@@ -149,7 +148,7 @@ bool run_snip(Circuit* circuit, const ClientPacket packet, const int serverfd, c
     return circuit_valid;
 }
 
-returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint64_t &ans) {
+returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint64_t& ans) {
     std::unordered_map<std::string, bool> share_map;
 
     BitShare share;
@@ -164,8 +163,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
     }
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
 
-    if (fork() > 0)
-        return RET_NO_ANS;
+    if (fork() > 0) return RET_NO_ANS;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -177,7 +175,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
             shares[i] = share.second;
             i++;
         }
-        NetIO* io = new NetIO(SERVER0_IP, 60051);
+        NetIO* const io = new NetIO(SERVER0_IP, 60051);
         uint64_t b = bitsum_ot_receiver(io, &shares[0], num_inputs);
         delete io;
 
@@ -199,7 +197,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
             num_valid++;
             shares[i] = share_map[pk];
         }
-        NetIO* io = new NetIO(nullptr, 60051);
+        NetIO* const io = new NetIO(nullptr, 60051);
         uint64_t a = bitsum_ot_sender(io, &shares[0], &valid[0], num_inputs);
         delete io;
 
@@ -217,7 +215,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
     }
 }
 
-returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint64_t &ans) {
+returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint64_t& ans) {
     std::unordered_map<std::string, uint32_t> share_map;
 
     IntShare share;
@@ -236,8 +234,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
 
-    if (fork() > 0)
-        return RET_NO_ANS;
+    if (fork() > 0) return RET_NO_ANS;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -249,7 +246,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
             shares[i] = share.second;
             i++;
         }
-        NetIO* io = new NetIO(SERVER0_IP, 60051);
+        NetIO* const io = new NetIO(SERVER0_IP, 60051);
         uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
         delete io;
 
@@ -271,7 +268,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
             num_valid++;
             shares[i] = share_map[pk];
         }
-        NetIO* io = new NetIO(nullptr, 60051);
+        NetIO* const io = new NetIO(nullptr, 60051);
         uint64_t a = intsum_ot_sender(io, &shares[0], &valid[0], num_inputs, num_bits);
         delete io;
 
@@ -289,7 +286,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
 }
 
 // For AND and OR
-returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, bool &ans) {
+returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, bool& ans) {
     std::unordered_map<std::string, uint32_t> share_map;
 
     IntShare share;
@@ -306,8 +303,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
 
-    if (fork() > 0)
-        return RET_NO_ANS;
+    if (fork() > 0) return RET_NO_ANS;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -362,7 +358,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 
 // For MAX and MIN
 // TODO: does this need htonl/ntohl wrappers for int arrays?
-returnType max_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, int &ans) {
+returnType max_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, int& ans) {
     std::unordered_map<std::string, uint32_t*> share_map;
 
     MaxShare share;
@@ -387,8 +383,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     std::cout << "Received " << total_inputs << " shares" << std::endl;
 
-    if (fork() > 0)
-        return RET_NO_ANS;
+    if (fork() > 0) return RET_NO_ANS;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -455,7 +450,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 }
 
 // For var, stddev
-returnType var_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, double &ans) {
+returnType var_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, double& ans) {
     typedef std::tuple <uint32_t, uint32_t, ClientPacket> sharetype;
     std::unordered_map<std::string, sharetype> share_map;
 
@@ -466,7 +461,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     const size_t total_inputs = msg.num_of_inputs;
 
     // Just for getting sizes
-    Circuit* mock_circuit = CheckVar();
+    Circuit* const mock_circuit = CheckVar();
     const size_t N = NextPowerofTwo(mock_circuit->NumMulGates() + 1);
     const size_t NWires = mock_circuit->NumMulInpGates();
     delete mock_circuit;
@@ -494,8 +489,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     std::cout << "Received " << total_inputs << " shares" << std::endl;
 
-    if (fork() > 0)
-        return RET_NO_ANS;
+    if (fork() > 0) return RET_NO_ANS;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -522,7 +516,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
                 continue;
 
             // SNIPS
-            Circuit* circuit = CheckVar();
+            Circuit* const circuit = CheckVar();
             if (not have_roots_init) {
                 init_roots(N);
                 have_roots_init = true;
@@ -534,7 +528,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         }
 
         // Compute result
-        NetIO* io = new NetIO(SERVER0_IP, 60051);
+        NetIO* const io = new NetIO(SERVER0_IP, 60051);
         uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
         delete io;
 
@@ -567,7 +561,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             ClientPacket packet;
             std::tie(shares[i], shares_squared[i], packet) = share_map[pk];
 
-            Circuit* circuit = CheckVar();
+            Circuit* const circuit = CheckVar();
             if (not have_roots_init) {
                 init_roots(N);
                 have_roots_init = true;
@@ -588,7 +582,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
                 num_valid++;
         }
         // Compute result
-        NetIO* io = new NetIO(nullptr, 60051);
+        NetIO* const io = new NetIO(nullptr, 60051);
         uint64_t a = intsum_ot_sender(io, &shares[0], &valid[0], num_inputs, num_bits);
         uint64_t a2 = intsum_ot_sender(io, &shares_squared[0], &valid[0], num_inputs, num_bits);
         delete io;

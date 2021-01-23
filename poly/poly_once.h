@@ -12,9 +12,9 @@ typedef struct {
   fmpz_t modulus;
 } precomp_x_t;
 
-void precomp_x_init(precomp_x_t *pre_x, const precomp_t *pre, const fmpz_t x);
-void precomp_x_clear(precomp_x_t *pre_x);
+void precomp_x_init(precomp_x_t* const pre_x, const precomp_t* const pre, const fmpz_t x);
+void precomp_x_clear(precomp_x_t* const pre_x);
 
-void precomp_x_eval(precomp_x_t *pre_x, const fmpz_t *yValues, fmpz_t out);
+void precomp_x_eval(precomp_x_t* const pre_x, const fmpz_t* const yValues, fmpz_t out);
 
 #endif

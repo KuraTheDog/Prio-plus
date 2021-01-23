@@ -34,12 +34,12 @@ uint64_t small_max_int; // sqrt(max_int)
 int sockfd0, sockfd1;
 bool include_invalid = false;
 
-void error_exit(const char *msg) {
+void error_exit(const char* const msg) {
     perror(msg);
     exit(EXIT_FAILURE);
 }
 
-std::string pub_key_to_hex(const uint64_t *key) {
+std::string pub_key_to_hex(const uint64_t* const key) {
     std::stringstream ss;
     ss << std::setfill('0') << std::setw(16) << std::hex << key[0];
     ss << std::setfill('0') << std::setw(16) << std::hex << key[1];
@@ -57,7 +57,7 @@ void send_maxshare(const MaxShare& maxshare, const int server_num, const int B) 
 }
 
 // Wrapper around send, with error catching.
-int send_to_server(const int server, const void* buffer, const size_t n, const int flags = 0) {
+int send_to_server(const int server, const void* const buffer, const size_t n, const int flags = 0) {
     int socket = (server == 0 ? sockfd0 : sockfd1);
     int ret = send(socket, buffer, n, flags);
     if (ret < 0) error_exit("Failed to send to server ");
@@ -71,7 +71,7 @@ void bit_sum(const std::string protocol, const size_t numreqs) {
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
-    emp::block* b = new block[numreqs];
+    emp::block* const b = new block[numreqs];
     bool real_vals[numreqs];
     bool shares0[numreqs];
     bool shares1[numreqs];
@@ -116,7 +116,7 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
-    emp::block* b = new block[numreqs];
+    emp::block* const b = new block[numreqs];
     bool real_vals[numreqs];
     bool shares0[numreqs];
     bool shares1[numreqs];
@@ -172,7 +172,7 @@ void int_sum(const std::string protocol, const size_t numreqs) {
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
-    emp::block* b = new block[numreqs];
+    emp::block* const b = new block[numreqs];
     uint32_t real_vals[numreqs];
     uint32_t shares0[numreqs];
     uint32_t shares1[numreqs];
@@ -222,7 +222,7 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
-    emp::block* b = new block[numreqs];
+    emp::block* const b = new block[numreqs];
     uint32_t real_vals[numreqs];
     uint32_t shares0[numreqs];
     uint32_t shares1[numreqs];
@@ -291,7 +291,7 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
-    emp::block* b = new block[numreqs];
+    emp::block* const b = new block[numreqs];
     bool values[numreqs];
     uint32_t encoded_values[numreqs];
     uint32_t shares0[numreqs];
@@ -364,7 +364,7 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
-    emp::block* b = new block[numreqs];
+    emp::block* const b = new block[numreqs];
     bool values[numreqs];
     uint32_t encoded_values[numreqs];
     uint32_t shares0[numreqs];
@@ -454,7 +454,7 @@ void max_op(const std::string protocol, const size_t numreqs) {
 
     emp::PRG prg(fix_key);
 
-    emp::block *b = new block[numreqs];
+    emp::block* const b = new block[numreqs];
     prg.random_block(b, numreqs);
 
     uint32_t values[numreqs];
@@ -526,7 +526,7 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
         ans = B;
     }
 
-    emp::block *b = new block[numreqs];
+    emp::block* const b = new block[numreqs];
     prg.random_block(b, numreqs);
 
     uint32_t values[numreqs];
@@ -607,7 +607,7 @@ void var_op(const std::string protocol, const size_t numreqs) {
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
-    emp::block *b = new block[numreqs];
+    emp::block* const b = new block[numreqs];
     uint32_t real_vals[numreqs];
     // shares of x
     uint32_t shares0[numreqs];
@@ -703,7 +703,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
-    emp::block *b = new block[numreqs];
+    emp::block* const b = new block[numreqs];
     uint32_t real_vals[numreqs];
     // shares of x
     uint32_t shares0[numreqs];

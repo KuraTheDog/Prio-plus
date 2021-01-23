@@ -6,7 +6,7 @@
 #include "poly_batch.h"
 #include "util.h"
 
-void precomp_x_init(precomp_x_t *pre_x, const precomp_t *pre, const fmpz_t x) {
+void precomp_x_init(precomp_x_t* const pre_x, const precomp_t* const pre, const fmpz_t x) {
   fmpz_init_set(pre_x->modulus, pre->modulus);
 
   // If the x value at which we want to evaluate is already an x_value
@@ -63,7 +63,7 @@ void precomp_x_init(precomp_x_t *pre_x, const precomp_t *pre, const fmpz_t x) {
   fmpz_clear(prod);
 }
 
-void precomp_x_clear(precomp_x_t *pre_x) {
+void precomp_x_clear(precomp_x_t* const pre_x) {
   if (pre_x->short_x >= 0)
     return;
 
@@ -75,7 +75,7 @@ void precomp_x_clear(precomp_x_t *pre_x) {
   fmpz_clear(pre_x->modulus);
 }
 
-void precomp_x_eval(precomp_x_t *pre_x, const fmpz_t *yValues, fmpz_t out) {
+void precomp_x_eval(precomp_x_t* const pre_x, const fmpz_t* const yValues, fmpz_t out) {
   fmpz_init(out);
   if (pre_x->short_x >= 0) {
     fmpz_set(out, yValues[pre_x->short_x]);
