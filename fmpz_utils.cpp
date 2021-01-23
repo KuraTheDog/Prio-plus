@@ -33,3 +33,15 @@ bool get_fmpz_bit(const fmpz_t x, const size_t n) {
     fmpz_clear(mask);
     return ans;
 }
+
+// Turn bool (bit) array into fmpz_t
+void fmpz_from_bool_array(fmpz_t x, const bool* arr, const size_t n) {
+  fmpz_zero(x);
+  fmpz_t pow;
+  fmpz_init_set_ui(pow, 1);
+  for (int i = 0; i < n; i++) {
+    if (arr[i])
+      fmpz_add(x, x, pow);
+    fmpz_mul_ui(pow, pow, 2);
+  }
+}

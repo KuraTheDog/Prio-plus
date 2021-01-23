@@ -187,7 +187,10 @@ struct EdaBit {
 
     void print() const {
         std::cout << " r = "; fmpz_print(r); std::cout << std::endl;
-        std::cout << " b = " << get_int_b() << std::endl;
+        fmpz_t x;
+        fmpz_from_bool_array(x, b, n);
+        std::cout << " b = "; fmpz_print(x); std::cout << std::endl;
+        fmpz_clear(x);
     }
 };
 

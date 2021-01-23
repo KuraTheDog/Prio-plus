@@ -291,11 +291,11 @@ void localTest(const size_t n) {
   // std::cout << "bp1 = "; fmpz_print(bp1); std::cout << std::endl;
 
   // r = r' - 2^n * bp
-  fmpz_mul_ui(tmp, bp0, 1 << n);
+  fmpz_mul_ui(tmp, bp0, 1ul << n);
   fmpz_sub(ebit0->r, ebit0->r, tmp);
   fmpz_mod(ebit0->r, ebit0->r, Int_Modulus);
 
-  fmpz_mul_ui(tmp, bp1, 1 << n);
+  fmpz_mul_ui(tmp, bp1, 1ul << n);
   fmpz_sub(ebit1->r, ebit1->r, tmp);
   fmpz_mod(ebit1->r, ebit1->r, Int_Modulus);
 
@@ -306,7 +306,13 @@ void localTest(const size_t n) {
   fmpz_mod(tmp, tmp, Int_Modulus);
   std::cout << "Validation" << std::endl;
   std::cout << " sum = "; fmpz_print(tmp); std::cout << std::endl;
-  std::cout << " xor = " << (ebit0->get_int_b() ^ ebit1->get_int_b()) << std::endl;
+  fmpz_t tmp2;
+  fmpz_init(tmp2);
+  fmpz_from_bool_array(tmp, ebit0->b, n);
+  fmpz_from_bool_array(tmp2, ebit1->b, n);
+  fmpz_xor(tmp, tmp, tmp2);
+  fmpz_clear(tmp2);
+  std::cout << " xor = "; fmpz_print(tmp); std::cout << std::endl;
 }
 
 void runServerTest(const int server_num, const int serverfd, const size_t n) {
@@ -351,10 +357,65 @@ void runServerTest(const int server_num, const int serverfd, const size_t n) {
     fmpz_add(tmp, ebit->r, ebit_other->r);
     fmpz_mod(tmp, tmp, Int_Modulus);
     std::cout << " sum = "; fmpz_print(tmp); std::cout << std::endl;
-    std::cout << " xor = " << (ebit->get_int_b() ^ ebit_other->get_int_b()) << std::endl;
+    fmpz_t tmp2;
+    fmpz_init(tmp2);
+    fmpz_from_bool_array(tmp, ebit->b, n);
+    fmpz_from_bool_array(tmp2, ebit_other->b, n);
+    fmpz_xor(tmp, tmp, tmp2);
+    fmpz_clear(tmp2);
+    std::cout << " xor = "; fmpz_print(tmp); std::cout << std::endl;
 
     fmpz_clear(tmp);
     delete ebit_other;
+  }
+
+  sleep(1);
+
+  fmpz_t x;
+  fmpz_init(x);
+
+  // Use bit
+  std::cout << "converting with bit" << std::endl;
+  if (server_num == 0) {
+    fmpz_t pow;
+    fmpz_init_set_si(pow, 1l << n);
+    fmpz_t x_true;  // true value
+    fmpz_init(x_true);
+    fmpz_randm(x_true, seed, pow);
+    fmpz_randm(x, seed, pow);
+    fmpz_t x_other;
+    fmpz_init(x_other);
+    fmpz_xor(x_other, x_true, x);
+    std::cout << "True: "; fmpz_print(x_true);
+    std::cout << " = "; fmpz_print(x);
+    std::cout << " ^ "; fmpz_print(x_other);
+    std::cout << std::endl;
+    send_fmpz(serverfd, x_other);
+    fmpz_clear(pow);
+    fmpz_clear(x_other);
+  } else {
+    recv_fmpz(serverfd, x);
+  }
+
+  BooleanBeaverTriple* newtriples = gen_boolean_beaver_triples(server_num, n);
+
+  fmpz_t xp;
+  b2a_edaBit(serverfd, server_num, ebit, x, xp, newtriples);
+
+  if (server_num == 0) {
+    fmpz_t xp_other;
+    fmpz_init(xp_other);
+    recv_fmpz(serverfd, xp_other);
+    fmpz_t sum;
+    fmpz_init(sum);
+    fmpz_add(sum, xp, xp_other);
+    fmpz_mod(sum, sum, Int_Modulus);
+    std::cout << "Converted Sum: "; fmpz_print(sum);
+    std::cout << " = "; fmpz_print(xp);
+    std::cout << " + "; fmpz_print(xp_other);
+    std::cout << std::endl;
+  } else {
+    send_fmpz(serverfd, xp);
   }
 }
 
@@ -393,8 +454,8 @@ void serverTest(const size_t n) {
 int main(int argc, char* argv[]) {
   init_constants();
   
-  // Should be < log_2 Int_Modulus
-  size_t n = 16;
+  // Should be < log_2 Int_Modulus / 2
+  size_t n = 32;
   std::cout << "n = " << n << std::endl;
 
   // random adjusting. different numbers adjust seed.

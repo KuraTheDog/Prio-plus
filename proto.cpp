@@ -316,26 +316,26 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
     if(server_num == 0){
         io1->sync();
         IKNP<NetIO> ot1(io1);
-        std::cout << "OT1 send" << std::endl;
+        // std::cout << "OT1 send" << std::endl;
         ot1.send(b0,b1,m);
         io1->flush();
 
         io2->sync();
         IKNP<NetIO> ot2(io2);
-        std::cout << "OT2 recv" << std::endl;
+        // std::cout << "OT2 recv" << std::endl;
         ot2.recv(B,y,m);
         io2->flush();
     }
     else if(server_num == 1){
         io1->sync();
         IKNP<NetIO> ot1(io1);
-        std::cout << "OT1 recv" << std::endl;
+        // std::cout << "OT1 recv" << std::endl;
         ot1.recv(B,y,m);
         io1->flush();
 
         io2->sync();
         IKNP<NetIO> ot2(io2);
-        std::cout << "OT2 send" << std::endl;
+        // std::cout << "OT2 send" << std::endl;
         ot2.send(b0,b1,m);
         io2->flush();
     }

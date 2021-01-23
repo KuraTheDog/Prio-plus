@@ -358,7 +358,22 @@ void multiplyArithmeticShares(const int serverfd, const int server_num, const fm
     fmpz_clear(e_other);
 }
 
-// Convert bit share [x]_2 into [x]_p using a daBit.
+// Add two n-bit bool arrays x and y, fill in n bit array z
+// Uses n triples, and returns carry bit
+// c_{i+1} = c_i xor ((x_i xor c_i) and (y_i xor c_i))
+// output z_i = x_i xor y_i xor c_i
+bool addBinaryShares(const int serverfd, const int server_num, const size_t n, const bool* x, const bool* y, bool* z, const BooleanBeaverTriple* triples) {
+    bool carry = false;
+    for (int i = 0; i < n; i++) {
+        z[i] = carry ^ x[i] ^ y[i];
+        bool xi = carry ^ x[i];
+        bool yi = carry ^ y[i];
+        carry ^= multiplyBoolShares(serverfd, server_num, xi, yi, triples[i]);
+    }
+    return carry;
+}
+
+// Convert bit share [b]_2 into [b]_p using a daBit.
 void b2a_daBit(const int serverfd, const int server_num, const DaBit* dabit, const bool x, fmpz_t &xp) {
 
     const bool v_this = x ^ dabit->b2;
@@ -376,6 +391,44 @@ void b2a_daBit(const int serverfd, const int server_num, const DaBit* dabit, con
     } else {  // If v = 0, then [x]_p = [b]_p
         fmpz_set(xp, dabit->bp);
     }
+}
+
+// Convert int share [x]_2 into [x]_p
+// Assumes x, r < p/2 + 1
+void b2a_edaBit(const int serverfd, const int server_num, const EdaBit* edabit, const fmpz_t x, fmpz_t &xp, const BooleanBeaverTriple* triples) {
+    const size_t n = edabit->n;
+
+    // Convert x2 to bool array
+    bool x2[n];
+    for (int i = 0; i < n; i++)
+        x2[i] = get_fmpz_bit(x, i);
+
+    // [x+r]_2 = [x]_2 + [r]_2 via circuit
+    bool xr[n+1];
+    bool carry = addBinaryShares(serverfd, server_num, n, x2, edabit->b, xr, triples);
+    xr[n] = carry;
+
+    fmpz_from_bool_array(xp, xr, n+1);  // [x + r]_2
+
+    // Reveal x + r, convert to mod p shares
+    if (server_num == 0) {
+        fmpz_t xr_other;
+        fmpz_init(xr_other);
+        recv_fmpz(serverfd, xr_other);  // get other [x + r]_2
+        fmpz_xor(xp, xp, xr_other);     // Real x + r
+        fmpz_randm(xr_other, seed, Int_Modulus);  // other [x + r]_p
+        fmpz_sub(xp, xp, xr_other);
+        fmpz_mod(xp, xp, Int_Modulus);  // This [x + r]_p
+        send_fmpz(serverfd, xr_other);
+        fmpz_clear(xr_other);
+    } else {
+        send_fmpz(serverfd, xp);
+        recv_fmpz(serverfd, xp);  // This [x + r]_p
+    }
+
+    // [x]_p = [x+r]_p - [r]_p
+    fmpz_sub(xp, xp, edabit->r);
+    fmpz_mod(xp, xp, Int_Modulus);
 }
 
 DaBit* generateDaBit(const int serverfd, const int server_num, const BeaverTriple* triple) {
@@ -447,16 +500,7 @@ EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n,
     fmpz_mod(edabit->r, edabit->r, Int_Modulus);
 
     // Add binary shares via circuit
-    // c_{i+1} = c_i xor ((x_i xor c_i) and (y_i xor c_i))
-    // output z_i = x_i xor y_i xor c_i
-    bool carry = false;
-    for (int i = 0; i < n; i++) {
-        edabit->b[i] = carry ^ edabit0->b[i] ^ edabit1->b[i];
-        bool x = carry ^ edabit0->b[i];
-        bool y = carry ^ edabit1->b[i];
-        bool z = multiplyBoolShares(serverfd, server_num, x, y, triples[i]);
-        carry ^= z;
-    }
+    bool carry = addBinaryShares(serverfd, server_num, n, edabit0->b, edabit1->b, edabit->b, triples);
 
     // Convert carry to arithmetic [b_n]_p
     fmpz_t bpn;
@@ -464,7 +508,7 @@ EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n,
     b2a_daBit(serverfd, server_num, dabit, carry, bpn);
 
     // Subtract out 2^n * [b_n]_p from r
-    fmpz_submul_ui(edabit->r, bpn, 1 << n);
+    fmpz_submul_ui(edabit->r, bpn, 1ul << n);
     fmpz_mod(edabit->r, edabit->r, Int_Modulus);
 
     fmpz_clear(bpn);

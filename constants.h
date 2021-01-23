@@ -21,7 +21,10 @@ This is for FFT.
 // const std::string Int_Gen_str = "8";       // 8 base 16
 // const int twoOrder = 4;
 
-/* 6 ^ (2 ^ 5) = 1 mod 353 */
+// const std::string Int_Modulus_str = "161";  // 353 base 16
+// const std::string Int_Gen_str = "6";
+// const int twoOrder = 5;
+
 /* 20 ^ (2 ^ 6) = 1 mod 577 */
 
 // const std::string Int_Modulus_str = "2681";  // 9857 base 16
