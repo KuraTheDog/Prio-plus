@@ -6,12 +6,12 @@
 #include <iostream>
 
 #include "../constants.h"
+#include "../edabit.h"
 #include "../net_share.h"
 #include "../proto.h"
-#include "../server.h"
 #include "../share.h"
 
-int PORT = 8888;
+int PORT = 8887;
 
 void error_exit(const char *msg){
   perror(msg);
