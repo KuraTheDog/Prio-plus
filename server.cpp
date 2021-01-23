@@ -530,13 +530,12 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         // Compute result
         NetIO* const io = new NetIO(SERVER0_IP, 60051);
         uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
-        delete io;
-
         send_uint64(serverfd, b);
 
         uint64_t b2 = intsum_ot_receiver(io, &shares_squared[0], num_inputs, num_bits);
-        std::cout << "Sending b2 = " << b << std::endl;
         send_uint64(serverfd, b2);
+
+        delete io;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
