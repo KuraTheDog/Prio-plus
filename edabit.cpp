@@ -5,6 +5,7 @@ Based on ia.cr/2020/338
 #include "constants.h"
 #include "edabit.h"
 #include "net_share.h"
+#include "proto.h"
 
 bool multiplyBoolShares(const int serverfd, const int server_num, const bool x, const bool y, const BooleanBeaverTriple* triple) {
   bool z, d, e, d_this, e_this, d_other, e_other;
@@ -245,4 +246,60 @@ bool validate_shares_match(const int serverfd, const int server_num, const fmpz_
   }
 
   return valid;
+}
+
+BooleanBeaverTriple* CorrelatedStore::getBoolTriples(const size_t n) {
+  if (n > bool_triples.size()) {
+    BooleanBeaverTriple* new_triples = gen_boolean_beaver_triples(server_num, batch_size);
+    for (int i = 0; i < batch_size; i++)
+      bool_triples.push(new_triples[i]);
+      // delete[] new_triples;
+  }
+  BooleanBeaverTriple* ans = new BooleanBeaverTriple[n];
+  for (int i = 0; i < n; i++) {
+    ans[i] = bool_triples.front();
+    bool_triples.pop();
+  }
+  return ans;
+}
+
+BeaverTriple* CorrelatedStore::getTriple() {
+  if (triples.empty()) {
+    // TODO: Generate batch_size beaver triples
+    ;
+  }
+  BeaverTriple* ans = triples.front();
+  triples.pop();
+  return ans;
+}
+
+DaBit* CorrelatedStore::getDaBit() {
+  if (dabits.empty()) {
+    for (int i = 0; i < batch_size; i++) {
+      BeaverTriple* triple = getTriple();
+      DaBit* bit = generateDaBit(serverfd, server_num, triple);
+      dabits.push(bit);
+      delete triple;
+      delete bit;
+    }
+  }
+  DaBit* ans = dabits.front();
+  dabits.pop();
+  return ans;
+}
+
+EdaBit* CorrelatedStore::getEdaBit() {
+  if (edabits.empty()) {
+    for (int i = 0; i < batch_size; i++) {
+      BooleanBeaverTriple* gen_triples = getBoolTriples(num_bits);
+      DaBit* dabit = getDaBit();
+      EdaBit* edabit = generateEdaBit(serverfd, server_num, num_bits, gen_triples, dabit);
+      edabits.push(edabit);
+      delete[] gen_triples;
+      delete dabit;
+    }
+  }
+  EdaBit* ans = edabits.front();
+  edabits.pop();
+  return ans;
 }

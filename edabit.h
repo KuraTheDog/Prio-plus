@@ -1,6 +1,8 @@
 #ifndef EDABIT_H
 #define EDABIT_H
 
+#include <queue>
+
 #include "share.h"
 
 // Return [z] = [x] and [y], consuming a boolean triple
@@ -28,5 +30,46 @@ EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n,
 
 // Return if [x2]_2 and [xp]_p encode the same value, using an edaBit and n triples
 bool validate_shares_match(const int serverfd, const int server_num, const fmpz_t x2, const fmpz_t xp, const size_t n, const EdaBit* const edabit, const BooleanBeaverTriple* const triples);
+
+// A Cache of correlated bits of different types
+// Makes batch_size at once, when running low
+struct CorrelatedStore {
+  const size_t batch_size;  // How many to make at once
+  const int server_num;
+  const int serverfd;
+  const size_t num_bits;    // for size of edabits
+
+  std::queue<EdaBit*> edabits;
+  std::queue<DaBit*> dabits;
+
+  // Maybe have these also pointers, for style consistency?
+  std::queue<BooleanBeaverTriple> bool_triples;
+  std::queue<BeaverTriple*> triples;
+
+  CorrelatedStore(const int serverfd, const int idx, const size_t num_bits, const size_t batch_size = 64) 
+  : batch_size(batch_size)
+  , server_num(idx)
+  , serverfd(serverfd)
+  , num_bits(num_bits)
+  {}
+
+  ~CorrelatedStore() {
+    while (!edabits.empty()) {
+      EdaBit* bit = edabits.front();
+      edabits.pop();
+      delete bit;
+    }
+    while (!dabits.empty()) {
+      DaBit* bit = dabits.front();
+      dabits.pop();
+      delete bit;
+    }
+  }
+
+  BooleanBeaverTriple* getBoolTriples(const size_t n);
+  BeaverTriple* getTriple();
+  DaBit* getDaBit();
+  EdaBit* getEdaBit();
+};
 
 #endif
