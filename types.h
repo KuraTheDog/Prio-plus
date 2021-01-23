@@ -39,6 +39,7 @@ struct LinRegShare {
 };
 
 enum messageType {
+    NONE_OP,
     BIT_SUM,
     INT_SUM,
     AND_OP,

@@ -778,6 +778,8 @@ int main(int argc, char** argv) {
             }
             long long t = time_from(start);
             std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
+        } else if (msg.type == NONE_OP) {
+            std::cout << "Empty client message" << std::endl;
         } else {
             std::cout << "Unrecognized message type: " << msg.type << std::endl;
         }

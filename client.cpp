@@ -946,6 +946,10 @@ int main(int argc, char** argv) {
 
     else {
         std::cout << "Unrecognized protocol: " << protocol << std::endl;
+        initMsg msg;
+        msg.type = NONE_OP;
+        send_to_server(0, &msg, sizeof(initMsg));
+        send_to_server(1, &msg, sizeof(initMsg));
     }
 
     close(sockfd0);
