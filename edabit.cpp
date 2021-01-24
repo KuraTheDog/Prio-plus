@@ -102,7 +102,7 @@ void b2a_edaBit(const int serverfd, const int server_num, const EdaBit* const ed
   // Convert x2 to bool array
   bool x2[n];
   for (int i = 0; i < n; i++)
-    x2[i] = get_fmpz_bit(x, i);
+    x2[i] = fmpz_tstbit(x, i);
 
   // [x+r]_2 = [x]_2 + [r]_2 via circuit
   bool xr[n+1];

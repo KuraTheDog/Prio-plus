@@ -25,23 +25,11 @@ void copy_fmpz_array(fmpz_t* dest, const fmpz_t* const src, const int N) {
         fmpz_set(dest[i],src[i]);
 }
 
-bool get_fmpz_bit(const fmpz_t x, const size_t n) {
-    fmpz_t mask;
-    fmpz_init_set_ui(mask, 1 << n);
-    fmpz_and(mask, x, mask);  // just nth bit of x
-    bool ans = (1 - fmpz_is_zero(mask));  // 0 if mask is zero
-    fmpz_clear(mask);
-    return ans;
-}
-
 // Turn bool (bit) array into fmpz_t
 void fmpz_from_bool_array(fmpz_t x, const bool* const arr, const size_t n) {
   fmpz_zero(x);
-  fmpz_t pow;
-  fmpz_init_set_ui(pow, 1);
   for (int i = 0; i < n; i++) {
     if (arr[i])
-      fmpz_add(x, x, pow);
-    fmpz_mul_ui(pow, pow, 2);
+      fmpz_setbit(x, i);
   }
 }

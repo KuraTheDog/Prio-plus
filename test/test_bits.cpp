@@ -228,11 +228,11 @@ void localTest(const size_t n) {
     // boolean beaver triple.
     // (a0^a1) * (b0^b1) = (c0^c1). 5 random per.
     fmpz_randbits(tmp, seed, 5);
-    a0 = get_fmpz_bit(tmp, 0);
-    a1 = get_fmpz_bit(tmp, 1);
-    b0 = get_fmpz_bit(tmp, 2);
-    b1 = get_fmpz_bit(tmp, 3);
-    c0 = get_fmpz_bit(tmp, 4);
+    a0 = fmpz_tstbit(tmp, 0);
+    a1 = fmpz_tstbit(tmp, 1);
+    b0 = fmpz_tstbit(tmp, 2);
+    b1 = fmpz_tstbit(tmp, 3);
+    c0 = fmpz_tstbit(tmp, 4);
     c1 = c0 ^ ((a0 ^ a1) and (b0 ^ b1));
 
     // [c] xor [x]*e xor [y] * d xor e * d

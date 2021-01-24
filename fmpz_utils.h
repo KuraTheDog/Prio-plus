@@ -14,8 +14,6 @@ void clear_fmpz_array(fmpz_t* arr, const int N);
 
 void copy_fmpz_array(fmpz_t* dest, const fmpz_t* const src, const int N);
 
-bool get_fmpz_bit(const fmpz_t x, const size_t n);
-
 void fmpz_from_bool_array(fmpz_t x, const bool* const arr, const size_t n);
 
 #endif
