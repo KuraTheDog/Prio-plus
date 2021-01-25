@@ -24,4 +24,6 @@ uint64_t intsum_ot_receiver(NetIO* const io, const uint32_t* const shares, const
 
 BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int m);
 
+BeaverTriple* generate_beaver_triple(const int server_num, const int serverfd);
+
 #endif

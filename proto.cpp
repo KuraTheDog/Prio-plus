@@ -1,5 +1,8 @@
 #include "proto.h"
 
+#include "constants.h"
+#include "net_share.h"
+
 #define SERVER0_IP "127.0.0.1"
 #define SERVER1_IP "127.0.0.1"
 
@@ -345,4 +348,119 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
     }
 
     return ans;
+}
+
+BeaverTriple* generate_beaver_triple(const int server_num, const int serverfd) {
+
+    BeaverTriple* triple = new BeaverTriple();
+    // ceil(log_2 modulus)
+    const size_t n = fmpz_clog_ui(Int_Modulus, 2);
+    // For n > 128, need multiple blocks to represent a fmpz_t value
+    if (n > 128) {
+        std::cout << "Int_Modulus is " << n << " bits, which is more than 128, the maximum that the current generate_beaver_triple can handle." << std::endl;
+        return triple;
+    }
+    
+    PRG prg(fix_key);
+
+    if (server_num == 0) {
+        block junk[10];
+        prg.random_block(junk, 10);
+    }
+
+    block r0_block[n], r1_block[n], s_block[n];
+    prg.random_block(r0_block, n);
+    prg.random_block(r1_block, n);
+
+    // Use prg random for this instead?
+    fmpz_randm(triple->A, seed, Int_Modulus);
+    fmpz_randm(triple->B, seed, Int_Modulus);
+
+    bool a_arr[n];
+    for (int i = 0; i < n; i++)
+        a_arr[i] = fmpz_tstbit(triple->A, i);
+
+    // OT random r0/r1 based on bits of a into s
+    // s[i] = (ai == 1) ? r1[i] : r0[i]
+
+    NetIO* io0 = new NetIO(server_num == 0 ? nullptr : SERVER0_IP, 60051, true);
+    NetIO* io1 = new NetIO(server_num == 1 ? nullptr : SERVER1_IP, 60052, true);
+
+    if (server_num == 0) {
+        io0->sync();
+        IKNP<NetIO> ot0(io0);
+        ot0.recv(s_block, a_arr, n);
+        io0->flush();
+
+        io1->sync();
+        IKNP<NetIO> ot1(io1);
+        ot1.send(r0_block, r1_block, n);
+        io1->flush();
+    } else {
+        io0->sync();
+        IKNP<NetIO> ot0(io0);
+        ot0.send(r0_block, r1_block, n);
+        io0->flush();
+
+        io1->sync();
+        IKNP<NetIO> ot1(io1);
+        ot1.recv(s_block, a_arr, n);
+        io1->flush();
+    }
+
+    delete io0;
+    delete io1;
+
+    fmpz_t t; fmpz_init(t); fmpz_zero(t);  // sum 2^i ti
+    fmpz_t q; fmpz_init(q); fmpz_zero(q);  // sum 2^i r0
+
+    fmpz_t r0; fmpz_init(r0);  // r0_block[i]
+    fmpz_t r1; fmpz_init(r1);  // r1_block[i]
+    fmpz_t s; fmpz_init(s);    // s[i]
+    fmpz_t d; fmpz_init(d);
+    fmpz_t ti; fmpz_init(ti);
+
+    fmpz_t pow; fmpz_init_set_si(pow, 1);  // 2^i
+
+    for (int i = 0; i < n; i++) {
+        fmpz_from_block(r0, r0_block[i], n);
+        fmpz_mod(r0, r0, Int_Modulus);
+        fmpz_from_block(r1, r1_block[i], n);
+        fmpz_mod(r1, r1, Int_Modulus);
+
+        // s = r(ai)' = r0' - ai (r0' - r1')
+        fmpz_from_block(s, s_block[i], n);
+        fmpz_mod(s, s, Int_Modulus);
+
+        // d = r0 - r1 + b, and swap
+        fmpz_sub(d, r0, r1);
+        fmpz_add(d, d, triple->B);
+        fmpz_mod(d, d, Int_Modulus);
+        send_fmpz(serverfd, d);
+        recv_fmpz(serverfd, d);
+
+        // t = s + ai d' = r0' + ai b'
+        fmpz_set(ti, s);
+        if (a_arr[i]) {
+            fmpz_add(ti, ti, d);
+            fmpz_mod(ti, ti, Int_Modulus);
+        }
+
+        fmpz_addmul(t, ti, pow); // r0' + ai b'
+        fmpz_mod(t, t, Int_Modulus);
+        fmpz_addmul(q, r0, pow); // r0
+        fmpz_mod(q, q, Int_Modulus);
+
+        fmpz_mul_ui(pow, pow, 2);
+    }
+
+    // So t - q' = a b', and vice versa
+
+    // c = a * b + t - q
+    fmpz_mul(triple->C, triple->A, triple->B);
+    fmpz_add(triple->C, triple->C, t);
+    fmpz_sub(triple->C, triple->C, q);
+    fmpz_mod(triple->C, triple->C, Int_Modulus);
+
+    return triple;
 }
