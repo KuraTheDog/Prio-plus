@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <string>
 
+#include "edabit.h"
 #include "net_share.h"
 #include "proto.h"
 #include "types.h"
@@ -31,6 +32,8 @@ uint32_t randx_uses = 0;
 fmpz_t randomX;
 
 std::unordered_map<size_t, CheckerPreComp*> precomp_store;
+
+CorrelatedStore* correlated_store;
 
 // TODO: const 60051 for netio?
 
@@ -122,11 +125,35 @@ std::string get_pk(const int serverfd) {
     return pk;
 }
 
-bool run_snip(Circuit* const circuit, const ClientPacket packet, const int serverfd, const int server_num) {
+// Ensures [share]_2 and [wire]_p encode the same value.
+bool validate_input_wire(const int serverfd, const int server_num, const uint32_t share, const fmpz_t wire, const size_t num_bits) {
 
-    // Validate input wires first. Outside of this?
-    // for each (share, wire) pair
-    // validate_shares_match(serverfd, server_num, share, wire, n_bits, edabit, triples);
+    // std::cout << "validating input wire\n";
+    // std::cout << "  share: " << share << std::endl;
+    // std::cout << "  wire: "; fmpz_print(wire); std::cout << std::endl;
+
+    fmpz_t fshare;
+    fmpz_init_set_ui(fshare, share);
+
+    EdaBit* edabit = correlated_store->getEdaBit();
+    BooleanBeaverTriple* triples = correlated_store->getBoolTriples(num_bits);
+
+    // edabit->print();
+
+    bool ans = validate_shares_match(serverfd, server_num, fshare, wire, num_bits, edabit, triples);
+
+    fmpz_clear(fshare);
+    delete edabit;
+    delete[] triples;
+
+    bool other_ans;
+    send_bool(serverfd, ans);
+    recv_bool(serverfd, other_ans);
+
+    return (ans and other_ans);
+}
+
+bool run_snip(Circuit* const circuit, const ClientPacket packet, const int serverfd, const int server_num) {
 
     Checker* const checker = new Checker(circuit, server_num);
     checker->setReq(packet);
@@ -397,8 +424,6 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         share_map[pk] = &shares[i*(B+1)];
     }
 
-    // TODO: return INVALID if too many invalid.
-
     std::cout << "Received " << total_inputs << " shares" << std::endl;
 
     if (fork() > 0) return RET_NO_ANS;
@@ -503,8 +528,6 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         share_map[pk] = {share.val, share.val_squared, packet};
     }
 
-    // TODO: return INVALID if too many invalid.
-
     std::cout << "Received " << total_inputs << " shares" << std::endl;
 
     if (fork() > 0) return RET_NO_ANS;
@@ -533,6 +556,18 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             if (!other_valid)
                 continue;
 
+            bool wire_valid;
+            wire_valid = validate_input_wire(serverfd, server_num, shares[i-1], packet->WireShares[0], num_bits);
+            if (not wire_valid) {
+                std::cout << " wire invalid" << std::endl;
+                continue;
+            }
+            wire_valid = validate_input_wire(serverfd, server_num, shares_squared[i-1], packet->WireShares[1], num_bits);
+            if (not wire_valid) {
+                std::cout << " wire squared invalid" << std::endl;
+                continue;
+            }
+
             // SNIPS
             Circuit* const circuit = CheckVar();
             if (not have_roots_init) {
@@ -541,7 +576,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             }
 
             bool circuit_valid = run_snip(circuit, packet, serverfd, server_num);
-            std::cout << " Circuit for " << i - 1 << " validity: " << std::boolalpha << circuit_valid << std::endl;
+            // std::cout << " Circuit for " << i - 1 << " validity: " << std::boolalpha << circuit_valid << std::endl;
             send_bool(serverfd, circuit_valid);
         }
 
@@ -578,6 +613,21 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             ClientPacket packet;
             std::tie(shares[i], shares_squared[i], packet) = share_map[pk];
 
+            bool wire_valid;
+            // std::cout << "shares[" << i << "] = " << shares[i] << std::endl;
+            wire_valid = validate_input_wire(serverfd, server_num, shares[i], packet->WireShares[0], num_bits);
+            if (not wire_valid) {
+                std::cout << " wire invalid" << std::endl;
+                valid[i] = false;
+                continue;
+            }
+            wire_valid = validate_input_wire(serverfd, server_num, shares_squared[i], packet->WireShares[1], num_bits);
+            if (not wire_valid) {
+                std::cout << " wire squared invalid" << std::endl;
+                valid[i] = false;
+                continue;
+            }
+
             Circuit* const circuit = CheckVar();
             if (not have_roots_init) {
                 init_roots(N);
@@ -587,17 +637,18 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             bool circuit_valid = run_snip(circuit, packet, serverfd, server_num);
             if (!circuit_valid)
                 valid[i] = false;
-            std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
+            // std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
 
             bool other_valid;
             recv_bool(serverfd, other_valid);
             if (!other_valid)
                 valid[i] = false;
-            std::cout << " Other Circuit for " << i << " validity: " << std::boolalpha << other_valid << std::endl;
+            // std::cout << " Other Circuit for " << i << " validity: " << std::boolalpha << other_valid << std::endl;
 
             if (valid[i])
                 num_valid++;
         }
+
         // Compute result
         NetIO* const io = new NetIO(nullptr, 60051, true);
         uint64_t a = intsum_ot_sender(io, &shares[0], &valid[0], num_inputs, num_bits);
@@ -663,6 +714,8 @@ int main(int argc, char** argv) {
     fmpz_init(randomX);
     sync_randomX(serverfd, server_num, randomX);
 
+    correlated_store = new CorrelatedStore(serverfd, server_num, num_bits, 128);
+
     int sockfd, newsockfd;
     sockaddr_in addr;
 
@@ -679,6 +732,8 @@ int main(int argc, char** argv) {
                 pair.second -> setCheckerPrecomp(randomX);
             }
         }
+
+        correlated_store->maybeUpdate();
 
         socklen_t addrlen = sizeof(addr);
 

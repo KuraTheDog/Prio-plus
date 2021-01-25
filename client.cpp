@@ -735,7 +735,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
             shares0[i] = shares0[i] % small_max_int;
         shares1[i] = real_vals[i] ^ shares0[i];
         uint32_t squared = real_vals[i] * real_vals[i];
-        if (i == 3)  // x^2 != x * x
+        if (i == 3 or i == 4)  // x^2 != x * x
             squared = (squared + 10) % max_int;
         if (i != 2)  // x^2 not capped
             shares0_squared[i] = shares0_squared[i] % max_int;
@@ -743,7 +743,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
 
         std::cout << i << ": " << real_vals[i] << " = " << shares0[i] << "^" << shares1[i];
         std::cout << ", " << squared << " = " << shares0_squared[i] << "^" << shares1_squared[i];
-        if ((i <= 9 and i != 4) or i == 11 or i == 13) {
+        if (i <= 9 or i == 11 or i == 13) {
             std::cout << " (invalid)" << std::endl;
         } else {
             std::cout << std::endl;

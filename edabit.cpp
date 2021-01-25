@@ -332,9 +332,9 @@ EdaBit* CorrelatedStore::getEdaBit() {
 
 void CorrelatedStore::maybeUpdate() {
   std::cout << "precomputing..." << std::endl;
-  if (edabits.size() < batch_size)
+  if (edabits.size() < batch_size / 2)
     addEdaBits();
-  if (bool_triples.size() < bool_batch_size)
+  if (bool_triples.size() < bool_batch_size / 2)
     addBoolTriples();
   std::cout << "precompute done" << std::endl;
 }

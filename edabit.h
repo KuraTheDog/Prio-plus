@@ -72,7 +72,7 @@ public:
       delete bit;
     }
     while (!triples.empty()) {
-      Triple* triple = triples.front();
+      BeaverTriple* triple = triples.front();
       triples.pop();
       delete triple;
     }
