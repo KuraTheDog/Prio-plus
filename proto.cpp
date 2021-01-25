@@ -292,10 +292,7 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
     prg.random_bool(y, m);
     prg.random_bool(r, m);
 
-    // for(int i = 0; i < m; i++){
-    //     std::cout << "x = " << x[i] << ", y = " << y[i] << ", r = " << r[i] << std::endl;
-    // }
-
+    // B is 16 hex bits? so we can fit 64 bools in one block?
     block b0[m], b1[m], B[m];
 
     for(int i = 0; i < m; i++){
@@ -339,6 +336,7 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
     block_to_boolean(B,b,m);
 
     for(int i = 0; i < m ; i++){
+        // b = r' ^ x'y
         z[i] = b[i] != (r[i] != (x[i] and y[i])); // z[i] = r_A xor x_A.y_A xor r_B xor x_B.y_A
         // std::cout << x[i] << " " << y[i] << " " <<  z[i] << std::endl;
     }
