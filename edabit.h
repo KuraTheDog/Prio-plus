@@ -33,11 +33,15 @@ bool validate_shares_match(const int serverfd, const int server_num, const fmpz_
 
 // A Cache of correlated bits of different types
 // Makes batch_size at once, when running low
-struct CorrelatedStore {
+class CorrelatedStore {
   const size_t batch_size;  // How many to make at once
   const int server_num;
   const int serverfd;
   const size_t num_bits;    // for size of edabits
+
+  // Since we use these a lot more, make much bigger batches at once.
+  // num_bits * batch_size
+  const size_t bool_batch_size;
 
   std::queue<EdaBit*> edabits;
   std::queue<DaBit*> dabits;
@@ -46,11 +50,14 @@ struct CorrelatedStore {
   std::queue<BooleanBeaverTriple> bool_triples;
   std::queue<BeaverTriple*> triples;
 
+public:
+
   CorrelatedStore(const int serverfd, const int idx, const size_t num_bits, const size_t batch_size = 64) 
   : batch_size(batch_size)
   , server_num(idx)
   , serverfd(serverfd)
   , num_bits(num_bits)
+  , bool_batch_size(2 * batch_size * num_bits)
   {}
 
   ~CorrelatedStore() {
@@ -64,6 +71,11 @@ struct CorrelatedStore {
       dabits.pop();
       delete bit;
     }
+    while (!triples.empty()) {
+      Triple* triple = triples.front();
+      triples.pop();
+      delete triple;
+    }
   }
 
   void addBoolTriples();
@@ -75,6 +87,9 @@ struct CorrelatedStore {
   BeaverTriple* getTriple();
   DaBit* getDaBit();
   EdaBit* getEdaBit();
+
+  // Precompute if not enough
+  void maybeUpdate();
 };
 
 #endif

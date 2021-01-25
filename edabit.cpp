@@ -2,6 +2,8 @@
 Based on ia.cr/2020/338
 */
 
+#include <iostream>
+
 #include "constants.h"
 #include "edabit.h"
 #include "net_share.h"
@@ -220,6 +222,8 @@ EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n,
 }
 
 bool validate_shares_match(const int serverfd, const int server_num, const fmpz_t x2, const fmpz_t xp, const size_t n, const EdaBit* const edabit, const BooleanBeaverTriple* const triples) {
+  // auto start = clock_start();
+
   if (edabit->n != n) return false;
 
   // Compute [x2]_p
@@ -245,34 +249,41 @@ bool validate_shares_match(const int serverfd, const int server_num, const fmpz_
     recv_bool(serverfd, valid);
   }
 
+  // std::cout << "validate_shares_match timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
   return valid;
 }
 
 void CorrelatedStore::addBoolTriples() {
-  BooleanBeaverTriple* new_triples = gen_boolean_beaver_triples(server_num, batch_size);
-  for (int i = 0; i < batch_size; i++)
+  auto start = clock_start();
+  BooleanBeaverTriple* new_triples = gen_boolean_beaver_triples(server_num, bool_batch_size);
+  for (int i = 0; i < bool_batch_size; i++)
     bool_triples.push(new_triples[i]);
-  // delete[] new_triples;
+  long long t = time_from(start);
+  std::cout << "addBoolTriples timing : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
 }
 
 void CorrelatedStore::addTriples() {
+  auto start = clock_start();
   for (int i = 0; i < batch_size; i++) {
     BeaverTriple* triple = generate_beaver_triple(serverfd, server_num);
     triples.push(triple);
   }
+  std::cout << "addTriples timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }
 
 void CorrelatedStore::addDaBits() {
+  auto start = clock_start();
   for (int i = 0; i < batch_size; i++) {
     BeaverTriple* triple = getTriple();
     DaBit* bit = generateDaBit(serverfd, server_num, triple);
     dabits.push(bit);
     delete triple;
-    delete bit;
   }
+  std::cout << "addDaBits timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }
 
 void CorrelatedStore::addEdaBits() {
+  auto start = clock_start();
   for (int i = 0; i < batch_size; i++) {
     BooleanBeaverTriple* gen_triples = getBoolTriples(num_bits);
     DaBit* dabit = getDaBit();
@@ -281,6 +292,7 @@ void CorrelatedStore::addEdaBits() {
     delete[] gen_triples;
     delete dabit;
   }
+  std::cout << "addEdaBits timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }
 
 BooleanBeaverTriple* CorrelatedStore::getBoolTriples(const size_t n) {
@@ -316,4 +328,13 @@ EdaBit* CorrelatedStore::getEdaBit() {
   EdaBit* ans = edabits.front();
   edabits.pop();
   return ans;
+}
+
+void CorrelatedStore::maybeUpdate() {
+  std::cout << "precomputing..." << std::endl;
+  if (edabits.size() < batch_size)
+    addEdaBits();
+  if (bool_triples.size() < bool_batch_size)
+    addBoolTriples();
+  std::cout << "precompute done" << std::endl;
 }
