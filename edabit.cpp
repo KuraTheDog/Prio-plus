@@ -248,13 +248,44 @@ bool validate_shares_match(const int serverfd, const int server_num, const fmpz_
   return valid;
 }
 
-BooleanBeaverTriple* CorrelatedStore::getBoolTriples(const size_t n) {
-  if (n > bool_triples.size()) {
-    BooleanBeaverTriple* new_triples = gen_boolean_beaver_triples(server_num, batch_size);
-    for (int i = 0; i < batch_size; i++)
-      bool_triples.push(new_triples[i]);
-      // delete[] new_triples;
+void CorrelatedStore::addBoolTriples() {
+  BooleanBeaverTriple* new_triples = gen_boolean_beaver_triples(server_num, batch_size);
+  for (int i = 0; i < batch_size; i++)
+    bool_triples.push(new_triples[i]);
+  // delete[] new_triples;
+}
+
+void CorrelatedStore::addTriples() {
+  for (int i = 0; i < batch_size; i++) {
+    BeaverTriple* triple = generate_beaver_triple(serverfd, server_num);
+    triples.push(triple);
   }
+}
+
+void CorrelatedStore::addDaBits() {
+  for (int i = 0; i < batch_size; i++) {
+    BeaverTriple* triple = getTriple();
+    DaBit* bit = generateDaBit(serverfd, server_num, triple);
+    dabits.push(bit);
+    delete triple;
+    delete bit;
+  }
+}
+
+void CorrelatedStore::addEdaBits() {
+  for (int i = 0; i < batch_size; i++) {
+    BooleanBeaverTriple* gen_triples = getBoolTriples(num_bits);
+    DaBit* dabit = getDaBit();
+    EdaBit* edabit = generateEdaBit(serverfd, server_num, num_bits, gen_triples, dabit);
+    edabits.push(edabit);
+    delete[] gen_triples;
+    delete dabit;
+  }
+}
+
+BooleanBeaverTriple* CorrelatedStore::getBoolTriples(const size_t n) {
+  if (n > bool_triples.size())
+    addBoolTriples();
   BooleanBeaverTriple* ans = new BooleanBeaverTriple[n];
   for (int i = 0; i < n; i++) {
     ans[i] = bool_triples.front();
@@ -264,41 +295,24 @@ BooleanBeaverTriple* CorrelatedStore::getBoolTriples(const size_t n) {
 }
 
 BeaverTriple* CorrelatedStore::getTriple() {
-  if (triples.empty()) {
-    // TODO: Generate batch_size beaver triples
-    ;
-  }
+  if (triples.empty())
+    addTriples();
   BeaverTriple* ans = triples.front();
   triples.pop();
   return ans;
 }
 
 DaBit* CorrelatedStore::getDaBit() {
-  if (dabits.empty()) {
-    for (int i = 0; i < batch_size; i++) {
-      BeaverTriple* triple = getTriple();
-      DaBit* bit = generateDaBit(serverfd, server_num, triple);
-      dabits.push(bit);
-      delete triple;
-      delete bit;
-    }
-  }
+  if (dabits.empty())
+    addDaBits();
   DaBit* ans = dabits.front();
   dabits.pop();
   return ans;
 }
 
 EdaBit* CorrelatedStore::getEdaBit() {
-  if (edabits.empty()) {
-    for (int i = 0; i < batch_size; i++) {
-      BooleanBeaverTriple* gen_triples = getBoolTriples(num_bits);
-      DaBit* dabit = getDaBit();
-      EdaBit* edabit = generateEdaBit(serverfd, server_num, num_bits, gen_triples, dabit);
-      edabits.push(edabit);
-      delete[] gen_triples;
-      delete dabit;
-    }
-  }
+  if (edabits.empty())
+    addEdaBits();
   EdaBit* ans = edabits.front();
   edabits.pop();
   return ans;

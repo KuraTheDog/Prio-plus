@@ -38,7 +38,7 @@ int main(int argc, char** argv){
       std::cout << ", vs c = " << triple.c << " ^ " << triples[i].c << " = " << (triple.c ^ triples[i].c) << std::endl;
     }
 
-    BeaverTriple* btriple = generate_beaver_triple(server_num, cli_sockfd);
+    BeaverTriple* btriple = generate_beaver_triple(cli_sockfd, server_num);
     BeaverTriple* other_btriple = new BeaverTriple();
     recv_BeaverTriple(cli_sockfd, other_btriple);
 
@@ -68,7 +68,7 @@ int main(int argc, char** argv){
     for (int i = 0; i < m; i++)
       send_BooleanBeaverTriple(newsockfd, triples[i]);
 
-    BeaverTriple* btriple = generate_beaver_triple(server_num, newsockfd);
+    BeaverTriple* btriple = generate_beaver_triple(newsockfd, server_num);
 
     send_BeaverTriple(newsockfd, btriple);
 

@@ -66,6 +66,11 @@ struct CorrelatedStore {
     }
   }
 
+  void addBoolTriples();
+  void addTriples();
+  void addDaBits();
+  void addEdaBits();
+
   BooleanBeaverTriple* getBoolTriples(const size_t n);
   BeaverTriple* getTriple();
   DaBit* getDaBit();

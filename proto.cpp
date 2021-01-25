@@ -350,7 +350,7 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
     return ans;
 }
 
-BeaverTriple* generate_beaver_triple(const int server_num, const int serverfd) {
+BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num) {
 
     BeaverTriple* triple = new BeaverTriple();
     // ceil(log_2 modulus)
