@@ -264,7 +264,7 @@ uint64_t xor_to_sum_share_receiver(NetIO* const io, const uint32_t share, const 
     return sum;
 }
 
-void set_block(block &b, const bool f){
+void set_block(block &b, const bool f) {
     uint64_t* const p = (uint64_t*) &b;
     p[0] = 0;
     p[1] = (f ? 1 : 0);
@@ -292,7 +292,6 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
     prg.random_bool(y, m);
     prg.random_bool(r, m);
 
-    // B is 16 hex bits? so we can fit 64 bools in one block?
     block b0[m], b1[m], B[m];
 
     for(int i = 0; i < m; i++){

@@ -33,3 +33,10 @@ void fmpz_from_bool_array(fmpz_t x, const bool* const arr, const size_t n) {
       fmpz_setbit(x, i);
   }
 }
+
+void fmpz_from_block(fmpz_t x, const emp::block &b, const size_t n) {
+  fmpz_zero(x);
+  for (ulong i = 0; i < n; i++)
+    if ((1L << i) & (*((uint64_t*)&b)))
+      fmpz_setbit(x, i);
+}

@@ -123,6 +123,11 @@ std::string get_pk(const int serverfd) {
 }
 
 bool run_snip(Circuit* const circuit, const ClientPacket packet, const int serverfd, const int server_num) {
+
+    // Validate input wires first. Outside of this?
+    // for each (share, wire) pair
+    // validate_shares_match(serverfd, server_num, share, wire, n_bits, edabit, triples);
+
     Checker* const checker = new Checker(circuit, server_num);
     checker->setReq(packet);
     const size_t N = circuit->N();

@@ -77,7 +77,7 @@ struct BooleanBeaverTriple {
     bool b;
     bool c;
 
-    void set(const bool a, const bool b, const bool c){
+    void set(const bool a, const bool b, const bool c) {
         this->a = a;
         this->b = b;
         this->c = c;
