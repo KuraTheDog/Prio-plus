@@ -367,9 +367,10 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, N
     }
 
     block r0_block[n], r1_block[n], s_block[n];
-    // Don't need to random, doing rot?
-    // prg.random_block(r0_block, n);
-    // prg.random_block(r1_block, n);
+    // TODO: replace this with Random OT instead.
+    // Note: Random OT breaks. Running 20 varop 8 twice has the second run make bad triples. Future runs line up again. Desync issues?
+    prg.random_block(r0_block, n);
+    prg.random_block(r1_block, n);
 
     // Use prg random for this instead?
     fmpz_randm(triple->A, seed, Int_Modulus);
@@ -389,22 +390,22 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, N
     if (server_num == 0) {
         io0->sync();
         IKNP<NetIO> ot0(io0);
-        ot0.recv_rot(s_block, a_arr, n);
+        ot0.recv(s_block, a_arr, n);
         io0->flush();
 
         io1->sync();
         IKNP<NetIO> ot1(io1);
-        ot1.send_rot(r0_block, r1_block, n);
+        ot1.send(r0_block, r1_block, n);
         io1->flush();
     } else {
         io0->sync();
         IKNP<NetIO> ot0(io0);
-        ot0.send_rot(r0_block, r1_block, n);
+        ot0.send(r0_block, r1_block, n);
         io0->flush();
 
         io1->sync();
         IKNP<NetIO> ot1(io1);
-        ot1.recv_rot(s_block, a_arr, n);
+        ot1.recv(s_block, a_arr, n);
         io1->flush();
     }
 
