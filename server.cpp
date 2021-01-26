@@ -208,7 +208,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
     }
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
 
-    if (fork() > 0) return RET_NO_ANS;
+    // if (fork() > 0) return RET_NO_ANS;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -281,7 +281,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
 
-    if (fork() > 0) return RET_NO_ANS;
+    // if (fork() > 0) return RET_NO_ANS;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -350,7 +350,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
 
-    if (fork() > 0) return RET_NO_ANS;
+    // if (fork() > 0) return RET_NO_ANS;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -428,7 +428,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     std::cout << "Received " << total_inputs << " shares" << std::endl;
 
-    if (fork() > 0) return RET_NO_ANS;
+    // if (fork() > 0) return RET_NO_ANS;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -532,7 +532,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     std::cout << "Received " << total_inputs << " shares" << std::endl;
 
-    if (fork() > 0) return RET_NO_ANS;
+    // if (fork() > 0) return RET_NO_ANS;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
