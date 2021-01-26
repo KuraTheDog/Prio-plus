@@ -287,7 +287,7 @@ void print_block(const block var) {
 }
 
 // Ref : https://crypto.stackexchange.com/questions/41651/what-are-the-ways-to-generate-beaver-triples-for-multiplication-gate
-BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int m){
+BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int m, NetIO* const io0, NetIO* const io1){
     PRG prg;
     BooleanBeaverTriple* ans = new BooleanBeaverTriple[m];
     bool x[m], y[m], z[m], r[m], b[m];
@@ -302,38 +302,28 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
         set_block(b1[i], (x[i] != r[i])); // r[i] XOR x[i]
     }
 
-    NetIO* io1 = new NetIO(server_num == 0 ? nullptr : SERVER0_IP, 60051, true);
-    NetIO* io2 = new NetIO(server_num == 1 ? nullptr : SERVER1_IP, 60052, true);
-
     if(server_num == 0){
-        io1->sync();
-        IKNP<NetIO> ot1(io1);
-        // std::cout << "OT1 send" << std::endl;
-        ot1.send(b0,b1,m);
-        io1->flush();
+        io0->sync();
+        IKNP<NetIO> ot0(io0);
+        ot0.send(b0,b1,m);
+        io0->flush();
 
-        io2->sync();
-        IKNP<NetIO> ot2(io2);
-        // std::cout << "OT2 recv" << std::endl;
-        ot2.recv(B,y,m);
-        io2->flush();
-    }
-    else if(server_num == 1){
         io1->sync();
         IKNP<NetIO> ot1(io1);
-        // std::cout << "OT1 recv" << std::endl;
         ot1.recv(B,y,m);
         io1->flush();
-
-        io2->sync();
-        IKNP<NetIO> ot2(io2);
-        // std::cout << "OT2 send" << std::endl;
-        ot2.send(b0,b1,m);
-        io2->flush();
     }
+    else if(server_num == 1){
+        io0->sync();
+        IKNP<NetIO> ot0(io0);
+        ot0.recv(B,y,m);
+        io0->flush();
 
-    delete io1;
-    delete io2;
+        io1->sync();
+        IKNP<NetIO> ot1(io1);
+        ot1.send(b0,b1,m);
+        io1->flush();
+    }
 
     block_to_boolean(B,b,m);
 
@@ -350,7 +340,7 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
     return ans;
 }
 
-BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num) {
+BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, NetIO* const io0, NetIO* const io1) {
 
     BeaverTriple* triple = new BeaverTriple();
     // ceil(log_2 modulus)
@@ -383,8 +373,6 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num) {
     // OT random r0/r1 based on bits of a into s
     // s[i] = (ai == 1) ? r1[i] : r0[i]
 
-    NetIO* io0 = new NetIO(server_num == 0 ? nullptr : SERVER0_IP, 60051, true);
-    NetIO* io1 = new NetIO(server_num == 1 ? nullptr : SERVER1_IP, 60052, true);
 
     if (server_num == 0) {
         io0->sync();
@@ -407,9 +395,6 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num) {
         ot1.recv(s_block, a_arr, n);
         io1->flush();
     }
-
-    delete io0;
-    delete io1;
 
     fmpz_t t; fmpz_init(t); fmpz_zero(t);  // sum 2^i ti
     fmpz_t q; fmpz_init(q); fmpz_zero(q);  // sum 2^i r0

@@ -255,7 +255,7 @@ bool validate_shares_match(const int serverfd, const int server_num, const fmpz_
 
 void CorrelatedStore::addBoolTriples() {
   auto start = clock_start();
-  BooleanBeaverTriple* new_triples = gen_boolean_beaver_triples(server_num, bool_batch_size);
+  BooleanBeaverTriple* new_triples = gen_boolean_beaver_triples(server_num, bool_batch_size, io0, io1);
   for (int i = 0; i < bool_batch_size; i++)
     bool_triples.push(new_triples[i]);
   long long t = time_from(start);
@@ -265,7 +265,7 @@ void CorrelatedStore::addBoolTriples() {
 void CorrelatedStore::addTriples() {
   auto start = clock_start();
   for (int i = 0; i < batch_size; i++) {
-    BeaverTriple* triple = generate_beaver_triple(serverfd, server_num);
+    BeaverTriple* triple = generate_beaver_triple(serverfd, server_num, io0, io1);
     triples.push(triple);
   }
   std::cout << "addTriples timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;

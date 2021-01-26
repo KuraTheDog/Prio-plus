@@ -240,20 +240,12 @@ void localTest(const size_t n) {
 
 void runServerTest(const int server_num, const int serverfd, const size_t n) {
 
-  BooleanBeaverTriple* triples = gen_boolean_beaver_triples(server_num, n);
+  NetIO* io0 = new NetIO(server_num == 0 ? nullptr : SERVER0_IP, 60051, true);
+  NetIO* io1 = new NetIO(server_num == 1 ? nullptr : SERVER1_IP, 60052, true); 
 
-  // TODO: use proper triple generation
-  BeaverTriple* triple = new BeaverTriple();
-  if (server_num == 0) {
-    BeaverTriple* other_triple = new BeaverTriple();
-    makeBeaverTripleLocally(triple->A, other_triple->A,
-                            triple->B, other_triple->B,
-                            triple->C, other_triple->C);
-    send_BeaverTriple(serverfd, other_triple);
-    delete other_triple;
-  } else {
-    recv_BeaverTriple(serverfd, triple);
-  }
+  BooleanBeaverTriple* triples = gen_boolean_beaver_triples(server_num, n, io0, io1);
+
+  BeaverTriple* triple = generate_beaver_triple(serverfd, server_num, io0, io1);
 
   DaBit* dabit = generateDaBit(serverfd, server_num, triple);
 
@@ -335,7 +327,10 @@ void runServerTest(const int server_num, const int serverfd, const size_t n) {
     recv_fmpz(serverfd, xp);
   }
 
-  BooleanBeaverTriple* newtriples = gen_boolean_beaver_triples(server_num, n);
+  BooleanBeaverTriple* newtriples = gen_boolean_beaver_triples(server_num, n, io0, io1);
+
+  delete io0;
+  delete io1;
 
   bool valid = validate_shares_match(serverfd, server_num, x, xp, n, ebit, newtriples);
 

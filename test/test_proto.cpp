@@ -19,16 +19,22 @@ int main(int argc, char** argv){
   pid_t pid = fork();
   int server_num = (pid == 0 ? 0 : 1);
 
-  BooleanBeaverTriple* triples = gen_boolean_beaver_triples(server_num, m);  
+  std::cout << "Making io objects" << std::endl;
+
+  NetIO* io0 = new NetIO(server_num == 0 ? nullptr : SERVER0_IP, 60051, true);
+  NetIO* io1 = new NetIO(server_num == 1 ? nullptr : SERVER1_IP, 60052, true); 
+
+  std::cout << "Making bool triples" << std::endl;
+
+  BooleanBeaverTriple* triples = gen_boolean_beaver_triples(server_num, m, io0, io1); 
 
   int sockfd = init_receiver();
   if (pid == 0) {
-    // random adjust
-    fmpz_t jnk; fmpz_init(jnk);
-    fmpz_randm(jnk, seed, Int_Modulus);
+    sleep(1);
 
     int cli_sockfd = init_sender();
 
+    std::cout << "Validating bool triples" << std::endl;
     BooleanBeaverTriple triple;
     for (int i = 0; i < m; i++) {
       recv_BooleanBeaverTriple(cli_sockfd, triple);
@@ -38,7 +44,9 @@ int main(int argc, char** argv){
       std::cout << ", vs c = " << triple.c << " ^ " << triples[i].c << " = " << (triple.c ^ triples[i].c) << std::endl;
     }
 
-    BeaverTriple* btriple = generate_beaver_triple(cli_sockfd, server_num);
+    std::cout << "Making arith triple" << std::endl;
+    BeaverTriple* btriple = generate_beaver_triple(cli_sockfd, server_num, io0, io1);
+    std::cout << "Validating arith triple" << std::endl;
     BeaverTriple* other_btriple = new BeaverTriple();
     recv_BeaverTriple(cli_sockfd, other_btriple);
 
@@ -68,13 +76,16 @@ int main(int argc, char** argv){
     for (int i = 0; i < m; i++)
       send_BooleanBeaverTriple(newsockfd, triples[i]);
 
-    BeaverTriple* btriple = generate_beaver_triple(newsockfd, server_num);
+    BeaverTriple* btriple = generate_beaver_triple(newsockfd, server_num, io0, io1);
 
     send_BeaverTriple(newsockfd, btriple);
 
     close(newsockfd);
   }
   close(sockfd);
+
+  delete io0;
+  delete io1;
 
   return 0;
 }

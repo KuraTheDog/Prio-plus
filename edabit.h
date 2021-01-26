@@ -1,9 +1,14 @@
 #ifndef EDABIT_H
 #define EDABIT_H
 
+#include <emp-ot/emp-ot.h>
+#include <emp-tool/emp-tool.h>
 #include <queue>
 
 #include "share.h"
+
+#define SERVER0_IP "127.0.0.1"
+#define SERVER1_IP "127.0.0.1"
 
 // Return [z] = [x] and [y], consuming a boolean triple
 bool multiplyBoolShares(const int serverfd, const int server_num, const bool x, const bool y, const BooleanBeaverTriple triple);
@@ -50,6 +55,10 @@ class CorrelatedStore {
   std::queue<BooleanBeaverTriple> bool_triples;
   std::queue<BeaverTriple*> triples;
 
+  // for OTs between servers
+  NetIO* io0;
+  NetIO* io1;
+
 public:
 
   CorrelatedStore(const int serverfd, const int idx, const size_t num_bits, const size_t batch_size = 64) 
@@ -58,7 +67,10 @@ public:
   , serverfd(serverfd)
   , num_bits(num_bits)
   , bool_batch_size(2 * batch_size * num_bits)
-  {}
+  {
+    io0 = new NetIO(server_num == 0 ? nullptr : SERVER0_IP, 60051, true);
+    io1 = new NetIO(server_num == 1 ? nullptr : SERVER1_IP, 60052, true);
+  }
 
   ~CorrelatedStore() {
     while (!edabits.empty()) {
@@ -76,6 +88,8 @@ public:
       triples.pop();
       delete triple;
     }
+    delete io0;
+    delete io1;
   }
 
   void addBoolTriples();
