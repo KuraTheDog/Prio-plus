@@ -28,11 +28,13 @@ int main(int argc, char** argv){
 
   BooleanBeaverTriple* triples = gen_boolean_beaver_triples(server_num, m, io0, io1);
 
-  int sockfd = init_receiver();
+  SHEkeys* keys = new SHEkeys(server_num);
+
   if (pid == 0) {
+    sleep(1);
     int cli_sockfd = init_sender();
 
-    sleep(1);
+    keys->exchange_pk(cli_sockfd);
 
     std::cout << "Validating bool triples" << std::endl;
     BooleanBeaverTriple triple;
@@ -45,7 +47,8 @@ int main(int argc, char** argv){
     }
 
     std::cout << "Making arith triple" << std::endl;
-    BeaverTriple* btriple = generate_beaver_triple(cli_sockfd, server_num, io0, io1);
+    BeaverTriple* btriple = generate_beaver_triple_she(cli_sockfd, server_num, keys);
+    // BeaverTriple* btriple = generate_beaver_triple(cli_sockfd, server_num, io0, io1);
     std::cout << "Validating arith triple" << std::endl;
     BeaverTriple* other_btriple = new BeaverTriple();
     recv_BeaverTriple(cli_sockfd, other_btriple);
@@ -71,18 +74,22 @@ int main(int argc, char** argv){
 
     close(cli_sockfd);
   } else {
+    int sockfd = init_receiver();
     int newsockfd = accept_receiver(sockfd);
+
+    keys->exchange_pk(newsockfd);
 
     for (int i = 0; i < m; i++)
       send_BooleanBeaverTriple(newsockfd, triples[i]);
 
-    BeaverTriple* btriple = generate_beaver_triple(newsockfd, server_num, io0, io1);
+    BeaverTriple* btriple = generate_beaver_triple_she(newsockfd, server_num, keys);
+    // BeaverTriple* btriple = generate_beaver_triple(newsockfd, server_num, io0, io1);
 
     send_BeaverTriple(newsockfd, btriple);
 
+    close(sockfd);
     close(newsockfd);
   }
-  close(sockfd);
 
   delete io0;
   delete io1;

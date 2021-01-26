@@ -341,6 +341,69 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
     return ans;
 }
 
+/*
+    0: sample a, b. send enc(a)
+    1: sample a’, b’. send enc’(a’)
+    0: sample q, send back T’ = b enc’(a’) - enc’(q)
+    1: sample q’, send back T = b’ enc(a) - enc(q’)
+    0: decrypt T to t = b’a - q’
+    1: decrypt T’ to t’ = ba’ - q
+    0: set c = ab + t + q
+    1: set c’ = a’b’ + t’ + q’
+*/
+void SHEkeys::exchange_pk(const int serverfd) {
+    send_int(serverfd, my_pk);
+    recv_int(serverfd, other_pk);
+    // std::cout << server_num << " got other pk: " << other_pk << std::endl;
+}
+void encrypt(fmpz_t& dst, const fmpz_t src, const int pk) {
+    fmpz_set(dst, src);
+}
+void decrypt(fmpz_t& dst, const fmpz_t src, const int sk) {
+    fmpz_set(dst, src);
+}
+BeaverTriple* generate_beaver_triple_she(const int serverfd, const int server_num, const SHEkeys* keys) {
+    // Input: PK, SK, PK_other
+
+    BeaverTriple* triple = new BeaverTriple();
+
+    fmpz_randm(triple->A, seed, Int_Modulus);
+    fmpz_randm(triple->B, seed, Int_Modulus);
+
+    fmpz_t enc_a; fmpz_init(enc_a);
+    encrypt(enc_a, triple->A, keys->my_pk);
+
+    // Swap enc(a) <-> enc'(a')
+    send_fmpz(serverfd, enc_a);
+    recv_fmpz(serverfd, enc_a);
+
+    // enc'(q)
+    fmpz_t q; fmpz_init(q);
+    fmpz_t enc_q; fmpz_init(enc_q);
+    fmpz_randm(q, seed, Int_Modulus);
+    encrypt(enc_q, q, keys->other_pk);
+
+    // T' = b enc'(a') - enc'(q)
+    fmpz_t t; fmpz_init(t);
+    fmpz_mul(t, triple->B, enc_a);
+    fmpz_sub(t, t, enc_q);
+
+    // Swap T' and T = b' enc(a) - enc(q')
+    send_fmpz(serverfd, t);
+    recv_fmpz(serverfd, t);
+    // t = b' a - q'
+    decrypt(t, t, keys->my_sk);
+
+    // c = ab + t + q
+    fmpz_mul(triple->C, triple->A, triple->B);
+    fmpz_mod(triple->C, triple->C, Int_Modulus);
+    fmpz_add(triple->C, triple->C, t);
+    fmpz_add(triple->C, triple->C, q);
+    fmpz_mod(triple->C, triple->C, Int_Modulus);
+
+    return triple;
+}
+
 BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, NetIO* const io0, NetIO* const io1) {
 
     // auto start = clock_start();

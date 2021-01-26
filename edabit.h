@@ -5,6 +5,7 @@
 #include <emp-tool/emp-tool.h>
 #include <queue>
 
+#include "proto.h"
 #include "share.h"
 
 // Return [z] = [x] and [y], consuming a boolean triple
@@ -56,6 +57,8 @@ class CorrelatedStore {
   NetIO* io0;
   NetIO* io1;
 
+  SHEkeys* keys;
+
 public:
 
   CorrelatedStore(const int serverfd, const int idx, const char* const server0_ip, const char* const server1_ip, const size_t num_bits, const size_t batch_size = 64) 
@@ -67,6 +70,8 @@ public:
   {
     io0 = new NetIO(server_num == 0 ? nullptr : server0_ip, 60051, true);
     io1 = new NetIO(server_num == 1 ? nullptr : server1_ip, 60052, true);
+    keys = new SHEkeys(server_num);
+    keys->exchange_pk(serverfd);
   }
 
   ~CorrelatedStore() {
@@ -87,6 +92,7 @@ public:
     }
     delete io0;
     delete io1;
+    delete keys;
   }
 
   void addBoolTriples();

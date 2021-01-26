@@ -265,7 +265,7 @@ void CorrelatedStore::addBoolTriples() {
 void CorrelatedStore::addTriples() {
   auto start = clock_start();
   for (int i = 0; i < batch_size; i++) {
-    BeaverTriple* triple = generate_beaver_triple(serverfd, server_num, io0, io1);
+    BeaverTriple* triple = generate_beaver_triple_she(serverfd, server_num, keys);
     triples.push(triple);
   }
   std::cout << "addTriples timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
