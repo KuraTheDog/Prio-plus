@@ -275,6 +275,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
             or share.val >= max_val)
             continue;
         share_map[pk] = share.val;
+
+        // std::cout << "share[" << i << "] = " << share.val << std::endl;
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;

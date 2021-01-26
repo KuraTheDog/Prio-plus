@@ -26,13 +26,13 @@ int main(int argc, char** argv){
 
   std::cout << "Making bool triples" << std::endl;
 
-  BooleanBeaverTriple* triples = gen_boolean_beaver_triples(server_num, m, io0, io1); 
+  BooleanBeaverTriple* triples = gen_boolean_beaver_triples(server_num, m, io0, io1);
 
   int sockfd = init_receiver();
   if (pid == 0) {
-    sleep(1);
-
     int cli_sockfd = init_sender();
+
+    sleep(1);
 
     std::cout << "Validating bool triples" << std::endl;
     BooleanBeaverTriple triple;

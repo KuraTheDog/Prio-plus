@@ -346,6 +346,8 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
 
 BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, NetIO* const io0, NetIO* const io1) {
 
+    // auto start = clock_start();
+
     BeaverTriple* triple = new BeaverTriple();
     // ceil(log_2 modulus)
     const size_t n = fmpz_clog_ui(Int_Modulus, 2);
@@ -357,14 +359,17 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, N
     
     PRG prg(fix_key);
 
+    // Random offset, for debug
     if (server_num == 0) {
         block junk[10];
         prg.random_block(junk, 10);
+        fmpz_randm(triple->A, seed, Int_Modulus);
     }
 
     block r0_block[n], r1_block[n], s_block[n];
-    prg.random_block(r0_block, n);
-    prg.random_block(r1_block, n);
+    // Don't need to random, doing rot?
+    // prg.random_block(r0_block, n);
+    // prg.random_block(r1_block, n);
 
     // Use prg random for this instead?
     fmpz_randm(triple->A, seed, Int_Modulus);
@@ -377,28 +382,33 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, N
     // OT random r0/r1 based on bits of a into s
     // s[i] = (ai == 1) ? r1[i] : r0[i]
 
+    // std::cout << "setup : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    // start = clock_start();
+
 
     if (server_num == 0) {
         io0->sync();
         IKNP<NetIO> ot0(io0);
-        ot0.recv(s_block, a_arr, n);
+        ot0.recv_rot(s_block, a_arr, n);
         io0->flush();
 
         io1->sync();
         IKNP<NetIO> ot1(io1);
-        ot1.send(r0_block, r1_block, n);
+        ot1.send_rot(r0_block, r1_block, n);
         io1->flush();
     } else {
         io0->sync();
         IKNP<NetIO> ot0(io0);
-        ot0.send(r0_block, r1_block, n);
+        ot0.send_rot(r0_block, r1_block, n);
         io0->flush();
 
         io1->sync();
         IKNP<NetIO> ot1(io1);
-        ot1.recv(s_block, a_arr, n);
+        ot1.recv_rot(s_block, a_arr, n);
         io1->flush();
     }
+
+    // std::cout << "OT timing: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 
     fmpz_t t; fmpz_init(t); fmpz_zero(t);  // sum 2^i ti
     fmpz_t q; fmpz_init(q); fmpz_zero(q);  // sum 2^i r0
