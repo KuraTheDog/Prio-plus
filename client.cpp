@@ -610,20 +610,20 @@ void var_op(const std::string protocol, const size_t numreqs) {
     send_to_server(1, &msg, sizeof(initMsg));
 
     emp::block* const b = new block[numreqs];
-    uint32_t real_vals[numreqs];
+    uint64_t real_vals[numreqs];
     // shares of x
-    uint32_t shares0[numreqs];
-    uint32_t shares1[numreqs];
+    uint64_t shares0[numreqs];
+    uint64_t shares1[numreqs];
     // shares of x^2
-    uint32_t shares0_squared[numreqs];
-    uint32_t shares1_squared[numreqs];
-    int sum = 0, sumsquared = 0;
+    uint64_t shares0_squared[numreqs];
+    uint64_t shares1_squared[numreqs];
+    uint64_t sum = 0, sumsquared = 0;
 
     emp::PRG prg(fix_key);
     prg.random_block(b, numreqs);
-    prg.random_data(real_vals, numreqs * sizeof(uint32_t));
-    prg.random_data(shares0, numreqs * sizeof(uint32_t));
-    prg.random_data(shares0_squared, numreqs * sizeof(uint32_t));
+    prg.random_data(real_vals, numreqs * sizeof(uint64_t));
+    prg.random_data(shares0, numreqs * sizeof(uint64_t));
+    prg.random_data(shares0_squared, numreqs * sizeof(uint64_t));
 
     fmpz_t inp[2];
     fmpz_init(inp[0]);
@@ -633,11 +633,14 @@ void var_op(const std::string protocol, const size_t numreqs) {
         real_vals[i] = real_vals[i] % small_max_int;
         shares0[i] = shares0[i] % small_max_int;
         shares1[i] = real_vals[i] ^ shares0[i];
-        uint32_t squared = real_vals[i] * real_vals[i];
+        uint64_t squared = real_vals[i] * real_vals[i];
         shares0_squared[i] = shares0_squared[i] % max_int;
         shares1_squared[i] = squared ^ shares0_squared[i];
         sum += real_vals[i];
         sumsquared += squared;
+
+        // std::cout << i << ": " << real_vals[i] << " = " << shares0[i] << "^" << shares1[i];
+        // std::cout << ", " << squared << " = " << shares0_squared[i] << "^" << shares1_squared[i] << std::endl;
 
         VarShare share0, share1;
         const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
@@ -706,20 +709,20 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
     send_to_server(1, &msg, sizeof(initMsg));
 
     emp::block* const b = new block[numreqs];
-    uint32_t real_vals[numreqs];
+    uint64_t real_vals[numreqs];
     // shares of x
-    uint32_t shares0[numreqs];
-    uint32_t shares1[numreqs];
+    uint64_t shares0[numreqs];
+    uint64_t shares1[numreqs];
     // shares of x^2
-    uint32_t shares0_squared[numreqs];
-    uint32_t shares1_squared[numreqs];
+    uint64_t shares0_squared[numreqs];
+    uint64_t shares1_squared[numreqs];
     int sum = 0, sumsquared = 0, numvalid = 0;
 
     emp::PRG prg(fix_key);
     prg.random_block(b, numreqs);
-    prg.random_data(real_vals, numreqs * sizeof(uint32_t));
-    prg.random_data(shares0, numreqs * sizeof(uint32_t));
-    prg.random_data(shares0_squared, numreqs * sizeof(uint32_t));
+    prg.random_data(real_vals, numreqs * sizeof(uint64_t));
+    prg.random_data(shares0, numreqs * sizeof(uint64_t));
+    prg.random_data(shares0_squared, numreqs * sizeof(uint64_t));
 
     std::cout << "small_max_int: " << small_max_int << std::endl;
     std::cout << "max_int: " << max_int << std::endl;
@@ -736,7 +739,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         if (i != 1)  // x shares not capped
             shares0[i] = shares0[i] % small_max_int;
         shares1[i] = real_vals[i] ^ shares0[i];
-        uint32_t squared = real_vals[i] * real_vals[i];
+        uint64_t squared = real_vals[i] * real_vals[i];
         if (i == 3 or i == 4)  // x^2 != x * x
             squared = (squared + 10) % max_int;
         if (i != 2)  // x^2 not capped
