@@ -16,11 +16,11 @@ using namespace emp;
 
 uint64_t bitsum_ot_sender(NetIO* const io, const bool* const shares, const bool* const valid, const size_t n);
 
-uint64_t intsum_ot_sender(NetIO* const io, const uint32_t* const shares, const bool* const valid, const size_t n, const size_t num_bits);
+uint64_t intsum_ot_sender(NetIO* const io, const uint64_t* const shares, const bool* const valid, const size_t n, const size_t num_bits);
 
 uint64_t bitsum_ot_receiver(NetIO* const io, const bool* const shares, const size_t n);
 
-uint64_t intsum_ot_receiver(NetIO* const io, const uint32_t* const shares, const size_t n, const size_t num_bits);
+uint64_t intsum_ot_receiver(NetIO* const io, const uint64_t* const shares, const size_t n, const size_t num_bits);
 
 BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int m, NetIO* const io0, NetIO* const io1);
 

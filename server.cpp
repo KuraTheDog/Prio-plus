@@ -23,7 +23,7 @@
 
 #define INVALID_THRESHOLD 0.5
 
-uint32_t int_sum_max;
+uint64_t int_sum_max;
 uint32_t num_bits;
 
 // Can keep this the same most of the time.
@@ -126,7 +126,7 @@ std::string get_pk(const int serverfd) {
 }
 
 // Ensures [share]_2 and [wire]_p encode the same value.
-bool validate_input_wire(const int serverfd, const int server_num, const uint32_t share, const fmpz_t wire, const size_t num_bits) {
+bool validate_input_wire(const int serverfd, const int server_num, const uint64_t share, const fmpz_t wire, const size_t num_bits) {
 
     // std::cout << "validating input wire\n";
     // std::cout << "  share: " << share << std::endl;
@@ -261,10 +261,10 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
 }
 
 returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint64_t& ans) {
-    std::unordered_map<std::string, uint32_t> share_map;
+    std::unordered_map<std::string, uint64_t> share_map;
 
     IntShare share;
-    const uint32_t max_val = 1 << num_bits;
+    const uint64_t max_val = 1ULL << num_bits;
     const size_t total_inputs = msg.num_of_inputs;
 
     for (int i = 0; i < total_inputs; i++) {
@@ -284,7 +284,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
         send_size(serverfd, num_inputs);
-        uint32_t shares[num_inputs];
+        uint64_t shares[num_inputs];
         int i = 0;
         for (const auto& share : share_map) {
             send_out(serverfd, &share.first[0], PK_LENGTH);
@@ -300,7 +300,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
     } else {
         size_t num_inputs, num_valid = 0;
         recv_size(serverfd, num_inputs);
-        uint32_t shares[num_inputs];
+        uint64_t shares[num_inputs];
         bool valid[num_inputs];
 
         for (int i = 0; i < num_inputs; i++) {
@@ -332,7 +332,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
 
 // For AND and OR
 returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, bool& ans) {
-    std::unordered_map<std::string, uint32_t> share_map;
+    std::unordered_map<std::string, uint64_t> share_map;
 
     IntShare share;
     const size_t total_inputs = msg.num_of_inputs;
@@ -353,7 +353,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
         send_size(serverfd, num_inputs);
-        uint32_t b = 0;
+        uint64_t b = 0;
         for (const auto& share : share_map) {
             send_out(serverfd, &share.first[0], PK_LENGTH);
             bool other_valid;
@@ -362,12 +362,12 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
                 continue;
             b ^= share.second;
         }
-        send_uint32(serverfd, b);
+        send_uint64(serverfd, b);
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
         recv_size(serverfd, num_inputs);
-        uint32_t a = 0;
+        uint64_t a = 0;
 
         for (int i = 0; i < num_inputs; i++) {
             std::string pk = get_pk(serverfd);
@@ -380,9 +380,9 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
             a ^= share_map[pk];
         }
 
-        uint32_t b;
-        recv_uint32(serverfd, b);
-        uint32_t aggr = a ^ b;
+        uint64_t b;
+        recv_uint64(serverfd, b);
+        uint64_t aggr = a ^ b;
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
@@ -494,13 +494,13 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 
 // For var, stddev
 returnType var_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, double& ans) {
-    typedef std::tuple <uint32_t, uint32_t, ClientPacket> sharetype;
+    typedef std::tuple <uint64_t, uint64_t, ClientPacket> sharetype;
     std::unordered_map<std::string, sharetype> share_map;
 
     VarShare share; 
     // We have x^2 < max, so we want x < sqrt(max)
-    const uint32_t small_max = 1 << (num_bits / 2);
-    const uint32_t square_max = 1 << num_bits;
+    const uint64_t small_max = 1ULL << (num_bits / 2);
+    const uint64_t square_max = 1ULL << num_bits;
     const size_t total_inputs = msg.num_of_inputs;
 
     // Just for getting sizes
@@ -537,8 +537,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         send_size(serverfd, num_inputs);
 
         // For OT
-        uint32_t shares[num_inputs];
-        uint32_t shares_squared[num_inputs];
+        uint64_t shares[num_inputs];
+        uint64_t shares_squared[num_inputs];
 
         bool have_roots_init = false;  // Only run once for N
 
@@ -576,7 +576,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             }
 
             bool circuit_valid = run_snip(circuit, packet, serverfd, server_num);
-            // std::cout << " Circuit for " << i - 1 << " validity: " << std::boolalpha << circuit_valid << std::endl;
+            // std::cout << " Circuit for " << (i - 1) << " validity: " << std::boolalpha << circuit_valid << std::endl;
             send_bool(serverfd, circuit_valid);
         }
 
@@ -595,8 +595,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         recv_size(serverfd, num_inputs);
 
         // For OT
-        uint32_t shares[num_inputs];
-        uint32_t shares_squared[num_inputs];
+        uint64_t shares[num_inputs];
+        uint64_t shares_squared[num_inputs];
         bool valid[num_inputs];
 
         bool have_roots_init = false;

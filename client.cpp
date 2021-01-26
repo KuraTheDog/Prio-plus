@@ -173,21 +173,23 @@ void int_sum(const std::string protocol, const size_t numreqs) {
     send_to_server(1, &msg, sizeof(initMsg));
 
     emp::block* const b = new block[numreqs];
-    uint32_t real_vals[numreqs];
-    uint32_t shares0[numreqs];
-    uint32_t shares1[numreqs];
+    uint64_t real_vals[numreqs];
+    uint64_t shares0[numreqs];
+    uint64_t shares1[numreqs];
     uint64_t ans = 0;
 
     emp::PRG prg(fix_key);
     prg.random_block(b, numreqs);
-    prg.random_data(real_vals, numreqs * sizeof(uint32_t));
-    prg.random_data(shares0, numreqs * sizeof(uint32_t));
+    prg.random_data(real_vals, numreqs * sizeof(uint64_t));
+    prg.random_data(shares0, numreqs * sizeof(uint64_t));
 
     for (int i = 0; i < numreqs; i++) {
         real_vals[i] = real_vals[i] % max_int;
         shares0[i] = shares0[i] % max_int;
         shares1[i] = real_vals[i] ^ shares0[i];
         ans += real_vals[i];
+
+        // std::cout << "real_vals[" << i << "] = " << real_vals[i] << " = " << shares0[i] << " ^ " << shares1[i] << std::endl;
 
         IntShare share0, share1;
         const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
@@ -223,15 +225,15 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
     send_to_server(1, &msg, sizeof(initMsg));
 
     emp::block* const b = new block[numreqs];
-    uint32_t real_vals[numreqs];
-    uint32_t shares0[numreqs];
-    uint32_t shares1[numreqs];
+    uint64_t real_vals[numreqs];
+    uint64_t shares0[numreqs];
+    uint64_t shares1[numreqs];
     uint64_t ans = 0;
 
     emp::PRG prg(fix_key);
     prg.random_block(b, numreqs);
-    prg.random_data(real_vals, numreqs * sizeof(uint32_t));
-    prg.random_data(shares0, numreqs * sizeof(uint32_t));
+    prg.random_data(real_vals, numreqs * sizeof(uint64_t));
+    prg.random_data(shares0, numreqs * sizeof(uint64_t));
 
     std::string pk_str = "";
     for (int i = 0; i < numreqs; i++) {
@@ -293,16 +295,16 @@ void xor_op(const std::string protocol, const size_t numreqs) {
 
     emp::block* const b = new block[numreqs];
     bool values[numreqs];
-    uint32_t encoded_values[numreqs];
-    uint32_t shares0[numreqs];
-    uint32_t shares1[numreqs];
+    uint64_t encoded_values[numreqs];
+    uint64_t shares0[numreqs];
+    uint64_t shares1[numreqs];
 
     emp::PRG prg(fix_key);
 
     prg.random_block(b, numreqs);
     prg.random_bool(values, numreqs);
-    prg.random_data(encoded_values, numreqs * sizeof(uint32_t));
-    prg.random_data(shares0, numreqs * sizeof(uint32_t));
+    prg.random_data(encoded_values, numreqs * sizeof(uint64_t));
+    prg.random_data(shares0, numreqs * sizeof(uint64_t));
 
     for (int i = 0; i < numreqs; i++) {
         if (protocol == "ANDOP")
@@ -366,16 +368,16 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
 
     emp::block* const b = new block[numreqs];
     bool values[numreqs];
-    uint32_t encoded_values[numreqs];
-    uint32_t shares0[numreqs];
-    uint32_t shares1[numreqs];
+    uint64_t encoded_values[numreqs];
+    uint64_t shares0[numreqs];
+    uint64_t shares1[numreqs];
 
     emp::PRG prg(fix_key);
 
     prg.random_block(b, numreqs);
     prg.random_bool(values, numreqs);
-    prg.random_data(encoded_values, numreqs * sizeof(uint32_t));
-    prg.random_data(shares0, numreqs * sizeof(uint32_t));
+    prg.random_data(encoded_values, numreqs * sizeof(uint64_t));
+    prg.random_data(shares0, numreqs * sizeof(uint64_t));
 
     for (int i = 0; i < numreqs; i++) {
         std::cout << "val[" << i << "] = " << std::boolalpha << values[i];
@@ -827,8 +829,8 @@ int main(int argc, char** argv) {
 
     if (argc >= 6) {
         int num_bits = atoi(argv[5]);
-        max_int = 1 << num_bits;
-        small_max_int = 1 << (num_bits / 2);
+        max_int = 1ULL << num_bits;
+        small_max_int = 1ULL << (num_bits / 2);
     }
 
     if (argc >= 7) {

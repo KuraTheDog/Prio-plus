@@ -54,7 +54,7 @@ uint64_t bitsum_ot_sender(NetIO* const io, const bool* const shares, const bool*
     return sum;
 }
 
-uint64_t intsum_ot_sender(NetIO* const io, const uint32_t* const shares, const bool* const valid, const size_t n, const size_t num_bits){
+uint64_t intsum_ot_sender(NetIO* const io, const uint64_t* const shares, const bool* const valid, const size_t n, const size_t num_bits){
     PRG prg(fix_key);
 
     uint64_t bool_shares[n*num_bits];
@@ -66,24 +66,25 @@ uint64_t intsum_ot_sender(NetIO* const io, const uint32_t* const shares, const b
     prg.random_data(r,n*num_bits*sizeof(uint64_t));
 
     for(int i = 0; i < n; i++){
-        uint32_t num = shares[i];
-        // std::cout << "Share : " << num << "  valid " << valid[i] << std::endl;
+        uint64_t num = shares[i];
+        // std::cout << "Share[" << i << "] " << num << "  valid " << valid[i] << std::endl;
         // std::cout << "Valid : " << valid[i] << " num bits " << num_bits << std::endl;
         for(int j = 0; j < num_bits; j++){
-            // std::cout << num%2 << std::endl;
+            // std::cout << num%2;
             bool_shares[i*num_bits + j] = num%2;
             bool_valid[i*num_bits + j] = valid[i];
             r[i*num_bits+j] = r[i*num_bits+j];
             // std::cout << "r[" << j << "] : " << r[j] << std::endl;
             num = num >> 1;
         }
+        // std::cout << std::endl;
     }
 
     for(int i = 0; i < n; i++){
         for(int j = 0; j < num_bits; j++){
-            b0[i*num_bits+j] = ((bool_shares[i*num_bits+j])*(1<<(j)) - r[i*num_bits+j]);
+            b0[i*num_bits+j] = ((bool_shares[i*num_bits+j])*(1ULL << j) - r[i*num_bits+j]);
             // std::cout << "b0[" << j << "] = " << b0[i*num_bits+j] << std::endl;
-            b1[i*num_bits+j] = ((1 - bool_shares[i*num_bits+j])*(1<<(j)) - r[i*num_bits+j]);
+            b1[i*num_bits+j] = ((1 - bool_shares[i*num_bits+j])*(1ULL << j) - r[i*num_bits+j]);
             // std::cout << "b1[" << j << "] = " << b1[i*num_bits+j] << std::endl;
         }
     }
@@ -145,18 +146,20 @@ uint64_t bitsum_ot_receiver(NetIO* const io, const bool* const shares, const siz
     return sum;
 }
 
-uint64_t intsum_ot_receiver(NetIO* const io, const uint32_t* const shares, const size_t n, const size_t num_bits){
+uint64_t intsum_ot_receiver(NetIO* const io, const uint64_t* const shares, const size_t n, const size_t num_bits){
 
     block* const r = new block[n*num_bits];
     bool bool_shares[n*num_bits];
 
     for(int i = 0; i < n; i++){
-        uint32_t num = shares[i];
-        // std::cout << "Share : " << num << " num bits " << num_bits << std::endl;
+        uint64_t num = shares[i];
+        // std::cout << "Share[" << i << "] = " << num << " num bits " << num_bits << std::endl;
         for(int j = 0; j < num_bits; j++){
+            // std::cout << num%2;
             bool_shares[i*num_bits + j] = num%2;
             num = num >> 1;
         }
+        // std::cout << std::endl;
     }
 
     uint64_t sum = 0;
@@ -170,6 +173,7 @@ uint64_t intsum_ot_receiver(NetIO* const io, const uint32_t* const shares, const
         if(valid == 0){
             for(int j = 0; j < num_bits; j++){
                 uint64_t* const p = (uint64_t*)&r[i*num_bits+j];
+                // std::cout << "sum += p[1] at " << j << " = " << p[1] << std::endl;
                 sum += p[1];
             }
         }
@@ -183,7 +187,7 @@ uint64_t intsum_ot_receiver(NetIO* const io, const uint32_t* const shares, const
 
 // Functions to convert XOR shared input values to shares that add up
 // Problem : Do they add up with Int_Modulus?
-uint64_t xor_to_sum_share_sender(NetIO* const io, const uint32_t share, const size_t num_bits){
+uint64_t xor_to_sum_share_sender(NetIO* const io, const uint64_t share, const size_t num_bits){
     PRG prg(fix_key);
 
     uint64_t bool_shares[num_bits];
@@ -194,7 +198,7 @@ uint64_t xor_to_sum_share_sender(NetIO* const io, const uint32_t share, const si
     prg.random_data(r,num_bits*sizeof(uint64_t));
 
 
-    uint32_t num = share;
+    uint64_t num = share;
     // std::cout << "Share : " << num << "  valid " << valid[i] << std::endl;
     // std::cout << "Valid : " << valid[i] << " num bits " << num_bits << std::endl;
     for(int j = 0; j < num_bits; j++){
@@ -206,8 +210,8 @@ uint64_t xor_to_sum_share_sender(NetIO* const io, const uint32_t share, const si
     }
 
     for(int j = 0; j < num_bits; j++){
-        b0[j] = ((bool_shares[j])*(1<<(j)) - r[j]);
-        b1[j] = ((1 - bool_shares[j])*(1<<(j)) - r[j]);
+        b0[j] = ((bool_shares[j])*(1ULL << j) - r[j]);
+        b1[j] = ((1 - bool_shares[j])*(1ULL << j) - r[j]);
     }
 
 
@@ -241,11 +245,11 @@ uint64_t xor_to_sum_share_sender(NetIO* const io, const uint32_t share, const si
     return sum;
 }
 
-uint64_t xor_to_sum_share_receiver(NetIO* const io, const uint32_t share, const size_t num_bits){
+uint64_t xor_to_sum_share_receiver(NetIO* const io, const uint64_t share, const size_t num_bits){
     block* const r = new block[num_bits];
     bool bool_shares[num_bits];
 
-    uint32_t num = share;
+    uint64_t num = share;
     // std::cout << "Share : " << num << " num bits " << num_bits << std::endl;
     for(int j = 0; j < num_bits; j++){
         bool_shares[j] = num%2;
