@@ -7,9 +7,6 @@
 
 #include "share.h"
 
-#define SERVER0_IP "127.0.0.1"
-#define SERVER1_IP "127.0.0.1"
-
 // Return [z] = [x] and [y], consuming a boolean triple
 bool multiplyBoolShares(const int serverfd, const int server_num, const bool x, const bool y, const BooleanBeaverTriple triple);
 
@@ -61,15 +58,15 @@ class CorrelatedStore {
 
 public:
 
-  CorrelatedStore(const int serverfd, const int idx, const size_t num_bits, const size_t batch_size = 64) 
+  CorrelatedStore(const int serverfd, const int idx, const char* const server0_ip, const char* const server1_ip, const size_t num_bits, const size_t batch_size = 64) 
   : batch_size(batch_size)
   , server_num(idx)
   , serverfd(serverfd)
   , num_bits(num_bits)
   , bool_batch_size(2 * batch_size * num_bits)
   {
-    io0 = new NetIO(server_num == 0 ? nullptr : SERVER0_IP, 60051, true);
-    io1 = new NetIO(server_num == 1 ? nullptr : SERVER1_IP, 60052, true);
+    io0 = new NetIO(server_num == 0 ? nullptr : server0_ip, 60051, true);
+    io1 = new NetIO(server_num == 1 ? nullptr : server1_ip, 60052, true);
   }
 
   ~CorrelatedStore() {

@@ -240,8 +240,8 @@ void localTest(const size_t n) {
 
 void runServerTest(const int server_num, const int serverfd, const size_t n) {
 
-  NetIO* io0 = new NetIO(server_num == 0 ? nullptr : SERVER0_IP, 60051, true);
-  NetIO* io1 = new NetIO(server_num == 1 ? nullptr : SERVER1_IP, 60052, true); 
+  NetIO* io0 = new NetIO(server_num == 0 ? nullptr : "127.0.0.1", 60051, true);
+  NetIO* io1 = new NetIO(server_num == 1 ? nullptr : "127.0.0.1", 60052, true); 
 
   BooleanBeaverTriple* triples = gen_boolean_beaver_triples(server_num, n, io0, io1);
 

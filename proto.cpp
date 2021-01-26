@@ -3,9 +3,6 @@
 #include "constants.h"
 #include "net_share.h"
 
-#define SERVER0_IP "127.0.0.1"
-#define SERVER1_IP "127.0.0.1"
-
 uint64_t bitsum_ot_sender(NetIO* const io, const bool* const shares, const bool* const valid, const size_t n){
     PRG prg(fix_key);
 

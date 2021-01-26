@@ -716,7 +716,7 @@ int main(int argc, char** argv) {
     fmpz_init(randomX);
     sync_randomX(serverfd, server_num, randomX);
 
-    correlated_store = new CorrelatedStore(serverfd, server_num, num_bits, 128);
+    correlated_store = new CorrelatedStore(serverfd, server_num, SERVER0_IP, SERVER1_IP, num_bits, 128);
 
     int sockfd, newsockfd;
     sockaddr_in addr;
