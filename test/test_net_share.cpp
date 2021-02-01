@@ -15,8 +15,7 @@ g++ -std=c++11 -o test_net_share test_net_share.cpp ../fmpz_utils.cpp ../share.c
 
 void run_sender(int sockfd) {
     int n;
-    fmpz_t number;
-    fmpz_init(number);
+    fmpz_t number; fmpz_init(number);
 
     uint32_t i = 1 << 20;
     n = send_uint32(sockfd, i);
@@ -67,6 +66,14 @@ void run_sender(int sockfd) {
     n = send_EdaBit(sockfd, b0, 4);
     std::cout << "send EdaBit size = " << n << std::endl;
     b0->print();
+
+    // Poly
+    fmpz_set_ui(number, 100);
+    fmpz_mod_poly_t f; fmpz_mod_poly_init(f, number);
+    fmpz_mod_poly_randtest(f, seed, 5);
+    n = send_poly(sockfd, f);
+    std::cout << "send: size = " << n << ", poly: ";
+    fmpz_mod_poly_print_pretty(f, "x"); std::cout << std::endl;
 
     // Sanity: sending numbers still works
     fmpz_set_d(number, 54321);
@@ -119,6 +126,12 @@ void run_receiver(int newsockfd) {
     n = recv_EdaBit(newsockfd, b, 4);
     std::cout << "recv EdaBit size = " << n << std::endl;
     b->print();
+
+    fmpz_set_ui(number, 100);
+    fmpz_mod_poly_t f; fmpz_mod_poly_init(f, number);
+    n = recv_poly(newsockfd, f);
+    std::cout << "recv: size = " << n << ", poly: ";
+    fmpz_mod_poly_print_pretty(f, "x"); std::cout << std::endl;
 
     n = recv_fmpz(newsockfd, number);
     std::cout << "recv: size = " << n << ", fmpz: ";

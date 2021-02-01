@@ -118,6 +118,36 @@ int recv_fmpz(const int sockfd, fmpz_t x) {
     return total;
 }
 
+int send_poly(const int sockfd, const fmpz_mod_poly_t f) {
+    int total = 0, ret;
+    int degree = fmpz_mod_poly_degree(f);
+    ret = send_int(sockfd, degree);
+    if (ret <= 0) return ret; else total += ret;
+    fmpz_t c; fmpz_init(c);
+    for (int i = 0; i <= degree; i++) {
+        fmpz_mod_poly_get_coeff_fmpz(c, f, i);
+        ret = send_fmpz(sockfd, c);
+        if (ret <= 0) return ret; else total += ret;
+    }
+    fmpz_clear(c);
+    return total;
+}
+
+int recv_poly(const int sockfd, fmpz_mod_poly_t f) {
+    int total = 0, ret;
+    int degree;
+    ret = recv_int(sockfd, degree);
+    if (ret <= 0) return ret; else total += ret;
+    fmpz_t c; fmpz_init(c);
+    for (int i = 0; i <= degree; i++) {
+        ret = recv_fmpz(sockfd, c);
+        if (ret <= 0) return ret; else total += ret;
+        fmpz_mod_poly_set_coeff_fmpz(f, i, c);
+    }
+    fmpz_clear(c);
+    return total;
+}
+
 /* Share functions */
 
 int send_Cor(const int sockfd, const Cor* const x) {
