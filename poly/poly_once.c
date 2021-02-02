@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "poly_batch.h"
 #include "util.h"
 
 void precomp_x_init(precomp_x_t* const pre_x, const precomp_t* const pre, const fmpz_t x) {

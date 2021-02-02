@@ -18,6 +18,7 @@ enum returnType {
 };
 
 // Only used in unused BatchPre.Interp
+/*
 struct BatchPoly {
     fmpz_mod_poly_t fpoly;
 
@@ -36,6 +37,7 @@ struct BatchPoly {
         poly_batch_clear(fpoly);
     }
 };
+*/
 
 struct BatchPre {
     precomp_t pre;
@@ -52,6 +54,7 @@ struct BatchPre {
     }
 
     // Unused.
+    /*
     BatchPoly* Interp(const fmpz_t* const yPointsIn, const int n) {
         BatchPoly* bpoly = new BatchPoly();
 
@@ -61,6 +64,7 @@ struct BatchPre {
 
         return bpoly;
     }
+    */
 
     ~BatchPre() {
         poly_batch_precomp_clear(&pre);
