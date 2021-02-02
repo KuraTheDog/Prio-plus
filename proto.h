@@ -26,29 +26,6 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
 
 BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, NetIO* const io0, NetIO* const io1);
 
-struct SHEkeys {
-  // const size_t pk_length;
-  const int server_num;
-
-  const int my_pk;
-  const int my_sk;
-  int other_pk;
-
-  SHEkeys(const int server_num) 
-  : server_num(server_num)
-  , my_pk(server_num == 0 ? 888800 : 888811)
-  , my_sk(server_num == 0 ? 777700 : 777711)
-  {
-    // std::cout << server_num << " made shekeys" << std::endl;
-    // std::cout << server_num << " my pk: " << my_pk << std::endl;
-    // std::cout << server_num << " my sk: " << my_sk << std::endl;
-  }
-
-  ~SHEkeys() {}
-
-  void exchange_pk(const int serverfd);
-};
-
-BeaverTriple* generate_beaver_triple_she(const int serverfd, const int server_num, const SHEkeys* keys);
+BeaverTriple* generate_beaver_triple_lazy(const int serverfd, const int server_num);
 
 #endif

@@ -30,10 +30,12 @@ uint32_t num_bits;
 #define RANDOMX_THRESHOLD 1e6
 uint32_t randx_uses = 0;
 fmpz_t randomX;
-
+// Precomputes for random X
 std::unordered_map<size_t, CheckerPreComp*> precomp_store;
 
+// Precompute cache of edabits and beaver triples
 CorrelatedStore* correlated_store;
+#define CACHE_SIZE 4096
 
 // TODO: const 60051 for netio?
 
@@ -716,7 +718,7 @@ int main(int argc, char** argv) {
     fmpz_init(randomX);
     sync_randomX(serverfd, server_num, randomX);
 
-    correlated_store = new CorrelatedStore(serverfd, server_num, SERVER0_IP, SERVER1_IP, num_bits, 128);
+    correlated_store = new CorrelatedStore(serverfd, server_num, SERVER0_IP, SERVER1_IP, num_bits, CACHE_SIZE);
 
     int sockfd, newsockfd;
     sockaddr_in addr;

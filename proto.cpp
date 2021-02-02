@@ -296,7 +296,9 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
     prg.random_bool(y, m);
     prg.random_bool(r, m);
 
-    block b0[m], b1[m], B[m];
+    block* b0 = new block[m];
+    block* b1 = new block[m];
+    block* B = new block[m];
 
     for(int i = 0; i < m; i++){
         set_block(b0[i], r[i]);
@@ -338,68 +340,39 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
         ans[i].set(x[i], y[i], z[i]);
     }
 
+    delete[] b0;
+    delete[] b1;
+    delete[] B;
+
     return ans;
 }
 
-/*
-    0: sample a, b. send enc(a)
-    1: sample a’, b’. send enc’(a’)
-    0: sample q, send back T’ = b enc’(a’) - enc’(q)
-    1: sample q’, send back T = b’ enc(a) - enc(q’)
-    0: decrypt T to t = b’a - q’
-    1: decrypt T’ to t’ = ba’ - q
-    0: set c = ab + t + q
-    1: set c’ = a’b’ + t’ + q’
-*/
-void SHEkeys::exchange_pk(const int serverfd) {
-    send_int(serverfd, my_pk);
-    recv_int(serverfd, other_pk);
-    // std::cout << server_num << " got other pk: " << other_pk << std::endl;
-}
-void encrypt(fmpz_t& dst, const fmpz_t src, const int pk) {
-    fmpz_set(dst, src);
-}
-void decrypt(fmpz_t& dst, const fmpz_t src, const int sk) {
-    fmpz_set(dst, src);
-}
-BeaverTriple* generate_beaver_triple_she(const int serverfd, const int server_num, const SHEkeys* keys) {
-    // Input: PK, SK, PK_other
-
+// Simple beaver triple generation. Fast but unsafe.
+BeaverTriple* generate_beaver_triple_lazy(const int serverfd, const int server_num) {
     BeaverTriple* triple = new BeaverTriple();
 
-    fmpz_randm(triple->A, seed, Int_Modulus);
-    fmpz_randm(triple->B, seed, Int_Modulus);
+    if (server_num == 0) {
+        BeaverTriple* other_triple = new BeaverTriple();
+        fmpz_randm(triple->A, seed, Int_Modulus);
+        fmpz_randm(triple->B, seed, Int_Modulus);
+        fmpz_randm(triple->C, seed, Int_Modulus);
+        fmpz_randm(other_triple->A, seed, Int_Modulus);
+        fmpz_randm(other_triple->B, seed, Int_Modulus);
 
-    fmpz_t enc_a; fmpz_init(enc_a);
-    encrypt(enc_a, triple->A, keys->my_pk);
+        fmpz_add(other_triple->C, triple->A, other_triple->A);
+        fmpz_t tmp; fmpz_init(tmp);
+        fmpz_add(tmp, triple->B, other_triple->B);
+        fmpz_mul(other_triple->C, other_triple->C, tmp);
+        fmpz_sub(other_triple->C, other_triple->C, triple->C);
+        fmpz_mod(other_triple->C, other_triple->C, Int_Modulus);
 
-    // Swap enc(a) <-> enc'(a')
-    send_fmpz(serverfd, enc_a);
-    recv_fmpz(serverfd, enc_a);
+        send_BeaverTriple(serverfd, other_triple);
 
-    // enc'(q)
-    fmpz_t q; fmpz_init(q);
-    fmpz_t enc_q; fmpz_init(enc_q);
-    fmpz_randm(q, seed, Int_Modulus);
-    encrypt(enc_q, q, keys->other_pk);
-
-    // T' = b enc'(a') - enc'(q)
-    fmpz_t t; fmpz_init(t);
-    fmpz_mul(t, triple->B, enc_a);
-    fmpz_sub(t, t, enc_q);
-
-    // Swap T' and T = b' enc(a) - enc(q')
-    send_fmpz(serverfd, t);
-    recv_fmpz(serverfd, t);
-    // t = b' a - q'
-    decrypt(t, t, keys->my_sk);
-
-    // c = ab + t + q
-    fmpz_mul(triple->C, triple->A, triple->B);
-    fmpz_mod(triple->C, triple->C, Int_Modulus);
-    fmpz_add(triple->C, triple->C, t);
-    fmpz_add(triple->C, triple->C, q);
-    fmpz_mod(triple->C, triple->C, Int_Modulus);
+        fmpz_clear(tmp);
+        delete other_triple;
+    } else {
+        recv_BeaverTriple(serverfd, triple);
+    }
 
     return triple;
 }

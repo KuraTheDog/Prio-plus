@@ -27,7 +27,8 @@ find_package(EMP-TOOL REQUIRED)
 include_directories(${EMP-TOOL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
 foreach(_target
-  server client)
+  server client
+)
   add_executable(${_target} "${_target}.cpp" 
                  "constants.cpp" "proto.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp" "edabit.cpp"
                  "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c"
@@ -42,7 +43,12 @@ foreach(_target
 endforeach()
 
 foreach(_target
-  test_net_share test_circuit test_linreg test_proto test_bits)
+  test_net_share
+	test_circuit
+	test_linreg
+  test_proto
+  test_bits
+)
   add_executable(${_target} "test/${_target}.cpp" 
                  "constants.cpp" "proto.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp" "edabit.cpp"
                  "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c"
