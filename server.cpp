@@ -36,6 +36,8 @@ std::unordered_map<size_t, CheckerPreComp*> precomp_store;
 // Precompute cache of edabits and beaver triples
 CorrelatedStore* correlated_store;
 #define CACHE_SIZE 4096
+// If set, does fast but insecure offline precompute.
+#define LAZY_PRECOMPUTE true
 
 // TODO: const 60051 for netio?
 
@@ -718,7 +720,7 @@ int main(int argc, char** argv) {
     fmpz_init(randomX);
     sync_randomX(serverfd, server_num, randomX);
 
-    correlated_store = new CorrelatedStore(serverfd, server_num, SERVER0_IP, SERVER1_IP, num_bits, CACHE_SIZE);
+    correlated_store = new CorrelatedStore(serverfd, server_num, SERVER0_IP, SERVER1_IP, num_bits, CACHE_SIZE, LAZY_PRECOMPUTE);
 
     int sockfd, newsockfd;
     sockaddr_in addr;

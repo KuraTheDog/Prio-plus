@@ -284,13 +284,28 @@ void CorrelatedStore::addDaBits() {
 
 void CorrelatedStore::addEdaBits() {
   auto start = clock_start();
-  for (int i = 0; i < batch_size; i++) {
-    BooleanBeaverTriple* gen_triples = getBoolTriples(num_bits);
-    DaBit* dabit = getDaBit();
-    EdaBit* edabit = generateEdaBit(serverfd, server_num, num_bits, gen_triples, dabit);
-    edabits.push(edabit);
-    delete[] gen_triples;
-    delete dabit;
+  if (!lazy) {
+    for (int i = 0; i < batch_size; i++) {
+      BooleanBeaverTriple* gen_triples = getBoolTriples(num_bits);
+      DaBit* dabit = getDaBit();
+      EdaBit* edabit = generateEdaBit(serverfd, server_num, num_bits, gen_triples, dabit);
+      edabits.push(edabit);
+      delete[] gen_triples;
+      delete dabit;
+    }
+  } else {
+    for (int i = 0; i < batch_size; i++) {
+      EdaBit* edabit = new EdaBit(num_bits);
+      if (server_num == 0) {
+        EdaBit* other_edabit = new EdaBit(num_bits);
+        makeLocalEdaBit(edabit, other_edabit, num_bits);
+        send_EdaBit(serverfd, other_edabit, num_bits);
+        delete other_edabit;
+      } else {
+        recv_EdaBit(serverfd, edabit, num_bits);
+      }
+      edabits.push(edabit);
+    }
   }
   std::cout << "addEdaBits timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }

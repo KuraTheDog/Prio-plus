@@ -42,6 +42,9 @@ class CorrelatedStore {
   const int serverfd;
   const size_t num_bits;    // for size of edabits
 
+  // If lazy, does fast but insecure offline.
+  const bool lazy;
+
   // Since we use these a lot more, make much bigger batches at once.
   // num_bits * batch_size
   const size_t bool_batch_size;
@@ -59,13 +62,16 @@ class CorrelatedStore {
 
 public:
 
-  CorrelatedStore(const int serverfd, const int idx, const char* const server0_ip, const char* const server1_ip, const size_t num_bits, const size_t batch_size = 64) 
+  CorrelatedStore(const int serverfd, const int idx, const char* const server0_ip, const char* const server1_ip, const size_t num_bits, const size_t batch_size = 64, const bool lazy = false) 
   : batch_size(batch_size)
   , server_num(idx)
   , serverfd(serverfd)
   , num_bits(num_bits)
+  , lazy(lazy)
   , bool_batch_size(2 * batch_size * num_bits)
   {
+    if (lazy)
+      std::cout << "Doing fast but insecure precomputes." << std::endl;
     io0 = new NetIO(server_num == 0 ? nullptr : server0_ip, 60051, true);
     io1 = new NetIO(server_num == 1 ? nullptr : server1_ip, 60052, true);
   }

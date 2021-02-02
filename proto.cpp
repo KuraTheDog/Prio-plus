@@ -347,36 +347,6 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
     return ans;
 }
 
-// Simple beaver triple generation. Fast but unsafe.
-BeaverTriple* generate_beaver_triple_lazy(const int serverfd, const int server_num) {
-    BeaverTriple* triple = new BeaverTriple();
-
-    if (server_num == 0) {
-        BeaverTriple* other_triple = new BeaverTriple();
-        fmpz_randm(triple->A, seed, Int_Modulus);
-        fmpz_randm(triple->B, seed, Int_Modulus);
-        fmpz_randm(triple->C, seed, Int_Modulus);
-        fmpz_randm(other_triple->A, seed, Int_Modulus);
-        fmpz_randm(other_triple->B, seed, Int_Modulus);
-
-        fmpz_add(other_triple->C, triple->A, other_triple->A);
-        fmpz_t tmp; fmpz_init(tmp);
-        fmpz_add(tmp, triple->B, other_triple->B);
-        fmpz_mul(other_triple->C, other_triple->C, tmp);
-        fmpz_sub(other_triple->C, other_triple->C, triple->C);
-        fmpz_mod(other_triple->C, other_triple->C, Int_Modulus);
-
-        send_BeaverTriple(serverfd, other_triple);
-
-        fmpz_clear(tmp);
-        delete other_triple;
-    } else {
-        recv_BeaverTriple(serverfd, triple);
-    }
-
-    return triple;
-}
-
 BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, NetIO* const io0, NetIO* const io1) {
 
     // auto start = clock_start();
@@ -494,6 +464,36 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, N
     fmpz_add(triple->C, triple->C, t);
     fmpz_sub(triple->C, triple->C, q);
     fmpz_mod(triple->C, triple->C, Int_Modulus);
+
+    return triple;
+}
+
+// Simple beaver triple generation. Fast but unsafe.
+BeaverTriple* generate_beaver_triple_lazy(const int serverfd, const int server_num) {
+    BeaverTriple* triple = new BeaverTriple();
+
+    if (server_num == 0) {
+        BeaverTriple* other_triple = new BeaverTriple();
+        fmpz_randm(triple->A, seed, Int_Modulus);
+        fmpz_randm(triple->B, seed, Int_Modulus);
+        fmpz_randm(triple->C, seed, Int_Modulus);
+        fmpz_randm(other_triple->A, seed, Int_Modulus);
+        fmpz_randm(other_triple->B, seed, Int_Modulus);
+
+        fmpz_add(other_triple->C, triple->A, other_triple->A);
+        fmpz_t tmp; fmpz_init(tmp);
+        fmpz_add(tmp, triple->B, other_triple->B);
+        fmpz_mul(other_triple->C, other_triple->C, tmp);
+        fmpz_sub(other_triple->C, other_triple->C, triple->C);
+        fmpz_mod(other_triple->C, other_triple->C, Int_Modulus);
+
+        send_BeaverTriple(serverfd, other_triple);
+
+        fmpz_clear(tmp);
+        delete other_triple;
+    } else {
+        recv_BeaverTriple(serverfd, triple);
+    }
 
     return triple;
 }
