@@ -68,12 +68,12 @@ void run_sender(int sockfd) {
     b0->print();
 
     // Poly
-    fmpz_set_ui(number, 100);
-    fmpz_mod_poly_t f; fmpz_mod_poly_init(f, number);
-    fmpz_mod_poly_randtest(f, seed, 5);
-    n = send_poly(sockfd, f);
-    std::cout << "send: size = " << n << ", poly: ";
-    fmpz_mod_poly_print_pretty(f, "x"); std::cout << std::endl;
+    // fmpz_set_ui(number, 100);
+    // fmpz_mod_poly_t f; fmpz_mod_poly_init(f, number);
+    // fmpz_mod_poly_randtest(f, seed, 5);
+    // n = send_poly(sockfd, f);
+    // std::cout << "send: size = " << n << ", poly: ";
+    // fmpz_mod_poly_print_pretty(f, "x"); std::cout << std::endl;
 
     // Sanity: sending numbers still works
     fmpz_set_d(number, 54321);
@@ -127,11 +127,11 @@ void run_receiver(int newsockfd) {
     std::cout << "recv EdaBit size = " << n << std::endl;
     b->print();
 
-    fmpz_set_ui(number, 100);
-    fmpz_mod_poly_t f; fmpz_mod_poly_init(f, number);
-    n = recv_poly(newsockfd, f);
-    std::cout << "recv: size = " << n << ", poly: ";
-    fmpz_mod_poly_print_pretty(f, "x"); std::cout << std::endl;
+    // fmpz_set_ui(number, 100);
+    // fmpz_mod_poly_t f; fmpz_mod_poly_init(f, number);
+    // n = recv_poly(newsockfd, f);
+    // std::cout << "recv: size = " << n << ", poly: ";
+    // fmpz_mod_poly_print_pretty(f, "x"); std::cout << std::endl;
 
     n = recv_fmpz(newsockfd, number);
     std::cout << "recv: size = " << n << ", fmpz: ";

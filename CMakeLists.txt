@@ -19,10 +19,7 @@ include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(FLINT DEFAULT_MSG FLINT_INCLUDE_DIR FLINT_LIBRARIES)
 mark_as_advanced(FLINT_INCLUDE_DIR FLINT_LIBRARIES)
 
-# find_path(CMAKE_FOLDER NAMES cmake/emp-tool-config.cmake)
 include(cmake/common.cmake)
-# include(cmake/source_of_randomness.cmake)
-# include(cmake/threading.cmake)
 find_package(EMP-TOOL REQUIRED)
 include_directories(${EMP-TOOL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 

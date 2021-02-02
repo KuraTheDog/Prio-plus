@@ -20,7 +20,6 @@ TODO: maybe hide/delete/comment out ones we don't use.
 extern "C" {
   #include "flint/flint.h"
   #include "flint/fmpz.h"
-  #include "flint/fmpz_mod_poly.h"
 };
 
 /*
@@ -59,9 +58,6 @@ int recv_ulong(const int sockfd, ulong& x);
 
 int send_fmpz(const int sockfd, const fmpz_t x);
 int recv_fmpz(const int sockfd, fmpz_t x);
-
-int send_poly(const int sockfd, const fmpz_mod_poly_t f);
-int recv_poly(const int sockfd, fmpz_mod_poly_t f);
 
 /* Share functions */
 
