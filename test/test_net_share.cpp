@@ -25,6 +25,10 @@ void run_sender(int sockfd) {
     n = send_uint64(sockfd, j);
     std::cout << "send: size = " << n << ", uint64_t: " << j << std::endl;
 
+    std::string s = "Hello World!";
+    n = send_string(sockfd, s);
+    std::cout << "send: size = " << n << ", string: " << s << std::endl;
+
     // Small number
     fmpz_set_d(number, 12345);
     n = send_fmpz(sockfd, number);
@@ -95,6 +99,10 @@ void run_receiver(int newsockfd) {
     n = recv_uint64(newsockfd, j);
     std::cout << "recv: size = " << n << ", uint64_t: " << j << std::endl;
 
+    std::string s;
+    n = recv_string(newsockfd, s);
+    std::cout << "recv: size = " << n << ", string: " << s << std::endl;
+
     n = recv_fmpz(newsockfd, number);
     std::cout << "recv: size = " << n << ", fmpz: ";
     fmpz_print(number); std::cout << std::endl;
@@ -139,11 +147,7 @@ void run_receiver(int newsockfd) {
 }
 
 int main(int argc, char** argv) {
-    /* Initialize constants.h globals constants.
-    Mostly for Int_Modulus, for use by share.h. */
-    fmpz_init(Int_Modulus);
-    fmpz_set_str(Int_Modulus,Int_Modulus_str.c_str(),16);
-    flint_randinit(seed);
+    init_constants();
 
     /* set up receiver */
     int sockfd = init_receiver();

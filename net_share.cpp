@@ -84,6 +84,29 @@ int recv_ulong(const int sockfd, ulong& x) {
     return ret;
 }
 
+int send_string(const int sockfd, const std::string x) {
+    int total = 0, ret;
+    size_t len = x.size();
+    ret = send_size(sockfd, len);
+    if (ret <= 0) return ret; else total += ret;
+    ret = send(sockfd, x.c_str(), len, 0);
+    if (ret <= 0) return ret; else total += ret;
+    return total;
+}
+
+int recv_string(const int sockfd, std::string& x) {
+    int total = 0, ret;
+    size_t len;
+    ret = recv_size(sockfd, len);
+    if (ret <= 0) return ret; else total += ret;
+    char* buf = new char[len];
+    ret = recv_in(sockfd, buf, len);
+    if (ret <= 0) return ret; else total += ret;
+    x.assign(&buf[0], len);
+    delete[] buf;
+    return total;
+}
+
 int send_fmpz(const int sockfd, const fmpz_t x) {
     int total = 0, ret;
     size_t len = fmpz_size(x);

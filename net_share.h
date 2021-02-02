@@ -15,6 +15,8 @@ TODO: maybe hide/delete/comment out ones we don't use.
 #ifndef NET_SHARE_H
 #define NET_SHARE_H
 
+#include <string>
+
 #include "share.h"
 
 extern "C" {
@@ -55,6 +57,9 @@ int recv_uint64(const int sockfd, uint64_t& x);
 
 int send_ulong(const int sockfd, const ulong x);
 int recv_ulong(const int sockfd, ulong& x);
+
+int send_string(const int sockfd, const std::string x);
+int recv_string(const int sockfd, std::string& x);
 
 int send_fmpz(const int sockfd, const fmpz_t x);
 int recv_fmpz(const int sockfd, fmpz_t x);
