@@ -35,12 +35,28 @@ This is for FFT.
 // const std::string Int_Gen_str = "3a";        // 58 base 16
 // const int twoOrder = 7;
 
+// const std::string Int_Modulus_str = "10001";  // 65537 base 16
+// const std::string Int_Gen_str = "2";         // p = 2^16 + 1
+// const int twoOrder = 16;
+
+// const std::string Int_Modulus_str = "8008001";  // 134250497 base 16
+// const std::string Int_Gen_str = "5e1298a";      // 2^(p-1 / 2^15)
+// const int twoOrder = 16;
+
+// const std::string Int_Modulus_str = "800008001";  // 36 bit modulus
+// const std::string Int_Gen_str = "10fc3989c";      // 2^(p-1 / 2^15)
+// const int twoOrder = 15;
+
+// const std::string Int_Modulus_str = "80000000080001";  // 55 bit modulus
+// const std::string Int_Gen_str = "66ac804179e072";      // 2^(p-1 / 2^19)
+// const int twoOrder = 19;
+
 // const std::string Int_Modulus_str = "8000000000080001";  // 63 bit modulus
 // const std::string Int_Gen_str = "22855fdf11374225";
 // const int twoOrder = 19;
 
 const std::string Int_Modulus_str = "8000000000000000080001";  // 87 bit modulus
-const std::string Int_Gen_str = "2597c14f48d5b65ed8dcca";
+const std::string Int_Gen_str = "2597c14f48d5b65ed8dcca";      // 17567 ^ (p-1 / 2^19)
 const int twoOrder = 19;
 
 // const std::string Int_Modulus_str = "80000000000000000000080001";  // 102 bit modulus
