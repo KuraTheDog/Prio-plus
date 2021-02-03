@@ -179,9 +179,9 @@ void tree_clear(struct tree_s* const pre, const fmpz_mod_ctx_t ctx) {
   fmpz_mod_poly_clear(pre->poly, ctx);
 }
 
+/*
 static void fast_interpolate(fmpz_mod_poly_t poly, const struct precomp_s* const pre, const fmpz_t* const pointsY) {
   const fmpz* const mod = fmpz_mod_poly_modulus(poly);
-/*
 
   fmpz_t ys[pre->n_points];
 
