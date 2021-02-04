@@ -2,9 +2,19 @@
 
 1. Install [emp-ot](https://github.com/emp-toolkit/emp-ot)
 2. Install Boost
+3. Install [PALISADE](https://gitlab.com/palisade/palisade-release)
 3. `cd AggrProject && mkdir build`
 4. `cd build && cmake ..`
 5. `make`
+
+## PALISADE Instructions
+
+For full install instructions, see [here](https://gitlab.com/palisade/palisade-release/-/wikis/Build-instructions).  
+Currently, Palisade is built with default args (`cmake ..`).  
+Also make sure to e.g. install with `make install` after `make`.
+
+PALISADE encryption is used to generate beaver triples.  
+It only supports up to 60 bit moduli, so otherwise we use slower methods for now.
 
 # Usage example
 
@@ -35,10 +45,11 @@ Server 0 port tells Server 0 which port to open, and server 1 which port of serv
 4. Servers recieve all shares
 5. For each share, servers check if public keys line up
 6. If relevent, servers also do SNIPS validation for each share
-7. If relevant, Server 1 uses an OT Reciever with all of it's shares.
-8. Server 1 sends it's aggregate value to server 0. 
-9. If relevant, Server 0 uses an OT sender with it's shares, and the shared information about share validity.
-10. Server 0 computes it's own aggregate value, and combines it with the one from server 1 to produce a final answer.
+7. If doing SNIPS, servers also ensure shares match the SNIPS using share conversion.
+8. If relevant, Server 1 uses an OT Reciever with all of it's shares.
+9. Server 1 sends it's aggregate value to server 0. 
+10. If relevant, Server 0 uses an OT sender with it's shares, and the shared information about share validity.
+11. Server 0 computes it's own aggregate value, and combines it with the one from server 1 to produce a final answer.
 
 block - 128 bit number
 In the ot protocols, the first 64 bits to encode validity(done at server0) and second 64 bits contain the actual digit.
