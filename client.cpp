@@ -46,13 +46,13 @@ std::string pub_key_to_hex(const uint64_t* const key) {
     return ss.str();
 }
 
-void send_maxshare(const MaxShare& maxshare, const int server_num, const int B) {
+void send_maxshare(const MaxShare& maxshare, const int server_num, const unsigned int B) {
     int sock = (server_num == 0) ? sockfd0 : sockfd1;
 
     int s = send(sock, (void *)&maxshare, sizeof(MaxShare), 0);
     // std::cout << "sent : " << s << " bytes" << std::endl;
 
-    for (int i = 0; i <= B; i++)
+    for (unsigned int i = 0; i <= B; i++)
         s = send(sock, (void *)&(maxshare.arr[i]), sizeof(uint32_t), 0);
 }
 
@@ -82,9 +82,10 @@ void bit_sum(const std::string protocol, const size_t numreqs) {
     prg.random_bool(shares0, numreqs);
 
     int ans = 0;
-    for (int i = 0; i < numreqs; i++) {
+    for (unsigned int i = 0; i < numreqs; i++) {
         BitShare share0, share1;
-        const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
+        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+        const char* pk = pk_s.c_str();
 
         shares1[i] = real_vals[i]^shares0[i];
         ans += (real_vals[i] ? 1 : 0);
@@ -128,7 +129,7 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
 
     int ans = 0;
     std::string pk_str = "";
-    for (int i = 0; i < numreqs; i++) {
+    for (unsigned int i = 0; i < numreqs; i++) {
         BitShare share0, share1;
         const char* prev_pk = pk_str.c_str();
         pk_str = pub_key_to_hex((uint64_t*)&b[i]);
@@ -183,7 +184,7 @@ void int_sum(const std::string protocol, const size_t numreqs) {
     prg.random_data(real_vals, numreqs * sizeof(uint64_t));
     prg.random_data(shares0, numreqs * sizeof(uint64_t));
 
-    for (int i = 0; i < numreqs; i++) {
+    for (unsigned int i = 0; i < numreqs; i++) {
         real_vals[i] = real_vals[i] % max_int;
         shares0[i] = shares0[i] % max_int;
         shares1[i] = real_vals[i] ^ shares0[i];
@@ -192,7 +193,8 @@ void int_sum(const std::string protocol, const size_t numreqs) {
         // std::cout << "real_vals[" << i << "] = " << real_vals[i] << " = " << shares0[i] << " ^ " << shares1[i] << std::endl;
 
         IntShare share0, share1;
-        const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
+        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+        const char* pk = pk_s.c_str();
 
         memcpy(share0.pk, &pk[0], PK_LENGTH);
         share0.val = shares0[i];
@@ -236,7 +238,7 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
     prg.random_data(shares0, numreqs * sizeof(uint64_t));
 
     std::string pk_str = "";
-    for (int i = 0; i < numreqs; i++) {
+    for (unsigned int i = 0; i < numreqs; i++) {
         if (i != 0)
             real_vals[i] = real_vals[i] % max_int;
         if (i != 1)
@@ -306,7 +308,7 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     prg.random_data(encoded_values, numreqs * sizeof(uint64_t));
     prg.random_data(shares0, numreqs * sizeof(uint64_t));
 
-    for (int i = 0; i < numreqs; i++) {
+    for (unsigned int i = 0; i < numreqs; i++) {
         if (protocol == "ANDOP")
             ans &= values[i];
         if (protocol == "OROP")
@@ -315,20 +317,21 @@ void xor_op(const std::string protocol, const size_t numreqs) {
 
     // encode step. set to all 0's for values that don't force the ans.
     if (protocol == "ANDOP")
-        for (int i = 0; i < numreqs; i++)
+        for (unsigned int i = 0; i < numreqs; i++)
             if (values[i])
                 encoded_values[i] = 0;
     if (protocol == "OROP")
-        for (int i = 0; i < numreqs; i++)
+        for (unsigned int i = 0; i < numreqs; i++)
             if (!values[i])
                 encoded_values[i] = 0;
 
     // Share splitting. Same as int sum. Sum of shares = encoded value
-    for (int i = 0; i < numreqs; i++) {
+    for (unsigned int i = 0; i < numreqs; i++) {
         shares1[i] = encoded_values[i] ^ shares0[i];
 
         IntShare share0, share1;
-        const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
+        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+        const char* pk = pk_s.c_str();
 
         memcpy(share0.pk, &pk[0], PK_LENGTH);
         share0.val = shares0[i];
@@ -379,7 +382,7 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
     prg.random_data(encoded_values, numreqs * sizeof(uint64_t));
     prg.random_data(shares0, numreqs * sizeof(uint64_t));
 
-    for (int i = 0; i < numreqs; i++) {
+    for (unsigned int i = 0; i < numreqs; i++) {
         std::cout << "val[" << i << "] = " << std::boolalpha << values[i];
         if (i == 0 or i == 2 or i == 4) {
             std::cout << " (invalid) " << std::endl;;
@@ -394,18 +397,18 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
 
     // encode step. set to all 0's for values that don't force the ans.
     if (protocol == "ANDOP")
-        for (int i = 0; i < numreqs; i++)
+        for (unsigned int i = 0; i < numreqs; i++)
             if (values[i])
                 encoded_values[i] = 0;
     if (protocol == "OROP")
-        for (int i = 0; i < numreqs; i++)
+        for (unsigned int i = 0; i < numreqs; i++)
             if (!values[i])
                 encoded_values[i] = 0;
 
     std::string pk_str = "";
 
     // Share splitting. Same as int sum. Sum of shares = encoded value
-    for (int i = 0; i < numreqs; i++) {
+    for (unsigned int i = 0; i < numreqs; i++) {
         shares1[i] = encoded_values[i] ^ shares0[i];
 
         IntShare share0, share1;
@@ -437,7 +440,7 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
 }
 
 void max_op(const std::string protocol, const size_t numreqs) {
-    const int B = 250;
+    const unsigned int B = 250;
 
     initMsg msg;
     msg.num_of_inputs = numreqs;
@@ -465,7 +468,7 @@ void max_op(const std::string protocol, const size_t numreqs) {
     uint32_t shares1[B+1];
     prg.random_data(values, numreqs * sizeof(uint32_t));
 
-    for (int i = 0; i < numreqs; i++) {
+    for (unsigned int i = 0; i < numreqs; i++) {
         MaxShare share0, share1;
         values[i] = values[i] % (B + 1);
         if (protocol == "MAXOP")
@@ -483,13 +486,14 @@ void max_op(const std::string protocol, const size_t numreqs) {
         if (protocol == "MINOP")
             v = B - values[i];
 
-        for (int j = v + 1; j <= B ; j++)
+        for (unsigned int j = v + 1; j <= B ; j++)
             or_encoded_array[j] = 0;
 
-        for (int j = 0; j <= B; j++)
+        for (unsigned int j = 0; j <= B; j++)
             shares1[j] = shares0[j] ^ or_encoded_array[j];
 
-        const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
+        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+        const char* pk = pk_s.c_str();
 
         memcpy(share0.pk, &pk[0], PK_LENGTH);
         memcpy(share0.signature, &pk[0], PK_LENGTH);
@@ -513,11 +517,11 @@ void max_op(const std::string protocol, const size_t numreqs) {
    4: share1 has same pk as 3
 */
 void max_op_invalid(const std::string protocol, const size_t numreqs) {
+    const unsigned int B = 250;
     initMsg msg;
     msg.num_of_inputs = numreqs;
-    msg.max_inp = 250;
+    msg.max_inp = B;
     emp::PRG prg(fix_key);
-    int B = msg.max_inp;
     int ans;
     if (protocol == "MAXOP") {
         msg.type = MAX_OP;
@@ -542,7 +546,7 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
 
     std::string pk_str = "";
 
-    for (int i = 0; i < numreqs; i++) {
+    for (unsigned int i = 0; i < numreqs; i++) {
         MaxShare share0, share1;
         values[i] = values[i] % (B + 1);
         std::cout << "value[" << i << "] = " << values[i];
@@ -566,10 +570,10 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
         if (protocol == "MINOP")
             v = B - values[i];
 
-        for (int j = v + 1; j <= B ; j++)
+        for (unsigned int j = v + 1; j <= B ; j++)
             or_encoded_array[j] = 0;
 
-        for (int j = 0; j <= B; j++)
+        for (unsigned int j = 0; j <= B; j++)
             shares1[j] = shares0[j] ^ or_encoded_array[j];
 
         const char* prev_pk = pk_str.c_str();
@@ -629,7 +633,7 @@ void var_op(const std::string protocol, const size_t numreqs) {
     fmpz_init(inp[0]);
     fmpz_init(inp[1]);
 
-    for (int i = 0; i < numreqs; i++) {
+    for (unsigned int i = 0; i < numreqs; i++) {
         real_vals[i] = real_vals[i] % small_max_int;
         shares0[i] = shares0[i] % small_max_int;
         shares1[i] = real_vals[i] ^ shares0[i];
@@ -643,7 +647,8 @@ void var_op(const std::string protocol, const size_t numreqs) {
         // std::cout << ", " << squared << " = " << shares0_squared[i] << "^" << shares1_squared[i] << std::endl;
 
         VarShare share0, share1;
-        const char* pk = pub_key_to_hex((uint64_t*)&b[i]).c_str();
+        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+        const char* pk = pk_s.c_str();
 
         memcpy(share0.pk, &pk[0], PK_LENGTH);
         share0.val = shares0[i];
@@ -716,7 +721,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
     // shares of x^2
     uint64_t shares0_squared[numreqs];
     uint64_t shares1_squared[numreqs];
-    int sum = 0, sumsquared = 0, numvalid = 0;
+    uint64_t sum = 0, sumsquared = 0, numvalid = 0;
 
     emp::PRG prg(fix_key);
     prg.random_block(b, numreqs);
@@ -733,7 +738,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
 
     std::string pk_str = "";
 
-    for (int i = 0; i < numreqs; i++) {
+    for (unsigned int i = 0; i < numreqs; i++) {
         if (i != 0)  // x not capped
             real_vals[i] = real_vals[i] % small_max_int;
         if (i != 1)  // x shares not capped

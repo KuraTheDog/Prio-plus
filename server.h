@@ -178,7 +178,7 @@ struct Checker {
         // For all multiplication triples a_i * b_i = c_i
         //    polynomial [f(x)] has [f(i)] = [a_i]
         //    polynomial [g(x)] has [g(i)] = [b_i]
-        for (int i = 0; i < n; i++) {
+        for (unsigned int i = 0; i < n; i++) {
             fmpz_set(pointsF[i+1], mulgates[i]->ParentL->WireValue);
             fmpz_set(pointsG[i+1], mulgates[i]->ParentR->WireValue);
             // Set even values of h to be output wires.
@@ -186,7 +186,7 @@ struct Checker {
         }
 
         // Grab odd values of h from the packet.
-        for (int j = 0; j < N; j++) {
+        for (unsigned int j = 0; j < N; j++) {
             fmpz_set(pointsH[2 * j + 1], req->h_points[j]);
         }
 
@@ -233,7 +233,7 @@ struct Checker {
         fmpz_t tmp;
         fmpz_init(tmp);
 
-        for (int i = 0; i < len; i++) {
+        for (unsigned int i = 0; i < len; i++) {
             // fmpz_randm(tmp, seed, Int_Modulus);
             fmpz_set_ui(tmp, 1);
             fmpz_mul(tmp, tmp, arr[i]);
@@ -281,7 +281,7 @@ struct Checker {
 
         fmpz_set(arr[0], mulCheck);
 
-        for (int i = 0; i < num_zero_gates; i++) {
+        for (unsigned int i = 0; i < num_zero_gates; i++) {
             fmpz_set(arr[i+1], ckt->result_zero[i]->WireValue);
         }
 

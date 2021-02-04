@@ -85,7 +85,7 @@ struct Circuit {
     // Evals circuit on the input, returns if all result_zero gates are zero.
     bool Eval(const fmpz_t* const inps) {
         int inp_count = 0;
-        for (int i = 0; i < gates.size(); i++) {
+        for (unsigned int i = 0; i < gates.size(); i++) {
 
             switch (gates[i]->type)
             {
@@ -147,20 +147,20 @@ struct Circuit {
         return res;
     }
 
-    size_t NumMulGates() const {
-        size_t total = 0;
+    unsigned int NumMulGates() const {
+        unsigned int total = 0;
         for (auto gate: this->gates)
             if (gate->type == Gate_Mul)
                 total += 1;
         return total;
     }
 
-    size_t N() const {
+    unsigned int N() const {
         return NextPowerofTwo(NumMulGates() + 1);
     }
 
-    size_t NumMulInpGates() const {
-        size_t total = 0;
+    unsigned int NumMulInpGates() const {
+        unsigned int total = 0;
         for (auto gate: this->gates)
             if (gate->type == Gate_Mul or gate->type == Gate_Input)
                 total += 1;
@@ -168,12 +168,12 @@ struct Circuit {
     }
 
     void GetWireShares(fmpz_t** shares0, fmpz_t** shares1) const {
-        const size_t n = NumMulInpGates();
+        const unsigned int n = NumMulInpGates();
 
         new_fmpz_array(shares0, n);
         new_fmpz_array(shares1, n);
 
-        size_t i = 0;
+        unsigned int i = 0;
 
         // TODO: Input gate values should be dependnet on original client shares.
         for (auto gate : gates) {
@@ -185,7 +185,7 @@ struct Circuit {
     }
 
     void ImportWires(const ClientPacket p, const int server_num) {
-        size_t i = 0;
+        unsigned int i = 0;
 
         for (auto gate : gates) {
             switch (gate->type) {
@@ -223,7 +223,7 @@ struct Circuit {
 Circuit* AndCircuits(std::vector<Circuit*>& circuits) {
     Circuit* out = new Circuit();
 
-    for (int i = 0; i < circuits.size(); i++) {
+    for (unsigned int i = 0; i < circuits.size(); i++) {
         out->gates.insert(out->gates.end(), circuits[i]->gates.begin(), circuits[i]->gates.end());
         out->outputs.insert(out->outputs.end(), circuits[i]->outputs.begin(), circuits[i]->outputs.end());
         out->result_zero.insert(out->result_zero.end(), circuits[i]->result_zero.begin(), circuits[i]->result_zero.end());
@@ -297,12 +297,12 @@ Circuit* CheckVar() {
 
 
 
-Circuit* CheckLinReg(int num_fields) {
-    int num_inputs = num_fields + (num_fields * (num_fields+1))/2;
+Circuit* CheckLinReg(const unsigned int num_fields) {
+    const unsigned int num_inputs = num_fields + (num_fields * (num_fields+1))/2;
 
     Circuit* out = new Circuit();
 
-    for (int i = 0; i < num_inputs; i++) {
+    for (unsigned int i = 0; i < num_inputs; i++) {
         Gate* inp = new Gate(Gate_Input);
         out->addGate(inp);
     }

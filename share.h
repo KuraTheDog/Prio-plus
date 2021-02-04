@@ -114,7 +114,7 @@ struct client_packet {
         std::cout << " N = " << N << std::endl;
         std::cout << " NWires = " << NWires << std::endl;
         std::cout << " WireShares = {";
-        for (int i = 0; i < NWires; i++) {
+        for (unsigned int i = 0; i < NWires; i++) {
             if (i > 0)
                 std::cout << ", ";
             fmpz_print(WireShares[i]);
@@ -124,7 +124,7 @@ struct client_packet {
         std::cout << " g0_s = "; fmpz_print(g0_s); std::cout << std::endl;
         std::cout << " h0_s = "; fmpz_print(h0_s); std::cout << std::endl;
         std::cout << " h_points = {";
-        for (int i = 0; i < N; i++) {
+        for (unsigned int i = 0; i < N; i++) {
             if (i > 0)
                 std::cout << ", ";
             fmpz_print(h_points[i]);
@@ -177,7 +177,7 @@ struct EdaBit {
     // Get b as an int. For easier math / xor comparison.
     int get_int_b() const {
         int pow = 1, ans = 0;
-        for (int i = 0; i < n; i++) {
+        for (unsigned int i = 0; i < n; i++) {
             if (b[i])
                 ans += pow;
             pow *= 2;

@@ -101,7 +101,7 @@ void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n) {
     fmpz_t pow;
     fmpz_init_set_si(pow, 1);  // 2^i
 
-    for (int i = 0; i < n; i++) {
+    for (unsigned int i = 0; i < n; i++) {
         makeLocalDaBit(bit0, bit1);
 
         ebit0->b[i] = bit0->b2;
