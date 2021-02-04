@@ -1,18 +1,30 @@
 #ifndef HE_TRIPLES_H
 #define HE_TRIPLES_H
+
 #include <iostream>
 #include <random>
 #include <vector>
 
 #include "palisade.h"
 
+#include "constants.h"
 #include "share.h"
 
 using namespace lbcrypto;
 
+/*
+A generator for Arithmetic triples, between two servers.
+
+Uses PALISADE's BFVrns encryption scheme.
+The plaintextModulus is the PARSEC Int_Modulus.
+  Only supports < 60 bits.
+  Due to noise, has only been tested for up to ~48 bits
+
+Can generate up to 8192 triples at a time.
+*/
 class ArithTripleGenerator {
-  // const int64_t plaintextModulus = 34359771137;  // TODO: Int_Modulus.
-  const int64_t plaintextModulus;  // TODO: Int_Modulus.
+private:
+  const slong plaintextModulus = fmpz_get_si(Int_Modulus);
   const double sigma = 3.2;
   const SecurityLevel securityLevel = HEStd_128_classic;
 
@@ -27,16 +39,25 @@ class ArithTripleGenerator {
   std::default_random_engine generator;
   std::function<int64_t()> random_int;
 
-  Ciphertext<DCRTPoly> swapCT(const Ciphertext<DCRTPoly> ct);
-
-  bool debug = true;
+  void swapPK();
 
 public:
 
-  ArithTripleGenerator(const int serverfd, const int server_num = 0, const int64_t mod = 65537) 
-  : plaintextModulus(mod)
-  , serverfd(serverfd) 
+  /*
+   - serverfd: sockfd of the other server
+   - server_num: index of the server. Only used for randomness offset
+   - random_offset: Have server 1 make this many extra random values, so that the servers have different random values even when starting with the same seed
+  */
+  ArithTripleGenerator(const int serverfd, const int server_num = 0, const unsigned int random_offset = 8)
+  : serverfd(serverfd)
   {
+    if (fmpz_cmp_ui(Int_Modulus, 1ULL << 60) > 0) {
+      perror("ERROR: PALISADE based triples don't support Int_Modulus >60 bits");
+      return;
+    } else if (fmpz_cmp_ui(Int_Modulus, 1ULL << 49) > 0) {
+      std::cout << "WARNING: PALISADE based triples is not fully tested on Int_Modulus > 48 bits. Running anyways." << std::endl;
+    }
+
     cc = CryptoContextFactory<DCRTPoly>::genCryptoContextBFVrns(
       plaintextModulus, securityLevel, sigma, 0, 1, 0, OPTIMIZED);
     cc->Enable(ENCRYPTION);
@@ -46,22 +67,21 @@ public:
     sk = keyPair.secretKey;
     cc->EvalMultKeyGen(sk);
 
-    std::uniform_int_distribution<int64_t> index_dist{0, plaintextModulus};
+    // TODO: Use FMPZ random instead?
+    std::uniform_int_distribution<int64_t> index_dist{0, plaintextModulus - 1};
     random_int = std::bind(index_dist, generator);
 
     // Randomness offset
     if (server_num == 1) {
-      random_int();
+      for (unsigned int i = 0; i < random_offset; i++) {
+        random_int();
+      }
     }
+
+    swapPK();
   }
 
-  void swapPK();
-
-  std::vector<BeaverTriple*> generateTriples(const size_t n);
-
-  int64_t getMod() const {
-    return plaintextModulus;
-  }
+  std::vector<BeaverTriple*> generateTriples(const size_t n) const;
 };
 
 #endif

@@ -1,38 +1,59 @@
 #include <iostream>
 #include <random>
-#include <string>
 
 #include "palisade.h"
 
-#include "utils_test_connect.h"
-#include "../share.h"
-#include "../net_share.h"
 #include "../he_triples.h"
-// #include "../constants.h"
+
+#include "utils_test_connect.h"
+#include "../constants.h"
+#include "../net_share.h"
+#include "../share.h"
 
 using namespace lbcrypto;
 
 // Basic run: local, one context/keys. 
-void runLocal() {
+void runLocal(size_t N) {
 
-  int N = 20;
-
-  int64_t plaintextModulus = 65537;  // q = 1 mod 2^14 = m
+  // int64_t plaintextModulus = 65537;
+  // int64_t plaintextModulus = 0x8008001;
+  int64_t plaintextModulus = 0x800008001;
   double sigma = 3.2;
   SecurityLevel securityLevel = HEStd_128_classic;
   uint32_t depth = 1;
 
+  // Must be between 30 and 60.
+  // must be greater than Plaintext modulus
+  // For 0x800008001:
+  // 35 is too small. 36 doesn't work
+  unsigned int dcrtBits = 60;
+
   CryptoContext<DCRTPoly> cryptoContext =
     CryptoContextFactory<DCRTPoly>::genCryptoContextBFVrns(
-      plaintextModulus, securityLevel, sigma, 0, depth, 0, OPTIMIZED);
+      plaintextModulus,
+      securityLevel,
+      sigma,
+      0,
+      depth,
+      0,
+      OPTIMIZED,
+      2,
+      0,
+      dcrtBits
+  );
 
   cryptoContext->Enable(ENCRYPTION);
   cryptoContext->Enable(SHE);
   // cryptoContext->Enable(LEVELEDSHE);
 
+  int64_t maxrand = 1L << 50;
+  maxrand = (plaintextModulus < maxrand ? plaintextModulus : maxrand) - 1;
+
+  std::cout << "plaintextModulus: " << plaintextModulus << std::endl;
+
   std::default_random_engine generator;
   // Pick a random coefficient index from 0 to N-1
-  std::uniform_int_distribution<int64_t> index_dist{0, plaintextModulus};
+  std::uniform_int_distribution<int64_t> index_dist{0, maxrand};
   std::function<int64_t()> rint = std::bind(index_dist, generator);
 
   // Initialize Public Key Containers
@@ -43,6 +64,7 @@ void runLocal() {
 
   // Generate the relinearization key
   cryptoContext->EvalMultKeyGen(keyPair.secretKey);
+  // cryptoContext->EvalSumKeyGen(keyPair.secretKey);
 
   std::vector<int64_t> a;
   std::vector<int64_t> b;
@@ -72,11 +94,26 @@ void runLocal() {
 
   // Server 1 calc
   auto ct_a2_b = cryptoContext->EvalMult(ct_a2, plain_b);
-  auto ct_e2 = cryptoContext->EvalAdd(ct_a2_b, ct_d);
+  auto ct_e2 = cryptoContext->EvalSub(ct_a2_b, ct_d);
 
   // Server 2 calc
   auto ct_a_b2 = cryptoContext->EvalMult(ct_a, plain_b2);
-  auto ct_e = cryptoContext->EvalAdd(ct_a_b2, ct_d2);  
+  auto ct_e = cryptoContext->EvalSub(ct_a_b2, ct_d2);
+
+  Plaintext plain_tmp;
+  cryptoContext->Decrypt(keyPair.secretKey, ct_a2_b, &plain_tmp);
+  plain_tmp->SetLength(N); auto tmp_val = plain_tmp->GetPackedValue();
+  std::cout << "dec(a2_b): " << tmp_val << std::endl;
+  cryptoContext->Decrypt(keyPair.secretKey, ct_e2, &plain_tmp);
+  plain_tmp->SetLength(N); tmp_val = plain_tmp->GetPackedValue();
+  std::cout << "dec(e2):   " << tmp_val << std::endl;
+
+  cryptoContext->Decrypt(keyPair.secretKey, ct_a_b2, &plain_tmp);
+  plain_tmp->SetLength(N); tmp_val = plain_tmp->GetPackedValue();
+  std::cout << "dec(a_b2): " << tmp_val << std::endl;
+  cryptoContext->Decrypt(keyPair.secretKey, ct_e, &plain_tmp);
+  plain_tmp->SetLength(N); tmp_val = plain_tmp->GetPackedValue();
+  std::cout << "dec(e):    " << tmp_val << std::endl;
 
   // swap e2 -> 2, e -> 1
 
@@ -106,83 +143,109 @@ void runLocal() {
   std::cout << "e : " << e << std::endl;
   std::cout << "e2: " << e2 << std::endl;
 
+  fmpz_t c_val; fmpz_init(c_val); 
+  fmpz_t c2_val; fmpz_init(c2_val);
+  fmpz_t fmod; fmpz_init_set_si(fmod, plaintextModulus);
+  fmpz_t tmp; fmpz_init(tmp);
+  fmpz_t tmp2; fmpz_init(tmp2);
+
   for (int i = 0; i < N; i++) {
     std::cout << i << ": ";
-    int64_t c = (a[i] * b[i] - d[i] + e[i]) % plaintextModulus;
-    int64_t c2 = (a2[i] * b2[i] - d2[i] + e2[i]) % plaintextModulus;
+    fmpz_set_si(c_val, a[i]); fmpz_mul_si(c_val, c_val, b[i]);
+    fmpz_add_si(c_val, c_val, d[i]); fmpz_add_si(c_val, c_val, e[i]);
+    fmpz_mod(c_val, c_val, fmod);
+
+    fmpz_set_si(c2_val, a2[i]); fmpz_mul_si(c2_val, c2_val, b2[i]);
+    fmpz_add_si(c2_val, c2_val, d2[i]); fmpz_add_si(c2_val, c2_val, e2[i]);
+    fmpz_mod(c2_val, c2_val, fmod);
+
+    fmpz_set_si(tmp, a[i]); fmpz_add_si(tmp, tmp, a2[i]);
+    fmpz_set_si(tmp2, b[i]); fmpz_add_si(tmp2, tmp2, b2[i]);
+    fmpz_mul(tmp, tmp, tmp2); fmpz_mod(tmp, tmp, fmod);
     std::cout << "(" << a[i] << " + " << a2[i] << ")";
     std::cout << " * (" << b[i] << " + " << b2[i] << ")";
-    std::cout << " = " << ((a[i] + a2[i]) * (b[i] + b2[i])) % plaintextModulus;
-    std::cout << ", (" << c << " + " << c2 << ")";
-    std::cout << " = " << (c + c2) % plaintextModulus << std::endl;
+    std::cout << "\n = "; fmpz_print(tmp);
+    std::cout << "\n  ("; fmpz_print(c_val);
+    std::cout << " + "; fmpz_print(c_val);
+    fmpz_add(tmp, c_val, c2_val); fmpz_mod(tmp, tmp, fmod);
+    std::cout << ")\n = "; fmpz_print(tmp); std::cout << std::endl;
   }
 }
-
 
 void runServerTest(const int server_num, const int serverfd, const size_t N) {
   auto start = emp::clock_start();
 
-  // int64_t modulus = 65537;
-  int64_t modulus = 0x8008001;
-  // int64_t modulus = 0x800008001L;
-  // int64_t modulus = 0x80000000080001L;
+  // int64_t modulus = 0x8008001;           // 26 bit
+  // int64_t modulus = 0x800008001L;           // 36 bit, works up to 1<<32
+  // int64_t modulus = 0x80000000080001LL;  // 55 bit, doesn't run
+  // int64_t modulus = 0x8000002080001LL;
+  // int64_t modulus = 0x800006880001LL;
+  // std::cout << "modulus:    " << modulus << std::endl;
 
-  ArithTripleGenerator gen(serverfd, server_num, modulus);
-  std::cout << server_num << " initialized in: " << (((float) emp::time_from(start)) / CLOCKS_PER_SEC) << "s" << std::endl; start = emp::clock_start();
-  gen.swapPK();
-  std::cout << server_num << " PK Swapped in: " << (((float) emp::time_from(start)) / CLOCKS_PER_SEC) << "s" << std::endl; start = emp::clock_start();
+  ArithTripleGenerator gen(serverfd, server_num);
+  std::cout << server_num << " initialized gen in: " << (((float) emp::time_from(start)) / CLOCKS_PER_SEC) << "s" << std::endl; start = emp::clock_start();
 
   std::vector<BeaverTriple*> triples = gen.generateTriples(N);
 
-  std::cout << server_num << " made # triples: " << triples.size() << std::endl;
+  std::cout << server_num << " generated " << triples.size() << " triples in: ";
+  std::cout << (((float) emp::time_from(start)) / CLOCKS_PER_SEC) << "s" << std::endl; start = emp::clock_start();
 
-  std::cout << server_num << " generated in: " << (((float) emp::time_from(start)) / CLOCKS_PER_SEC) << "s" << std::endl;
-
-  std::cout << server_num << " triple 0: ";
+  std::cout << server_num << "'s triple 0: ";
   fmpz_print(triples[0]->A); std::cout << ", ";
   fmpz_print(triples[0]->B); std::cout << ", ";
   fmpz_print(triples[0]->C); std::cout << std::endl;
 
-  std::cout << server_num << " triple " << N-1 << ": ";
-  fmpz_print(triples[N-1]->A); std::cout << ", ";
-  fmpz_print(triples[N-1]->B); std::cout << ", ";
-  fmpz_print(triples[N-1]->C); std::cout << std::endl;
-
-  fmpz_t mod;
-  fmpz_init_set_si(mod, modulus);
-  std::cout << "modulus: ";
-  fmpz_print(mod);
-  std::cout << std::endl;
-
-  int idx = 0;
-  std::cout << "Validating triple: " << idx << std::endl;
-  if (server_num == 0) {
-    BeaverTriple* triple = triples[idx];
-    BeaverTriple* other_triple = new BeaverTriple();
-    recv_BeaverTriple(serverfd, other_triple);
-
-    fmpz_t tmp; fmpz_init(tmp);
-    fmpz_t tmp2; fmpz_init(tmp2);
-    fmpz_add(tmp, triple->A, other_triple->A);
-    fmpz_mod(tmp, tmp, mod);
-    fmpz_add(tmp2, triple->B, other_triple->B);
-    fmpz_mod(tmp2, tmp2, mod);
-    fmpz_mul(tmp, tmp, tmp2);
-    fmpz_mod(tmp, tmp, mod);
-    std::cout << "actual product: ("; fmpz_print(triple->A);
-    std::cout << " + "; fmpz_print(other_triple->A);
-    std::cout << ") * ("; fmpz_print(triple->B);
-    std::cout << " + "; fmpz_print(other_triple->B);
-    std::cout << ") = "; fmpz_print(tmp);
-    std::cout << std::endl;
-    fmpz_add(tmp, triple->C, other_triple->C);
-    fmpz_mod(tmp, tmp, mod);
-    fmpz_print(triple->C); std::cout << " + "; fmpz_print(other_triple->C);
-    std::cout << " = "; fmpz_print(tmp); std::cout << std::endl;
-  } else {
-    send_BeaverTriple(serverfd, triples[idx]);
-    // send_BooleanBeaverTriple(newsockfd, triples[N-1]);
+  if (N > 1) {
+    std::cout << server_num << "'s triple " << N-1 << ": ";
+    fmpz_print(triples[N-1]->A); std::cout << ", ";
+    fmpz_print(triples[N-1]->B); std::cout << ", ";
+    fmpz_print(triples[N-1]->C); std::cout << std::endl;
   }
+
+  for (int idx = 0; idx < N; idx++) {
+    // std::cout << "Validating triple: " << idx << std::endl;
+    if (server_num == 0) {
+      BeaverTriple* triple = triples[idx];
+      BeaverTriple* other_triple = new BeaverTriple();
+      recv_BeaverTriple(serverfd, other_triple);
+
+      fmpz_t tmp; fmpz_init(tmp);
+      fmpz_t tmp2; fmpz_init(tmp2);
+      fmpz_add(tmp, triple->A, other_triple->A);
+      fmpz_mod(tmp, tmp, Int_Modulus);
+      fmpz_add(tmp2, triple->B, other_triple->B);
+      fmpz_mod(tmp2, tmp2, Int_Modulus);
+      fmpz_mul(tmp, tmp, tmp2);
+      fmpz_mod(tmp, tmp, Int_Modulus);
+      fmpz_add(tmp2, triple->C, other_triple->C);
+      fmpz_mod(tmp2, tmp2, Int_Modulus);
+      bool valid = fmpz_equal(tmp, tmp2);
+      send_bool(serverfd, valid);
+      if (not valid or idx == N-1) {
+        if (not valid) {
+          std::cout << "############## Invalid " << idx << " ##############" << std::endl;
+        } else {
+          std::cout << "All valid. Math of N-1: " << std::endl;
+        }
+        std::cout << "actual product: ("; fmpz_print(triple->A);
+        std::cout << " + "; fmpz_print(other_triple->A);
+        std::cout << ") * ("; fmpz_print(triple->B);
+        std::cout << " + "; fmpz_print(other_triple->B);
+        std::cout << ") = \n"; fmpz_print(tmp);
+        std::cout << std::endl;
+        fmpz_print(triple->C); std::cout << " + "; fmpz_print(other_triple->C);
+        std::cout << " = \n"; fmpz_print(tmp2); std::cout << std::endl;
+      }
+      if (not valid) break;
+    } else {
+      send_BeaverTriple(serverfd, triples[idx]);
+      bool valid;
+      recv_bool(serverfd, valid);
+      if (not valid) break;
+    }
+  }
+
+  std::cout << server_num << " ran all validation in: " << (((float) emp::time_from(start)) / CLOCKS_PER_SEC) << "s" << std::endl;
 }
 
 void serverTest(const size_t N) {
@@ -202,8 +265,12 @@ void serverTest(const size_t N) {
 
 
 int main(int argc, char** argv){
-  // runLocal();
-  serverTest(10);
+  init_constants();
 
+  // runLocal(1);
+  serverTest(8192);
+  // serverTest(1);
+
+  clear_constants();
   return 0;
 }
