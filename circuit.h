@@ -309,8 +309,8 @@ Circuit* CheckLinReg(const unsigned int num_fields) {
 
     int k = num_fields;
 
-    for (int i = 0; i < num_fields; i++) {
-        for (int j = i; j < num_fields; j++) {
+    for (unsigned int i = 0; i < num_fields; i++) {
+        for (unsigned int j = i; j < num_fields; j++) {
             Gate* x_i = out->gates[i];
             Gate* x_j = out->gates[j];
             Gate* x_i_j = out->gates[k];

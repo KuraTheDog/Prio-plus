@@ -414,7 +414,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     MaxShare share;
     const unsigned int total_inputs = msg.num_of_inputs;
-    const int B = msg.max_inp;
+    const unsigned int B = msg.max_inp;
     const size_t share_sz = (B+1) * sizeof(uint32_t);
     // Need this to have all share arrays stay in memory, for server1 later.
     uint32_t shares[total_inputs * (B + 1)];

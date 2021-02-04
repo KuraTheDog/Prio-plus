@@ -228,7 +228,7 @@ struct Checker {
 
     // To be fixed. Both servers need to use same random seed. Using constant 1 instead now.
     void randSum(fmpz_t out, const fmpz_t* const arr) const {
-        int len = ckt->result_zero.size() + 1;
+        const size_t len = ckt->result_zero.size() + 1;
 
         fmpz_t tmp;
         fmpz_init(tmp);
@@ -276,7 +276,7 @@ struct Checker {
         fmpz_mod(mulCheck, mulCheck, Int_Modulus);
 
         fmpz_t* arr;
-        int num_zero_gates = ckt->result_zero.size();
+        const size_t num_zero_gates = ckt->result_zero.size();
         new_fmpz_array(&arr, num_zero_gates+1);
 
         fmpz_set(arr[0], mulCheck);

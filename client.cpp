@@ -49,11 +49,11 @@ std::string pub_key_to_hex(const uint64_t* const key) {
 void send_maxshare(const MaxShare& maxshare, const int server_num, const unsigned int B) {
     int sock = (server_num == 0) ? sockfd0 : sockfd1;
 
-    int s = send(sock, (void *)&maxshare, sizeof(MaxShare), 0);
+    send(sock, (void *)&maxshare, sizeof(MaxShare), 0);
     // std::cout << "sent : " << s << " bytes" << std::endl;
 
     for (unsigned int i = 0; i <= B; i++)
-        s = send(sock, (void *)&(maxshare.arr[i]), sizeof(uint32_t), 0);
+        send(sock, (void *)&(maxshare.arr[i]), sizeof(uint32_t), 0);
 }
 
 // Wrapper around send, with error catching.
@@ -287,10 +287,11 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     if (protocol == "ANDOP") {
         msg.type = AND_OP;
         ans = true;
-    }
-    if (protocol == "OROP") {
+    } else if (protocol == "OROP") {
         msg.type = OR_OP;
         ans = false;
+    } else {
+        return;
     }
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
@@ -361,10 +362,11 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
     if (protocol == "ANDOP") {
         msg.type = AND_OP;
         ans = true;
-    }
-    if (protocol == "OROP") {
+    } else if (protocol == "OROP") {
         msg.type = OR_OP;
         ans = false;
+    } else {
+        return;
     }
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
@@ -449,10 +451,11 @@ void max_op(const std::string protocol, const size_t numreqs) {
     if (protocol == "MAXOP") {
         msg.type = MAX_OP;
         ans = 0;
-    }
-    if (protocol == "MINOP") {
+    } else if (protocol == "MINOP") {
         msg.type = MIN_OP;
         ans = B;
+    } else {
+        return;
     }
     send_to_server(0, &msg, sizeof(initMsg), 0);
     send_to_server(1, &msg, sizeof(initMsg), 0);
@@ -480,7 +483,7 @@ void max_op(const std::string protocol, const size_t numreqs) {
         prg.random_data(shares0, (B+1)*sizeof(uint32_t));
 
         // min(x) = -max(-x) = B - max(B - x)
-        int v;
+        uint32_t v = 0;
         if (protocol == "MAXOP")
             v = values[i];
         if (protocol == "MINOP")
@@ -522,14 +525,15 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
     msg.num_of_inputs = numreqs;
     msg.max_inp = B;
     emp::PRG prg(fix_key);
-    int ans;
+    uint32_t ans;
     if (protocol == "MAXOP") {
         msg.type = MAX_OP;
         ans = 0;
-    }
-    if (protocol == "MINOP") {
+    } else if (protocol == "MINOP") {
         msg.type = MIN_OP;
         ans = B;
+    } else {
+        return;
     }
 
     emp::block* const b = new block[numreqs];
@@ -564,7 +568,7 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
         prg.random_data(shares0, (B+1)*sizeof(uint32_t));
 
         // min(x) = -max(-x) = B - max(B - x)
-        int v;
+        uint32_t v = 0;
         if (protocol == "MAXOP")
             v = values[i];
         if (protocol == "MINOP")
@@ -606,10 +610,13 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
 void var_op(const std::string protocol, const size_t numreqs) {
     initMsg msg;
     msg.num_of_inputs = numreqs;
-    if (protocol == "VAROP")
+    if (protocol == "VAROP") {
         msg.type = VAR_OP;
-    if (protocol == "STDDEVOP")
+    } else if (protocol == "STDDEVOP") {
         msg.type = STDDEV_OP;
+    } else {
+        return;
+    }
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
@@ -706,10 +713,13 @@ void var_op(const std::string protocol, const size_t numreqs) {
 void var_op_invalid(const std::string protocol, const size_t numreqs) {
     initMsg msg;
     msg.num_of_inputs = numreqs;
-    if (protocol == "VAROP")
+    if (protocol == "VAROP") {
         msg.type = VAR_OP;
-    if (protocol == "STDDEVOP")
+    } else if (protocol == "STDDEVOP") {
         msg.type = STDDEV_OP;
+    } else {
+        return;
+    }
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 

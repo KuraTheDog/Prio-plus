@@ -274,7 +274,7 @@ void set_block(block &b, const bool f) {
     p[1] = (f ? 1 : 0);
 }
 
-void block_to_boolean(const block* const B, bool* const b, const int len){
+void block_to_boolean(const block* const B, bool* const b, const unsigned int len){
     for (unsigned int i = 0; i < len; i++){
         uint64_t* p = (uint64_t*) &(B[i]);
         b[i] = (p[1] == 1) ? true : false;
