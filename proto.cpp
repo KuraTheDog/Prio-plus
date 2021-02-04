@@ -12,7 +12,7 @@ uint64_t bitsum_ot_sender(NetIO* const io, const bool* const shares, const bool*
     uint64_t sum = 0;
     prg.random_data(b0,n*sizeof(uint64_t));
 
-    for(int i = 0; i < n; i++){
+    for (unsigned int i = 0; i < n; i++){
         if(shares[i] == true){
             b1[i] = b0[i] - 1;
             r[i] = (UINT64_MAX - b1[i]) + 1;
@@ -26,7 +26,7 @@ uint64_t bitsum_ot_sender(NetIO* const io, const bool* const shares, const bool*
     block* const b0_ot = new block[n];
     block* const b1_ot = new block[n];
 
-    for(int i = 0; i < n; i++){
+    for (unsigned int i = 0; i < n; i++){
         uint64_t* const p = (uint64_t*)&b0_ot[i];
         p[0] = valid[i] ? 0:1;
         p[1] = b0[i];
@@ -43,7 +43,7 @@ uint64_t bitsum_ot_sender(NetIO* const io, const bool* const shares, const bool*
     delete[] b1_ot;
     delete[] b0_ot;
 
-    for(int i = 0; i < n; i++){
+    for (unsigned int i = 0; i < n; i++){
         if(valid[i])
             sum += r[i];
     }
@@ -62,11 +62,11 @@ uint64_t intsum_ot_sender(NetIO* const io, const uint64_t* const shares, const b
     uint64_t sum = 0;
     prg.random_data(r,n*num_bits*sizeof(uint64_t));
 
-    for(int i = 0; i < n; i++){
+    for (unsigned int i = 0; i < n; i++){
         uint64_t num = shares[i];
         // std::cout << "Share[" << i << "] " << num << "  valid " << valid[i] << std::endl;
         // std::cout << "Valid : " << valid[i] << " num bits " << num_bits << std::endl;
-        for(int j = 0; j < num_bits; j++){
+        for (unsigned int j = 0; j < num_bits; j++){
             // std::cout << num%2;
             bool_shares[i*num_bits + j] = num%2;
             bool_valid[i*num_bits + j] = valid[i];
@@ -77,8 +77,8 @@ uint64_t intsum_ot_sender(NetIO* const io, const uint64_t* const shares, const b
         // std::cout << std::endl;
     }
 
-    for(int i = 0; i < n; i++){
-        for(int j = 0; j < num_bits; j++){
+    for (unsigned int i = 0; i < n; i++){
+        for (unsigned int j = 0; j < num_bits; j++){
             b0[i*num_bits+j] = ((bool_shares[i*num_bits+j])*(1ULL << j) - r[i*num_bits+j]);
             // std::cout << "b0[" << j << "] = " << b0[i*num_bits+j] << std::endl;
             b1[i*num_bits+j] = ((1 - bool_shares[i*num_bits+j])*(1ULL << j) - r[i*num_bits+j]);
@@ -89,7 +89,7 @@ uint64_t intsum_ot_sender(NetIO* const io, const uint64_t* const shares, const b
     block* const b0_ot = new block[n*num_bits];
     block* const b1_ot = new block[n*num_bits];
 
-    for(int i = 0; i < n*num_bits; i++){
+    for (unsigned int i = 0; i < n*num_bits; i++){
         uint64_t* const p = (uint64_t*)&b0_ot[i];
         p[0] = bool_valid[i] ? 0:1;
         p[1] = b0[i];
@@ -107,10 +107,10 @@ uint64_t intsum_ot_sender(NetIO* const io, const uint64_t* const shares, const b
     delete[] b0_ot;
     delete ot;
 
-    for(int i = 0; i < n; i++){
+    for (unsigned int i = 0; i < n; i++){
         if(valid[i]){
             uint64_t local_share = 0;
-            for(int j = i*num_bits; j < (i+1)*num_bits; j++)
+            for (unsigned int j = i*num_bits; j < (i+1)*num_bits; j++)
                 local_share += r[j];
 
             sum += local_share;
@@ -130,7 +130,7 @@ uint64_t bitsum_ot_receiver(NetIO* const io, const bool* const shares, const siz
     ot->recv(r, shares, n);
     io->flush();
 
-    for(int i = 0; i < n; i++){
+    for (unsigned int i = 0; i < n; i++){
         uint64_t* const p = (uint64_t*)&r[i];
         ans[i] =(p[0] == 0) ? p[1] : 0;
         if(ans[i])
@@ -148,10 +148,10 @@ uint64_t intsum_ot_receiver(NetIO* const io, const uint64_t* const shares, const
     block* const r = new block[n*num_bits];
     bool bool_shares[n*num_bits];
 
-    for(int i = 0; i < n; i++){
+    for (unsigned int i = 0; i < n; i++){
         uint64_t num = shares[i];
         // std::cout << "Share[" << i << "] = " << num << " num bits " << num_bits << std::endl;
-        for(int j = 0; j < num_bits; j++){
+        for (unsigned int j = 0; j < num_bits; j++){
             // std::cout << num%2;
             bool_shares[i*num_bits + j] = num%2;
             num = num >> 1;
@@ -165,10 +165,10 @@ uint64_t intsum_ot_receiver(NetIO* const io, const uint64_t* const shares, const
     ot->recv(r, bool_shares, n*num_bits);
     io->flush();
 
-    for(int i = 0; i < n; i++){
+    for (unsigned int i = 0; i < n; i++){
         uint64_t valid = ((uint64_t*) &r[i*num_bits])[0];
         if(valid == 0){
-            for(int j = 0; j < num_bits; j++){
+            for (unsigned int j = 0; j < num_bits; j++){
                 uint64_t* const p = (uint64_t*)&r[i*num_bits+j];
                 // std::cout << "sum += p[1] at " << j << " = " << p[1] << std::endl;
                 sum += p[1];
@@ -198,7 +198,7 @@ uint64_t xor_to_sum_share_sender(NetIO* const io, const uint64_t share, const si
     uint64_t num = share;
     // std::cout << "Share : " << num << "  valid " << valid[i] << std::endl;
     // std::cout << "Valid : " << valid[i] << " num bits " << num_bits << std::endl;
-    for(int j = 0; j < num_bits; j++){
+    for (unsigned int j = 0; j < num_bits; j++){
         // std::cout << num%2 << std::endl;
         bool_shares[j] = num%2;
 
@@ -206,7 +206,7 @@ uint64_t xor_to_sum_share_sender(NetIO* const io, const uint64_t share, const si
         num = num >> 1;
     }
 
-    for(int j = 0; j < num_bits; j++){
+    for (unsigned int j = 0; j < num_bits; j++){
         b0[j] = ((bool_shares[j])*(1ULL << j) - r[j]);
         b1[j] = ((1 - bool_shares[j])*(1ULL << j) - r[j]);
     }
@@ -215,7 +215,7 @@ uint64_t xor_to_sum_share_sender(NetIO* const io, const uint64_t share, const si
     block* const b0_ot = new block[num_bits];
     block* const b1_ot = new block[num_bits];
 
-    for(int i = 0; i < num_bits; i++){
+    for (unsigned int i = 0; i < num_bits; i++){
         uint64_t* const p = (uint64_t*)&b0_ot[i];
         p[0] = 0;
         p[1] = b0[i];
@@ -234,7 +234,7 @@ uint64_t xor_to_sum_share_sender(NetIO* const io, const uint64_t share, const si
     delete ot;
 
     uint64_t local_share = 0;
-    for(int j = 0; j < num_bits; j++)
+    for (unsigned int j = 0; j < num_bits; j++)
         local_share += r[j];
 
     sum += local_share;
@@ -248,7 +248,7 @@ uint64_t xor_to_sum_share_receiver(NetIO* const io, const uint64_t share, const 
 
     uint64_t num = share;
     // std::cout << "Share : " << num << " num bits " << num_bits << std::endl;
-    for(int j = 0; j < num_bits; j++){
+    for (unsigned int j = 0; j < num_bits; j++){
         bool_shares[j] = num%2;
         num = num >> 1;
     }
@@ -260,7 +260,7 @@ uint64_t xor_to_sum_share_receiver(NetIO* const io, const uint64_t share, const 
     io->flush();
     delete ot;
 
-    for(int j = 0; j < num_bits; j++){
+    for (unsigned int j = 0; j < num_bits; j++){
         uint64_t* const p = (uint64_t*)&r[j];
         sum += p[1];
     }
@@ -274,8 +274,8 @@ void set_block(block &b, const bool f) {
     p[1] = (f ? 1 : 0);
 }
 
-void block_to_boolean(const block* const B, bool* const b, const int len){
-    for(int i = 0; i < len; i++){
+void block_to_boolean(const block* const B, bool* const b, const unsigned int len){
+    for (unsigned int i = 0; i < len; i++){
         uint64_t* p = (uint64_t*) &(B[i]);
         b[i] = (p[1] == 1) ? true : false;
     }
@@ -284,11 +284,11 @@ void block_to_boolean(const block* const B, bool* const b, const int len){
 void print_block(const block var) {
     uint64_t v64val[2];
     memcpy(v64val, &var, sizeof(v64val));
-    printf("%.16llx %.16llx\n", v64val[1], v64val[0]);
+    printf("%.16llux %.16llux\n", (unsigned long long) v64val[1], (unsigned long long) v64val[0]);
 }
 
 // Ref : https://crypto.stackexchange.com/questions/41651/what-are-the-ways-to-generate-beaver-triples-for-multiplication-gate
-BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int m, NetIO* const io0, NetIO* const io1){
+BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const unsigned int m, NetIO* const io0, NetIO* const io1){
     PRG prg;
     BooleanBeaverTriple* ans = new BooleanBeaverTriple[m];
     bool x[m], y[m], z[m], r[m], b[m];
@@ -300,7 +300,7 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
     block* b1 = new block[m];
     block* B = new block[m];
 
-    for(int i = 0; i < m; i++){
+    for (unsigned int i = 0; i < m; i++){
         set_block(b0[i], r[i]);
         set_block(b1[i], (x[i] != r[i])); // r[i] XOR x[i]
     }
@@ -330,13 +330,13 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const int 
 
     block_to_boolean(B,b,m);
 
-    for(int i = 0; i < m ; i++){
+    for (unsigned int i = 0; i < m ; i++){
         // b = r' ^ x'y
         z[i] = b[i] != (r[i] != (x[i] and y[i])); // z[i] = r_A xor x_A.y_A xor r_B xor x_B.y_A
         // std::cout << x[i] << " " << y[i] << " " <<  z[i] << std::endl;
     }
 
-    for(int i = 0 ; i < m ; i++){
+    for (unsigned int i = 0 ; i < m ; i++){
         ans[i].set(x[i], y[i], z[i]);
     }
 
@@ -380,7 +380,7 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, N
     fmpz_randm(triple->B, seed, Int_Modulus);
 
     bool a_arr[n];
-    for (int i = 0; i < n; i++)
+    for (unsigned int i = 0; i < n; i++)
         a_arr[i] = fmpz_tstbit(triple->A, i);
 
     // OT random r0/r1 based on bits of a into s
@@ -425,7 +425,7 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, N
 
     fmpz_t pow; fmpz_init_set_si(pow, 1);  // 2^i
 
-    for (int i = 0; i < n; i++) {
+    for (unsigned int i = 0; i < n; i++) {
         fmpz_from_block(r0, r0_block[i], n);
         fmpz_mod(r0, r0, Int_Modulus);
         fmpz_from_block(r1, r1_block[i], n);

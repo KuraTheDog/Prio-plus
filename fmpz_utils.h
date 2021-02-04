@@ -9,11 +9,11 @@ extern "C" {
   #include "flint/fmpz.h"
 };
 
-void new_fmpz_array(fmpz_t** arr, const int N);
+void new_fmpz_array(fmpz_t** arr, const size_t N);
 
-void clear_fmpz_array(fmpz_t* arr, const int N);
+void clear_fmpz_array(fmpz_t* arr, const size_t N);
 
-void copy_fmpz_array(fmpz_t* dest, const fmpz_t* const src, const int N);
+void copy_fmpz_array(fmpz_t* dest, const fmpz_t* const src, const size_t N);
 
 void fmpz_from_bool_array(fmpz_t x, const bool* const arr, const size_t n);
 
