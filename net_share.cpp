@@ -4,6 +4,17 @@
 
 #include "fmpz_utils.h"
 
+// Ensure this is defined.
+#if !defined(htonll) && !defined(ntohll)
+#if __BIG_ENDIAN__
+# define htonll(x) (x)
+# define ntohll(x) (x)
+#else
+# define htonll(x) (((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
+# define ntohll(x) (((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
+#endif
+#endif
+
 /* Core functions */
 
 int recv_in(const int sockfd, void* const buf, const size_t len) {
