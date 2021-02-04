@@ -4,10 +4,21 @@
 
 #include "fmpz_utils.h"
 
+// Ensure this is defined.
+#if !defined(htonll) && !defined(ntohll)
+#if __BIG_ENDIAN__
+# define htonll(x) (x)
+# define ntohll(x) (x)
+#else
+# define htonll(x) (((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
+# define ntohll(x) (((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
+#endif
+#endif
+
 /* Core functions */
 
 int recv_in(const int sockfd, void* const buf, const size_t len) {
-    int bytes_read = 0, tmp;
+    unsigned int bytes_read = 0, tmp;
     char* bufptr = (char*) buf;
     while (bytes_read < len) {
         tmp = recv(sockfd, bufptr + bytes_read, len - bytes_read, 0);
@@ -114,7 +125,7 @@ int send_fmpz(const int sockfd, const fmpz_t x) {
     fmpz_get_ui_array(arr, len, x);
     ret = send_size(sockfd, len);
     if (ret <= 0) return ret; else total += ret;
-    for (int i = 0; i < len; i++) {
+    for (unsigned int i = 0; i < len; i++) {
         ret = send_ulong(sockfd, arr[i]);
         if (ret <= 0) return ret; else total += ret;
     }
@@ -132,7 +143,7 @@ int recv_fmpz(const int sockfd, fmpz_t x) {
         return total;
     }
     ulong buf[len];
-    for (int i = 0; i < len; i++) {
+    for (unsigned int i = 0; i < len; i++) {
         ret = recv_ulong(sockfd, tmp);
         if (ret <= 0) return ret; else total += ret;
         buf[i] = tmp;

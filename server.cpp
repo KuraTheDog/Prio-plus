@@ -201,9 +201,9 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
     std::unordered_map<std::string, bool> share_map;
 
     BitShare share;
-    const size_t total_inputs = msg.num_of_inputs;
+    const unsigned int total_inputs = msg.num_of_inputs;
 
-    for (int i = 0; i < total_inputs; i++) {
+    for (unsigned int i = 0; i < total_inputs; i++) {
         recv_in(clientfd, &share, sizeof(BitShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
         if (share_map.find(pk) != share_map.end())
@@ -215,7 +215,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
     // if (fork() > 0) return RET_NO_ANS;
 
     if (server_num == 1) {
-        const size_t num_inputs = share_map.size();
+        const unsigned int num_inputs = share_map.size();
         send_size(serverfd, num_inputs);
         bool shares[num_inputs];
         int i = 0;
@@ -236,7 +236,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
         bool shares[num_inputs];
         bool valid[num_inputs];
 
-        for (int i = 0; i < num_inputs; i++) {
+        for (unsigned int i = 0; i < num_inputs; i++) {
             std::string pk = get_pk(serverfd);
 
             bool is_valid = (share_map.find(pk) != share_map.end());
@@ -269,9 +269,9 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
 
     IntShare share;
     const uint64_t max_val = 1ULL << num_bits;
-    const size_t total_inputs = msg.num_of_inputs;
+    const unsigned int total_inputs = msg.num_of_inputs;
 
-    for (int i = 0; i < total_inputs; i++) {
+    for (unsigned int i = 0; i < total_inputs; i++) {
         recv_in(clientfd, &share, sizeof(IntShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
@@ -288,7 +288,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
     // if (fork() > 0) return RET_NO_ANS;
 
     if (server_num == 1) {
-        const size_t num_inputs = share_map.size();
+        const unsigned int num_inputs = share_map.size();
         send_size(serverfd, num_inputs);
         uint64_t shares[num_inputs];
         int i = 0;
@@ -309,7 +309,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         uint64_t shares[num_inputs];
         bool valid[num_inputs];
 
-        for (int i = 0; i < num_inputs; i++) {
+        for (unsigned int i = 0; i < num_inputs; i++) {
             std::string pk = get_pk(serverfd);
 
             bool is_valid = (share_map.find(pk) != share_map.end());
@@ -341,9 +341,9 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
     std::unordered_map<std::string, uint64_t> share_map;
 
     IntShare share;
-    const size_t total_inputs = msg.num_of_inputs;
+    const unsigned int total_inputs = msg.num_of_inputs;
 
-    for (int i = 0; i < total_inputs; i++) {
+    for (unsigned int i = 0; i < total_inputs; i++) {
         recv_in(clientfd, &share, sizeof(IntShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
@@ -357,7 +357,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
     // if (fork() > 0) return RET_NO_ANS;
 
     if (server_num == 1) {
-        const size_t num_inputs = share_map.size();
+        const unsigned int num_inputs = share_map.size();
         send_size(serverfd, num_inputs);
         uint64_t b = 0;
         for (const auto& share : share_map) {
@@ -375,7 +375,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
         recv_size(serverfd, num_inputs);
         uint64_t a = 0;
 
-        for (int i = 0; i < num_inputs; i++) {
+        for (unsigned int i = 0; i < num_inputs; i++) {
             std::string pk = get_pk(serverfd);
 
             bool is_valid = (share_map.find(pk) != share_map.end());
@@ -413,13 +413,13 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
     std::unordered_map<std::string, uint32_t*> share_map;
 
     MaxShare share;
-    const size_t total_inputs = msg.num_of_inputs;
-    const int B = msg.max_inp;
+    const unsigned int total_inputs = msg.num_of_inputs;
+    const unsigned int B = msg.max_inp;
     const size_t share_sz = (B+1) * sizeof(uint32_t);
     // Need this to have all share arrays stay in memory, for server1 later.
     uint32_t shares[total_inputs * (B + 1)];
 
-    for (int i = 0; i < total_inputs; i++) {
+    for (unsigned int i = 0; i < total_inputs; i++) {
         recv_in(clientfd, &share, sizeof(MaxShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
@@ -435,7 +435,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
     // if (fork() > 0) return RET_NO_ANS;
 
     if (server_num == 1) {
-        const size_t num_inputs = share_map.size();
+        const unsigned int num_inputs = share_map.size();
         send_size(serverfd, num_inputs);
         uint32_t b[B+1];
         memset(b, 0, sizeof(b));
@@ -446,7 +446,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
             recv_bool(serverfd, other_valid);
             if (!other_valid)
                 continue;
-            for (int j = 0; j <= B; j++)
+            for (unsigned int j = 0; j <= B; j++)
                 b[j] ^= share.second[j];
         }
         send_out(serverfd, &b[0], share_sz);
@@ -457,7 +457,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         uint32_t a[B+1];
         memset(a, 0, sizeof(a));
 
-        for (int i =0; i < num_inputs; i++) {
+        for (unsigned int i =0; i < num_inputs; i++) {
             std::string pk = get_pk(serverfd);
 
             bool is_valid = (share_map.find(pk) != share_map.end());
@@ -466,7 +466,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
                 continue;
 
             num_valid++;
-            for (int j = 0; j <= B; j++)
+            for (unsigned int j = 0; j <= B; j++)
                 a[j] ^= share_map[pk][j];
         }
         uint32_t b[B+1];
@@ -478,7 +478,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
             return RET_INVALID;
         }
 
-        for (int j = B; j >= 0; j--) {
+        for (unsigned int j = B; j >= 0; j--) {
             // std::cout << "a, b[" << j << "] = " << a[j] << ", " << b[j] << std::endl;
             if (a[j] != b[j]) {
                 if (msg.type == MAX_OP) {
@@ -507,7 +507,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     // We have x^2 < max, so we want x < sqrt(max)
     const uint64_t small_max = 1ULL << (num_bits / 2);
     const uint64_t square_max = 1ULL << num_bits;
-    const size_t total_inputs = msg.num_of_inputs;
+    const unsigned int total_inputs = msg.num_of_inputs;
 
     // Just for getting sizes
     Circuit* const mock_circuit = CheckVar();
@@ -515,7 +515,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     const size_t NWires = mock_circuit->NumMulInpGates();
     delete mock_circuit;
 
-    for (int i = 0; i < total_inputs; i++) {
+    for (unsigned int i = 0; i < total_inputs; i++) {
         recv_in(clientfd, &share, sizeof(VarShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
@@ -539,7 +539,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     // if (fork() > 0) return RET_NO_ANS;
 
     if (server_num == 1) {
-        const size_t num_inputs = share_map.size();
+        const unsigned int num_inputs = share_map.size();
         send_size(serverfd, num_inputs);
 
         // For OT
@@ -607,7 +607,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
         bool have_roots_init = false;
 
-        for (int i = 0; i < num_inputs; i++) {
+        for (unsigned int i = 0; i < num_inputs; i++) {
             std::string pk = get_pk(serverfd);
 
             bool is_valid = (share_map.find(pk) != share_map.end());

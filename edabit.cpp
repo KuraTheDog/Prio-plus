@@ -71,7 +71,7 @@ void multiplyArithmeticShares(const int serverfd, const int server_num, const fm
 // output z_i = x_i xor y_i xor c_i
 bool addBinaryShares(const int serverfd, const int server_num, const size_t n, const bool* const x, const bool* const y, bool* const z, const BooleanBeaverTriple* const triples) {
   bool carry = false;
-  for (int i = 0; i < n; i++) {
+  for (unsigned int i = 0; i < n; i++) {
     z[i] = carry ^ x[i] ^ y[i];
     bool xi = carry ^ x[i];
     bool yi = carry ^ y[i];
@@ -103,7 +103,7 @@ void b2a_edaBit(const int serverfd, const int server_num, const EdaBit* const ed
 
   // Convert x2 to bool array
   bool x2[n];
-  for (int i = 0; i < n; i++)
+  for (unsigned int i = 0; i < n; i++)
     x2[i] = fmpz_tstbit(x, i);
 
   // [x+r]_2 = [x]_2 + [r]_2 via circuit
@@ -256,7 +256,7 @@ bool validate_shares_match(const int serverfd, const int server_num, const fmpz_
 void CorrelatedStore::addBoolTriples() {
   auto start = clock_start();
   BooleanBeaverTriple* new_triples = gen_boolean_beaver_triples(server_num, bool_batch_size, io0, io1);
-  for (int i = 0; i < bool_batch_size; i++)
+  for (unsigned int i = 0; i < bool_batch_size; i++)
     bool_triples.push(new_triples[i]);
   long long t = time_from(start);
   std::cout << "addBoolTriples timing : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
@@ -264,7 +264,7 @@ void CorrelatedStore::addBoolTriples() {
 
 void CorrelatedStore::addTriples() {
   auto start = clock_start();
-  for (int i = 0; i < batch_size; i++) {
+  for (unsigned int i = 0; i < batch_size; i++) {
     BeaverTriple* triple = generate_beaver_triple_lazy(serverfd, server_num);
     triples.push(triple);
   }
@@ -273,7 +273,7 @@ void CorrelatedStore::addTriples() {
 
 void CorrelatedStore::addDaBits() {
   auto start = clock_start();
-  for (int i = 0; i < batch_size; i++) {
+  for (unsigned int i = 0; i < batch_size; i++) {
     BeaverTriple* triple = getTriple();
     DaBit* bit = generateDaBit(serverfd, server_num, triple);
     dabits.push(bit);
@@ -285,7 +285,7 @@ void CorrelatedStore::addDaBits() {
 void CorrelatedStore::addEdaBits() {
   auto start = clock_start();
   if (!lazy) {
-    for (int i = 0; i < batch_size; i++) {
+    for (unsigned int i = 0; i < batch_size; i++) {
       BooleanBeaverTriple* gen_triples = getBoolTriples(num_bits);
       DaBit* dabit = getDaBit();
       EdaBit* edabit = generateEdaBit(serverfd, server_num, num_bits, gen_triples, dabit);
@@ -294,7 +294,7 @@ void CorrelatedStore::addEdaBits() {
       delete dabit;
     }
   } else {
-    for (int i = 0; i < batch_size; i++) {
+    for (unsigned int i = 0; i < batch_size; i++) {
       EdaBit* edabit = new EdaBit(num_bits);
       if (server_num == 0) {
         EdaBit* other_edabit = new EdaBit(num_bits);
@@ -314,7 +314,7 @@ BooleanBeaverTriple* CorrelatedStore::getBoolTriples(const size_t n) {
   if (n > bool_triples.size())
     addBoolTriples();
   BooleanBeaverTriple* ans = new BooleanBeaverTriple[n];
-  for (int i = 0; i < n; i++) {
+  for (unsigned int i = 0; i < n; i++) {
     ans[i] = bool_triples.front();
     bool_triples.pop();
   }

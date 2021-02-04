@@ -139,7 +139,7 @@ void localTest(const size_t n) {
   bool d, e, d0, d1, e0, e1;  // triple calculation
   bool a0, a1, b0, b1, c0, c1;  // beaver triple;
 
-  for (int i = 0; i < n; i++) {
+  for (unsigned int i = 0; i < n; i++) {
     ebit0->b[i] = carry0 ^ ebit00->b[i] ^ ebit10->b[i];
     x0 = carry0 ^ ebit00->b[i];
     y0 = carry0 ^ ebit10->b[i];
@@ -358,7 +358,7 @@ void serverTest(const size_t n) {
     fmpz_t tmp;
     fmpz_init(tmp);
     size_t rand_adjust = 4;
-    for (int i = 0; i < rand_adjust; i++)
+    for (unsigned int i = 0; i < rand_adjust; i++)
       fmpz_randm(tmp, seed, Int_Modulus);
     fmpz_clear(tmp);
 
@@ -381,7 +381,7 @@ int main(int argc, char* argv[]) {
   fmpz_t tmp;
   fmpz_init(tmp);
   size_t rand_adjust = 5;
-  for (int i = 0; i < rand_adjust; i++)
+  for (unsigned int i = 0; i < rand_adjust; i++)
     fmpz_randm(tmp, seed, Int_Modulus);
   fmpz_clear(tmp);
 

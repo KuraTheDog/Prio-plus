@@ -13,10 +13,10 @@ extern "C" {
 void share_polynomials(const Circuit* const circuit, ClientPacket& p0, ClientPacket& p1) {
     auto mulgates = circuit->MulGates();
 
-    int n = mulgates.size() + 1;
+    const unsigned int n = mulgates.size() + 1;
 
-    int N = NextPowerofTwo(n);
-    int NumMulInpGates = circuit->NumMulInpGates();
+    const unsigned int N = NextPowerofTwo(n);
+    const unsigned int NumMulInpGates = circuit->NumMulInpGates();
 
     // u_t, v_t = left and right wires of mul gates.
     // want f(t) = u_t, g(t) = v(t)
@@ -36,7 +36,7 @@ void share_polynomials(const Circuit* const circuit, ClientPacket& p0, ClientPac
     fmpz_mod(h0, h0, Int_Modulus);
 
     // u_i, v_i = left, right of i^th mult gate.
-    for (int i = 1; i < n; i++) {
+    for (unsigned int i = 1; i < n; i++) {
         fmpz_set(pointsF[i], mulgates[i-1]->ParentL->WireValue);
         fmpz_set(pointsG[i], mulgates[i-1]->ParentR->WireValue);
     }
@@ -117,7 +117,7 @@ void share_polynomials(const Circuit* const circuit, ClientPacket& p0, ClientPac
     // h_points[j] = evalF(2j + 1) * evalG(2j + 1), split into shares
     fmpz_t h_val;
     fmpz_init(h_val);
-    for (int j = 0; j < N; j++) {
+    for (unsigned int j = 0; j < N; j++) {
         fmpz_mul(h_val, evalsF[2 * j + 1], evalsG[2 * j + 1]);
         fmpz_mod(h_val, h_val, Int_Modulus);
         SplitShare(h_val, p0->h_points[j], p1->h_points[j]);
