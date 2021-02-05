@@ -33,6 +33,7 @@ uint64_t max_int;
 uint64_t small_max_int; // sqrt(max_int)
 int sockfd0, sockfd1;
 bool include_invalid = false;
+bool do_batch = true;
 
 void error_exit(const char* const msg) {
     perror(msg);
@@ -65,6 +66,7 @@ int send_to_server(const int server, const void* const buffer, const size_t n, c
 }
 
 void bit_sum(const std::string protocol, const size_t numreqs) {
+    auto start = clock_start();
     initMsg msg;
     msg.num_of_inputs = numreqs;
     msg.type = BIT_SUM;
@@ -75,31 +77,68 @@ void bit_sum(const std::string protocol, const size_t numreqs) {
     bool* real_vals = new bool[numreqs];
     bool* shares0 = new bool[numreqs];
     bool* shares1 = new bool[numreqs];
+    int ans = 0;
+
+    std::cout << "Init:   \t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    start = clock_start();
 
     emp::PRG prg(fix_key);
     prg.random_block(b, numreqs);
     prg.random_bool(real_vals, numreqs);
     prg.random_bool(shares0, numreqs);
 
-    int ans = 0;
-    for (unsigned int i = 0; i < numreqs; i++) {
-        BitShare share0, share1;
-        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_s.c_str();
+    std::cout << "random: \t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 
-        shares1[i] = real_vals[i]^shares0[i];
-        ans += (real_vals[i] ? 1 : 0);
+    if (do_batch) {
+        start = clock_start();
+        BitShare* bitshare0 = new BitShare[numreqs];
+        BitShare* bitshare1 = new BitShare[numreqs];
+        for (unsigned int i = 0; i < numreqs; i++) {
+            const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+            const char* pk = pk_s.c_str();
 
-        memcpy(share0.pk, &pk[0], PK_LENGTH);
-        share0.val = shares0[i];
-        memcpy(share0.signature, &pk[0], PK_LENGTH);
+            shares1[i] = real_vals[i]^shares0[i];
+            ans += (real_vals[i] ? 1 : 0);
 
-        memcpy(share1.pk, &pk[0], PK_LENGTH);
-        share1.val = shares1[i];
-        memcpy(share1.signature, &pk[0], PK_LENGTH);
+            memcpy(bitshare0[i].pk, &pk[0], PK_LENGTH);
+            bitshare0[i].val = shares0[i];
+            memcpy(bitshare0[i].signature, &pk[0], PK_LENGTH);
 
-        send_to_server(0, &share0, sizeof(BitShare));
-        send_to_server(1, &share1, sizeof(BitShare));
+            memcpy(bitshare1[i].pk, &pk[0], PK_LENGTH);
+            bitshare1[i].val = shares1[i];
+            memcpy(bitshare1[i].signature, &pk[0], PK_LENGTH);
+        }
+        std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        start = clock_start();
+        for (unsigned int i = 0; i < numreqs; i++) {
+            send_to_server(0, &bitshare0[i], sizeof(BitShare));
+            send_to_server(1, &bitshare1[i], sizeof(BitShare));
+        }
+        delete[] bitshare0;
+        delete[] bitshare1;
+        std::cout << "batch send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    } else {
+        start = clock_start();
+        for (unsigned int i = 0; i < numreqs; i++) {
+            const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+            const char* pk = pk_s.c_str();
+
+            shares1[i] = real_vals[i]^shares0[i];
+            ans += (real_vals[i] ? 1 : 0);
+
+            BitShare share0, share1;
+            memcpy(share0.pk, &pk[0], PK_LENGTH);
+            share0.val = shares0[i];
+            memcpy(share0.signature, &pk[0], PK_LENGTH);
+
+            memcpy(share1.pk, &pk[0], PK_LENGTH);
+            share1.val = shares1[i];
+            memcpy(share1.signature, &pk[0], PK_LENGTH);
+
+            send_to_server(0, &share0, sizeof(BitShare));
+            send_to_server(1, &share1, sizeof(BitShare));
+        }
+        std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
     std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
 
@@ -170,6 +209,7 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
 }
 
 void int_sum(const std::string protocol, const size_t numreqs) {
+    auto start = clock_start();
     initMsg msg;
     msg.num_of_inputs = numreqs;
     msg.type = INT_SUM;
@@ -182,33 +222,72 @@ void int_sum(const std::string protocol, const size_t numreqs) {
     uint64_t* shares1 = new uint64_t[numreqs];
     uint64_t ans = 0;
 
+    std::cout << "Init:   \t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    start = clock_start();
+
     emp::PRG prg(fix_key);
     prg.random_block(b, numreqs);
     prg.random_data(real_vals, numreqs * sizeof(uint64_t));
     prg.random_data(shares0, numreqs * sizeof(uint64_t));
 
-    for (unsigned int i = 0; i < numreqs; i++) {
-        real_vals[i] = real_vals[i] % max_int;
-        shares0[i] = shares0[i] % max_int;
-        shares1[i] = real_vals[i] ^ shares0[i];
-        ans += real_vals[i];
+    std::cout << "random:   \t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 
-        // std::cout << "real_vals[" << i << "] = " << real_vals[i] << " = " << shares0[i] << " ^ " << shares1[i] << std::endl;
+    if (do_batch) {
+        start = clock_start();
+        IntShare* intshare0 = new IntShare[numreqs];
+        IntShare* intshare1 = new IntShare[numreqs];
 
-        IntShare share0, share1;
-        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_s.c_str();
+        for (unsigned int i = 0; i < numreqs; i++) {
+            real_vals[i] = real_vals[i] % max_int;
+            shares0[i] = shares0[i] % max_int;
+            shares1[i] = real_vals[i] ^ shares0[i];
+            ans += real_vals[i];
 
-        memcpy(share0.pk, &pk[0], PK_LENGTH);
-        share0.val = shares0[i];
-        memcpy(share0.signature, &pk[0], PK_LENGTH);
+            const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+            const char* pk = pk_s.c_str();
 
-        memcpy(share1.pk, &pk[0], PK_LENGTH);
-        share1.val = shares1[i];
-        memcpy(share1.signature, &pk[0], PK_LENGTH);
+            memcpy(intshare0[i].pk, &pk[0], PK_LENGTH);
+            intshare0[i].val = shares0[i];
+            memcpy(intshare0[i].signature, &pk[0], PK_LENGTH);
 
-        send_to_server(0, &share0, sizeof(IntShare));
-        send_to_server(1, &share1, sizeof(IntShare));
+            memcpy(intshare1[i].pk, &pk[0], PK_LENGTH);
+            intshare1[i].val = shares1[i];
+            memcpy(intshare1[i].signature, &pk[0], PK_LENGTH);
+        }
+        std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        start = clock_start();
+
+        for (unsigned int i = 0; i < numreqs; i++) {
+            send_to_server(0, &intshare0[i], sizeof(IntShare));
+            send_to_server(1, &intshare1[i], sizeof(IntShare));
+        }
+        delete[] intshare0;
+        delete[] intshare1;
+        std::cout << "batch send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    } else {
+        start = clock_start();
+        for (unsigned int i = 0; i < numreqs; i++) {
+            real_vals[i] = real_vals[i] % max_int;
+            shares0[i] = shares0[i] % max_int;
+            shares1[i] = real_vals[i] ^ shares0[i];
+            ans += real_vals[i];
+
+            const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+            const char* pk = pk_s.c_str();
+
+            IntShare share0, share1;
+            memcpy(share0.pk, &pk[0], PK_LENGTH);
+            share0.val = shares0[i];
+            memcpy(share0.signature, &pk[0], PK_LENGTH);
+
+            memcpy(share1.pk, &pk[0], PK_LENGTH);
+            share1.val = shares1[i];
+            memcpy(share1.signature, &pk[0], PK_LENGTH);
+
+            send_to_server(0, &share0, sizeof(IntShare));
+            send_to_server(1, &share1, sizeof(IntShare));
+        }
+        std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
     std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
@@ -287,6 +366,7 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
 }
 
 void xor_op(const std::string protocol, const size_t numreqs) {
+    auto start = clock_start();
     initMsg msg;
     msg.num_of_inputs = numreqs;
     bool ans;
@@ -308,50 +388,95 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     uint64_t* shares0 = new uint64_t[numreqs];
     uint64_t* shares1 = new uint64_t[numreqs];
 
-    emp::PRG prg(fix_key);
+    std::cout << "Init:   \t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    start = clock_start();
 
+    emp::PRG prg(fix_key);
     prg.random_block(b, numreqs);
     prg.random_bool(values, numreqs);
     prg.random_data(encoded_values, numreqs * sizeof(uint64_t));
     prg.random_data(shares0, numreqs * sizeof(uint64_t));
 
-    for (unsigned int i = 0; i < numreqs; i++) {
-        if (protocol == "ANDOP")
-            ans &= values[i];
-        if (protocol == "OROP")
-            ans |= values[i];
+    std::cout << "random:   \t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+
+    if (do_batch) {
+        IntShare* intshare0 = new IntShare[numreqs];
+        IntShare* intshare1 = new IntShare[numreqs];
+        start = clock_start();
+        // encode step. set to all 0's for values that don't force the ans.
+        if (protocol == "ANDOP") {
+            for (unsigned int i = 0; i < numreqs; i++) {
+                ans &= values[i];
+                if (values[i])
+                    encoded_values[i] = 0;
+            }
+        }
+        if (protocol == "OROP") {
+            for (unsigned int i = 0; i < numreqs; i++) {
+                ans |= values[i];
+                if (not values[i])
+                    encoded_values[i] = 0;
+            }
+        }
+
+        for (unsigned int i = 0; i < numreqs; i++) {
+            shares1[i] = encoded_values[i] ^ shares0[i];
+
+            const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+            const char* pk = pk_s.c_str();
+
+            memcpy(intshare0[i].pk, &pk[0], PK_LENGTH);
+            intshare0[i].val = shares0[i];
+            memcpy(intshare0[i].signature, &pk[0], PK_LENGTH);
+
+            memcpy(intshare1[i].pk, &pk[0], PK_LENGTH);
+            intshare1[i].val = shares1[i];
+            memcpy(intshare1[i].signature, &pk[0], PK_LENGTH);
+        }
+        std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+
+        start = clock_start();
+        for (unsigned int i = 0; i < numreqs; i++) {
+            send_to_server(0, &intshare0[i], sizeof(IntShare));
+            send_to_server(1, &intshare1[i], sizeof(IntShare));
+        }
+        delete[] intshare0;
+        delete[] intshare1;
+        std::cout << "batch send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    } else {
+        start = clock_start();
+        for (unsigned int i = 0; i < numreqs; i++) {
+            // Share splitting. Same as int sum. Sum of shares = encoded value
+            if (protocol == "ANDOP") {
+                ans &= values[i];
+                if (values[i])
+                    encoded_values[i] = 0;
+            }
+            if (protocol == "OROP") {
+                ans |= values[i];
+                if (not values[i])
+                    encoded_values[i] = 0;
+            }
+
+            shares1[i] = encoded_values[i] ^ shares0[i];
+
+            const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+            const char* pk = pk_s.c_str();
+
+            IntShare share0, share1;
+            memcpy(share0.pk, &pk[0], PK_LENGTH);
+            share0.val = shares0[i];
+            memcpy(share0.signature, &pk[0], PK_LENGTH);
+
+            memcpy(share1.pk, &pk[0], PK_LENGTH);
+            share1.val = shares1[i];
+            memcpy(share1.signature, &pk[0], PK_LENGTH);
+
+            send_to_server(0, &share0, sizeof(IntShare));
+            send_to_server(1, &share1, sizeof(IntShare));
+        }
+        std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
-
-    // encode step. set to all 0's for values that don't force the ans.
-    if (protocol == "ANDOP")
-        for (unsigned int i = 0; i < numreqs; i++)
-            if (values[i])
-                encoded_values[i] = 0;
-    if (protocol == "OROP")
-        for (unsigned int i = 0; i < numreqs; i++)
-            if (!values[i])
-                encoded_values[i] = 0;
-
-    // Share splitting. Same as int sum. Sum of shares = encoded value
-    for (unsigned int i = 0; i < numreqs; i++) {
-        shares1[i] = encoded_values[i] ^ shares0[i];
-
-        IntShare share0, share1;
-        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_s.c_str();
-
-        memcpy(share0.pk, &pk[0], PK_LENGTH);
-        share0.val = shares0[i];
-        memcpy(share0.signature, &pk[0], PK_LENGTH);
-
-        memcpy(share1.pk, &pk[0], PK_LENGTH);
-        share1.val = shares1[i];
-        memcpy(share1.signature, &pk[0], PK_LENGTH);
-
-        send_to_server(0, &share0, sizeof(IntShare));
-        send_to_server(1, &share1, sizeof(IntShare));
-    }
-
     std::cout << "Uploaded all shares. Ans : " << std::boolalpha << ans << std::endl;
 
     delete[] b;
@@ -452,6 +577,7 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
 }
 
 void max_op(const std::string protocol, const size_t numreqs) {
+    auto start = clock_start();
     const unsigned int B = 250;
 
     initMsg msg;
@@ -470,54 +596,115 @@ void max_op(const std::string protocol, const size_t numreqs) {
     send_to_server(0, &msg, sizeof(initMsg), 0);
     send_to_server(1, &msg, sizeof(initMsg), 0);
 
-    emp::PRG prg(fix_key);
+    start = clock_start();
 
     emp::block* const b = new block[numreqs];
-    prg.random_block(b, numreqs);
-
     uint32_t* values = new uint32_t[numreqs];
     uint32_t* or_encoded_array = new uint32_t[B+1];
     uint32_t* shares0 = new uint32_t[B+1];
     uint32_t* shares1 = new uint32_t[B+1];
+
+    std::cout << "Init:   \t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    start = clock_start();
+
+    emp::PRG prg(fix_key);
+    prg.random_block(b, numreqs);
     prg.random_data(values, numreqs * sizeof(uint32_t));
 
-    for (unsigned int i = 0; i < numreqs; i++) {
-        MaxShare share0, share1;
-        values[i] = values[i] % (B + 1);
-        if (protocol == "MAXOP")
-            ans = (values[i] > ans? values[i] : ans);
-        if (protocol == "MINOP")
-            ans = (values[i] < ans? values[i] : ans);
+    std::cout << "random:   \t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 
-        prg.random_data(or_encoded_array, (B+1)*sizeof(uint32_t));
-        prg.random_data(shares0, (B+1)*sizeof(uint32_t));
+    if (do_batch) {
+        start = clock_start();
+        MaxShare* maxshare0 = new MaxShare[numreqs];
+        MaxShare* maxshare1 = new MaxShare[numreqs];
+        for (unsigned int i = 0; i < numreqs; i++) {
+            values[i] = values[i] % (B + 1);
+            if (protocol == "MAXOP")
+                ans = (values[i] > ans? values[i] : ans);
+            if (protocol == "MINOP")
+                ans = (values[i] < ans? values[i] : ans);
 
-        // min(x) = -max(-x) = B - max(B - x)
-        uint32_t v = 0;
-        if (protocol == "MAXOP")
-            v = values[i];
-        if (protocol == "MINOP")
-            v = B - values[i];
+            prg.random_data(or_encoded_array, (B+1)*sizeof(uint32_t));
+            prg.random_data(shares0, (B+1)*sizeof(uint32_t));
 
-        for (unsigned int j = v + 1; j <= B ; j++)
-            or_encoded_array[j] = 0;
+            uint32_t v = 0;
+            if (protocol == "MAXOP")
+                v = values[i];
+            if (protocol == "MINOP")
+                v = B - values[i];
 
-        for (unsigned int j = 0; j <= B; j++)
-            shares1[j] = shares0[j] ^ or_encoded_array[j];
+            for (unsigned int j = v + 1; j <= B ; j++)
+                or_encoded_array[j] = 0;
 
-        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_s.c_str();
+            for (unsigned int j = 0; j <= B; j++)
+                shares1[j] = shares0[j] ^ or_encoded_array[j];
 
-        memcpy(share0.pk, &pk[0], PK_LENGTH);
-        memcpy(share0.signature, &pk[0], PK_LENGTH);
-        share0.arr = shares0;
+            const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+            const char* pk = pk_s.c_str();
 
-        memcpy(share1.pk, &pk[0], PK_LENGTH);
-        memcpy(share1.signature, &pk[0], PK_LENGTH);
-        share1.arr = shares1;
+            memcpy(maxshare0[i].pk, &pk[0], PK_LENGTH);
+            memcpy(maxshare0[i].signature, &pk[0], PK_LENGTH);
+            maxshare0[i].arr = new uint32_t[B+1];
+            memcpy(maxshare0[i].arr, &shares0[0], (B+1)*sizeof(uint32_t));
 
-        send_maxshare(share0, 0, B);
-        send_maxshare(share1, 1, B);
+            memcpy(maxshare1[i].pk, &pk[0], PK_LENGTH);
+            memcpy(maxshare1[i].signature, &pk[0], PK_LENGTH);
+            maxshare1[i].arr = new uint32_t[B+1];
+            memcpy(maxshare1[i].arr, &shares1[0], (B+1)*sizeof(uint32_t));
+        }
+        std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+
+        start = clock_start();
+        for (unsigned int i = 0; i < numreqs; i++) {
+            send_maxshare(maxshare0[i], 0, B);
+            send_maxshare(maxshare1[i], 1, B);
+        }
+        delete[] maxshare0;
+        delete[] maxshare1;
+        std::cout << "batch send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    } else {
+        start = clock_start();
+        for (unsigned int i = 0; i < numreqs; i++) {
+            MaxShare share0, share1;
+            values[i] = values[i] % (B + 1);
+            if (protocol == "MAXOP")
+                ans = (values[i] > ans? values[i] : ans);
+            if (protocol == "MINOP")
+                ans = (values[i] < ans? values[i] : ans);
+
+            prg.random_data(or_encoded_array, (B+1)*sizeof(uint32_t));
+            prg.random_data(shares0, (B+1)*sizeof(uint32_t));
+
+            // min(x) = -max(-x) = B - max(B - x)
+            uint32_t v = 0;
+            if (protocol == "MAXOP")
+                v = values[i];
+            if (protocol == "MINOP")
+                v = B - values[i];
+
+            for (unsigned int j = v + 1; j <= B ; j++)
+                or_encoded_array[j] = 0;
+
+            for (unsigned int j = 0; j <= B; j++)
+                shares1[j] = shares0[j] ^ or_encoded_array[j];
+
+            const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+            const char* pk = pk_s.c_str();
+
+            memcpy(share0.pk, &pk[0], PK_LENGTH);
+            memcpy(share0.signature, &pk[0], PK_LENGTH);
+            share0.arr = new uint32_t[B+1];
+            memcpy(share0.arr, &shares0[0], (B+1)*sizeof(uint32_t));
+
+            memcpy(share1.pk, &pk[0], PK_LENGTH);
+            memcpy(share1.signature, &pk[0], PK_LENGTH);
+            share1.arr = new uint32_t[B+1];
+            memcpy(share1.arr, &shares1[0], (B+1)*sizeof(uint32_t));
+
+            send_maxshare(share0, 0, B);
+            send_maxshare(share1, 1, B);
+        }
+        std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
     std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
@@ -622,6 +809,7 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
 }
 
 void var_op(const std::string protocol, const size_t numreqs) {
+    auto start = clock_start();
     initMsg msg;
     msg.num_of_inputs = numreqs;
     if (protocol == "VAROP") {
@@ -642,57 +830,118 @@ void var_op(const std::string protocol, const size_t numreqs) {
     uint64_t* shares1_squared = new uint64_t[numreqs];
     uint64_t sum = 0, sumsquared = 0;
 
+    fmpz_t inp[2];
+    fmpz_init(inp[0]);
+    fmpz_init(inp[1]);
+
+    std::cout << "Init:   \t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    start = clock_start();
+
     emp::PRG prg(fix_key);
     prg.random_block(b, numreqs);
     prg.random_data(real_vals, numreqs * sizeof(uint64_t));
     prg.random_data(shares0, numreqs * sizeof(uint64_t));
     prg.random_data(shares0_squared, numreqs * sizeof(uint64_t));
 
-    fmpz_t inp[2];
-    fmpz_init(inp[0]);
-    fmpz_init(inp[1]);
+    std::cout << "random:   \t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 
-    for (unsigned int i = 0; i < numreqs; i++) {
-        real_vals[i] = real_vals[i] % small_max_int;
-        shares0[i] = shares0[i] % small_max_int;
-        shares1[i] = real_vals[i] ^ shares0[i];
-        uint64_t squared = real_vals[i] * real_vals[i];
-        shares0_squared[i] = shares0_squared[i] % max_int;
-        shares1_squared[i] = squared ^ shares0_squared[i];
-        sum += real_vals[i];
-        sumsquared += squared;
+    if (do_batch) {
+        start = clock_start();
+        VarShare* varshare0 = new VarShare[numreqs];
+        VarShare* varshare1 = new VarShare[numreqs];
+        ClientPacket* packet0 = new ClientPacket[numreqs];
+        ClientPacket* packet1 = new ClientPacket[numreqs];
 
-        // std::cout << i << ": " << real_vals[i] << " = " << shares0[i] << "^" << shares1[i];
-        // std::cout << ", " << squared << " = " << shares0_squared[i] << "^" << shares1_squared[i] << std::endl;
+        for (unsigned int i = 0; i < numreqs; i++) {
+            real_vals[i] = real_vals[i] % small_max_int;
+            shares0[i] = shares0[i] % small_max_int;
+            shares1[i] = real_vals[i] ^ shares0[i];
+            uint64_t squared = real_vals[i] * real_vals[i];
+            shares0_squared[i] = shares0_squared[i] % max_int;
+            shares1_squared[i] = squared ^ shares0_squared[i];
+            sum += real_vals[i];
+            sumsquared += squared;
 
-        VarShare share0, share1;
-        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_s.c_str();
+            const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+            const char* pk = pk_s.c_str();
 
-        memcpy(share0.pk, &pk[0], PK_LENGTH);
-        share0.val = shares0[i];
-        share0.val_squared = shares0_squared[i];
-        memcpy(share0.signature, &pk[0], PK_LENGTH);
+            memcpy(varshare0[i].pk, &pk[0], PK_LENGTH);
+            varshare0[i].val = shares0[i];
+            varshare0[i].val_squared = shares0_squared[i];
+            memcpy(varshare0[i].signature, &pk[0], PK_LENGTH);
 
-        memcpy(share1.pk, &pk[0], PK_LENGTH);
-        share1.val = shares1[i];
-        share1.val_squared = shares1_squared[i];
-        memcpy(share1.signature, &pk[0], PK_LENGTH);
+            memcpy(varshare1[i].pk, &pk[0], PK_LENGTH);
+            varshare1[i].val = shares1[i];
+            varshare1[i].val_squared = shares1_squared[i];
+            memcpy(varshare1[i].signature, &pk[0], PK_LENGTH);
 
-        send_to_server(0, &share0, sizeof(VarShare));
-        send_to_server(1, &share1, sizeof(VarShare));
-        // SNIP: proof that x^2 = x_squared
-        fmpz_set_si(inp[0], real_vals[i]);
-        fmpz_set_si(inp[1], real_vals[i] * real_vals[i]);
-        Circuit* circuit = CheckVar();
-        // Run through circuit to set wires
-        circuit->Eval(inp);
-        ClientPacket p0, p1;
-        share_polynomials(circuit, p0, p1);
-        send_ClientPacket(sockfd0, p0);
-        send_ClientPacket(sockfd1, p1);
-        delete p0;
-        delete p1;
+            fmpz_set_si(inp[0], real_vals[i]);
+            fmpz_set_si(inp[1], real_vals[i] * real_vals[i]);
+            Circuit* circuit = CheckVar();
+            circuit->Eval(inp);
+            share_polynomials(circuit, packet0[i], packet1[i]);
+        }
+
+        std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        start = clock_start();
+
+        for (unsigned int i = 0; i < numreqs; i++) {
+            send_to_server(0, &varshare0[i], sizeof(VarShare));
+            send_to_server(1, &varshare1[i], sizeof(VarShare));
+
+            send_ClientPacket(sockfd0, packet0[i]);
+            send_ClientPacket(sockfd1, packet1[i]);
+        }
+
+        delete[] varshare0;
+        delete[] varshare1;
+        delete[] packet0;
+        delete[] packet1;
+
+        std::cout << "batch send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+
+    } else {
+        start = clock_start();
+        for (unsigned int i = 0; i < numreqs; i++) {
+            real_vals[i] = real_vals[i] % small_max_int;
+            shares0[i] = shares0[i] % small_max_int;
+            shares1[i] = real_vals[i] ^ shares0[i];
+            uint64_t squared = real_vals[i] * real_vals[i];
+            shares0_squared[i] = shares0_squared[i] % max_int;
+            shares1_squared[i] = squared ^ shares0_squared[i];
+            sum += real_vals[i];
+            sumsquared += squared;
+
+            VarShare share0, share1;
+            const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+            const char* pk = pk_s.c_str();
+
+            memcpy(share0.pk, &pk[0], PK_LENGTH);
+            share0.val = shares0[i];
+            share0.val_squared = shares0_squared[i];
+            memcpy(share0.signature, &pk[0], PK_LENGTH);
+
+            memcpy(share1.pk, &pk[0], PK_LENGTH);
+            share1.val = shares1[i];
+            share1.val_squared = shares1_squared[i];
+            memcpy(share1.signature, &pk[0], PK_LENGTH);
+
+            send_to_server(0, &share0, sizeof(VarShare));
+            send_to_server(1, &share1, sizeof(VarShare));
+            // SNIP: proof that x^2 = x_squared
+            fmpz_set_si(inp[0], real_vals[i]);
+            fmpz_set_si(inp[1], real_vals[i] * real_vals[i]);
+            Circuit* circuit = CheckVar();
+            // Run through circuit to set wires
+            circuit->Eval(inp);
+            ClientPacket p0, p1;
+            share_polynomials(circuit, p0, p1);
+            send_ClientPacket(sockfd0, p0);
+            send_ClientPacket(sockfd1, p1);
+            delete p0;
+            delete p1;
+        }
+        std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
     std::cout << "sum: " << sum << std::endl;
@@ -712,6 +961,8 @@ void var_op(const std::string protocol, const size_t numreqs) {
     delete[] shares1;
     delete[] shares0_squared;
     delete[] shares1_squared;
+    fmpz_clear(inp[0]);
+    fmpz_clear(inp[1]);
 }
 
 /* 0: x > max
@@ -853,7 +1104,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
 
 int main(int argc, char** argv) {
     if (argc < 4) {
-        std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits include_invalid" << endl;
+        std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits do_batch include_invalid" << endl;
     }
 
     const int numreqs = atoi(argv[1]);  // Number of simulated clients
@@ -870,11 +1121,17 @@ int main(int argc, char** argv) {
 
     if (argc >= 7) {
         std::stringstream ss(argv[6]);
-        if (!(ss >> std::boolalpha >> include_invalid)) {
+        if (!(ss >> std::boolalpha >> do_batch))
             error_exit("Could not parse to bool");
-        }
-        std::cout << "Include Invalid: " << std::boolalpha << include_invalid << std::endl;
     }
+    std::cout << "Doing batching: " << std::boolalpha << do_batch << std::endl;
+
+    if (argc >= 8) {
+        std::stringstream ss(argv[7]);
+        if (!(ss >> std::boolalpha >> include_invalid))
+            error_exit("Could not parse to bool");
+    }
+    std::cout << "Include Invalid: " << std::boolalpha << include_invalid << std::endl;
 
     // Set up server connections
 
@@ -911,12 +1168,14 @@ int main(int argc, char** argv) {
 
     init_constants();
 
+    auto start = clock_start();
     if (protocol == "BITSUM") {
         std::cout << "Uploading all BITSUM shares: " << numreqs << std::endl;
         if (include_invalid)
             bit_sum_invalid(protocol, numreqs);
         else
             bit_sum(protocol, numreqs);
+        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
     else if (protocol == "INTSUM") {
@@ -925,6 +1184,7 @@ int main(int argc, char** argv) {
             int_sum_invalid(protocol, numreqs);
         else
             int_sum(protocol, numreqs);
+        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
     else if (protocol == "ANDOP") {
@@ -933,6 +1193,7 @@ int main(int argc, char** argv) {
             xor_op_invalid(protocol, numreqs);
         else
             xor_op(protocol, numreqs);
+        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
     else if (protocol == "OROP") {
@@ -941,6 +1202,7 @@ int main(int argc, char** argv) {
             xor_op_invalid(protocol, numreqs);
         else
             xor_op(protocol, numreqs);
+        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
     else if (protocol == "MAXOP") {
@@ -949,6 +1211,7 @@ int main(int argc, char** argv) {
             max_op_invalid(protocol, numreqs);
         else
             max_op(protocol, numreqs);
+        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
     else if (protocol == "MINOP") {
@@ -958,6 +1221,7 @@ int main(int argc, char** argv) {
             max_op_invalid(protocol, numreqs);
         else
             max_op(protocol, numreqs);
+        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
     else if (protocol == "VAROP") {
@@ -966,6 +1230,7 @@ int main(int argc, char** argv) {
             var_op_invalid(protocol, numreqs);
         else
             var_op(protocol, numreqs);
+        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
     else if (protocol == "STDDEVOP") {
@@ -975,6 +1240,7 @@ int main(int argc, char** argv) {
             var_op_invalid(protocol, numreqs);
         else
             var_op(protocol, numreqs);
+        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
     else if(protocol == "LINREGOP") {
@@ -991,6 +1257,8 @@ int main(int argc, char** argv) {
 
     close(sockfd0);
     close(sockfd1);
+
+    clear_constants();
 
     return 0;
 }
