@@ -11,10 +11,16 @@ extern "C" {
 };
 
 
-/* Goal of these constants:
+/*
 Int_Gen ^ (2 ^ twoOrder) = 1 mod IntModulus.
-
 This is for FFT.
+
+Int_Modulus should have p = 1 mod 2^k for some k.
+This is for BFV.
+
+Note:
+g = a^((p-1) / 2^k) satisfies g^(2^k) = 1 mod p.
+Smaller k' may work, so differnet a may be required.
 */
 
 // const std::string Int_Modulus_str = "5";
@@ -25,39 +31,43 @@ This is for FFT.
 // const std::string Int_Gen_str = "8";       // 8 base 16
 // const int twoOrder = 4;
 
-// const std::string Int_Modulus_str = "161";  // 353 base 16
-// const std::string Int_Gen_str = "6";
-// const int twoOrder = 5;
+// const std::string Int_Modulus_str = "161";  // 257 base 16
+// const std::string Int_Gen_str = "3";
+// const int twoOrder = 8;
 
-/* 20 ^ (2 ^ 6) = 1 mod 577 */
+// const std::string Int_Modulus_str = "3401";  // 13313, 14 bit modulus
+// const std::string Int_Gen_str = "3";         // 3^(p-1 / 2^10)
+// const int twoOrder = 10;
 
-// const std::string Int_Modulus_str = "2681";  // 9857 base 16
-// const std::string Int_Gen_str = "3a";        // 58 base 16
-// const int twoOrder = 7;
-
-// const std::string Int_Modulus_str = "10001";  // 65537 base 16
-// const std::string Int_Gen_str = "2";         // p = 2^16 + 1
+// const std::string Int_Modulus_str = "10001";  // 65537, 17 bits modulus
+// const std::string Int_Gen_str = "3";          // p = 2^16 + 1
 // const int twoOrder = 16;
 
-// const std::string Int_Modulus_str = "8008001";  // 134250497 base 16
-// const std::string Int_Gen_str = "5e1298a";      // 2^(p-1 / 2^15)
-// const int twoOrder = 16;
-
-// const std::string Int_Modulus_str = "800008001";  // 36 bit modulus
-// const std::string Int_Gen_str = "10fc3989c";      // 2^(p-1 / 2^15)
+// const std::string Int_Modulus_str = "8008001";  // 28 bit modulus
+// const std::string Int_Gen_str = "1CF4C77";      // 3^(p-1 / 2^15)
 // const int twoOrder = 15;
 
+// const std::string Int_Modulus_str = "800008001";  // 36 bit modulus
+// const std::string Int_Gen_str = "7946479F9";      // 3^(p-1 / 2^15)
+// const int twoOrder = 15;
+
+const std::string Int_Modulus_str = "800006880001";  // 48 bit modulus
+const std::string Int_Gen_str = "3503101C8855";        // 7^(p-1 / 2^19)
+const int twoOrder = 19;
+
+// Below here doesn't work with PALISADE triples
+
 // const std::string Int_Modulus_str = "80000000080001";  // 55 bit modulus
-// const std::string Int_Gen_str = "66ac804179e072";      // 2^(p-1 / 2^19)
+// const std::string Int_Gen_str = "4359077260C2D6";      // 3^(p-1 / 2^19)
 // const int twoOrder = 19;
 
 // const std::string Int_Modulus_str = "8000000000080001";  // 63 bit modulus
-// const std::string Int_Gen_str = "22855fdf11374225";
+// const std::string Int_Gen_str = "22855fdf11374225";      // 965081^(p-1 / 2^19)
 // const int twoOrder = 19;
 
-const std::string Int_Modulus_str = "8000000000000000080001";  // 87 bit modulus
-const std::string Int_Gen_str = "2597c14f48d5b65ed8dcca";      // 17567 ^ (p-1 / 2^19)
-const int twoOrder = 19;
+// const std::string Int_Modulus_str = "8000000000000000080001";  // 87 bit modulus
+// const std::string Int_Gen_str = "2597c14f48d5b65ed8dcca";      // 17567 ^ (p-1 / 2^19)
+// const int twoOrder = 19;
 
 // const std::string Int_Modulus_str = "80000000000000000000080001";  // 102 bit modulus
 // const std::string Int_Gen_str = "71a9f9595f292cfd55e4c5254e";
