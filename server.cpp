@@ -37,7 +37,7 @@ std::unordered_map<size_t, CheckerPreComp*> precomp_store;
 CorrelatedStore* correlated_store;
 #define CACHE_SIZE 65536
 // If set, does fast but insecure offline precompute.
-#define LAZY_PRECOMPUTE true
+#define LAZY_PRECOMPUTE false
 
 // TODO: const 60051 for netio?
 

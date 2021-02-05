@@ -283,9 +283,22 @@ void CorrelatedStore::addBoolTriples() {
 
 void CorrelatedStore::addTriples() {
   auto start = clock_start();
-  for (unsigned int i = 0; i < batch_size; i++) {
-    BeaverTriple* triple = generate_beaver_triple_lazy(serverfd, server_num);
-    triples.push(triple);
+  if (triple_gen) {  // not null pointer
+    unsigned int remaining = batch_size;
+    while (remaining > 0) {
+      // Can do at most 8192 at a time
+      unsigned int num_to_make = (remaining > 8192 ? 8192 : remaining);
+      std::vector<BeaverTriple*> new_triples = triple_gen->generateTriples(num_to_make);
+      for (unsigned int i = 0; i < num_to_make; i++)
+        triples.push(new_triples[i]);
+      remaining -= num_to_make;
+    }
+  } else {
+    for (unsigned int i = 0; i < batch_size; i++) {
+      // BeaverTriple* triple = generate_beaver_triple_lazy(serverfd, server_num);
+      BeaverTriple* triple = generate_beaver_triple(serverfd, server_num, io0, io1);
+      triples.push(triple);
+    }
   }
   std::cout << "addTriples timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }
