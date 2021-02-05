@@ -35,7 +35,7 @@ std::unordered_map<size_t, CheckerPreComp*> precomp_store;
 
 // Precompute cache of edabits and beaver triples
 CorrelatedStore* correlated_store;
-#define CACHE_SIZE 4096
+#define CACHE_SIZE 65536
 // If set, does fast but insecure offline precompute.
 #define LAZY_PRECOMPUTE true
 
