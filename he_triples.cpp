@@ -31,7 +31,36 @@ T serializedSwap(const int serverfd, const T mine) {
   return other;
 }
 
-void ArithTripleGenerator::swapPK() {
+ArithTripleGenerator::ArithTripleGenerator(const int serverfd, const int server_num, const unsigned int random_offset)
+: serverfd(serverfd)
+{
+  if (fmpz_cmp_ui(Int_Modulus, 1ULL << 60) > 0) {
+    perror("ERROR: PALISADE based triples don't support Int_Modulus >60 bits");
+    return;
+  } else if (fmpz_cmp_ui(Int_Modulus, 1ULL << 49) > 0) {
+    std::cout << "WARNING: PALISADE based triples is not fully tested on Int_Modulus > 48 bits. Running anyways." << std::endl;
+  }
+
+  cc = CryptoContextFactory<DCRTPoly>::genCryptoContextBFVrns(
+    plaintextModulus, securityLevel, sigma, 0, 1, 0, OPTIMIZED);
+  cc->Enable(ENCRYPTION);
+  cc->Enable(SHE);
+  LPKeyPair<DCRTPoly> keyPair = cc->KeyGen();
+  pk = keyPair.publicKey;
+  sk = keyPair.secretKey;
+  cc->EvalMultKeyGen(sk);
+
+  std::uniform_int_distribution<int64_t> index_dist{0, plaintextModulus - 1};
+  random_int = std::bind(index_dist, generator);
+
+  // Randomness offset
+  if (server_num == 1) {
+    for (unsigned int i = 0; i < random_offset; i++) {
+      random_int();
+    }
+  }
+
+  // Swap public keys
   other_pk = serializedSwap(serverfd, pk);
 }
 
@@ -68,7 +97,7 @@ std::vector<BeaverTriple*> ArithTripleGenerator::generateTriples(const size_t n)
   // e = Dec(E) = b' a - d', so d' + e = a b'
   Plaintext plain_e;
   cc->Decrypt(sk, ct_e, &plain_e);
-  // Truncate e to (relevant) first n values
+  // Truncate e to (relevant) first N values
   plain_e->SetLength(N);
   auto e = plain_e->GetPackedValue();
 
