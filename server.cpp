@@ -217,7 +217,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
     if (server_num == 1) {
         const unsigned int num_inputs = share_map.size();
         send_size(serverfd, num_inputs);
-        bool shares[num_inputs];
+        bool* shares = new bool[num_inputs];
         int i = 0;
         for (const auto& share : share_map) {
             send_out(serverfd, &share.first[0], PK_LENGTH);
@@ -227,14 +227,15 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
         NetIO* const io = new NetIO(SERVER0_IP, 60051, true);
         uint64_t b = bitsum_ot_receiver(io, &shares[0], num_inputs);
         delete io;
+        delete[] shares;
 
         send_uint64(serverfd, b);
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
         recv_size(serverfd, num_inputs);
-        bool shares[num_inputs];
-        bool valid[num_inputs];
+        bool* shares = new bool[num_inputs];
+        bool* valid = new bool[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             std::string pk = get_pk(serverfd);
@@ -249,6 +250,8 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
         NetIO* const io = new NetIO(nullptr, 60051, true);
         uint64_t a = bitsum_ot_sender(io, &shares[0], &valid[0], num_inputs);
         delete io;
+        delete[] shares;
+        delete[] valid;
 
         uint64_t b;
         recv_uint64(serverfd, b);
@@ -290,7 +293,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
     if (server_num == 1) {
         const unsigned int num_inputs = share_map.size();
         send_size(serverfd, num_inputs);
-        uint64_t shares[num_inputs];
+        uint64_t* shares = new uint64_t[num_inputs];
         int i = 0;
         for (const auto& share : share_map) {
             send_out(serverfd, &share.first[0], PK_LENGTH);
@@ -300,14 +303,15 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         NetIO* const io = new NetIO(SERVER0_IP, 60051, true);
         uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
         delete io;
+        delete[] shares;
 
         send_uint64(serverfd, b);
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
         recv_size(serverfd, num_inputs);
-        uint64_t shares[num_inputs];
-        bool valid[num_inputs];
+        uint64_t* shares = new uint64_t[num_inputs];
+        bool* valid = new bool[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             std::string pk = get_pk(serverfd);
@@ -322,6 +326,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         NetIO* const io = new NetIO(nullptr, 60051, true);
         uint64_t a = intsum_ot_sender(io, &shares[0], &valid[0], num_inputs, num_bits);
         delete io;
+        delete[] shares;
+        delete[] valid;
 
         uint64_t b;
         recv_uint64(serverfd, b);
@@ -417,7 +423,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
     const unsigned int B = msg.max_inp;
     const size_t share_sz = (B+1) * sizeof(uint32_t);
     // Need this to have all share arrays stay in memory, for server1 later.
-    uint32_t shares[total_inputs * (B + 1)];
+    uint32_t* shares = new uint32_t[total_inputs * (B + 1)];
 
     for (unsigned int i = 0; i < total_inputs; i++) {
         recv_in(clientfd, &share, sizeof(MaxShare));
@@ -450,6 +456,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
                 b[j] ^= share.second[j];
         }
         send_out(serverfd, &b[0], share_sz);
+        delete[] shares;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;;
@@ -469,6 +476,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
             for (unsigned int j = 0; j <= B; j++)
                 a[j] ^= share_map[pk][j];
         }
+        delete[] shares;
         uint32_t b[B+1];
         recv_in(serverfd, &b[0], share_sz);
 
@@ -543,8 +551,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         send_size(serverfd, num_inputs);
 
         // For OT
-        uint64_t shares[num_inputs];
-        uint64_t shares_squared[num_inputs];
+        uint64_t* shares = new uint64_t[num_inputs];
+        uint64_t* shares_squared = new uint64_t[num_inputs];
 
         bool have_roots_init = false;  // Only run once for N
 
@@ -595,15 +603,17 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         send_uint64(serverfd, b2);
 
         delete io;
+        delete[] shares;
+        delete[] shares_squared;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
         recv_size(serverfd, num_inputs);
 
         // For OT
-        uint64_t shares[num_inputs];
-        uint64_t shares_squared[num_inputs];
-        bool valid[num_inputs];
+        uint64_t* shares = new uint64_t[num_inputs];
+        uint64_t* shares_squared = new uint64_t[num_inputs];
+        bool* valid = new bool[num_inputs];
 
         bool have_roots_init = false;
 
@@ -660,6 +670,9 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         uint64_t a = intsum_ot_sender(io, &shares[0], &valid[0], num_inputs, num_bits);
         uint64_t a2 = intsum_ot_sender(io, &shares_squared[0], &valid[0], num_inputs, num_bits);
         delete io;
+        delete[] shares;
+        delete[] shares_squared;
+        delete[] valid;
 
         uint64_t b, b2;
         recv_uint64(serverfd, b);

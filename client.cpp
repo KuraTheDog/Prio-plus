@@ -72,9 +72,9 @@ void bit_sum(const std::string protocol, const size_t numreqs) {
     send_to_server(1, &msg, sizeof(initMsg));
 
     emp::block* const b = new block[numreqs];
-    bool real_vals[numreqs];
-    bool shares0[numreqs];
-    bool shares1[numreqs];
+    bool* real_vals = new bool[numreqs];
+    bool* shares0 = new bool[numreqs];
+    bool* shares1 = new bool[numreqs];
 
     emp::PRG prg(fix_key);
     prg.random_block(b, numreqs);
@@ -104,6 +104,9 @@ void bit_sum(const std::string protocol, const size_t numreqs) {
     std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
 
     delete[] b;
+    delete[] real_vals;
+    delete[] shares0;
+    delete[] shares1;
 }
 
 /* 0: pk mismatch
@@ -174,9 +177,9 @@ void int_sum(const std::string protocol, const size_t numreqs) {
     send_to_server(1, &msg, sizeof(initMsg));
 
     emp::block* const b = new block[numreqs];
-    uint64_t real_vals[numreqs];
-    uint64_t shares0[numreqs];
-    uint64_t shares1[numreqs];
+    uint64_t* real_vals = new uint64_t[numreqs];
+    uint64_t* shares0 = new uint64_t[numreqs];
+    uint64_t* shares1 = new uint64_t[numreqs];
     uint64_t ans = 0;
 
     emp::PRG prg(fix_key);
@@ -211,6 +214,9 @@ void int_sum(const std::string protocol, const size_t numreqs) {
     std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
 
     delete[] b;
+    delete[] real_vals;
+    delete[] shares0;
+    delete[] shares1;
 }
 
 /* 0: x > max
@@ -297,10 +303,10 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     send_to_server(1, &msg, sizeof(initMsg));
 
     emp::block* const b = new block[numreqs];
-    bool values[numreqs];
-    uint64_t encoded_values[numreqs];
-    uint64_t shares0[numreqs];
-    uint64_t shares1[numreqs];
+    bool* values = new bool[numreqs];
+    uint64_t* encoded_values = new uint64_t[numreqs];
+    uint64_t* shares0 = new uint64_t[numreqs];
+    uint64_t* shares1 = new uint64_t[numreqs];
 
     emp::PRG prg(fix_key);
 
@@ -349,6 +355,10 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     std::cout << "Uploaded all shares. Ans : " << std::boolalpha << ans << std::endl;
 
     delete[] b;
+    delete[] values;
+    delete[] encoded_values;
+    delete[] shares0;
+    delete[] shares1;
 }
 
 /* 0: pk mismatch
@@ -387,7 +397,7 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
     for (unsigned int i = 0; i < numreqs; i++) {
         std::cout << "val[" << i << "] = " << std::boolalpha << values[i];
         if (i == 0 or i == 2 or i == 4) {
-            std::cout << " (invalid) " << std::endl;;
+            std::cout << " (invalid) " << std::endl;
             continue;
         }
         std::cout << std::endl;
@@ -465,10 +475,10 @@ void max_op(const std::string protocol, const size_t numreqs) {
     emp::block* const b = new block[numreqs];
     prg.random_block(b, numreqs);
 
-    uint32_t values[numreqs];
-    uint32_t or_encoded_array[B+1];
-    uint32_t shares0[B+1];
-    uint32_t shares1[B+1];
+    uint32_t* values = new uint32_t[numreqs];
+    uint32_t* or_encoded_array = new uint32_t[B+1];
+    uint32_t* shares0 = new uint32_t[B+1];
+    uint32_t* shares1 = new uint32_t[B+1];
     prg.random_data(values, numreqs * sizeof(uint32_t));
 
     for (unsigned int i = 0; i < numreqs; i++) {
@@ -513,6 +523,10 @@ void max_op(const std::string protocol, const size_t numreqs) {
     std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
 
     delete[] b;
+    delete[] values;
+    delete[] or_encoded_array;
+    delete[] shares0;
+    delete[] shares1;
 }
 
 /* 0: pk mismatch
@@ -621,13 +635,11 @@ void var_op(const std::string protocol, const size_t numreqs) {
     send_to_server(1, &msg, sizeof(initMsg));
 
     emp::block* const b = new block[numreqs];
-    uint64_t real_vals[numreqs];
-    // shares of x
-    uint64_t shares0[numreqs];
-    uint64_t shares1[numreqs];
-    // shares of x^2
-    uint64_t shares0_squared[numreqs];
-    uint64_t shares1_squared[numreqs];
+    uint64_t* real_vals = new uint64_t[numreqs];
+    uint64_t* shares0 = new uint64_t[numreqs];
+    uint64_t* shares1 = new uint64_t[numreqs];
+    uint64_t* shares0_squared = new uint64_t[numreqs];
+    uint64_t* shares1_squared = new uint64_t[numreqs];
     uint64_t sum = 0, sumsquared = 0;
 
     emp::PRG prg(fix_key);
@@ -695,6 +707,11 @@ void var_op(const std::string protocol, const size_t numreqs) {
     std::cout << "True Ans: " << ans << std::endl;
 
     delete[] b;
+    delete[] real_vals;
+    delete[] shares0;
+    delete[] shares1;
+    delete[] shares0_squared;
+    delete[] shares1_squared;
 }
 
 /* 0: x > max
