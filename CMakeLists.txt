@@ -41,7 +41,7 @@ foreach(_target
   server client
 )
   add_executable(${_target} "${_target}.cpp" 
-                 "constants.cpp" "proto.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp" "edabit.cpp"
+                 "constants.cpp" "proto.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp" "edabit.cpp" "he_triples.cpp"
                  "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c"
                  )
   target_link_libraries(${_target}

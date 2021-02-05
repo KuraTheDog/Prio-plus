@@ -700,11 +700,11 @@ void var_op(const std::string protocol, const size_t numreqs) {
 /* 0: x > max
    1: x shares > max
    2: x^2 shares > max
-   3: x^2 = x * x + junk, run through snip
-   4: x^2 = x * x + junk, run snip with correct x^2  NOT CAUGHT, Server doesn't check equality
+   3: x^2 = x * x + junk, run bad values through snip
+   4: x^2 = x * x + junk, have different correct values for snip
    5: p0 N corruption
    6: p1 const value corruption
-   7: p0 wire corruption
+   7: p0 internal wire corruption
    8: p1 triple corruption
    9: pk mismatch
    11: share0 has same pk as 10
@@ -810,7 +810,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         if (i == 6)
             fmpz_add_si(p1->f0_s, p1->f0_s, 1);
         if (i == 7)
-            fmpz_add_si(p0->WireShares[0], p0->WireShares[0], 1);
+            fmpz_add_si(p0->WireShares[2], p0->WireShares[2], 1);
         if (i == 8)
             fmpz_add_si(p1->triple_share->shareA, p1->triple_share->shareA, 1);
         send_ClientPacket(sockfd0, p0);
