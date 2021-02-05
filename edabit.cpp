@@ -292,7 +292,7 @@ void CorrelatedStore::addDaBits() {
     dabits.push(bit);
     delete triple;
   }
-  std::cout << "addDaBits timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+  std::cout << "addDaBits  timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }
 
 void CorrelatedStore::addEdaBits() {
@@ -362,7 +362,16 @@ void CorrelatedStore::maybeUpdate() {
   std::cout << "precomputing..." << std::endl;
   if (edabits.size() < batch_size / 2)
     addEdaBits();
+  if (dabits.size() < batch_size / 2)
+    addDaBits();
+  if (triples.size() < batch_size / 2)
+    addTriples();
   if (bool_triples.size() < bool_batch_size / 2)
     addBoolTriples();
   std::cout << "precompute done" << std::endl;
+  std::cout << "Current store sizes:" << std::endl;
+  std::cout << "       Edabits: " << edabits.size() << std::endl;
+  std::cout << "        Dabits: " << edabits.size() << std::endl;
+  std::cout << " Arith Triples: " << edabits.size() << std::endl;
+  std::cout << " Bool  Triples: " << edabits.size() << std::endl;
 }
