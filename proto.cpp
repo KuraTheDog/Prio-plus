@@ -310,7 +310,11 @@ void print_block(const block var) {
 BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const unsigned int m, NetIO* const io0, NetIO* const io1){
     PRG prg;
     BooleanBeaverTriple* ans = new BooleanBeaverTriple[m];
-    bool x[m], y[m], z[m], r[m], b[m];
+    bool* x = new bool[m];
+    bool* y = new bool[m];
+    bool* z = new bool[m];
+    bool* r = new bool[m];
+    bool* b = new bool[m];
     prg.random_bool(x, m);
     prg.random_bool(y, m);
     prg.random_bool(r, m);
@@ -327,27 +331,27 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const unsi
     if(server_num == 0){
         io0->sync();
         IKNP<NetIO> ot0(io0);
-        ot0.send(b0,b1,m);
+        ot0.send(b0, b1, m);
         io0->flush();
 
         io1->sync();
         IKNP<NetIO> ot1(io1);
-        ot1.recv(B,y,m);
+        ot1.recv(B, y, m);
         io1->flush();
     }
     else if(server_num == 1){
         io0->sync();
         IKNP<NetIO> ot0(io0);
-        ot0.recv(B,y,m);
+        ot0.recv(B, y, m);
         io0->flush();
 
         io1->sync();
         IKNP<NetIO> ot1(io1);
-        ot1.send(b0,b1,m);
+        ot1.send(b0, b1, m);
         io1->flush();
     }
 
-    block_to_boolean(B,b,m);
+    block_to_boolean(B, b, m);
 
     for (unsigned int i = 0; i < m ; i++){
         // b = r' ^ x'y
@@ -362,6 +366,11 @@ BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const unsi
     delete[] b0;
     delete[] b1;
     delete[] B;
+    delete[] x;
+    delete[] y;
+    delete[] z;
+    delete[] r;
+    delete[] b;
 
     return ans;
 }
