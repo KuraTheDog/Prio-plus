@@ -8,6 +8,7 @@ fmpz_t Int_Modulus;
 fmpz_t Int_Gen;
 flint_rand_t seed;
 fmpz_t *roots = nullptr, *invroots = nullptr, *roots2 = nullptr;
+size_t num_roots;
 
 void init_constants() {
     fmpz_init(Int_Modulus);
