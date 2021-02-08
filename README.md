@@ -15,20 +15,24 @@
 5. Repeat step 4 as desired with different num_inputs and operands. 
 
 * Server arguments are `server_num Client_listen_port server_0_port max_bits`
-* Client arguments are `num_inputs server0_port server1_port operand max_bits`
-  * Add `true` after `max_bits` to have some of the clients provide invalid inputs.
+* Client arguments are `num_inputs server0_port server1_port operand max_bits do_batch include_invalid`
+  * `do_batch` (default `true`)
+    * If `true`, the client make all shares, then send them all
+    * If `false`, the client makes and sends shares one at a time
+  * `include_invalid` (default false)
+    * For testing/debugging. If true, does a modified run where some clients intentionally send bad data.
 
-Ports and max bits need to be consistent across runs.
+Ports and max bits need to be consistent across runs and both servers and the client.
 Max bits is only used for int based summations.
 Server 0 port tells Server 0 which port to open, and server 1 which port of server 0 is open.
 
 # Outline
 
 0. Servers connect to each other
-1. Client produces shares
-2. Client connects to servers, sends corresponding shares
-3. Servers recieve all shares
-4. Servers fork off a child to continue the steps, and has the parent return to listening for more client connections
+1. Servers do initial communication and precomputation
+2. Client produces shares
+3. Client connects to servers, sends corresponding shares
+4. Servers recieve all shares
 5. For each share, servers check if public keys line up
 6. If relevent, servers also do SNIPS validation for each share
 7. If relevant, Server 1 uses an OT Reciever with all of it's shares.

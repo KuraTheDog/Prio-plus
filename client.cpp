@@ -1,5 +1,11 @@
 /*
 Simulates a group of num_submission clients that communicate with the servers.
+
+General layout:
+
+X_op_helper: Makes then sends a batch of client requests
+X_op: Sends init msg, then sends either one batch or a bunch in serial
+x_op_invalid: For testing/debugging, does a basic run with intentionally invalid clients.
 */
 
 // TODO: Eventually htonl/ntohl wrappers on shares. Fine when client/server on same machine.
