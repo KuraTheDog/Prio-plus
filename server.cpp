@@ -193,6 +193,9 @@ bool run_snip(Circuit* const circuit, const ClientPacket packet, const int serve
     fmpz_clear(valid_share);
     fmpz_clear(valid_share_other);
     delete checker;
+    delete cor_share;
+    delete cor_share_other;
+    delete cor;
 
     return circuit_valid;
 }
@@ -590,6 +593,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             }
 
             bool circuit_valid = run_snip(circuit, packet, serverfd, server_num);
+            delete circuit;
             // std::cout << " Circuit for " << (i - 1) << " validity: " << std::boolalpha << circuit_valid << std::endl;
             send_bool(serverfd, circuit_valid);
         }
@@ -651,6 +655,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             }
 
             bool circuit_valid = run_snip(circuit, packet, serverfd, server_num);
+            delete circuit;
             if (!circuit_valid)
                 valid[i] = false;
             // std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;

@@ -24,9 +24,19 @@ void init_constants() {
 
 void clear_constants() {
     flint_randclear(seed);
+    fmpz_clear(Int_Modulus);
+    fmpz_clear(Int_Gen);
 }
 
 void init_roots(const int N) {
+    if (roots != nullptr) {
+        clear_fmpz_array(roots, num_roots);
+        clear_fmpz_array(invroots, num_roots);
+        clear_fmpz_array(roots2, 2 * num_roots);
+    }
+
+    num_roots = N;
+
     new_fmpz_array(&roots, N);
     new_fmpz_array(&invroots, N);
     new_fmpz_array(&roots2, 2 * N);

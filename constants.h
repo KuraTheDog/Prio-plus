@@ -84,8 +84,8 @@ extern flint_rand_t seed;         // Global random seed, for fmpz_randm, etc.
    r is an Nth root of unity. Done by 2^(ord - k).
 Then we have roots = 1, r, r^2, ..., r^{N-1}, and their inverses.
 root2 are the 2Nth roots of unity.
-TODO: This is for fixed N, so caching this would be better.
 */
+size_t num_roots;  // Tracker for N, so we can clear and rebuild
 extern fmpz_t *roots, *invroots, *roots2;
 
 void init_constants();

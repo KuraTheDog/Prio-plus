@@ -287,7 +287,7 @@ struct Checker {
 
         randSum(out, arr);
 
-        clear_fmpz_array(arr, num_zero_gates);
+        clear_fmpz_array(arr, num_zero_gates+1);
         fmpz_clear(mulCheck);
         fmpz_clear(term);
     }

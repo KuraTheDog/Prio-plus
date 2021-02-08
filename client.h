@@ -131,8 +131,8 @@ void share_polynomials(const Circuit* const circuit, ClientPacket& p0, ClientPac
     // Split outputs of input/mult gate shares.
     circuit->GetWireShares(&p0->WireShares, &p1->WireShares);
 
-    auto triple = NewBeaverTriple();
-    auto triple_shares = BeaverTripleShares(triple);
+    BeaverTriple* triple = NewBeaverTriple();
+    BeaverTripleShare* triple_shares = BeaverTripleShares(triple);
 
     p0->triple_share = &triple_shares[0];
     p1->triple_share = &triple_shares[1];
