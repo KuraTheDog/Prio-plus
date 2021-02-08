@@ -108,7 +108,7 @@ struct client_packet {
         fmpz_clear(h0_s);
         clear_fmpz_array(WireShares, NWires);
         clear_fmpz_array(h_points, N);
-        delete[] triple_share;
+        delete triple_share;
     }
 
     void print() const {
