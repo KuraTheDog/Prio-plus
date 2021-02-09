@@ -202,6 +202,7 @@ bool run_snip(Circuit* const circuit, const ClientPacket packet, const int serve
 
 returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint64_t& ans) {
     std::unordered_map<std::string, bool> share_map;
+    auto start = clock_start();
 
     BitShare share;
     const unsigned int total_inputs = msg.num_of_inputs;
@@ -213,7 +214,10 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
             continue;
         share_map[pk] = share.val;
     }
+
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
+    std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    start = clock_start();
 
     // if (fork() > 0) return RET_NO_ANS;
 
@@ -233,6 +237,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
         delete[] shares;
 
         send_uint64(serverfd, b);
+        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
@@ -260,6 +265,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
         recv_uint64(serverfd, b);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             return RET_INVALID;
@@ -272,6 +278,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
 
 returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint64_t& ans) {
     std::unordered_map<std::string, uint64_t> share_map;
+    auto start = clock_start();
 
     IntShare share;
     const uint64_t max_val = 1ULL << num_bits;
@@ -290,6 +297,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
+    std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    start = clock_start();
 
     // if (fork() > 0) return RET_NO_ANS;
 
@@ -309,6 +318,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         delete[] shares;
 
         send_uint64(serverfd, b);
+        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
@@ -335,6 +345,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         uint64_t b;
         recv_uint64(serverfd, b);
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             return RET_INVALID;
@@ -348,6 +359,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
 // For AND and OR
 returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, bool& ans) {
     std::unordered_map<std::string, uint64_t> share_map;
+    auto start = clock_start();
 
     IntShare share;
     const unsigned int total_inputs = msg.num_of_inputs;
@@ -362,6 +374,8 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
+    std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    start = clock_start();
 
     // if (fork() > 0) return RET_NO_ANS;
 
@@ -378,6 +392,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
             b ^= share.second;
         }
         send_uint64(serverfd, b);
+        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
@@ -400,6 +415,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
         uint64_t aggr = a ^ b;
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             return RET_INVALID;
@@ -420,6 +436,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 // TODO: does this need htonl/ntohl wrappers for int arrays?
 returnType max_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, int& ans) {
     std::unordered_map<std::string, uint32_t*> share_map;
+    auto start = clock_start();
 
     MaxShare share;
     const unsigned int total_inputs = msg.num_of_inputs;
@@ -440,6 +457,8 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
     }
 
     std::cout << "Received " << total_inputs << " shares" << std::endl;
+    std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    start = clock_start();
 
     // if (fork() > 0) return RET_NO_ANS;
 
@@ -460,6 +479,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         }
         send_out(serverfd, &b[0], share_sz);
         delete[] shares;
+        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;;
@@ -486,6 +506,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+            std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
             return RET_INVALID;
         }
 
@@ -513,6 +534,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 returnType var_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, double& ans) {
     typedef std::tuple <uint64_t, uint64_t, ClientPacket> sharetype;
     std::unordered_map<std::string, sharetype> share_map;
+    auto start = clock_start();
 
     VarShare share; 
     // We have x^2 < max, so we want x < sqrt(max)
@@ -546,6 +568,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     }
 
     std::cout << "Received " << total_inputs << " shares" << std::endl;
+    std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    start = clock_start();
 
     // if (fork() > 0) return RET_NO_ANS;
 
@@ -605,6 +629,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
         uint64_t b2 = intsum_ot_receiver(io, &shares_squared[0], num_inputs, num_bits);
         send_uint64(serverfd, b2);
+
+        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 
         delete io;
         delete[] shares;
@@ -684,6 +710,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         recv_uint64(serverfd, b2);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             return RET_INVALID;
@@ -772,7 +799,7 @@ int main(int argc, char** argv) {
 
         if (msg.type == BIT_SUM) {
             std::cout << "BIT_SUM" << std::endl;
-            auto start = clock_start();  // for benchmark
+            auto start = clock_start();
 
             uint64_t ans;
             returnType ret = bit_sum(msg, newsockfd, serverfd, server_num, ans);
@@ -780,11 +807,10 @@ int main(int argc, char** argv) {
                 std::cout << "Ans: " << ans << std::endl;
             }
 
-            long long t = time_from(start);
-            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == INT_SUM) {
             std::cout << "INT_SUM" << std::endl;
-            auto start = clock_start();  // for benchmark
+            auto start = clock_start();
 
             uint64_t ans;
             returnType ret = int_sum(msg, newsockfd, serverfd, server_num, ans);
@@ -792,11 +818,10 @@ int main(int argc, char** argv) {
                 std::cout << "Ans: " << ans << std::endl;
             }
 
-            long long t = time_from(start);
-            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == AND_OP) {
             std::cout << "AND_OP" << std::endl;
-            auto start = clock_start();  // for benchmark
+            auto start = clock_start();
 
             bool ans;
             returnType ret = xor_op(msg, newsockfd, serverfd, server_num, ans);
@@ -804,11 +829,10 @@ int main(int argc, char** argv) {
                 std::cout << "Ans: " << std::boolalpha << ans << std::endl;
             }
 
-            long long t = time_from(start);
-            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == OR_OP) {
             std::cout << "OR_OP" << std::endl;
-            auto start = clock_start();  // for benchmark
+            auto start = clock_start();
 
             bool ans;
             returnType ret = xor_op(msg, newsockfd, serverfd, server_num, ans);
@@ -816,52 +840,47 @@ int main(int argc, char** argv) {
                 std::cout << "Ans: " << std::boolalpha << ans << std::endl;
             }
 
-            long long t = time_from(start);
-            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == MAX_OP) {
             std::cout << "MAX_OP" << std::endl;
-            auto start = clock_start();  // for benchmark
+            auto start = clock_start();
 
             int ans;
             returnType ret = max_op(msg, newsockfd, serverfd, server_num, ans);
             if (ret == RET_ANS) {
                 std::cout << "Ans: " << ans << std::endl;
             }
-            long long t = time_from(start);
-            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == MIN_OP) {
             std::cout << "MIN_OP" << std::endl;
-            auto start = clock_start();  // for benchmark
+            auto start = clock_start();
 
             int ans;
             returnType ret = max_op(msg, newsockfd, serverfd, server_num, ans);
             if (ret == RET_ANS) {
                 std::cout << "Ans: " << ans << std::endl;
             }
-            long long t = time_from(start);
-            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == VAR_OP) {
             std::cout << "VAR_OP" << std::endl;
-            auto start = clock_start();  // for benchmark
+            auto start = clock_start();
 
             double ans;
             returnType ret = var_op(msg, newsockfd, serverfd, server_num, ans);
             if (ret == RET_ANS) {
                 std::cout << "Ans: " << ans << std::endl;
             }
-            long long t = time_from(start);
-            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == STDDEV_OP) {
             std::cout << "STDDEV_OP" << std::endl;
-            auto start = clock_start();  // for benchmark
+            auto start = clock_start();
 
             double ans;
             returnType ret = var_op(msg, newsockfd, serverfd, server_num, ans);
             if (ret == RET_ANS) {
                 std::cout << "Ans: " << ans << std::endl;
             }
-            long long t = time_from(start);
-            std::cout << "Time taken : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == NONE_OP) {
             std::cout << "Empty client message" << std::endl;
         } else {
