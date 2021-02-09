@@ -13,8 +13,8 @@ extern "C" {
 // Return type of different ops
 enum returnType {
     RET_INVALID,    // Too many inputs invalid
-    RET_ANS,        // Success, Returning ans. For the one thread that does the computation
-    RET_NO_ANS,     // Success, no ans. For forking and support server.
+    RET_ANS,        // Success, Returning ans. For server returning an answer
+    RET_NO_ANS,     // Success, no ans. For support server.
 };
 
 // Only used in unused BatchPre.Interp
@@ -101,10 +101,12 @@ struct CheckerPreComp {
     CheckerPreComp(const size_t N)
     : degN(new BatchPre(roots, N))
     , deg2N(new BatchPre(roots2, 2 * N))
-    {}
+    {
+        fmpz_init(x);
+    }
 
     void setCheckerPrecomp(const fmpz_t val) {
-        fmpz_init_set(x, val);
+        fmpz_set(x, val);
 
         xN = new PreX(degN, x);
         x2N = new PreX(deg2N, x);
@@ -119,6 +121,7 @@ struct CheckerPreComp {
         clear_preX();
         delete degN;
         delete deg2N;
+        fmpz_clear(x);
     }
 };
 

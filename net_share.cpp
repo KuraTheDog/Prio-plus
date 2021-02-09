@@ -4,7 +4,7 @@
 
 #include "fmpz_utils.h"
 
-// Ensure this is defined.
+// Ensure this is defined, as it's architecture dependent
 #if !defined(htonll) && !defined(ntohll)
 #if __BIG_ENDIAN__
 # define htonll(x) (x)

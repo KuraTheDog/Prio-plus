@@ -133,7 +133,7 @@ struct Circuit {
         }
         
         // all result_zero should be zero.
-        for (auto zero_gate : this->result_zero) 
+        for (Gate* zero_gate : this->result_zero) 
             if (not fmpz_is_zero(zero_gate->WireValue))
                 return false;
         return true;
@@ -141,7 +141,7 @@ struct Circuit {
 
     std::vector<Gate*> MulGates() const {
         std::vector<Gate*> res;
-        for (auto gate : this->gates)
+        for (Gate* gate : this->gates)
             if (gate->type == Gate_Mul)
                 res.push_back(gate);
         return res;
@@ -149,7 +149,7 @@ struct Circuit {
 
     unsigned int NumMulGates() const {
         unsigned int total = 0;
-        for (auto gate: this->gates)
+        for (Gate* gate: this->gates)
             if (gate->type == Gate_Mul)
                 total += 1;
         return total;
@@ -161,7 +161,7 @@ struct Circuit {
 
     unsigned int NumMulInpGates() const {
         unsigned int total = 0;
-        for (auto gate: this->gates)
+        for (Gate* gate: this->gates)
             if (gate->type == Gate_Mul or gate->type == Gate_Input)
                 total += 1;
         return total;
@@ -176,7 +176,7 @@ struct Circuit {
         unsigned int i = 0;
 
         // TODO: Input gate values should be dependnet on original client shares.
-        for (auto gate : gates) {
+        for (Gate* gate : gates) {
             if (gate->type == Gate_Mul or gate->type == Gate_Input) {
                 SplitShare(gate->WireValue, (*shares0)[i], (*shares1)[i]);
                 i++;
@@ -187,7 +187,7 @@ struct Circuit {
     void ImportWires(const ClientPacket p, const int server_num) {
         unsigned int i = 0;
 
-        for (auto gate : gates) {
+        for (Gate* gate : gates) {
             switch (gate->type) {
             case Gate_Input:
                 fmpz_set(gate->WireValue, p->WireShares[i]);
