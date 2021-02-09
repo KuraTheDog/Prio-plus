@@ -192,14 +192,14 @@ int recv_CorShare(const int sockfd, CorShare* const x) {
 
 // ClientPacket = client_packet*
 int send_ClientPacket(const int sockfd, const ClientPacket x) {
-    int N = x->N, NWires = x->NWires, total = 0, ret;
-    ret = send_int(sockfd, N);
+    int total = 0, ret;
+    size_t N = x->N, NWires = x->NWires;
+    ret = send_size(sockfd, N);
     if (ret <= 0) return ret; else total += ret;
-    ret = send_int(sockfd, NWires);
+    ret = send_size(sockfd, NWires);
     if (ret <= 0) return ret; else total += ret;
 
-    int i;
-    for (i = 0; i < NWires; i++) {
+    for (unsigned int i = 0; i < NWires; i++) {
         ret = send_fmpz(sockfd, x->WireShares[i]);
         if (ret <= 0) return ret; else total += ret;
     }
@@ -211,7 +211,7 @@ int send_ClientPacket(const int sockfd, const ClientPacket x) {
     ret = send_fmpz(sockfd, x->h0_s);
     if (ret <= 0) return ret; else total += ret;
 
-    for (i = 0; i < N; i++) {
+    for (unsigned int i = 0; i < N; i++) {
         ret = send_fmpz(sockfd, x->h_points[i]);
         if (ret <= 0) return ret; else total += ret;
     }
@@ -223,15 +223,15 @@ int send_ClientPacket(const int sockfd, const ClientPacket x) {
 }
 
 int recv_ClientPacket(const int sockfd, ClientPacket &x) {
-    int N, NWires, total = 0, ret;
-    ret = recv_int(sockfd, N);
+    int total = 0, ret;
+    size_t N, NWires;
+    ret = recv_size(sockfd, N);
     if (ret <= 0) return ret; else total += ret;
-    ret = recv_int(sockfd, NWires);
+    ret = recv_size(sockfd, NWires);
     if (ret <= 0) return ret; else total += ret;
     init_client_packet(x, N, NWires);
 
-    int i;
-    for (i = 0; i < NWires; i++) {
+    for (unsigned int i = 0; i < NWires; i++) {
         ret = recv_fmpz(sockfd, x->WireShares[i]);
         if (ret <= 0) return ret; else total += ret;
     }
@@ -243,7 +243,7 @@ int recv_ClientPacket(const int sockfd, ClientPacket &x) {
     ret = recv_fmpz(sockfd, x->h0_s);
     if (ret <= 0) return ret; else total += ret;
 
-    for (i = 0; i < N; i++) {
+    for (unsigned int i = 0; i < N; i++) {
         ret = recv_fmpz(sockfd, x->h_points[i]);
         if (ret <= 0) return ret; else total += ret;
     }
@@ -283,6 +283,7 @@ int send_BeaverTripleShare(const int sockfd, const BeaverTripleShare* const x) {
     ret = send_fmpz(sockfd, x->shareB);
     if (ret <= 0) return ret; else total += ret;
     ret = send_fmpz(sockfd, x->shareC);
+    if (ret <= 0) return ret; else total += ret;
     return total;
 }
 

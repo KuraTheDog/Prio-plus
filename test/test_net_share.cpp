@@ -128,7 +128,7 @@ void run_receiver(int newsockfd) {
 
     ClientPacket packet2 = nullptr;
     n = recv_ClientPacket(newsockfd, packet2);
-    std::cout << "recv: size = " << n << ", packet, N = " << packet2->N << ". NWires = " << packet2->NWires << std::endl;
+    std::cout << "recv: size = " << n << ", packet, N = " << packet2->N << ", NWires = " << packet2->NWires << std::endl;
 
     EdaBit* b = new EdaBit(4);
     n = recv_EdaBit(newsockfd, b, 4);
