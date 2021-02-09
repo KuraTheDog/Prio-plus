@@ -298,24 +298,24 @@ int recv_BeaverTripleShare(const int sockfd, BeaverTripleShare* const x) {
     return total;
 }
 
-int send_BooleanBeaverTriple(const int sockfd, const BooleanBeaverTriple x) {
+int send_BooleanBeaverTriple(const int sockfd, const BooleanBeaverTriple* const x) {
     int total = 0, ret;
-    ret = send_bool(sockfd, x.a);
+    ret = send_bool(sockfd, x->a);
     if (ret <= 0) return ret; else total += ret;
-    ret = send_bool(sockfd, x.b);
+    ret = send_bool(sockfd, x->b);
     if (ret <= 0) return ret; else total += ret;
-    ret = send_bool(sockfd, x.c);
+    ret = send_bool(sockfd, x->c);
     if (ret <= 0) return ret; else total += ret;
     return total;
 }
 
-int recv_BooleanBeaverTriple(const int sockfd, BooleanBeaverTriple& x) {
+int recv_BooleanBeaverTriple(const int sockfd, BooleanBeaverTriple* const x) {
     int total = 0, ret;
-    ret = recv_bool(sockfd, x.a);
+    ret = recv_bool(sockfd, x->a);
     if (ret <= 0) return ret; else total += ret;
-    ret = recv_bool(sockfd, x.b);
+    ret = recv_bool(sockfd, x->b);
     if (ret <= 0) return ret; else total += ret;
-    ret = recv_bool(sockfd, x.c);
+    ret = recv_bool(sockfd, x->c);
     if (ret <= 0) return ret; else total += ret;
     return total;
 }

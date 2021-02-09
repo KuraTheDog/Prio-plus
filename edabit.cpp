@@ -9,7 +9,8 @@ Based on ia.cr/2020/338
 #include "net_share.h"
 #include "proto.h"
 
-bool multiplyBoolShares(const int serverfd, const int server_num, const bool x, const bool y, const BooleanBeaverTriple* triple) {
+bool multiplyBoolShares(const int serverfd, const int server_num, const bool x,
+                        const bool y, BooleanBeaverTriple* const triple) {
   bool z, d, e, d_this, e_this, d_other, e_other;
 
   d_this = x ^ triple->a;
@@ -27,10 +28,15 @@ bool multiplyBoolShares(const int serverfd, const int server_num, const bool x, 
   if (server_num == 0)
       z ^= (d and e);
 
+  // Consume the triple
+  delete triple;
+
   return z;
 }
 
-void multiplyArithmeticShares(const int serverfd, const int server_num, const fmpz_t x, const fmpz_t y, fmpz_t z, const BeaverTriple* const triple) {
+void multiplyArithmeticShares(const int serverfd, const int server_num,
+                              const fmpz_t x, const fmpz_t y, fmpz_t z,
+                              const BeaverTriple* const triple) {
   fmpz_t d, d_other, e, e_other;
 
   fmpz_init(d);
@@ -69,18 +75,22 @@ void multiplyArithmeticShares(const int serverfd, const int server_num, const fm
 
 // c_{i+1} = c_i xor ((x_i xor c_i) and (y_i xor c_i))
 // output z_i = x_i xor y_i xor c_i
-bool addBinaryShares(const int serverfd, const int server_num, const size_t n, const bool* const x, const bool* const y, bool* const z, const BooleanBeaverTriple* const triples) {
+bool addBinaryShares(const int serverfd, const int server_num, const size_t n,
+                     const bool* const x, const bool* const y, bool* const z,
+                     std::queue<BooleanBeaverTriple*> triples) {
   bool carry = false;
   for (unsigned int i = 0; i < n; i++) {
     z[i] = carry ^ x[i] ^ y[i];
     bool xi = carry ^ x[i];
     bool yi = carry ^ y[i];
-    carry ^= multiplyBoolShares(serverfd, server_num, xi, yi, &triples[i]);
+    carry ^= multiplyBoolShares(serverfd, server_num, xi, yi, triples.front());
+    triples.pop();
   }
   return carry;
 }
 
-void b2a_daBit(const int serverfd, const int server_num, const DaBit* const dabit, const bool x, fmpz_t& xp) {
+void b2a_daBit(const int serverfd, const int server_num,
+               const DaBit* const dabit, const bool x, fmpz_t& xp) {
   const bool v_this = x ^ dabit->b2;
   bool v_other;
   send_bool(serverfd, v_this);
@@ -98,7 +108,9 @@ void b2a_daBit(const int serverfd, const int server_num, const DaBit* const dabi
   }
 }
 
-void b2a_edaBit(const int serverfd, const int server_num, const EdaBit* const edabit, const fmpz_t x, fmpz_t& xp, const BooleanBeaverTriple* const triples) {
+void b2a_edaBit(const int serverfd, const int server_num,
+                const fmpz_t x, fmpz_t& xp, const EdaBit* const edabit,
+                std::queue<BooleanBeaverTriple*> triples) {
   const size_t n = edabit->n;
 
   // Convert x2 to bool array
@@ -134,7 +146,8 @@ void b2a_edaBit(const int serverfd, const int server_num, const EdaBit* const ed
   fmpz_mod(xp, xp, Int_Modulus);
 }
 
-DaBit* generateDaBit(const int serverfd, const int server_num, const BeaverTriple* const  triple) {
+DaBit* generateDaBit(const int serverfd, const int server_num,
+                     const BeaverTriple* const triple) {
   // Answer
   DaBit* const dabit = new DaBit();
 
@@ -176,7 +189,9 @@ DaBit* generateDaBit(const int serverfd, const int server_num, const BeaverTripl
   return dabit;
 }
 
-EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n, const BooleanBeaverTriple* const triples, const DaBit* const dabit) {
+EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n,
+                       std::queue<BooleanBeaverTriple*> triples,
+                       const DaBit* const dabit) {
   // Answer bit
   EdaBit* const edabit = new EdaBit(n);
 
@@ -221,7 +236,10 @@ EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n,
   return edabit;
 }
 
-bool validate_shares_match(const int serverfd, const int server_num, const fmpz_t x2, const fmpz_t xp, const size_t n, const EdaBit* const edabit, const BooleanBeaverTriple* const triples) {
+bool validate_shares_match(const int serverfd, const int server_num,
+                           const fmpz_t x2, const fmpz_t xp, const size_t n,
+                           const EdaBit* const edabit,
+                           std::queue<BooleanBeaverTriple*> triples) {
   // auto start = clock_start();
 
   if (edabit->n != n) return false;
@@ -229,7 +247,7 @@ bool validate_shares_match(const int serverfd, const int server_num, const fmpz_
   // Compute [x2]_p
   fmpz_t x2_p;
   fmpz_init(x2_p);
-  b2a_edaBit(serverfd, server_num, edabit, x2, x2_p, triples);
+  b2a_edaBit(serverfd, server_num, x2, x2_p, edabit, triples);
 
   // Validate: (x2_0 - xp_0) + (x2_1 - xp_1) = 0
   fmpz_sub(x2_p, x2_p, xp);
@@ -255,9 +273,11 @@ bool validate_shares_match(const int serverfd, const int server_num, const fmpz_
 
 void CorrelatedStore::addBoolTriples() {
   auto start = clock_start();
-  BooleanBeaverTriple* new_triples = gen_boolean_beaver_triples(server_num, bool_batch_size, io0, io1);
-  for (unsigned int i = 0; i < bool_batch_size; i++)
-    bool_triples.push(new_triples[i]);
+  std::queue<BooleanBeaverTriple*> new_triples = gen_boolean_beaver_triples(server_num, bool_batch_size, io0, io1);
+  for (unsigned int i = 0; i < bool_batch_size; i++) {
+    bool_triples.push(new_triples.front());
+    new_triples.pop();
+  }
   long long t = time_from(start);
   std::cout << "addBoolTriples timing : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
 }
@@ -286,11 +306,10 @@ void CorrelatedStore::addEdaBits() {
   auto start = clock_start();
   if (!lazy) {
     for (unsigned int i = 0; i < batch_size; i++) {
-      BooleanBeaverTriple* gen_triples = getBoolTriples(num_bits);
+      std::queue<BooleanBeaverTriple*> gen_triples = getBoolTriples(num_bits);
       DaBit* dabit = getDaBit();
       EdaBit* edabit = generateEdaBit(serverfd, server_num, num_bits, gen_triples, dabit);
       edabits.push(edabit);
-      delete[] gen_triples;
       delete dabit;
     }
   } else {
@@ -310,12 +329,12 @@ void CorrelatedStore::addEdaBits() {
   std::cout << "addEdaBits timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }
 
-BooleanBeaverTriple* CorrelatedStore::getBoolTriples(const size_t n) {
+std::queue<BooleanBeaverTriple*> CorrelatedStore::getBoolTriples(const size_t n) {
   if (n > bool_triples.size())
     addBoolTriples();
-  BooleanBeaverTriple* ans = new BooleanBeaverTriple[n];
+  std::queue<BooleanBeaverTriple*> ans;
   for (unsigned int i = 0; i < n; i++) {
-    ans[i] = bool_triples.front();
+    ans.push(bool_triples.front());
     bool_triples.pop();
   }
   return ans;

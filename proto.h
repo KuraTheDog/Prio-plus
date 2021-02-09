@@ -9,6 +9,7 @@ For BITSUM and INTSUM.
 #include <emp-ot/emp-ot.h>
 #include <emp-tool/emp-tool.h>
 #include <iostream>
+#include <queue>
 
 #include "share.h"
 
@@ -22,7 +23,7 @@ uint64_t bitsum_ot_receiver(NetIO* const io, const bool* const shares, const siz
 
 uint64_t intsum_ot_receiver(NetIO* const io, const uint64_t* const shares, const size_t n, const size_t num_bits);
 
-BooleanBeaverTriple* gen_boolean_beaver_triples(const int server_num, const unsigned int m, NetIO* const io0, NetIO* const io1);
+std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num, const unsigned int m, NetIO* const io0, NetIO* const io1);
 
 BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, NetIO* const io0, NetIO* const io1);
 

@@ -243,7 +243,7 @@ void runServerTest(const int server_num, const int serverfd, const size_t n) {
   NetIO* io0 = new NetIO(server_num == 0 ? nullptr : "127.0.0.1", 60051, true);
   NetIO* io1 = new NetIO(server_num == 1 ? nullptr : "127.0.0.1", 60052, true); 
 
-  BooleanBeaverTriple* triples = gen_boolean_beaver_triples(server_num, n, io0, io1);
+  auto triples = gen_boolean_beaver_triples(server_num, n, io0, io1);
 
   BeaverTriple* triple = generate_beaver_triple(serverfd, server_num, io0, io1);
 
@@ -253,7 +253,6 @@ void runServerTest(const int server_num, const int serverfd, const size_t n) {
 
   EdaBit* ebit = generateEdaBit(serverfd, server_num, n, triples, dabit);
 
-  delete[] triples;
   delete dabit;
 
   std::cout << "Final ebit" << server_num << ":\n";
@@ -327,7 +326,7 @@ void runServerTest(const int server_num, const int serverfd, const size_t n) {
     recv_fmpz(serverfd, xp);
   }
 
-  BooleanBeaverTriple* newtriples = gen_boolean_beaver_triples(server_num, n, io0, io1);
+  auto newtriples = gen_boolean_beaver_triples(server_num, n, io0, io1);
 
   delete io0;
   delete io1;

@@ -140,7 +140,7 @@ bool validate_input_wire(const int serverfd, const int server_num, const uint64_
     fmpz_init_set_ui(fshare, share);
 
     EdaBit* edabit = correlated_store->getEdaBit();
-    BooleanBeaverTriple* triples = correlated_store->getBoolTriples(num_bits);
+    auto triples = correlated_store->getBoolTriples(num_bits);
 
     // edabit->print();
 
@@ -148,7 +148,6 @@ bool validate_input_wire(const int serverfd, const int server_num, const uint64_
 
     fmpz_clear(fshare);
     delete edabit;
-    delete[] triples;
 
     bool other_ans;
     send_bool(serverfd, ans);
