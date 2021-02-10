@@ -15,17 +15,19 @@ void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B) {
 }
 
 // Unused?
-// void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B, const int num_bits) {
-//     // num_bits < 32
-//     uint64_t mod = 1L << num_bits;
+/*
+void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B, const int num_bits) {
+    // num_bits < 32
+    uint64_t mod = 1L << num_bits;
 
-//     fmpz_t max_val;
-//     fmpz_init(max_val);
-//     fmpz_set_ui(max_val, mod);
-//     fmpz_randm(A, seed, max_val);
-//     fmpz_xor(B, A, val);
-//     fmpz_clear(max_val);
-// }
+    fmpz_t max_val;
+    fmpz_init(max_val);
+    fmpz_set_ui(max_val, mod);
+    fmpz_randm(A, seed, max_val);
+    fmpz_xor(B, A, val);
+    fmpz_clear(max_val);
+}
+*/
 
 BeaverTriple* NewBeaverTriple() {
     BeaverTriple* out = new BeaverTriple();
@@ -49,7 +51,7 @@ BeaverTripleShare* BeaverTripleShares(const BeaverTriple* const inp) {
 }
 
 void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {
-    fmpz_t two;  // TODO: Is there a nicer way to do this?
+    fmpz_t two;
     fmpz_init_set_si(two, 2);
 
     // random bit b

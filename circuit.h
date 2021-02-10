@@ -53,8 +53,8 @@ struct Gate {
     }
 };
 
-int NextPowerofTwo(const int n) {
-    int ans = 1;
+unsigned int NextPowerofTwo(const unsigned int n) {
+    unsigned int ans = 1;
     while(n > ans)
         ans *= 2;
     return ans;
@@ -62,11 +62,12 @@ int NextPowerofTwo(const int n) {
 
 struct Circuit {
     std::vector<Gate*> gates;        // All gates
-    std::vector<Gate*> outputs;      // only used by unused
+    // std::vector<Gate*> outputs;      // only used by unused
     std::vector<Gate*> result_zero;  // Gates that must be zero for eval to pass.
-    const size_t max_bits;           // Unused?
+    // const size_t max_bits;           // Unused?
 
-    Circuit(int n = 31) : max_bits(n) {}
+    // Circuit(int n = 31) : max_bits(n) {}
+    Circuit() {}
 
     ~Circuit() {
         // All gates, so don't need to also go over outputs and result_zero
@@ -175,7 +176,6 @@ struct Circuit {
 
         unsigned int i = 0;
 
-        // TODO: Input gate values should be dependnet on original client shares.
         for (Gate* gate : gates) {
             if (gate->type == Gate_Mul or gate->type == Gate_Input) {
                 SplitShare(gate->WireValue, (*shares0)[i], (*shares1)[i]);
@@ -220,6 +220,7 @@ struct Circuit {
 };
 
 // Unused
+/*
 Circuit* AndCircuits(std::vector<Circuit*>& circuits) {
     Circuit* out = new Circuit();
 
@@ -231,6 +232,7 @@ Circuit* AndCircuits(std::vector<Circuit*>& circuits) {
 
     return out;
 }
+*/
 
 Gate* MulByNegOne(Gate* const gate) {
     Gate* out = new Gate(Gate_MulConst);

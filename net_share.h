@@ -7,8 +7,6 @@ See test/test_net_share.cpp for a full example.
 
 Returns total bytes sent on success, or first fail return of an internal step (typically 0 or negative)
 
-TODO: move this to net_share.cpp? Currently has linker issues when attempted.
-
 TODO: maybe hide/delete/comment out ones we don't use.
 */
 

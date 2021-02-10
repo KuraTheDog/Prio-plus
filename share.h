@@ -144,10 +144,12 @@ struct ClientPacket {
 };
 
 // Unused?
+/*
 struct ClientSubmission {
     fmpz_t* vals;
     BeaverTripleShare triple;
 };
+*/
 
 struct DaBit {
     fmpz_t bp;   // [b]_p, mod p

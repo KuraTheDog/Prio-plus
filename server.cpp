@@ -26,7 +26,7 @@
 uint64_t int_sum_max;
 uint32_t num_bits;
 
-// Can keep this the same most of the time.
+// Can keep the same random X for a while. TODO: how much?
 #define RANDOMX_THRESHOLD 1e6
 uint32_t randx_uses = 0;
 fmpz_t randomX;
@@ -432,7 +432,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 
 // For MAX and MIN
 // TODO: does this need htonl/ntohl wrappers for int arrays?
-returnType max_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, int& ans) {
+returnType max_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint32_t& ans) {
     std::unordered_map<std::string, uint32_t*> share_map;
     auto start = clock_start();
 
@@ -808,9 +808,8 @@ int main(int argc, char** argv) {
 
             uint64_t ans;
             returnType ret = bit_sum(msg, newsockfd, serverfd, server_num, ans);
-            if (ret == RET_ANS) {
+            if (ret == RET_ANS)
                 std::cout << "Ans: " << ans << std::endl;
-            }
 
             std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == INT_SUM) {
@@ -819,9 +818,8 @@ int main(int argc, char** argv) {
 
             uint64_t ans;
             returnType ret = int_sum(msg, newsockfd, serverfd, server_num, ans);
-            if (ret == RET_ANS) {
+            if (ret == RET_ANS)
                 std::cout << "Ans: " << ans << std::endl;
-            }
 
             std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == AND_OP) {
@@ -830,9 +828,8 @@ int main(int argc, char** argv) {
 
             bool ans;
             returnType ret = xor_op(msg, newsockfd, serverfd, server_num, ans);
-            if (ret == RET_ANS) {
+            if (ret == RET_ANS)
                 std::cout << "Ans: " << std::boolalpha << ans << std::endl;
-            }
 
             std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == OR_OP) {
@@ -841,30 +838,29 @@ int main(int argc, char** argv) {
 
             bool ans;
             returnType ret = xor_op(msg, newsockfd, serverfd, server_num, ans);
-            if (ret == RET_ANS) {
+            if (ret == RET_ANS)
                 std::cout << "Ans: " << std::boolalpha << ans << std::endl;
-            }
 
             std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == MAX_OP) {
             std::cout << "MAX_OP" << std::endl;
             auto start = clock_start();
 
-            int ans;
+            uint32_t ans;
             returnType ret = max_op(msg, newsockfd, serverfd, server_num, ans);
-            if (ret == RET_ANS) {
+            if (ret == RET_ANS)
                 std::cout << "Ans: " << ans << std::endl;
-            }
+
             std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == MIN_OP) {
             std::cout << "MIN_OP" << std::endl;
             auto start = clock_start();
 
-            int ans;
+            uint32_t ans;
             returnType ret = max_op(msg, newsockfd, serverfd, server_num, ans);
-            if (ret == RET_ANS) {
+            if (ret == RET_ANS)
                 std::cout << "Ans: " << ans << std::endl;
-            }
+
             std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == VAR_OP) {
             std::cout << "VAR_OP" << std::endl;
@@ -872,9 +868,9 @@ int main(int argc, char** argv) {
 
             double ans;
             returnType ret = var_op(msg, newsockfd, serverfd, server_num, ans);
-            if (ret == RET_ANS) {
+            if (ret == RET_ANS)
                 std::cout << "Ans: " << ans << std::endl;
-            }
+
             std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == STDDEV_OP) {
             std::cout << "STDDEV_OP" << std::endl;
@@ -882,9 +878,9 @@ int main(int argc, char** argv) {
 
             double ans;
             returnType ret = var_op(msg, newsockfd, serverfd, server_num, ans);
-            if (ret == RET_ANS) {
+            if (ret == RET_ANS)
                 std::cout << "Ans: " << ans << std::endl;
-            }
+
             std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         } else if (msg.type == NONE_OP) {
             std::cout << "Empty client message" << std::endl;
