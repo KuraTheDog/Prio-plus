@@ -8,23 +8,6 @@ extern "C" {
   #include "flint/fmpz.h"
 };
 
-void init_client_packet(ClientPacket &p, const int N, const int NumMulInpGates) {
-    p = new client_packet();
-
-    p->N = N;
-    p->NWires = NumMulInpGates;
-
-    new_fmpz_array(&p->WireShares, NumMulInpGates);
-
-    fmpz_init(p->f0_s);
-    fmpz_init(p->g0_s);
-    fmpz_init(p->h0_s);
-
-    new_fmpz_array(&p->h_points, N);
-
-    p->triple_share = new BeaverTripleShare();
-}
-
 void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B) {
     fmpz_randm(A, seed, Int_Modulus);
     fmpz_sub(B, val, A);

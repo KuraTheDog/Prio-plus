@@ -10,13 +10,14 @@ extern "C" {
     #include "poly/fft.h"
 }
 
-void share_polynomials(const Circuit* const circuit, ClientPacket& p0, ClientPacket& p1) {
+// Expects p0, p1 to already be initialized
+void share_polynomials(const Circuit* const circuit, ClientPacket* const p0, ClientPacket* const p1) {
     auto mulgates = circuit->MulGates();
 
     const unsigned int n = mulgates.size() + 1;
 
     const unsigned int N = NextPowerofTwo(n);
-    const unsigned int NumMulInpGates = circuit->NumMulInpGates();
+    // const unsigned int NumMulInpGates = circuit->NumMulInpGates();
 
     // u_t, v_t = left and right wires of mul gates.
     // want f(t) = u_t, g(t) = v(t)
@@ -94,23 +95,6 @@ void share_polynomials(const Circuit* const circuit, ClientPacket& p0, ClientPac
     // Evaluate at all 2Nth roots of unity.
     fmpz_t *evalsF = fft_interpolate(Int_Modulus, 2*N, roots2, paddedF, false);
     fmpz_t *evalsG = fft_interpolate(Int_Modulus, 2*N, roots2, paddedG, false);
-
-    // std::cout << " evalsF = [";
-    // for (int i = 0; i < 2 * N; i++) {
-    //     if (i > 0) std::cout << ", ";
-    //     fmpz_print(evalsF[i]);
-    // }
-    // std::cout << "]" << std::endl;
-
-    // std::cout << " evalsG = [";
-    // for (int i = 0; i < 2 * N; i++) {
-    //     if (i > 0) std::cout << ", ";
-    //     fmpz_print(evalsG[i]);
-    // }
-    // std::cout << "]" << std::endl;
-
-    init_client_packet(p0, N, NumMulInpGates);
-    init_client_packet(p1, N, NumMulInpGates);
 
     // Send evaluations of f(r) * g(r) for all 2N-th roots of unity
     //     that aren't also N-th roots of unity

@@ -54,15 +54,17 @@ void run_sender(int sockfd) {
     fmpz_print(trip->B); std::cout << ", ";
     fmpz_print(trip->C); std::cout << std::endl;
 
-    ClientPacket packet;
-    init_client_packet(packet, 1, 2);
+    ClientPacket* packet = new ClientPacket(1, 2);
+    fmpz_set_si(packet->f0_s, 10);
     n = send_ClientPacket(sockfd, packet);
-    std::cout << "send: size = " << n << ", packet, N = " << packet->N << ", NWires = " << packet->NWires << std::endl;
+    std::cout << "send: size = " << n << ", packet, f0_s = ";
+    fmpz_print(packet->f0_s); std::cout << std::endl;
 
-    ClientPacket packet2;
-    init_client_packet(packet2, 2, 3);
+    ClientPacket* packet2 = new ClientPacket(2, 3);
+    fmpz_set_si(packet2->f0_s, 20);
     n = send_ClientPacket(sockfd, packet2);
-    std::cout << "send: size = " << n << ", packet, N = " << packet2->N << ", NWires = " << packet2->NWires << std::endl;
+    std::cout << "send: size = " << n << ", packet, f0_s = ";
+    fmpz_print(packet2->f0_s); std::cout << std::endl;
 
     EdaBit* b0 = new EdaBit(4);
     EdaBit* b1 = new EdaBit(4);
@@ -122,13 +124,15 @@ void run_receiver(int newsockfd) {
     fmpz_print(trip->B); std::cout << ", ";
     fmpz_print(trip->C); std::cout << std::endl;
 
-    ClientPacket packet = nullptr;
+    ClientPacket* packet = new ClientPacket(1, 2);
     n = recv_ClientPacket(newsockfd, packet);
-    std::cout << "recv: size = " << n << ", packet, N = " << packet->N << ", NWires = " << packet->NWires << std::endl;
+    std::cout << "recv: size = " << n << ", packet, f0_s = ";
+    fmpz_print(packet->f0_s); std::cout << std::endl;
 
-    ClientPacket packet2 = nullptr;
+    ClientPacket* packet2 = new ClientPacket(2, 3);
     n = recv_ClientPacket(newsockfd, packet2);
-    std::cout << "recv: size = " << n << ", packet, N = " << packet2->N << ", NWires = " << packet2->NWires << std::endl;
+    std::cout << "recv: size = " << n << ", packet, f0_s = ";
+    fmpz_print(packet2->f0_s); std::cout << std::endl;
 
     EdaBit* b = new EdaBit(4);
     n = recv_EdaBit(newsockfd, b, 4);

@@ -72,9 +72,8 @@ int recv_Cor(const int sockfd, Cor* const x);
 int send_CorShare(const int sockfd, const CorShare* const x);
 int recv_CorShare(const int sockfd, CorShare* const x);
 
-// ClientPacket = client_packet*
-int send_ClientPacket(const int sockfd, const ClientPacket x);
-int recv_ClientPacket(const int sockfd, ClientPacket &x);
+int send_ClientPacket(const int sockfd, const ClientPacket* const x);
+int recv_ClientPacket(const int sockfd, ClientPacket* const x);
 
 int send_BeaverTriple(const int sockfd, const BeaverTriple* const x);
 int recv_BeaverTriple(const int sockfd, BeaverTriple* const x);

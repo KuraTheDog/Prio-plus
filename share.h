@@ -91,9 +91,9 @@ struct BooleanBeaverTriple {
    h_points is evaluated on 2N-th roots of unity, excluding points
    that are also N-th roots of unity. So all odd points.
 */
-struct client_packet {
-    size_t N;            // N = length of h_points = # mult gates.
-    size_t NWires;       // Num wire shares = # mult gates + # input gates
+struct ClientPacket {
+    const size_t N;            // N = length of h_points = # mult gates.
+    const size_t NWires;       // Num wire shares = # mult gates + # input gates
     fmpz_t* WireShares;  // share of input/mulgate (output) wires
     fmpz_t f0_s;         // share of f(0) = pointsF[0] = u_0
     fmpz_t g0_s;         // share of g(0) = pointsG[0] = v_0
@@ -101,11 +101,21 @@ struct client_packet {
     fmpz_t* h_points;    // h evaluated on odd 2N-th roots of unity
     BeaverTripleShare* triple_share;
 
-    ~client_packet() {
+    ClientPacket(const size_t N, const size_t NumMulInpGates)
+    : N(N), NWires(NumMulInpGates) {
+        new_fmpz_array(&WireShares, NWires);
+        fmpz_init(f0_s);
+        fmpz_init(g0_s);
+        fmpz_init(h0_s);
+        new_fmpz_array(&h_points, N);
+        triple_share = new BeaverTripleShare();
+    }
+
+    ~ClientPacket() {
+        clear_fmpz_array(WireShares, NWires);
         fmpz_clear(f0_s);
         fmpz_clear(g0_s);
         fmpz_clear(h0_s);
-        clear_fmpz_array(WireShares, NWires);
         clear_fmpz_array(h_points, N);
         delete triple_share;
     }
@@ -132,8 +142,6 @@ struct client_packet {
         std::cout << "}" << std::endl;
     }
 };
-
-typedef struct client_packet* ClientPacket;
 
 // Unused?
 struct ClientSubmission {
@@ -193,9 +201,6 @@ struct EdaBit {
         fmpz_clear(x);
     }
 };
-
-// Can this be an alternative constructor? Or the only one?
-void init_client_packet(ClientPacket &p, const int N, const int NumMulInpGates);
 
 void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B);
 

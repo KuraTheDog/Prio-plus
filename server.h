@@ -127,7 +127,7 @@ struct CheckerPreComp {
 
 struct Checker {
     const int server_num;     // id of this server
-    ClientPacket req;  // Client packet
+    const ClientPacket* const req;  // Client packet
     Circuit* const ckt;      // Validation circuit
 
     const size_t n;  // number of mult gates
@@ -142,11 +142,13 @@ struct Checker {
     fmpz_t evalG;  // [r * g(r)]
     fmpz_t evalH;  // [r * h(r)]
 
-    Checker(Circuit* const c, const int idx)
+    Checker(Circuit* const c, const int idx, const ClientPacket* const req)
     : server_num(idx)
+    , req(req)
     , ckt(c)
     , n(c->NumMulGates())
-    , N(c->N()) {
+    , N(c->N())
+    {
         new_fmpz_array(&pointsF, N);
         new_fmpz_array(&pointsG, N);
         new_fmpz_array(&pointsH, 2 * N);
@@ -154,6 +156,8 @@ struct Checker {
         fmpz_init(evalF);
         fmpz_init(evalG);
         fmpz_init(evalH);
+
+        ckt->ImportWires(req, server_num);
     }
 
     ~Checker() {
@@ -163,11 +167,6 @@ struct Checker {
         fmpz_clear(evalF);
         fmpz_clear(evalG);
         fmpz_clear(evalH);
-    }
-
-    void setReq(const ClientPacket pkt) {
-        req = pkt;
-        ckt->ImportWires(pkt, server_num);
     }
 
     void evalPoly(const CheckerPreComp* const pre) {

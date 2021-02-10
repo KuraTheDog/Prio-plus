@@ -38,7 +38,8 @@ void test_CheckVar() {
   /*
   One mult gate (#2). Next power of 2 is 2 (N).
   */
-  ClientPacket p0, p1;
+  ClientPacket* p0 = new ClientPacket(var_circuit->N(), var_circuit->NumMulInpGates());
+  ClientPacket* p1 = new ClientPacket(var_circuit->N(), var_circuit->NumMulInpGates());
   share_polynomials(var_circuit,p0,p1);
 
   std::cout << "p0" << std::endl;
@@ -55,9 +56,7 @@ void test_CheckVar() {
   std::cout << "Random X: "; fmpz_print(randomX); std::cout << std::endl;
 
   Circuit* var_circuit0 = CheckVar();
-  Checker* checker_0 = new Checker(var_circuit0, 0);
-
-  checker_0->setReq(p0);
+  Checker* checker_0 = new Checker(var_circuit0, 0, p0);
 
   CheckerPreComp* pre0 = new CheckerPreComp(var_circuit->N());
   pre0->setCheckerPrecomp(randomX);
@@ -65,9 +64,7 @@ void test_CheckVar() {
   std::cout << "-=-=-=-=-=-" << std::endl;
 
   Circuit* var_circuit1 = CheckVar();
-  Checker* checker_1 = new Checker(var_circuit1, 1);
-
-  checker_1->setReq(p1);
+  Checker* checker_1 = new Checker(var_circuit1, 1, p1);
 
   CheckerPreComp* pre1 = new CheckerPreComp(var_circuit->N());
   pre1->setCheckerPrecomp(randomX);

@@ -788,8 +788,8 @@ void var_op_helper(const std::string protocol, const size_t numreqs, uint64_t& s
 
     VarShare* varshare0 = new VarShare[numreqs];
     VarShare* varshare1 = new VarShare[numreqs];
-    ClientPacket* packet0 = new ClientPacket[numreqs];
-    ClientPacket* packet1 = new ClientPacket[numreqs];
+    ClientPacket** packet0 = new ClientPacket*[numreqs];
+    ClientPacket** packet1 = new ClientPacket*[numreqs];
 
     for (unsigned int i = 0; i < numreqs; i++) {
         real_vals[i] = real_vals[i] % small_max_int;
@@ -818,6 +818,8 @@ void var_op_helper(const std::string protocol, const size_t numreqs, uint64_t& s
         fmpz_set_si(inp[1], real_vals[i] * real_vals[i]);
         Circuit* circuit = CheckVar();
         circuit->Eval(inp);
+        packet0[i] = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
+        packet1[i] = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
         share_polynomials(circuit, packet0[i], packet1[i]);
     }
 
@@ -990,10 +992,14 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         Circuit* circuit = CheckVar();
         // Run through circuit to set wires
         circuit->Eval(inp);
-        ClientPacket p0, p1;
+        ClientPacket* p0;
+        if (i == 5) {
+            p0 = new ClientPacket(1, circuit->NumMulInpGates());
+        } else {
+            p0 = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
+        }
+        ClientPacket* p1 = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
         share_polynomials(circuit, p0, p1);
-        if (i == 5)
-            p0->NWires = 1;  // N is used in send wrapper, so has trouble
         if (i == 6)
             fmpz_add_si(p1->f0_s, p1->f0_s, 1);
         if (i == 7)

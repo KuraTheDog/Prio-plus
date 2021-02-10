@@ -43,8 +43,9 @@ void test_CheckLinReg() {
   /*
   One mult gate (#2). Next power of 2 is 2 (N).
   */
-  ClientPacket p0, p1;
-  share_polynomials(linreg_circuit,p0,p1);
+  ClientPacket* p0 = new ClientPacket(linreg_circuit->N(), linreg_circuit->NumMulInpGates());;
+  ClientPacket* p1 = new ClientPacket(linreg_circuit->N(), linreg_circuit->NumMulInpGates());;
+  share_polynomials(linreg_circuit, p0, p1);
 
   std::cout << "p0" << std::endl;
   p0->print();
@@ -60,9 +61,7 @@ void test_CheckLinReg() {
   std::cout << "Random X: "; fmpz_print(randomX); std::cout << std::endl;
 
   Circuit* linreg_circuit0 = CheckLinReg(2);
-  Checker* checker_0 = new Checker(linreg_circuit0, 0);
-
-  checker_0->setReq(p0);
+  Checker* checker_0 = new Checker(linreg_circuit0, 0, p0);
 
   CheckerPreComp* pre0 = new CheckerPreComp(linreg_circuit0->N());
   pre0->setCheckerPrecomp(randomX);
@@ -71,9 +70,7 @@ void test_CheckLinReg() {
   std::cout << "-=-=-=-=-=-" << std::endl;
 
   Circuit* linreg_circuit1 = CheckLinReg(2);
-  Checker* checker_1 = new Checker(linreg_circuit1, 1);
-
-  checker_1->setReq(p1);
+  Checker* checker_1 = new Checker(linreg_circuit1, 1, p1);
 
   CheckerPreComp* pre1 = new CheckerPreComp(linreg_circuit1->N());
   pre1->setCheckerPrecomp(randomX);

@@ -184,7 +184,7 @@ struct Circuit {
         }
     }
 
-    void ImportWires(const ClientPacket p, const int server_num) {
+    void ImportWires(const ClientPacket* const p, const int server_num) {
         unsigned int i = 0;
 
         for (Gate* gate : gates) {

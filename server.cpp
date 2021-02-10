@@ -156,10 +156,9 @@ bool validate_input_wire(const int serverfd, const int server_num, const uint64_
     return (ans and other_ans);
 }
 
-bool run_snip(Circuit* const circuit, const ClientPacket packet, const int serverfd, const int server_num) {
+bool run_snip(Circuit* const circuit, const ClientPacket* const packet, const int serverfd, const int server_num) {
 
-    Checker* const checker = new Checker(circuit, server_num);
-    checker->setReq(packet);
+    Checker* const checker = new Checker(circuit, server_num, packet);
     const size_t N = circuit->N();
 
     CheckerPreComp* pre;
@@ -531,7 +530,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 
 // For var, stddev
 returnType var_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, double& ans) {
-    typedef std::tuple <uint64_t, uint64_t, ClientPacket> sharetype;
+    typedef std::tuple <uint64_t, uint64_t, ClientPacket*> sharetype;
     std::unordered_map<std::string, sharetype> share_map;
     auto start = clock_start();
 
@@ -551,18 +550,19 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         recv_in(clientfd, &share, sizeof(VarShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
-        ClientPacket packet = nullptr;
-        recv_ClientPacket(clientfd, packet);
+        ClientPacket* packet = new ClientPacket(N, NWires);
+        int ok = recv_ClientPacket(clientfd, packet);
 
         // std::cout << "share[" << i << "] = " << share.val << ", " << share.val_squared << std::endl;
 
         if ((share_map.find(pk) != share_map.end())
             or (share.val >= small_max)
             or (share.val_squared >= square_max)
-            or (packet->N != N)
-            or (packet->NWires != NWires)
-            )
+            or (ok <= 0)
+            ) {
+            delete packet;
             continue;
+        }
         share_map[pk] = {share.val, share.val_squared, packet};
     }
 
@@ -589,7 +589,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             bool other_valid;
             recv_bool(serverfd, other_valid);
 
-            ClientPacket packet;
+            ClientPacket* packet;
             std::tie(shares[i], shares_squared[i], packet) = share.second;
             i++;
 
@@ -600,11 +600,13 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             wire_valid = validate_input_wire(serverfd, server_num, shares[i-1], packet->WireShares[0], num_bits);
             if (not wire_valid) {
                 std::cout << " wire invalid" << std::endl;
+                delete packet;
                 continue;
             }
             wire_valid = validate_input_wire(serverfd, server_num, shares_squared[i-1], packet->WireShares[1], num_bits);
             if (not wire_valid) {
                 std::cout << " wire squared invalid" << std::endl;
+                delete packet;
                 continue;
             }
 
@@ -616,6 +618,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             }
 
             bool circuit_valid = run_snip(circuit, packet, serverfd, server_num);
+            delete packet;
             delete circuit;
             // std::cout << " Circuit for " << (i - 1) << " validity: " << std::boolalpha << circuit_valid << std::endl;
             send_bool(serverfd, circuit_valid);
@@ -655,7 +658,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             if (!is_valid)
                 continue;
 
-            ClientPacket packet;
+            ClientPacket* packet;
             std::tie(shares[i], shares_squared[i], packet) = share_map[pk];
 
             bool wire_valid;
@@ -664,12 +667,14 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             if (not wire_valid) {
                 std::cout << " wire invalid" << std::endl;
                 valid[i] = false;
+                delete packet;
                 continue;
             }
             wire_valid = validate_input_wire(serverfd, server_num, shares_squared[i], packet->WireShares[1], num_bits);
             if (not wire_valid) {
                 std::cout << " wire squared invalid" << std::endl;
                 valid[i] = false;
+                delete packet;
                 continue;
             }
 
@@ -681,6 +686,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
             bool circuit_valid = run_snip(circuit, packet, serverfd, server_num);
             delete circuit;
+            delete packet;
             if (!circuit_valid)
                 valid[i] = false;
             // std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
