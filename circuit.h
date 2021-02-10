@@ -20,29 +20,17 @@ enum GateType {
 };
 
 struct Gate {
-    GateType type;
-    Gate* ParentL;
-    Gate* ParentR;
+    const GateType type;
+    Gate* const ParentL;
+    Gate* const ParentR;
     fmpz_t Constant;
     fmpz_t WireValue;
 
-    Gate() {
-        ParentL = ParentR = nullptr;
-        fmpz_init(Constant);
-        fmpz_init(WireValue);
-    }
-
-    Gate(GateType gatetype) {
-        type = gatetype;
-        ParentL = ParentR = nullptr;
-        fmpz_init(Constant);
-        fmpz_init(WireValue);
-    }
-
-    Gate(GateType gatetype, Gate* pL, Gate* pR) {
-        type = gatetype;
-        ParentL = pL;
-        ParentR = pR;
+    Gate(GateType gatetype, Gate* pL = nullptr, Gate* pR = nullptr)
+    : type(gatetype)
+    , ParentL(pL)
+    , ParentR(pR)
+    {
         fmpz_init(Constant);
         fmpz_init(WireValue);
     }
@@ -235,12 +223,10 @@ Circuit* AndCircuits(std::vector<Circuit*>& circuits) {
 */
 
 Gate* MulByNegOne(Gate* const gate) {
-    Gate* out = new Gate(Gate_MulConst);
+    Gate* out = new Gate(Gate_MulConst, gate);
 
     fmpz_set_si(out->Constant, -1);
     fmpz_mod(out->Constant, out->Constant, Int_Modulus);
-
-    out->ParentL = gate;
 
     return out;
 }
@@ -250,17 +236,14 @@ Various VALID(*) circuits.
 */
 
 // Returns circuit that checks L*R == Prod
+/*
 Circuit* CheckMul(Gate* const L, Gate* const R, Gate* const Prod) {
     Circuit* out = new Circuit();
 
-    Gate* mul = new Gate(Gate_Mul);
-    mul->ParentL = L;
-    mul->ParentR = R;
+    Gate* mul = new Gate(Gate_Mul, L, R);
 
     Gate* inv = MulByNegOne(Prod);
-    Gate* add = new Gate(Gate_Add);
-    add->ParentL = inv;
-    add->ParentR = mul;
+    Gate* add = new Gate(Gate_Add, inv, mul);
 
     out->addGate(mul);
     out->addGate(inv);
@@ -269,6 +252,7 @@ Circuit* CheckMul(Gate* const L, Gate* const R, Gate* const Prod) {
 
     return out;
 }
+*/
 
 // Returns circuit for x^2 == y. For Varience and StdDev.
 Circuit* CheckVar() {
@@ -280,14 +264,10 @@ Circuit* CheckVar() {
     out->addGate(x);
     out->addGate(y);
 
-    Gate* mul = new Gate(Gate_Mul);
-    mul->ParentL = x;
-    mul->ParentR = x;
+    Gate* mul = new Gate(Gate_Mul, x, x);
 
     Gate* inv = MulByNegOne(y);
-    Gate* add = new Gate(Gate_Add);
-    add->ParentL = inv;
-    add->ParentR = mul;
+    Gate* add = new Gate(Gate_Add, inv, mul);
 
     out->addGate(mul);
     out->addGate(inv);
@@ -309,7 +289,7 @@ Circuit* CheckLinReg(const unsigned int num_fields) {
         out->addGate(inp);
     }
 
-    int k = num_fields;
+    unsigned int k = num_fields;
 
     for (unsigned int i = 0; i < num_fields; i++) {
         for (unsigned int j = i; j < num_fields; j++) {
