@@ -45,6 +45,7 @@ uint64_t bitsum_ot_sender(NetIO* const io, const bool* const shares, const bool*
 
     delete[] b1_ot;
     delete[] b0_ot;
+    delete ot;
 
     for (unsigned int i = 0; i < n; i++){
         if(valid[i])

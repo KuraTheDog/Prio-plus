@@ -46,6 +46,7 @@ void test_CheckLinReg() {
   ClientPacket* p0 = new ClientPacket(linreg_circuit->N(), linreg_circuit->NumMulInpGates());;
   ClientPacket* p1 = new ClientPacket(linreg_circuit->N(), linreg_circuit->NumMulInpGates());;
   share_polynomials(linreg_circuit, p0, p1);
+  delete linreg_circuit;
 
   std::cout << "p0" << std::endl;
   p0->print();
@@ -113,6 +114,28 @@ void test_CheckLinReg() {
 //   fmpz_add(tmp, checker_0->evalH, checker_1->evalH);
 //   fmpz_mod(tmp, tmp, Int_Modulus);
 //   std::cout << "r * h(r) = "; fmpz_print(tmp); std::cout << std::endl;
+
+  fmpz_clear(out0);
+  fmpz_clear(out1);
+  delete cor0;
+  delete cor1;
+  delete corshare0;
+  delete corshare1;
+  delete pre1;
+  delete checker_1;
+  delete linreg_circuit1;
+  delete pre0;
+  delete checker_0;
+  delete linreg_circuit0;
+  fmpz_clear(randomX);
+
+  delete p0;
+  delete p1;
+  fmpz_clear(inp[0]);
+  fmpz_clear(inp[1]);
+  fmpz_clear(inp[2]);
+  fmpz_clear(inp[3]);
+  fmpz_clear(inp[4]);
 }
 
 int main(int argc, char* argv[])

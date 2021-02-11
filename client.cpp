@@ -620,6 +620,9 @@ uint32_t max_op_helper(const std::string protocol, const size_t numreqs, const u
     for (unsigned int i = 0; i < numreqs; i++) {
         send_maxshare(maxshare0[i], 0, B);
         send_maxshare(maxshare1[i], 1, B);
+
+        delete[] maxshare0[i].arr;
+        delete[] maxshare1[i].arr;
     }
 
     delete[] maxshare0;
@@ -821,6 +824,7 @@ void var_op_helper(const std::string protocol, const size_t numreqs, uint64_t& s
         packet0[i] = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
         packet1[i] = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
         share_polynomials(circuit, packet0[i], packet1[i]);
+        delete circuit;
     }
 
     if (numreqs > 1)
@@ -833,6 +837,9 @@ void var_op_helper(const std::string protocol, const size_t numreqs, uint64_t& s
 
         send_ClientPacket(sockfd0, packet0[i]);
         send_ClientPacket(sockfd1, packet1[i]);
+
+        delete packet0[i];
+        delete packet1[i];
     }
 
     delete[] varshare0;
@@ -938,10 +945,12 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
     std::string pk_str = "";
 
     for (unsigned int i = 0; i < numreqs; i++) {
-        if (i != 0)  // x not capped
-            real_vals[i] = real_vals[i] % small_max_int;
-        if (i != 1)  // x shares not capped
-            shares0[i] = shares0[i] % small_max_int;
+        real_vals[i] = real_vals[i] % small_max_int;
+        if (i == 0)  // x over cap
+            real_vals[i] += small_max_int;
+        shares0[i] = shares0[i] % small_max_int;
+        if (i == 1)  // x shares over capped
+            shares0[i] += small_max_int;
         shares1[i] = real_vals[i] ^ shares0[i];
         uint64_t squared = real_vals[i] * real_vals[i];
         if (i == 3 or i == 4)  // x^2 != x * x
@@ -1000,6 +1009,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         }
         ClientPacket* p1 = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
         share_polynomials(circuit, p0, p1);
+        delete circuit;
         if (i == 6)
             fmpz_add_si(p1->f0_s, p1->f0_s, 1);
         if (i == 7)
@@ -1025,6 +1035,8 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
     std::cout << "True Ans: " << ans << std::endl;
 
     delete[] b;
+    fmpz_clear(inp[0]);
+    fmpz_clear(inp[1]);
 }
 
 int main(int argc, char** argv) {

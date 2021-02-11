@@ -593,8 +593,10 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             std::tie(shares[i], shares_squared[i], packet) = share.second;
             i++;
 
-            if (!other_valid)
+            if (!other_valid) {
+                delete packet;
                 continue;
+            }
 
             bool wire_valid;
             wire_valid = validate_input_wire(serverfd, server_num, shares[i-1], packet->WireShares[0], num_bits);
@@ -667,14 +669,12 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             if (not wire_valid) {
                 std::cout << " wire invalid" << std::endl;
                 valid[i] = false;
-                delete packet;
                 continue;
             }
             wire_valid = validate_input_wire(serverfd, server_num, shares_squared[i], packet->WireShares[1], num_bits);
             if (not wire_valid) {
                 std::cout << " wire squared invalid" << std::endl;
                 valid[i] = false;
-                delete packet;
                 continue;
             }
 
@@ -686,7 +686,6 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
             bool circuit_valid = run_snip(circuit, packet, serverfd, server_num);
             delete circuit;
-            delete packet;
             if (!circuit_valid)
                 valid[i] = false;
             // std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
@@ -700,6 +699,9 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             if (valid[i])
                 num_valid++;
         }
+
+        for (const auto& share : share_map)
+            delete std::get<2>(share.second);
 
         // Compute result
         NetIO* const io = new NetIO(nullptr, 60051, true);
