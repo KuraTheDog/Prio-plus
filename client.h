@@ -12,7 +12,7 @@ extern "C" {
 
 // Expects p0, p1 to already be initialized
 void share_polynomials(const Circuit* const circuit, ClientPacket* const p0, ClientPacket* const p1) {
-    auto mulgates = circuit->MulGates();
+    auto mulgates = circuit->mul_gates;
 
     const unsigned int n = mulgates.size() + 1;
     const unsigned int N = NextPowerofTwo(n);

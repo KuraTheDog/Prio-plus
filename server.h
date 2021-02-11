@@ -174,7 +174,7 @@ struct Checker {
 
     void evalPoly(const CheckerPreComp* const pre) {
         // std::cout << "evalPoly" << std::endl;
-        std::vector<Gate*> mulgates = ckt->MulGates();
+        std::vector<Gate*> mulgates = ckt->mul_gates;
         // Get constant terms from packet
         fmpz_set(pointsF[0], req->f0_s);
         fmpz_set(pointsG[0], req->g0_s);

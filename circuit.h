@@ -54,6 +54,9 @@ struct Circuit {
     std::vector<Gate*> result_zero;  // Gates that must be zero for eval to pass.
     // const size_t max_bits;           // Unused?
 
+    std::vector<Gate*> mul_gates;
+    std::vector<Gate*> mul_inp_gates;
+
     // Circuit(int n = 31) : max_bits(n) {}
     Circuit() {}
 
@@ -65,6 +68,12 @@ struct Circuit {
 
     void addGate(Gate* gate) {
         gates.push_back(gate);
+        if (gate->type == Gate_Mul) {
+            mul_gates.push_back(gate);
+            mul_inp_gates.push_back(gate);
+        } else if (gate->type == Gate_Input) {
+            mul_inp_gates.push_back(gate);
+        }
     }
 
     void addZeroGate(Gate* zerogate) {
@@ -128,20 +137,8 @@ struct Circuit {
         return true;
     }
 
-    std::vector<Gate*> MulGates() const {
-        std::vector<Gate*> res;
-        for (Gate* gate : this->gates)
-            if (gate->type == Gate_Mul)
-                res.push_back(gate);
-        return res;
-    }
-
     unsigned int NumMulGates() const {
-        unsigned int total = 0;
-        for (Gate* gate: this->gates)
-            if (gate->type == Gate_Mul)
-                total += 1;
-        return total;
+        return mul_gates.size();
     }
 
     unsigned int N() const {
@@ -149,21 +146,15 @@ struct Circuit {
     }
 
     unsigned int NumMulInpGates() const {
-        unsigned int total = 0;
-        for (Gate* gate: this->gates)
-            if (gate->type == Gate_Mul or gate->type == Gate_Input)
-                total += 1;
-        return total;
+        return mul_inp_gates.size();
     }
 
     void GetWireShares(fmpz_t** shares0, fmpz_t** shares1) const {
         unsigned int i = 0;
 
-        for (Gate* gate : gates) {
-            if (gate->type == Gate_Mul or gate->type == Gate_Input) {
-                SplitShare(gate->WireValue, (*shares0)[i], (*shares1)[i]);
-                i++;
-            }
+        for (Gate* gate : mul_inp_gates) {
+            SplitShare(gate->WireValue, (*shares0)[i], (*shares1)[i]);
+            i++;
         }
     }
 
