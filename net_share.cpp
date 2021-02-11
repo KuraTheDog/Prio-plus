@@ -135,7 +135,6 @@ int send_fmpz(const int sockfd, const fmpz_t x) {
 int recv_fmpz(const int sockfd, fmpz_t x) {
     int total = 0, ret;
     size_t len;
-    ulong tmp;
     ret = recv_size(sockfd, len);
     if (ret <= 0) return ret; else total += ret;
     if (len == 0) {
@@ -144,9 +143,8 @@ int recv_fmpz(const int sockfd, fmpz_t x) {
     }
     ulong buf[len];
     for (unsigned int i = 0; i < len; i++) {
-        ret = recv_ulong(sockfd, tmp);
+        ret = recv_ulong(sockfd, buf[i]);
         if (ret <= 0) return ret; else total += ret;
-        buf[i] = tmp;
     }
     fmpz_set_ui_array(x, buf, len);
     return total;

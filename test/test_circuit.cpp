@@ -35,12 +35,11 @@ void test_CheckVar() {
   bool eval = var_circuit->Eval(inp);
   std::cout << "Eval: " << eval << std::endl;
 
-  /*
-  One mult gate (#2). Next power of 2 is 2 (N).
-  */
+  // One mult gate (#2). Next power of 2 is 2 (N).
   ClientPacket* p0 = new ClientPacket(var_circuit->N(), var_circuit->NumMulInpGates());
   ClientPacket* p1 = new ClientPacket(var_circuit->N(), var_circuit->NumMulInpGates());
-  share_polynomials(var_circuit,p0,p1);
+  share_polynomials(var_circuit, p0, p1);
+  delete var_circuit;
 
   std::cout << "p0" << std::endl;
   p0->print();
@@ -57,16 +56,14 @@ void test_CheckVar() {
 
   Circuit* var_circuit0 = CheckVar();
   Checker* checker_0 = new Checker(var_circuit0, 0, p0);
-
-  CheckerPreComp* pre0 = new CheckerPreComp(var_circuit->N());
+  CheckerPreComp* pre0 = new CheckerPreComp(var_circuit0->N());
   pre0->setCheckerPrecomp(randomX);
 
   std::cout << "-=-=-=-=-=-" << std::endl;
 
   Circuit* var_circuit1 = CheckVar();
   Checker* checker_1 = new Checker(var_circuit1, 1, p1);
-
-  CheckerPreComp* pre1 = new CheckerPreComp(var_circuit->N());
+  CheckerPreComp* pre1 = new CheckerPreComp(var_circuit1->N());
   pre1->setCheckerPrecomp(randomX);
 
   auto corshare0 = checker_0->CorShareFn(pre0);
@@ -107,6 +104,28 @@ void test_CheckVar() {
   fmpz_add(tmp, checker_0->evalH, checker_1->evalH);
   fmpz_mod(tmp, tmp, Int_Modulus);
   std::cout << "r * h(r) = "; fmpz_print(tmp); std::cout << std::endl;
+
+  fmpz_clear(rgr);
+  fmpz_clear(tmp);
+
+  fmpz_clear(out0);
+  fmpz_clear(out1);
+  delete cor0;
+  delete cor1;
+  delete corshare0;
+  delete corshare1;
+  delete pre1;
+  delete checker_1;
+  delete var_circuit1;
+  delete pre0;
+  delete checker_0;
+  delete var_circuit0;
+  fmpz_clear(randomX);
+
+  delete p0;
+  delete p1;
+  fmpz_clear(inp[0]);
+  fmpz_clear(inp[1]);
 }
 
 int main(int argc, char* argv[])

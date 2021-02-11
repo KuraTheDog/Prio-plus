@@ -889,5 +889,9 @@ int main(int argc, char** argv) {
         }
         close(newsockfd);
     }
+
+    delete correlated_store;
+    for (const auto& precomp : precomp_store)
+        delete precomp.second;
     return 0;
 }

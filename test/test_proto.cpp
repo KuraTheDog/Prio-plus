@@ -70,6 +70,9 @@ int main(int argc, char** argv){
     fmpz_mod(tmp, tmp, Int_Modulus);
     fmpz_print(btriple->C); std::cout << " + "; fmpz_print(other_btriple->C);
     std::cout << " = "; fmpz_print(tmp); std::cout << std::endl;
+    
+    delete other_btriple;
+    delete btriple;
 
     close(cli_sockfd);
   } else {
@@ -88,12 +91,16 @@ int main(int argc, char** argv){
 
     send_BeaverTriple(newsockfd, btriple);
 
+    delete btriple;
+
     close(sockfd);
     close(newsockfd);
   }
 
   delete io0;
   delete io1;
+
+  clear_constants();
 
   return 0;
 }

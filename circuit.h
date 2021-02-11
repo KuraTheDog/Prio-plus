@@ -157,11 +157,6 @@ struct Circuit {
     }
 
     void GetWireShares(fmpz_t** shares0, fmpz_t** shares1) const {
-        const unsigned int n = NumMulInpGates();
-
-        new_fmpz_array(shares0, n);
-        new_fmpz_array(shares1, n);
-
         unsigned int i = 0;
 
         for (Gate* gate : gates) {

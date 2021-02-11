@@ -15,16 +15,12 @@ void share_polynomials(const Circuit* const circuit, ClientPacket* const p0, Cli
     auto mulgates = circuit->MulGates();
 
     const unsigned int n = mulgates.size() + 1;
-
     const unsigned int N = NextPowerofTwo(n);
-    // const unsigned int NumMulInpGates = circuit->NumMulInpGates();
 
     // u_t, v_t = left and right wires of mul gates.
     // want f(t) = u_t, g(t) = v(t)
-    fmpz_t* pointsF;
-    fmpz_t* pointsG;
-    new_fmpz_array(&pointsF, N);
-    new_fmpz_array(&pointsG, N);
+    fmpz_t* pointsF; new_fmpz_array(&pointsF, N);
+    fmpz_t* pointsG; new_fmpz_array(&pointsG, N);
 
     fmpz_t h0;
     fmpz_init(h0);
@@ -42,21 +38,6 @@ void share_polynomials(const Circuit* const circuit, ClientPacket* const p0, Cli
         fmpz_set(pointsG[i], mulgates[i-1]->ParentR->WireValue);
     }
 
-    // std::cout << " pointsF = [";
-    // for (int i = 0; i < N; i++) {
-    //     if (i > 0)
-    //         std::cout << ", ";
-    //     fmpz_print(pointsF[i]);
-    // }
-    // std::cout << "]" << std::endl;
-    // std::cout << " pointsG = [";
-    // for (int i = 0; i < N; i++) {
-    //     if (i > 0)
-    //         std::cout << ", ";
-    //     fmpz_print(pointsG[i]);
-    // }
-    // std::cout << "]" << std::endl;
-
     // Initialize roots (nth roots of unity) and invroots (their inverse)
     if (roots == nullptr) {
         init_roots(N);
@@ -67,24 +48,9 @@ void share_polynomials(const Circuit* const circuit, ClientPacket* const p0, Cli
     fmpz_t *polyF = fft_interpolate(Int_Modulus, N, invroots, pointsF, true);
     fmpz_t *polyG = fft_interpolate(Int_Modulus, N, invroots, pointsG, true);
 
-    // std::cout << " polyF = [";
-    // for (int i = 0; i < N; i++) {
-    //     if (i > 0) std::cout << ", ";
-    //     fmpz_print(polyF[i]);
-    // }
-    // std::cout << "]" << std::endl;
-    // std::cout << " polyG = [";
-    // for (int i = 0; i < N; i++) {
-    //     if (i > 0) std::cout << ", ";
-    //     fmpz_print(polyG[i]);
-    // }
-    // std::cout << "]" << std::endl;
-
     // Pad to length 2N, to ensure it fits h.
-    fmpz_t *paddedF, *paddedG;
-
-    new_fmpz_array(&paddedF, 2*N);
-    new_fmpz_array(&paddedG, 2*N);
+    fmpz_t* paddedF; new_fmpz_array(&paddedF, 2*N);
+    fmpz_t* paddedG; new_fmpz_array(&paddedG, 2*N);
 
     copy_fmpz_array(paddedF, polyF, N);
     copy_fmpz_array(paddedG, polyG, N);
@@ -116,10 +82,7 @@ void share_polynomials(const Circuit* const circuit, ClientPacket* const p0, Cli
     circuit->GetWireShares(&p0->WireShares, &p1->WireShares);
 
     BeaverTriple* triple = NewBeaverTriple();
-    BeaverTripleShare* triple_shares = BeaverTripleShares(triple);
-
-    p0->triple_share = &triple_shares[0];
-    p1->triple_share = &triple_shares[1];
+    BeaverTripleShares(triple, p0->triple_share, p1->triple_share);
 
     delete triple;
     fmpz_clear(h0);

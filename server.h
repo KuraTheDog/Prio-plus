@@ -95,8 +95,8 @@ struct CheckerPreComp {
     const BatchPre* degN;
     const BatchPre* deg2N;
 
-    PreX *xN;
-    PreX *x2N;
+    PreX *xN = nullptr;
+    PreX *x2N = nullptr;
 
     CheckerPreComp(const size_t N)
     : degN(new BatchPre(roots, N))
@@ -108,13 +108,16 @@ struct CheckerPreComp {
     void setCheckerPrecomp(const fmpz_t val) {
         fmpz_set(x, val);
 
+        clear_preX();
         xN = new PreX(degN, x);
         x2N = new PreX(deg2N, x);
     }
 
     void clear_preX() {
-        delete xN;
-        delete x2N;
+        if (xN != nullptr) {
+            delete xN;
+            delete x2N;
+        }
     }
 
     ~CheckerPreComp() {

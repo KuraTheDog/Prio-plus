@@ -161,6 +161,8 @@ void poly_batch_precomp_clear(struct precomp_s* const pre) {
     fmpz_clear(pre->s_points[i]);
     fmpz_clear(pre->x_points[i]);
   }
+  free(pre->s_points);
+  free(pre->x_points);
   tree_clear(&pre->tree, pre->ctx);
   fmpz_mod_poly_clear(pre->deriv, pre->ctx);
   fmpz_mod_ctx_clear(pre->ctx);

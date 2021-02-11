@@ -40,14 +40,12 @@ BeaverTriple* NewBeaverTriple() {
     return out;
 }
 
-BeaverTripleShare* BeaverTripleShares(const BeaverTriple* const inp) {
-    BeaverTripleShare* out = new BeaverTripleShare[2];
-
-    SplitShare(inp->A, out[0].shareA, out[1].shareA);
-    SplitShare(inp->B, out[0].shareB, out[1].shareB);
-    SplitShare(inp->C, out[0].shareC, out[1].shareC);
-
-    return out;
+void BeaverTripleShares(const BeaverTriple* const inp,
+                        BeaverTripleShare* const out0,
+                        BeaverTripleShare* const out1) {
+    SplitShare(inp->A, out0->shareA, out1->shareA);
+    SplitShare(inp->B, out0->shareB, out1->shareB);
+    SplitShare(inp->C, out0->shareC, out1->shareC);
 }
 
 void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {

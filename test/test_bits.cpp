@@ -96,13 +96,16 @@ void makeSharedDabitLocally(DaBit* dabit0, DaBit* dabit1) {
   fmpz_add(dabit1->bp, dabit01->bp, dabit11->bp);
   fmpz_submul_ui(dabit1->bp, prod1, 2);
   fmpz_mod(dabit1->bp, dabit1->bp, Int_Modulus);
+  delete dabit00;
+  delete dabit01;
+  delete dabit10;
+  delete dabit11;
 }
 
 void localTest(const size_t n) {
   std::cout << "Running Local Test" << std::endl;
 
-  fmpz_t tmp;
-  fmpz_init(tmp);
+  fmpz_t tmp; fmpz_init(tmp);
 
   EdaBit* ebit00 = new EdaBit(n);  // 0's share of 0
   EdaBit* ebit01 = new EdaBit(n);  // 1's share of 0
@@ -176,6 +179,11 @@ void localTest(const size_t n) {
     carry1 ^= tmp1;
   }
 
+  delete ebit00;
+  delete ebit01;
+  delete ebit10;
+  delete ebit11;
+  
   // std::cout << " [b]_2^0 = " << ebit0->get_int_b() << (carry0? " with carry" : " no carry") << std::endl;
   // std::cout << " [b]_2^1 = " << ebit1->get_int_b() << (carry1? " with carry" : " no carry") << std::endl;
 
@@ -203,6 +211,8 @@ void localTest(const size_t n) {
     fmpz_init_set(bp0, dabit0->bp);
   }
   // std::cout << "bp0 = "; fmpz_print(bp0); std::cout << std::endl;
+  fmpz_clear(bp0);
+
   fmpz_t bp1;
   if (v) {  // v = 1, so x1 = [b]_p
     fmpz_init_set_si(bp1, 0);
@@ -212,6 +222,10 @@ void localTest(const size_t n) {
     fmpz_init_set(bp1, dabit1->bp);
   }
   // std::cout << "bp1 = "; fmpz_print(bp1); std::cout << std::endl;
+  fmpz_clear(bp1);
+
+  delete dabit0;
+  delete dabit1;
 
   // r = r' - 2^n * bp
   fmpz_mul_ui(tmp, bp0, 1ul << n);
@@ -236,6 +250,10 @@ void localTest(const size_t n) {
   fmpz_xor(tmp, tmp, tmp2);
   fmpz_clear(tmp2);
   std::cout << " xor = "; fmpz_print(tmp); std::cout << std::endl;
+  fmpz_clear(tmp);
+
+  delete ebit0;
+  delete ebit1;
 }
 
 void runServerTest(const int server_num, const int serverfd, const size_t n) {
@@ -334,6 +352,8 @@ void runServerTest(const int server_num, const int serverfd, const size_t n) {
   bool valid = validate_shares_match(serverfd, server_num, x, xp, n, ebit, newtriples);
 
   std::cout << "Server " << server_num << " shares match: " << std::boolalpha << valid << std::endl;
+
+  delete ebit;
 }
 
 void serverTest(const size_t n) {
