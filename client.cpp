@@ -362,6 +362,8 @@ bool xor_op_helper(const std::string protocol, const size_t numreqs) {
         ans = true;
     } else if (protocol == "OROP") {
         ans = false;
+    } else {
+        return false;  // Should never reach here
     }
 
     emp::block* const b = new block[numreqs];
@@ -563,6 +565,8 @@ uint32_t max_op_helper(const std::string protocol, const size_t numreqs, const u
         ans = 0;
     } else if (protocol == "MINOP") {
         ans = B;
+    }  else {
+        return 0;  // Should never reach here
     }
 
     start = clock_start();
