@@ -1059,7 +1059,7 @@ int main(int argc, char** argv) {
         max_int = 1ULL << num_bits;
         small_max_int = 1ULL << (num_bits / 2);
         if (num_bits > 63) {
-            error_exit("Num bits is too large. Int math is done mod 2^64.")
+            error_exit("Num bits is too large. Int math is done mod 2^64.");
         }
     }
 
