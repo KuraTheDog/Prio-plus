@@ -76,7 +76,10 @@ class CorrelatedStore {
 
 public:
 
-  CorrelatedStore(const int serverfd, const int idx, const char* const server0_ip, const char* const server1_ip, const size_t num_bits, const size_t batch_size = 64, const bool lazy = false) 
+  CorrelatedStore(const int serverfd, const int idx,
+                  const char* const server0_ip, const char* const server1_ip,
+                   const size_t num_bits, const size_t batch_size = 64,
+                   const bool lazy = false) 
   : batch_size(batch_size)
   , server_num(idx)
   , serverfd(serverfd)

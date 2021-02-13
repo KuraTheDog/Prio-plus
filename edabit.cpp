@@ -1,30 +1,29 @@
 /* edaBit related logic, for share conversion.
 Based on ia.cr/2020/338
 */
+#include "edabit.h"
 
 #include <iostream>
 
 #include "constants.h"
-#include "edabit.h"
 #include "net_share.h"
 #include "proto.h"
 
 bool multiplyBoolShares(const int serverfd, const int server_num, const bool x,
                         const bool y, BooleanBeaverTriple* const triple) {
-  bool z, d, e, d_this, e_this, d_other, e_other;
+  bool d_this = x ^ triple->a;
+  bool e_this = y ^ triple->b;
 
-  d_this = x ^ triple->a;
-  e_this = y ^ triple->b;
-
+  bool d_other, e_other;
   send_bool(serverfd, d_this);
   recv_bool(serverfd, d_other);
   send_bool(serverfd, e_this);
   recv_bool(serverfd, e_other);
 
-  d = d_this ^ d_other;
-  e = e_this ^ e_other;
+  bool d = d_this ^ d_other;
+  bool e = e_this ^ e_other;
 
-  z = triple->c ^ (x and e) ^ (y and d);
+  bool z = triple->c ^ (x and e) ^ (y and d);
   if (server_num == 0)
       z ^= (d and e);
 
