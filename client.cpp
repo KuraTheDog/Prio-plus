@@ -71,7 +71,8 @@ int send_to_server(const int server, const void* const buffer, const size_t n, c
     return ret;
 }
 
-unsigned int bit_sum_helper(const std::string protocol, const size_t numreqs) {
+unsigned int bit_sum_helper(const std::string protocol, const size_t numreqs,
+                            const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
 
     emp::block* const b = new block[numreqs];
@@ -108,6 +109,10 @@ unsigned int bit_sum_helper(const std::string protocol, const size_t numreqs) {
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     start = clock_start();
+    if (msg_ptr != nullptr) {
+        send_to_server(0, msg_ptr, sizeof(initMsg));
+        send_to_server(1, msg_ptr, sizeof(initMsg));
+    }
     for (unsigned int i = 0; i < numreqs; i++) {
         send_to_server(0, &bitshare0[i], sizeof(BitShare));
         send_to_server(1, &bitshare1[i], sizeof(BitShare));
@@ -127,21 +132,17 @@ unsigned int bit_sum_helper(const std::string protocol, const size_t numreqs) {
 }
 
 void bit_sum(const std::string protocol, const size_t numreqs) {
-    auto start = clock_start();
     unsigned int ans = 0;
     initMsg msg;
     msg.num_of_inputs = numreqs;
     msg.type = BIT_SUM;
-    send_to_server(0, &msg, sizeof(initMsg));
-    send_to_server(1, &msg, sizeof(initMsg));
-    std::cout << "Init msg:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 
     if (do_batch) {
-        ans = bit_sum_helper(protocol, numreqs);
+        ans = bit_sum_helper(protocol, numreqs, &msg);
     } else {
-        start = clock_start();
+        auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            ans += bit_sum_helper(protocol, 1);
+            ans += bit_sum_helper(protocol, 1, i == 0 ? &msg : nullptr);
         std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
@@ -208,7 +209,8 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
     delete[] b;
 }
 
-uint64_t int_sum_helper(const std::string protocol, const size_t numreqs) {
+uint64_t int_sum_helper(const std::string protocol, const size_t numreqs,
+                        const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
 
     emp::block* const b = new block[numreqs];
@@ -245,7 +247,10 @@ uint64_t int_sum_helper(const std::string protocol, const size_t numreqs) {
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     start = clock_start();
-
+    if (msg_ptr != nullptr) {
+        send_to_server(0, msg_ptr, sizeof(initMsg));
+        send_to_server(1, msg_ptr, sizeof(initMsg));
+    }
     for (unsigned int i = 0; i < numreqs; i++) {
         send_to_server(0, &intshare0[i], sizeof(IntShare));
         send_to_server(1, &intshare1[i], sizeof(IntShare));
@@ -264,23 +269,17 @@ uint64_t int_sum_helper(const std::string protocol, const size_t numreqs) {
 }
 
 void int_sum(const std::string protocol, const size_t numreqs) {
-    auto start = clock_start();
-
     uint64_t ans = 0;
     initMsg msg;
     msg.num_of_inputs = numreqs;
     msg.type = INT_SUM;
-    send_to_server(0, &msg, sizeof(initMsg));
-    send_to_server(1, &msg, sizeof(initMsg));
-
-    std::cout << "Init msg:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 
     if (do_batch) {
-        ans = int_sum_helper(protocol, numreqs);
+        ans = int_sum_helper(protocol, numreqs, &msg);
     } else {
-        start = clock_start();
+        auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            ans += int_sum_helper(protocol, 1);
+            ans += int_sum_helper(protocol, 1, i == 0 ? &msg : nullptr);
         std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
@@ -354,7 +353,8 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
     delete[] b;
 }
 
-bool xor_op_helper(const std::string protocol, const size_t numreqs) {
+bool xor_op_helper(const std::string protocol, const size_t numreqs,
+                   const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
 
     bool ans;
@@ -412,8 +412,11 @@ bool xor_op_helper(const std::string protocol, const size_t numreqs) {
     }
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
-
     start = clock_start();
+    if (msg_ptr != nullptr) {
+        send_to_server(0, msg_ptr, sizeof(initMsg));
+        send_to_server(1, msg_ptr, sizeof(initMsg));
+    }
     for (unsigned int i = 0; i < numreqs; i++) {
         send_to_server(0, &intshare0[i], sizeof(IntShare));
         send_to_server(1, &intshare1[i], sizeof(IntShare));
@@ -434,8 +437,6 @@ bool xor_op_helper(const std::string protocol, const size_t numreqs) {
 }
 
 void xor_op(const std::string protocol, const size_t numreqs) {
-    auto start = clock_start();
-
     bool ans;
     initMsg msg;
     msg.num_of_inputs = numreqs;
@@ -448,17 +449,13 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     } else {
         return;
     }
-    send_to_server(0, &msg, sizeof(initMsg));
-    send_to_server(1, &msg, sizeof(initMsg));
-
-    std::cout << "Init msg:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 
     if (do_batch) {
-        ans = xor_op_helper(protocol, numreqs);
+        ans = xor_op_helper(protocol, numreqs, &msg);
     } else {
-        start = clock_start();
+        auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++) {
-            bool res = xor_op_helper(protocol, 1);
+            bool res = xor_op_helper(protocol, 1, i == 0 ? &msg : nullptr);
             ans = (protocol == "ANDOP" ? ans & res : ans | res);
         }
         std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
@@ -557,7 +554,7 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
     delete[] b;
 }
 
-uint32_t max_op_helper(const std::string protocol, const size_t numreqs, const unsigned int B) {
+uint32_t max_op_helper(const std::string protocol, const size_t numreqs, const unsigned int B, const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
 
     uint32_t ans;
@@ -621,6 +618,10 @@ uint32_t max_op_helper(const std::string protocol, const size_t numreqs, const u
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     start = clock_start();
+    if (msg_ptr != nullptr) {
+        send_to_server(0, msg_ptr, sizeof(initMsg));
+        send_to_server(1, msg_ptr, sizeof(initMsg));
+    }
     for (unsigned int i = 0; i < numreqs; i++) {
         send_maxshare(maxshare0[i], 0, B);
         send_maxshare(maxshare1[i], 1, B);
@@ -644,8 +645,6 @@ uint32_t max_op_helper(const std::string protocol, const size_t numreqs, const u
 }
 
 void max_op(const std::string protocol, const size_t numreqs) {
-    auto start = clock_start();
-
     const unsigned int B = 250;
 
     uint32_t ans;
@@ -661,15 +660,13 @@ void max_op(const std::string protocol, const size_t numreqs) {
     } else {
         return;
     }
-    send_to_server(0, &msg, sizeof(initMsg), 0);
-    send_to_server(1, &msg, sizeof(initMsg), 0);
 
     if (do_batch) {
-        ans = max_op_helper(protocol, numreqs, B);
+        ans = max_op_helper(protocol, numreqs, B, &msg);
     } else {
-        start = clock_start();
+        auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++) {
-            uint32_t res = max_op_helper(protocol, 1, B);
+            uint32_t res = max_op_helper(protocol, 1, B, i == 0 ? &msg : nullptr);
             if (protocol == "MAXOP")
                 ans = (res > ans? res : ans);
             if (protocol == "MINOP")
@@ -773,7 +770,9 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
     delete[] b;
 }
 
-void var_op_helper(const std::string protocol, const size_t numreqs, uint64_t& sum, uint64_t& sumsquared) {
+void var_op_helper(const std::string protocol, const size_t numreqs,
+                   uint64_t& sum, uint64_t& sumsquared,
+                   const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
 
     emp::block* const b = new block[numreqs];
@@ -834,7 +833,10 @@ void var_op_helper(const std::string protocol, const size_t numreqs, uint64_t& s
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     start = clock_start();
-
+    if (msg_ptr != nullptr) {
+        send_to_server(0, msg_ptr, sizeof(initMsg));
+        send_to_server(1, msg_ptr, sizeof(initMsg));
+    }
     for (unsigned int i = 0; i < numreqs; i++) {
         send_to_server(0, &varshare0[i], sizeof(VarShare));
         send_to_server(1, &varshare1[i], sizeof(VarShare));
@@ -864,8 +866,6 @@ void var_op_helper(const std::string protocol, const size_t numreqs, uint64_t& s
 }
 
 void var_op(const std::string protocol, const size_t numreqs) {
-    auto start = clock_start();
-
     uint64_t sum = 0, sumsquared = 0;
     initMsg msg;
     msg.num_of_inputs = numreqs;
@@ -876,15 +876,13 @@ void var_op(const std::string protocol, const size_t numreqs) {
     } else {
         return;
     }
-    send_to_server(0, &msg, sizeof(initMsg));
-    send_to_server(1, &msg, sizeof(initMsg));
 
     if (do_batch) {
-        var_op_helper(protocol, numreqs, sum, sumsquared);
+        var_op_helper(protocol, numreqs, sum, sumsquared, &msg);
     } else {
-        start = clock_start();
+        auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            var_op_helper(protocol, 1, sum, sumsquared);
+            var_op_helper(protocol, 1, sum, sumsquared, i == 0 ? &msg : nullptr);
         std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 

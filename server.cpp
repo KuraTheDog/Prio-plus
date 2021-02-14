@@ -502,6 +502,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         recv_in(serverfd, &b[0], share_sz);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
