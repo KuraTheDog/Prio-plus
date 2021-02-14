@@ -365,9 +365,21 @@ EdaBit* CorrelatedStore::getEdaBit() {
 
 void CorrelatedStore::maybeUpdate() {
   std::cout << "precomputing..." << std::endl;
+  auto start = clock_start();
   if (edabits.size() < batch_size / 2)
     addEdaBits();
+  if (!lazy) {
+    if (dabits.size() < batch_size / 2)
+      addDaBits();
+    if (triples.size() < batch_size / 2)
+      addTriples();
+  }
   if (bool_triples.size() < bool_batch_size / 2)
     addBoolTriples();
-  std::cout << "precompute done" << std::endl;
+  std::cout << "Current store sizes:" << std::endl;
+  std::cout << "       Edabits: " << edabits.size() << std::endl;
+  std::cout << "        Dabits: " << dabits.size() << std::endl;
+  std::cout << " Arith Triples: " << triples.size() << std::endl;
+  std::cout << " Bool  Triples: " << bool_triples.size() << std::endl;
+  std::cout << "precompute timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }
