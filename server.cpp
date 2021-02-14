@@ -205,8 +205,9 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
     BitShare share;
     const unsigned int total_inputs = msg.num_of_inputs;
 
+    int num_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        recv_in(clientfd, &share, sizeof(BitShare));
+        num_bytes += recv_in(clientfd, &share, sizeof(BitShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
         if (share_map.find(pk) != share_map.end())
             continue;
@@ -214,6 +215,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
+    std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     start = clock_start();
 
@@ -282,8 +284,9 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
     const uint64_t max_val = 1ULL << num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
 
+    int num_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        recv_in(clientfd, &share, sizeof(IntShare));
+        num_bytes += recv_in(clientfd, &share, sizeof(IntShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
         if (share_map.find(pk) != share_map.end()
@@ -295,6 +298,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
+    std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     start = clock_start();
 
@@ -362,8 +366,9 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
     IntShare share;
     const unsigned int total_inputs = msg.num_of_inputs;
 
+    int num_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        recv_in(clientfd, &share, sizeof(IntShare));
+        num_bytes += recv_in(clientfd, &share, sizeof(IntShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
         if (share_map.find(pk) != share_map.end())
@@ -372,6 +377,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
+    std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     start = clock_start();
 
@@ -443,18 +449,20 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
     // Need this to have all share arrays stay in memory, for server1 later.
     uint32_t* shares = new uint32_t[total_inputs * (B + 1)];
 
+    int num_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        recv_in(clientfd, &share, sizeof(MaxShare));
+        num_bytes += recv_in(clientfd, &share, sizeof(MaxShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
-        recv_in(clientfd, &shares[i*(B+1)], share_sz);
+        num_bytes += recv_in(clientfd, &shares[i*(B+1)], share_sz);
 
         if (share_map.find(pk) != share_map.end())
             continue;
         share_map[pk] = &shares[i*(B+1)];
     }
 
-    std::cout << "Received " << total_inputs << " shares" << std::endl;
+    std::cout << "Received " << total_inputs << " total shares" << std::endl;
+    std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     start = clock_start();
 
@@ -547,19 +555,21 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     const size_t NWires = mock_circuit->NumMulInpGates();
     delete mock_circuit;
 
+    int num_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        recv_in(clientfd, &share, sizeof(VarShare));
+        num_bytes += recv_in(clientfd, &share, sizeof(VarShare));
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
         ClientPacket* packet = new ClientPacket(N, NWires);
-        int ok = recv_ClientPacket(clientfd, packet);
+        int packet_bytes = recv_ClientPacket(clientfd, packet);
+        num_bytes += packet_bytes;
 
         // std::cout << "share[" << i << "] = " << share.val << ", " << share.val_squared << std::endl;
 
         if ((share_map.find(pk) != share_map.end())
             or (share.val >= small_max)
             or (share.val_squared >= square_max)
-            or (ok <= 0)
+            or (packet_bytes <= 0)
             ) {
             delete packet;
             continue;
@@ -567,7 +577,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         share_map[pk] = {share.val, share.val_squared, packet};
     }
 
-    std::cout << "Received " << total_inputs << " shares" << std::endl;
+    std::cout << "Received " << total_inputs << " total shares" << std::endl;
+    std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     start = clock_start();
 
