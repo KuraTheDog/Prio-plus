@@ -6,21 +6,18 @@
 struct BitShare {
     char pk[PK_LENGTH];
     bool val;
-    char signature[PK_LENGTH];
 };
 
 // For INT_SUM, AND_OP, OR_OP
 struct IntShare {
     char pk[PK_LENGTH];
     uint64_t val;
-    char signature[PK_LENGTH];
 };
 
 // For Max, Min
 struct MaxShare {
     uint32_t* arr;
     char pk[PK_LENGTH];
-    char signature[PK_LENGTH];
 };
 
 // For Var, Stddev
@@ -28,14 +25,12 @@ struct VarShare {
     char pk[PK_LENGTH];
     uint64_t val;
     uint64_t val_squared;
-    char signature[PK_LENGTH];
 };
 
 struct LinRegShare {
     char pk[PK_LENGTH];
     uint32_t num_fields;
     uint64_t* vals;
-    char signature[PK_LENGTH];
 };
 
 enum messageType {

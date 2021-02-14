@@ -100,11 +100,9 @@ int bit_sum_helper(const std::string protocol, const size_t numreqs,
 
         memcpy(bitshare0[i].pk, &pk[0], PK_LENGTH);
         bitshare0[i].val = shares0[i];
-        memcpy(bitshare0[i].signature, &pk[0], PK_LENGTH);
 
         memcpy(bitshare1[i].pk, &pk[0], PK_LENGTH);
         bitshare1[i].val = shares1[i];
-        memcpy(bitshare1[i].signature, &pk[0], PK_LENGTH);
     }
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
@@ -191,7 +189,6 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
 
         memcpy(share0.pk, &pk[0], PK_LENGTH);
         share0.val = shares0[i];
-        memcpy(share0.signature, &pk[0], PK_LENGTH);
         if (i == 0)
             share0.pk[0] = 'q';
         if (i == 2)
@@ -199,7 +196,6 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
 
         memcpy(share1.pk, &pk[0], PK_LENGTH);
         share1.val = shares1[i];
-        memcpy(share1.signature, &pk[0], PK_LENGTH);
         if (i == 4)
             memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
 
@@ -240,11 +236,9 @@ int int_sum_helper(const std::string protocol, const size_t numreqs,
 
         memcpy(intshare0[i].pk, &pk[0], PK_LENGTH);
         intshare0[i].val = shares0[i];
-        memcpy(intshare0[i].signature, &pk[0], PK_LENGTH);
 
         memcpy(intshare1[i].pk, &pk[0], PK_LENGTH);
         intshare1[i].val = shares1[i];
-        memcpy(intshare1[i].signature, &pk[0], PK_LENGTH);
     }
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
@@ -336,7 +330,6 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
 
         memcpy(share0.pk, &pk[0], PK_LENGTH);
         share0.val = shares0[i];
-        memcpy(share0.signature, &pk[0], PK_LENGTH);
         if (i == 2)
             share0.pk[0] = 'q';
         if (i == 4)
@@ -344,7 +337,6 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
 
         memcpy(share1.pk, &pk[0], PK_LENGTH);
         share1.val = shares1[i];
-        memcpy(share1.signature, &pk[0], PK_LENGTH);
         if (i == 6)
             memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
 
@@ -400,11 +392,9 @@ int xor_op_helper(const std::string protocol, const size_t numreqs,
 
         memcpy(intshare0[i].pk, &pk[0], PK_LENGTH);
         intshare0[i].val = shares0[i];
-        memcpy(intshare0[i].signature, &pk[0], PK_LENGTH);
 
         memcpy(intshare1[i].pk, &pk[0], PK_LENGTH);
         intshare1[i].val = shares1[i];
-        memcpy(intshare1[i].signature, &pk[0], PK_LENGTH);
     }
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
@@ -529,7 +519,6 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
 
         memcpy(share0.pk, &pk[0], PK_LENGTH);
         share0.val = shares0[i];
-        memcpy(share0.signature, &pk[0], PK_LENGTH);
         if (include_invalid && i == 0)
             share0.pk[0] = 'q';
         if (include_invalid && i == 2)
@@ -537,7 +526,6 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
 
         memcpy(share1.pk, &pk[0], PK_LENGTH);
         share1.val = shares1[i];
-        memcpy(share1.signature, &pk[0], PK_LENGTH);
         if (include_invalid && i == 4)
             memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
 
@@ -596,12 +584,10 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
         const char* pk = pk_s.c_str();
 
         memcpy(maxshare0[i].pk, &pk[0], PK_LENGTH);
-        memcpy(maxshare0[i].signature, &pk[0], PK_LENGTH);
         maxshare0[i].arr = new uint32_t[B+1];
         memcpy(maxshare0[i].arr, &shares0[0], (B+1)*sizeof(uint32_t));
 
         memcpy(maxshare1[i].pk, &pk[0], PK_LENGTH);
-        memcpy(maxshare1[i].signature, &pk[0], PK_LENGTH);
         maxshare1[i].arr = new uint32_t[B+1];
         memcpy(maxshare1[i].arr, &shares1[0], (B+1)*sizeof(uint32_t));
     }
@@ -735,7 +721,6 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
         const char* pk = pk_str.c_str();
 
         memcpy(share0.pk, &pk[0], PK_LENGTH);
-        memcpy(share0.signature, &pk[0], PK_LENGTH);
         share0.arr = shares0;
         if (i == 0)
             share0.pk[0] = 'q';
@@ -743,7 +728,6 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
             memcpy(share0.pk, &prev_pk[0], PK_LENGTH);
 
         memcpy(share1.pk, &pk[0], PK_LENGTH);
-        memcpy(share1.signature, &pk[0], PK_LENGTH);
         share1.arr = shares1;
         if (i == 4)
             memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
@@ -801,12 +785,10 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
         memcpy(varshare0[i].pk, &pk[0], PK_LENGTH);
         varshare0[i].val = shares0[i];
         varshare0[i].val_squared = shares0_squared[i];
-        memcpy(varshare0[i].signature, &pk[0], PK_LENGTH);
 
         memcpy(varshare1[i].pk, &pk[0], PK_LENGTH);
         varshare1[i].val = shares1[i];
         varshare1[i].val_squared = shares1_squared[i];
-        memcpy(varshare1[i].signature, &pk[0], PK_LENGTH);
 
         fmpz_set_si(inp[0], real_vals[i]);
         fmpz_set_si(inp[1], real_vals[i] * real_vals[i]);
@@ -972,7 +954,6 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         memcpy(share0.pk, &pk[0], PK_LENGTH);
         share0.val = shares0[i];
         share0.val_squared = shares0_squared[i];
-        memcpy(share0.signature, &pk[0], PK_LENGTH);
         if (i == 9)
             share0.pk[0] = 'q';
         if (i == 11)
@@ -981,7 +962,6 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         memcpy(share1.pk, &pk[0], PK_LENGTH);
         share1.val = shares1[i];
         share1.val_squared = shares1_squared[i];
-        memcpy(share1.signature, &pk[0], PK_LENGTH);
         if (i == 13)
             memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
 
