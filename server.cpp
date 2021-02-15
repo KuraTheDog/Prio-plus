@@ -387,32 +387,42 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
         const unsigned int num_inputs = share_map.size();
         send_size(serverfd, num_inputs);
         uint64_t b = 0;
+        std::string* pk_list = new std::string[num_inputs];
+        size_t idx = 0;
         for (const auto& share : share_map) {
             send_out(serverfd, &share.first[0], PK_LENGTH);
+            pk_list[idx] = share.first;
+            idx++;
+        }
+        for (unsigned int i = 0; i < num_inputs; i++) {
             bool other_valid;
             recv_bool(serverfd, other_valid);
             if (!other_valid)
                 continue;
-            b ^= share.second;
+            b ^= share_map[pk_list[i]];
         }
         send_uint64(serverfd, b);
+        delete[] pk_list;
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
         recv_size(serverfd, num_inputs);
         uint64_t a = 0;
+        bool* valid = new bool[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             std::string pk = get_pk(serverfd);
-
-            bool is_valid = (share_map.find(pk) != share_map.end());
-            send_bool(serverfd, is_valid);
-            if (!is_valid)
+            valid[i] = (share_map.find(pk) != share_map.end());
+            if (!valid[i])
                 continue;
             num_valid++;
             a ^= share_map[pk];
         }
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            send_bool(serverfd, valid[i]);
+        }
+        delete[] valid;
 
         uint64_t b;
         recv_uint64(serverfd, b);
@@ -473,18 +483,24 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         send_size(serverfd, num_inputs);
         uint32_t b[B+1];
         memset(b, 0, sizeof(b));
-
+        std::string* pk_list = new std::string[num_inputs];
+        size_t idx = 0;
         for (const auto& share : share_map) {
             send_out(serverfd, &share.first[0], PK_LENGTH);
+            pk_list[idx] = share.first;
+            idx++;
+        }
+        for (unsigned int i = 0; i < num_inputs; i++) {
             bool other_valid;
             recv_bool(serverfd, other_valid);
             if (!other_valid)
                 continue;
             for (unsigned int j = 0; j <= B; j++)
-                b[j] ^= share.second[j];
+                b[j] ^= share_map[pk_list[i]][j];
         }
         send_out(serverfd, &b[0], share_sz);
         delete[] shares;
+        delete[] pk_list;
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         return RET_NO_ANS;
     } else {
@@ -492,20 +508,22 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         recv_size(serverfd, num_inputs);
         uint32_t a[B+1];
         memset(a, 0, sizeof(a));
+        bool* valid = new bool[num_inputs];
 
         for (unsigned int i =0; i < num_inputs; i++) {
             std::string pk = get_pk(serverfd);
-
-            bool is_valid = (share_map.find(pk) != share_map.end());
-            send_bool(serverfd, is_valid);
-            if (!is_valid)
+            valid[i] = (share_map.find(pk) != share_map.end());
+            if (!valid[i])
                 continue;
-
             num_valid++;
             for (unsigned int j = 0; j <= B; j++)
                 a[j] ^= share_map[pk][j];
         }
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            send_bool(serverfd, valid[i]);
+        }
         delete[] shares;
+        delete[] valid;
         uint32_t b[B+1];
         recv_in(serverfd, &b[0], share_sz);
 
