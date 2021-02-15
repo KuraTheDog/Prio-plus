@@ -17,6 +17,18 @@ void run_sender(int sockfd) {
     int n;
     fmpz_t number; fmpz_init(number);
 
+    bool b = true;
+    n = send_bool(sockfd, b);
+    std::cout << "send: size = " << n << ", bool: " << b << std::endl;
+
+    int in = 13579;
+    n = send_int(sockfd, in);
+    std::cout << "send: size = " << n << ", int: " << in << std::endl;
+
+    size_t sz = 92;
+    n = send_size(sockfd, sz);
+    std::cout << "send: size = " << n << ", size: " << sz << std::endl;
+
     uint32_t i = 1 << 20;
     n = send_uint32(sockfd, i);
     std::cout << "send: size = " << n << ", uint32_t: " << i << std::endl;
@@ -93,6 +105,18 @@ void run_receiver(int newsockfd) {
     fmpz_t number;
     fmpz_init(number);
 
+    bool b;
+    n = recv_bool(newsockfd, b);
+    std::cout << "recv: size = " << n << ", bool: " << b << std::endl;
+
+    int in;
+    n = recv_int(newsockfd, in);
+    std::cout << "recv: size = " << n << ", int: " << in << std::endl;
+
+    size_t sz;
+    n = recv_size(newsockfd, sz);
+    std::cout << "recv: size = " << n << ", size: " << sz << std::endl;
+
     uint32_t i;
     n = recv_uint32(newsockfd, i);
     std::cout << "recv: size = " << n << ", uint32_t: " << i << std::endl;
@@ -134,10 +158,10 @@ void run_receiver(int newsockfd) {
     std::cout << "recv: size = " << n << ", packet, f0_s = ";
     fmpz_print(packet2->f0_s); std::cout << std::endl;
 
-    EdaBit* b = new EdaBit(4);
-    n = recv_EdaBit(newsockfd, b, 4);
+    EdaBit* b0 = new EdaBit(4);
+    n = recv_EdaBit(newsockfd, b0, 4);
     std::cout << "recv EdaBit size = " << n << std::endl;
-    b->print();
+    b0->print();
 
     // fmpz_set_ui(number, 100);
     // fmpz_mod_poly_t f; fmpz_mod_poly_init(f, number);
