@@ -30,6 +30,9 @@ void clear_constants() {
 }
 
 void init_roots(const int N) {
+    if (num_roots == N) {
+        return;
+    }
     if (roots != nullptr) {
         clear_fmpz_array(roots, num_roots);
         clear_fmpz_array(invroots, num_roots);

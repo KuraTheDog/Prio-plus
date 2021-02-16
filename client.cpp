@@ -371,6 +371,7 @@ int xor_op_helper(const std::string protocol, const size_t numreqs,
     // encode step. set to all 0's for values that don't force the ans.
     if (protocol == "ANDOP") {
         for (unsigned int i = 0; i < numreqs; i++) {
+            // values[i] = true;
             ans &= values[i];
             if (values[i])
                 encoded_values[i] = 0;
@@ -378,6 +379,7 @@ int xor_op_helper(const std::string protocol, const size_t numreqs,
     }
     if (protocol == "OROP") {
         for (unsigned int i = 0; i < numreqs; i++) {
+            // values[i] = false;
             ans |= values[i];
             if (not values[i])
                 encoded_values[i] = 0;
