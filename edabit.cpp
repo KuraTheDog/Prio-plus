@@ -9,377 +9,594 @@ Based on ia.cr/2020/338
 #include "net_share.h"
 #include "proto.h"
 
-bool multiplyBoolShares(const int serverfd, const int server_num, const bool x,
-                        const bool y, BooleanBeaverTriple* const triple) {
-  bool d_this = x ^ triple->a;
-  bool e_this = y ^ triple->b;
+DaBit** CorrelatedStore::generateDaBit(const size_t N) {
+  DaBit** const dabit = new DaBit*[N];
 
-  bool d_other, e_other;
-  send_bool(serverfd, d_this);
-  recv_bool(serverfd, d_other);
-  send_bool(serverfd, e_this);
-  recv_bool(serverfd, e_other);
+  DaBit** const dabit0 = new DaBit*[N];
+  DaBit** const dabit1 = new DaBit*[N];
+  fmpz_t* x; new_fmpz_array(&x, N);
+  fmpz_t* y; new_fmpz_array(&y, N);
 
-  bool d = d_this ^ d_other;
-  bool e = e_this ^ e_other;
+  for (unsigned int i = 0; i < N; i++) {
+    dabit[i] = new DaBit();
 
-  bool z = triple->c ^ (x and e) ^ (y and d);
-  if (server_num == 0)
-      z ^= (d and e);
-
-  // Consume the triple
-  delete triple;
-
-  return z;
-}
-
-void multiplyArithmeticShares(const int serverfd, const int server_num,
-                              const fmpz_t x, const fmpz_t y, fmpz_t z,
-                              const BeaverTriple* const triple) {
-  fmpz_t d, d_other, e, e_other;
-
-  fmpz_init(d);
-  fmpz_init(e);
-  fmpz_init(d_other);
-  fmpz_init(e_other);
-
-  fmpz_add(d, x, triple->A);  // [x] - [a]
-  fmpz_mod(d, d, Int_Modulus);
-  fmpz_add(e, y, triple->B);  // [y] - [b]
-  fmpz_mod(e, e, Int_Modulus);
-
-  send_fmpz(serverfd, d);
-  recv_fmpz(serverfd, d_other);
-  send_fmpz(serverfd, e);
-  recv_fmpz(serverfd, e_other);
-
-  fmpz_add(d, d, d_other);  // x - a
-  fmpz_mod(d, d, Int_Modulus);
-  fmpz_add(e, e, e_other);  // y - b
-  fmpz_mod(e, e, Int_Modulus);
-
-  // [xy] = [c] + [x] e + [y] d - de
-  fmpz_set(z, triple->C);
-  fmpz_addmul(z, x, e);
-  fmpz_addmul(z, y, d);
-  if (server_num == 0)
-      fmpz_submul(z, d, e);
-  fmpz_mod(z, z, Int_Modulus);
-
-  fmpz_clear(d);
-  fmpz_clear(d_other);
-  fmpz_clear(e);
-  fmpz_clear(e_other);
-}
-
-// c_{i+1} = c_i xor ((x_i xor c_i) and (y_i xor c_i))
-// output z_i = x_i xor y_i xor c_i
-bool addBinaryShares(const int serverfd, const int server_num, const size_t n,
-                     const bool* const x, const bool* const y, bool* const z,
-                     std::queue<BooleanBeaverTriple*> triples) {
-  bool carry = false;
-  for (unsigned int i = 0; i < n; i++) {
-    z[i] = carry ^ x[i] ^ y[i];
-    bool xi = carry ^ x[i];
-    bool yi = carry ^ y[i];
-    carry ^= multiplyBoolShares(serverfd, server_num, xi, yi, triples.front());
-    triples.pop();
-  }
-  return carry;
-}
-
-void b2a_daBit(const int serverfd, const int server_num,
-               const DaBit* const dabit, const bool x, fmpz_t& xp) {
-  const bool v_this = x ^ dabit->b2;
-  bool v_other;
-  send_bool(serverfd, v_this);
-  recv_bool(serverfd, v_other);
-  const bool v = v_this ^ v_other;
-
-  // [x]_p = v + [b]_p - 2 v [b]_p. v only added for one server.
-  // So we only add v on server 1 (when v = 1)
-  if (v) {  // If v = 1, then [x]_p = (0/1) - [b]_p
-    fmpz_set_ui(xp, server_num);
-    fmpz_sub(xp, xp, dabit->bp);
-    fmpz_mod(xp, xp, Int_Modulus);
-  } else {  // If v = 0, then [x]_p = [b]_p
-    fmpz_set(xp, dabit->bp);
-  }
-}
-
-void b2a_edaBit(const int serverfd, const int server_num,
-                const fmpz_t x, fmpz_t& xp, const EdaBit* const edabit,
-                std::queue<BooleanBeaverTriple*> triples) {
-  const size_t n = edabit->n;
-
-  // Convert x2 to bool array
-  bool x2[n];
-  for (unsigned int i = 0; i < n; i++)
-    x2[i] = fmpz_tstbit(x, i);
-
-  // [x+r]_2 = [x]_2 + [r]_2 via circuit
-  bool xr[n+1];
-  bool carry = addBinaryShares(serverfd, server_num, n, x2, edabit->b, xr, triples);
-  xr[n] = carry;
-
-  fmpz_from_bool_array(xp, xr, n+1);  // [x + r]_2
-
-  // Reveal x + r, convert to mod p shares
-  if (server_num == 0) {
-    fmpz_t xr_other;
-    fmpz_init(xr_other);
-    recv_fmpz(serverfd, xr_other);  // get other [x + r]_2
-    fmpz_xor(xp, xp, xr_other);     // Real x + r
-    fmpz_randm(xr_other, seed, Int_Modulus);  // other [x + r]_p
-    fmpz_sub(xp, xp, xr_other);
-    fmpz_mod(xp, xp, Int_Modulus);  // This [x + r]_p
-    send_fmpz(serverfd, xr_other);
-    fmpz_clear(xr_other);
-  } else {
-    send_fmpz(serverfd, xp);
-    recv_fmpz(serverfd, xp);  // This [x + r]_p
+    // Create local
+    dabit0[i] = new DaBit();
+    dabit1[i] = new DaBit();
+    makeLocalDaBit(dabit0[i], dabit1[i]);
+    // Exchange
+    if (server_num == 0) {
+      send_DaBit(serverfd, dabit1[i]);
+    } else {
+      send_DaBit(serverfd, dabit0[i]);
+    }
   }
 
-  // [x]_p = [x+r]_p - [r]_p
-  fmpz_sub(xp, xp, edabit->r);
-  fmpz_mod(xp, xp, Int_Modulus);
-}
+  for (unsigned int i = 0; i < N; i++) {
+    // Exchange
+    if (server_num == 0) {
+      recv_DaBit(serverfd, dabit1[i]);
+    } else {
+      recv_DaBit(serverfd, dabit0[i]);
+    }
 
-DaBit* generateDaBit(const int serverfd, const int server_num,
-                     const BeaverTriple* const triple) {
-  // Answer
-  DaBit* const dabit = new DaBit();
+    // Xor boolean shares
+    dabit[i]->b2 = dabit0[i]->b2 ^ dabit1[i]->b2;
 
-  // Create local
-  DaBit* dabit0 = new DaBit();
-  DaBit* dabit1 = new DaBit();
-  makeLocalDaBit(dabit0, dabit1);
+    fmpz_set(x[i], dabit0[i]->bp);
+    fmpz_set(y[i], dabit1[i]->bp);
 
-  // Exchange
-  DaBit* tmp_dabit = new DaBit();
-  if (server_num == 0) {
-    send_DaBit(serverfd, dabit1);
-    recv_DaBit(serverfd, tmp_dabit);
-    delete dabit1;
-    dabit1 = tmp_dabit;
-  } else {
-    send_DaBit(serverfd, dabit0);
-    recv_DaBit(serverfd, tmp_dabit);
-    delete dabit0;
-    dabit0 = tmp_dabit;
+    delete dabit0[i];
+    delete dabit1[i];
+  }
+  delete[] dabit0;
+  delete[] dabit1;
+
+  // Xor Arithmetic shares, using a xor b = a + b - 2ab
+  fmpz_t* z = multiplyArithmeticShares(N, x, y);
+
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_add(dabit[i]->bp, x[i], y[i]);
+    fmpz_submul_ui(dabit[i]->bp, z[i], 2);
+    fmpz_mod(dabit[i]->bp, dabit[i]->bp, Int_Modulus);
   }
 
-  // Xor boolean shares
-  dabit->b2 = dabit0->b2 ^ dabit1->b2;
-
-  // Xor arithmetic shares, using a xor b = a + b - 2ab
-  fmpz_t z;
-  fmpz_init(z);
-  multiplyArithmeticShares(serverfd, server_num, dabit0->bp, dabit1->bp, z, triple);
-
-  fmpz_add(dabit->bp, dabit0->bp, dabit1->bp);
-  fmpz_submul_ui(dabit->bp, z, 2);
-  fmpz_mod(dabit->bp, dabit->bp, Int_Modulus);
-
-  fmpz_clear(z);
-  delete dabit0;
-  delete dabit1;
+  clear_fmpz_array(x, N);
+  clear_fmpz_array(y, N);
+  clear_fmpz_array(z, N);
 
   return dabit;
 }
 
-EdaBit* generateEdaBit(const int serverfd, const int server_num, const size_t n,
-                       std::queue<BooleanBeaverTriple*> triples,
-                       const DaBit* const dabit) {
-  // Answer bit
-  EdaBit* const edabit = new EdaBit(n);
+EdaBit** CorrelatedStore::generateEdaBit(const size_t N) {
+  EdaBit** edabit = new EdaBit*[N];
 
-  // Create local
-  EdaBit* edabit0 = new EdaBit(n);
-  EdaBit* edabit1 = new EdaBit(n);
-  makeLocalEdaBit(edabit0, edabit1, n);
+  EdaBit** edabit0 = new EdaBit*[N];
+  EdaBit** edabit1 = new EdaBit*[N];
+  bool** b = new bool*[N];
+  bool** b0 = new bool*[N];
+  bool** b1 = new bool*[N];
 
-  // Exchange
-  EdaBit* tmp_edabit = new EdaBit(n);
-  if (server_num == 0) {
-    send_EdaBit(serverfd, edabit1, n);
-    recv_EdaBit(serverfd, tmp_edabit, n);
-    delete edabit1;
-    edabit1 = tmp_edabit;
-  } else {
-    send_EdaBit(serverfd, edabit0, n);
-    recv_EdaBit(serverfd, tmp_edabit, n);
-    delete edabit0;
-    edabit0 = tmp_edabit;
+  for (unsigned int i = 0; i < N; i++) {
+    edabit[i] = new EdaBit(num_bits);
+
+    // Create local
+    edabit0[i] = new EdaBit(num_bits);
+    edabit1[i] = new EdaBit(num_bits);
+    makeLocalEdaBit(edabit0[i], edabit1[i], num_bits);
+
+    // Exchange
+    if (server_num == 0) {
+      send_EdaBit(serverfd, edabit1[i], num_bits);
+    } else {
+      send_EdaBit(serverfd, edabit0[i], num_bits);
+    }
   }
-  // Add arithmetic shares
-  fmpz_add(edabit->r, edabit0->r, edabit1->r);
-  fmpz_mod(edabit->r, edabit->r, Int_Modulus);
+
+  for (unsigned int i = 0; i < N; i++) {
+    // Exchange
+    if (server_num == 0) {
+      recv_EdaBit(serverfd, edabit1[i], num_bits);
+    } else {
+      recv_EdaBit(serverfd, edabit0[i], num_bits);
+    }
+
+    // Add arithmetic shares
+    fmpz_add(edabit[i]->r, edabit0[i]->r, edabit1[i]->r);
+    fmpz_mod(edabit[i]->r, edabit[i]->r, Int_Modulus);
+
+    b[i] = new bool[num_bits];
+    b0[i] = new bool[num_bits];
+    b1[i] = new bool[num_bits];
+    memcpy(b0[i], edabit0[i]->b, num_bits * sizeof(bool));
+    memcpy(b1[i], edabit1[i]->b, num_bits * sizeof(bool));
+
+    delete edabit0[i];
+    delete edabit1[i];
+  }
+  delete[] edabit0;
+  delete[] edabit1;
 
   // Add binary shares via circuit
-  bool carry = addBinaryShares(serverfd, server_num, n, edabit0->b, edabit1->b, edabit->b, triples);
+  bool* carry = addBinaryShares(N, b0, b1, b);
 
-  // Convert carry to arithmetic [b_n]_p
-  fmpz_t bpn;
-  fmpz_init(bpn);
-  b2a_daBit(serverfd, server_num, dabit, carry, bpn);
+  fmpz_t tmp; fmpz_init(tmp);
+  fmpz_from_bool_array(tmp, b[0], num_bits);
 
-  // Subtract out 2^n * [b_n]_p from r
-  fmpz_submul_ui(edabit->r, bpn, 1ul << n);
-  fmpz_mod(edabit->r, edabit->r, Int_Modulus);
+  // Convert carry to arithmetic [carry]_p
+  fmpz_t* carry_p = b2a_daBit(N, carry);
+  delete[] carry;
 
-  fmpz_clear(bpn);
-  delete edabit0;
-  delete edabit1;
+  // Subtract out 2^n * [carry]_p from r
+  fmpz_t pow; fmpz_init_set_ui(pow, 2);
+  fmpz_pow_ui(pow, pow, num_bits);
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_submul(edabit[i]->r, carry_p[i], pow);
+    fmpz_mod(edabit[i]->r, edabit[i]->r, Int_Modulus);
+
+    for (unsigned int j = 0; j < num_bits; j++) {  // memcpy?
+      edabit[i]->b[j] = b[i][j];
+    }
+    memcpy(edabit[i]->b, b[i], num_bits * sizeof(bool));
+
+    delete[] b[i];
+    delete[] b0[i];
+    delete[] b1[i];
+  }
+  delete[] b;
+  delete[] b0;
+  delete[] b1;
+  clear_fmpz_array(carry_p, N);
+  fmpz_clear(pow);
 
   return edabit;
 }
 
-bool validate_shares_match(const int serverfd, const int server_num,
-                           const fmpz_t x2, const fmpz_t xp, const size_t n,
-                           const EdaBit* const edabit,
-                           std::queue<BooleanBeaverTriple*> triples) {
-  // auto start = clock_start();
+void makeLocalBoolTriple(BooleanBeaverTriple* x, BooleanBeaverTriple* y) {
+  fmpz_t two; fmpz_init_set_ui(two, 2);
+  fmpz_t tmp; fmpz_init(tmp);
+  fmpz_randm(tmp, seed, two); x->a = fmpz_is_zero(tmp);
+  fmpz_randm(tmp, seed, two); y->a = fmpz_is_zero(tmp);
+  fmpz_randm(tmp, seed, two); x->b = fmpz_is_zero(tmp);
+  fmpz_randm(tmp, seed, two); y->b = fmpz_is_zero(tmp);
+  fmpz_randm(tmp, seed, two); x->c = fmpz_is_zero(tmp);
 
-  if (edabit->n != n) return false;
+  y->c = ((x->a ^ y->a) and (x->b ^ y->b)) ^ x->c;
 
-  // Compute [x2]_p
-  fmpz_t x2_p;
-  fmpz_init(x2_p);
-  b2a_edaBit(serverfd, server_num, x2, x2_p, edabit, triples);
-
-  // Validate: (x2_0 - xp_0) + (x2_1 - xp_1) = 0
-  fmpz_sub(x2_p, x2_p, xp);
-  fmpz_mod(x2_p, x2_p, Int_Modulus);
-  bool valid;
-  if (server_num == 0) {
-    fmpz_t other_x2_p;
-    fmpz_init(other_x2_p);
-    recv_fmpz(serverfd, other_x2_p);
-    fmpz_add(x2_p, x2_p, other_x2_p);
-    fmpz_mod(x2_p, x2_p, Int_Modulus);
-    valid = fmpz_is_zero(x2_p);
-    send_bool(serverfd, valid);
-    fmpz_clear(other_x2_p);
-  } else {
-    send_fmpz(serverfd, x2_p);
-    recv_bool(serverfd, valid);
-  }
-
-  // std::cout << "validate_shares_match timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
-  return valid;
+  fmpz_clear(tmp);
+  fmpz_clear(two);
 }
 
-void CorrelatedStore::addBoolTriples() {
+void CorrelatedStore::addBoolTriples(const size_t n) {
   auto start = clock_start();
-  std::queue<BooleanBeaverTriple*> new_triples = gen_boolean_beaver_triples(server_num, bool_batch_size, io0, io1);
-  for (unsigned int i = 0; i < bool_batch_size; i++) {
-    bool_triples.push(new_triples.front());
+  const size_t num_to_make = (n > bool_batch_size ? n : bool_batch_size);
+
+  if (lazy) {
+    if (server_num == 0) {  // make on server 0
+      BooleanBeaverTriple* other_triple = new BooleanBeaverTriple();
+      for (unsigned int i = 0; i < num_to_make; i++) {
+        BooleanBeaverTriple* triple = new BooleanBeaverTriple();
+        makeLocalBoolTriple(triple, other_triple);
+        send_BooleanBeaverTriple(serverfd, other_triple);
+        btriple_store.push(triple);
+      }
+      delete other_triple;
+    } else {
+      for (unsigned int i = 0; i < num_to_make; i++) {
+        BooleanBeaverTriple* triple = new BooleanBeaverTriple();
+        recv_BooleanBeaverTriple(serverfd, triple);
+        btriple_store.push(triple);
+      }
+    }
+
+    return;
+  }
+
+  std::queue<BooleanBeaverTriple*> new_triples = gen_boolean_beaver_triples(server_num, num_to_make, io0, io1);
+  for (unsigned int i = 0; i < num_to_make; i++) {
+    btriple_store.push(new_triples.front());
     new_triples.pop();
   }
   long long t = time_from(start);
   std::cout << "addBoolTriples timing : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
 }
 
-void CorrelatedStore::addTriples() {
+void CorrelatedStore::addTriples(const size_t n) {
   auto start = clock_start();
-  for (unsigned int i = 0; i < batch_size; i++) {
+  const size_t num_to_make = (n > batch_size ? n : batch_size);
+  for (unsigned int i = 0; i < num_to_make; i++) {
     BeaverTriple* triple = generate_beaver_triple_lazy(serverfd, server_num);
-    triples.push(triple);
+    atriple_store.push(triple);
   }
-  std::cout << "addTriples timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+ std::cout << "addTriples timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }
 
-void CorrelatedStore::addDaBits() {
+void CorrelatedStore::addDaBits(const size_t n) {
   auto start = clock_start();
-  for (unsigned int i = 0; i < batch_size; i++) {
-    BeaverTriple* triple = getTriple();
-    DaBit* bit = generateDaBit(serverfd, server_num, triple);
-    dabits.push(bit);
-    delete triple;
-  }
+  const size_t num_to_make = (n > batch_size ? n : batch_size);
+  DaBit** dabit = generateDaBit(num_to_make);
+  for (unsigned int i = 0; i < num_to_make; i++)
+    dabit_store.push(dabit[i]);
+  delete[] dabit;
   std::cout << "addDaBits timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }
 
-void CorrelatedStore::addEdaBits() {
+void CorrelatedStore::addEdaBits(const size_t n) {
   auto start = clock_start();
-  if (!lazy) {
-    for (unsigned int i = 0; i < batch_size; i++) {
-      std::queue<BooleanBeaverTriple*> gen_triples = getBoolTriples(num_bits);
-      DaBit* dabit = getDaBit();
-      EdaBit* edabit = generateEdaBit(serverfd, server_num, num_bits, gen_triples, dabit);
-      edabits.push(edabit);
-      delete dabit;
-    }
-  } else {
-    for (unsigned int i = 0; i < batch_size; i++) {
-      EdaBit* edabit = new EdaBit(num_bits);
-      if (server_num == 0) {
-        EdaBit* other_edabit = new EdaBit(num_bits);
+  const size_t num_to_make = (n > batch_size ? n : batch_size);
+
+  if (lazy) {
+    if (server_num == 0) {  // make on server 0
+      EdaBit* other_edabit = new EdaBit(num_bits);
+      for (unsigned int i = 0; i < num_to_make; i++) {
+        EdaBit* edabit = new EdaBit(num_bits);
         makeLocalEdaBit(edabit, other_edabit, num_bits);
         send_EdaBit(serverfd, other_edabit, num_bits);
-        delete other_edabit;
-      } else {
-        recv_EdaBit(serverfd, edabit, num_bits);
+        edabit_store.push(edabit);
       }
-      edabits.push(edabit);
+      delete other_edabit;
+    } else {
+      for (unsigned int i = 0; i < num_to_make; i++) {
+        EdaBit* edabit = new EdaBit(num_bits);
+        recv_EdaBit(serverfd, edabit, num_bits);
+        edabit_store.push(edabit);
+      }
     }
+
+    return;
   }
+
+  EdaBit** edabit = generateEdaBit(num_to_make);
+  for (unsigned int i = 0; i < num_to_make; i++)
+    edabit_store.push(edabit[i]);
+  delete[] edabit;
+
   std::cout << "addEdaBits timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }
 
-std::queue<BooleanBeaverTriple*> CorrelatedStore::getBoolTriples(const size_t n) {
-  if (n > bool_triples.size())
+BooleanBeaverTriple* CorrelatedStore::getBoolTriple() {
+  if (btriple_store.empty())
     addBoolTriples();
-  std::queue<BooleanBeaverTriple*> ans;
-  for (unsigned int i = 0; i < n; i++) {
-    ans.push(bool_triples.front());
-    bool_triples.pop();
-  }
+  BooleanBeaverTriple* ans = btriple_store.front();
+  btriple_store.pop();
   return ans;
 }
 
 BeaverTriple* CorrelatedStore::getTriple() {
-  if (triples.empty())
+  if (atriple_store.empty())
     addTriples();
-  BeaverTriple* ans = triples.front();
-  triples.pop();
+  BeaverTriple* ans = atriple_store.front();
+  atriple_store.pop();
   return ans;
 }
 
 DaBit* CorrelatedStore::getDaBit() {
-  if (dabits.empty())
+  if (dabit_store.empty())
     addDaBits();
-  DaBit* ans = dabits.front();
-  dabits.pop();
+  DaBit* ans = dabit_store.front();
+  dabit_store.pop();
   return ans;
 }
 
 EdaBit* CorrelatedStore::getEdaBit() {
-  if (edabits.empty())
+  if (edabit_store.empty())
     addEdaBits();
-  EdaBit* ans = edabits.front();
-  edabits.pop();
+  EdaBit* ans = edabit_store.front();
+  edabit_store.pop();
   return ans;
 }
 
 void CorrelatedStore::maybeUpdate() {
   std::cout << "precomputing..." << std::endl;
   auto start = clock_start();
-  if (edabits.size() < batch_size / 2)
+  if (edabit_store.size() < batch_size / 2)
     addEdaBits();
   if (!lazy) {
-    if (dabits.size() < batch_size / 2)
+    if (dabit_store.size() < batch_size / 2)
       addDaBits();
-    if (triples.size() < batch_size / 2)
+    if (atriple_store.size() < batch_size / 2)
       addTriples();
   }
-  if (bool_triples.size() < bool_batch_size / 2)
+  if (btriple_store.size() < bool_batch_size / 2)
     addBoolTriples();
   std::cout << "Current store sizes:" << std::endl;
-  std::cout << "       Edabits: " << edabits.size() << std::endl;
-  std::cout << "        Dabits: " << dabits.size() << std::endl;
-  std::cout << " Arith Triples: " << triples.size() << std::endl;
-  std::cout << " Bool  Triples: " << bool_triples.size() << std::endl;
+  std::cout << "       EdaBits: " << edabit_store.size() << std::endl;
+  std::cout << "        Dabits: " << dabit_store.size() << std::endl;
+  std::cout << " Arith Triples: " << atriple_store.size() << std::endl;
+  std::cout << " Bool  Triples: " << btriple_store.size() << std::endl;
   std::cout << "precompute timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+}
+
+bool* CorrelatedStore::multiplyBoolShares(const size_t N,
+                                          const bool* const x,
+                                          const bool* const y) {
+  bool* z = new bool[N];
+
+  bool* d_this = new bool[N];
+  bool* e_this = new bool[N];
+  for (unsigned int i = 0; i < N; i++) {
+    BooleanBeaverTriple* triple = getBoolTriple();
+    d_this[i] = x[i] ^ triple->a;
+    e_this[i] = y[i] ^ triple->b;
+    send_bool(serverfd, d_this[i]);
+    send_bool(serverfd, e_this[i]);
+
+    z[i] = triple->c;
+
+    delete triple;
+  }
+  for (unsigned int i = 0; i < N; i++) {
+    bool d_other, e_other;
+    recv_bool(serverfd, d_other);
+    recv_bool(serverfd, e_other);
+
+    bool d = d_this[i] ^ d_other;
+    bool e = e_this[i] ^ e_other;
+    z[i] ^= (x[i] and e) ^ (y[i] and d);
+    if (server_num == 0)
+      z[i] ^= (d and e);
+  }
+
+  delete[] d_this;
+  delete[] e_this;
+
+  return z;
+}
+
+fmpz_t* CorrelatedStore::multiplyArithmeticShares(const size_t N,
+                                                  const fmpz_t* const x,
+                                                  const fmpz_t* const y) {
+  fmpz_t* z; new_fmpz_array(&z, N);
+
+  fmpz_t* d; new_fmpz_array(&d, N);
+  fmpz_t* e; new_fmpz_array(&e, N);
+  fmpz_t d_other; fmpz_init(d_other);
+  fmpz_t e_other; fmpz_init(e_other);
+
+  for (unsigned int i = 0; i < N; i++) {
+    BeaverTriple* triple = getTriple();
+
+    fmpz_sub(d[i], x[i], triple->A);  // [d] = [x] - [a]
+    fmpz_mod(d[i], d[i], Int_Modulus);
+    fmpz_sub(e[i], y[i], triple->B);  // [e] = [y] - [b]
+    fmpz_mod(e[i], e[i], Int_Modulus);
+
+    fmpz_set(z[i], triple->C);
+
+    // consume the triple
+    delete triple;
+
+    send_fmpz(serverfd, d[i]);
+    send_fmpz(serverfd, e[i]);
+  }
+
+  for (unsigned int i = 0; i < N; i++) {
+    recv_fmpz(serverfd, d_other);
+    recv_fmpz(serverfd, e_other);
+
+    fmpz_add(d[i], d[i], d_other);  // x - a
+    fmpz_mod(d[i], d[i], Int_Modulus);
+    fmpz_add(e[i], e[i], e_other);  // y - b
+    fmpz_mod(e[i], e[i], Int_Modulus);
+
+    // [xy] = [c] + [x] e + [y] d - de
+    // Is it more efficient using a tmp for product, and modding more?
+    fmpz_addmul(z[i], x[i], e[i]);
+    fmpz_addmul(z[i], y[i], d[i]);
+    if (server_num == 0)
+      fmpz_submul(z[i], d[i], e[i]);
+    fmpz_mod(z[i], z[i], Int_Modulus);
+  }
+
+  fmpz_clear(d_other);
+  fmpz_clear(e_other);
+  clear_fmpz_array(d, N);
+  clear_fmpz_array(e, N);
+
+  return z;
+}
+
+// c_{i+1} = c_i xor ((x_i xor c_i) and (y_i xor c_i))
+// output z_i = x_i xor y_i xor c_i
+bool* CorrelatedStore::addBinaryShares(const size_t N, 
+                                       const bool* const * const x,
+                                       const bool* const * const y,
+                                       bool* const * const z) {
+  bool* carry = new bool[N];
+
+  bool* xi = new bool[N];
+  bool* yi = new bool[N];
+  for (unsigned int i = 0; i < N; i++)
+    carry[i] = false;
+  for (unsigned int j = 0; j < num_bits; j++) {
+    for (unsigned int i = 0; i < N; i++) {
+      z[i][j] = carry[i] ^ x[i][j] ^ y[i][j];
+      xi[i] = carry[i] ^ x[i][j];
+      yi[i] = carry[i] ^ y[i][j];
+    }
+
+    bool* new_carry = multiplyBoolShares(N, xi, yi);
+
+    for (unsigned int i = 0; i < N; i++)
+      carry[i] ^= new_carry[i];
+
+    delete[] new_carry;
+  }
+
+  delete[] xi;
+  delete[] yi;
+
+  return carry;
+}
+
+fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
+  fmpz_t* xp; new_fmpz_array(&xp, N);
+
+  bool* v_this = new bool[N];
+  for (unsigned int i = 0; i < N; i++) {
+    DaBit* dabit = getDaBit();
+    v_this[i] = x[i] ^ dabit->b2;
+    
+    fmpz_set(xp[i], dabit->bp);
+    // consume the daBit
+    delete dabit;
+  }
+  for (unsigned int i = 0; i < N; i++) {
+    send_bool(serverfd, v_this[i]);
+  }
+
+  for (unsigned int i = 0; i < N; i++) {
+    bool v_other;
+    recv_bool(serverfd, v_other);
+    const bool v = v_this[i] ^ v_other;
+
+    // [x]_p = v + [b]_p - 2 v [b]_p. Note v only added for one server.
+    // So since server_num in {0, 1}, we add it when v = 1
+    // Currently, [x]_p is holding [b]_p, which is what we want for v = 0
+    if (v) {  // If v = 1, then [x]_p = (0/1) - [b]_p
+      fmpz_neg(xp[i], xp[i]);
+      fmpz_add_ui(xp[i], xp[i], server_num);
+      fmpz_mod(xp[i], xp[i], Int_Modulus);
+    }
+  }
+
+  delete[] v_this;
+  return xp;
+}
+
+fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N, const fmpz_t* const x) {
+  fmpz_t* xp; new_fmpz_array(&xp, N);
+
+  bool** x2 = new bool*[N];
+  bool** b = new bool*[N];
+  bool** xr = new bool*[N];
+  fmpz_t* ebit_r; new_fmpz_array(&ebit_r, N);
+
+  for (unsigned int i = 0; i < N; i++) {
+    x2[i] = new bool[num_bits];
+    b[i] = new bool[num_bits];
+    xr[i] = new bool[num_bits + 1];
+    EdaBit* edabit = getEdaBit();
+    for (unsigned int j = 0; j < num_bits; j++) {
+      // Convert x2 to bool array
+      x2[i][j] = fmpz_tstbit(x[i], j);
+      b[i][j] = edabit->b[j];
+    }
+    fmpz_set(ebit_r[i], edabit->r);
+
+    // consume edabit
+    delete edabit;
+  }
+  
+  // [x + r]_2 = [x]_2 + [r]_2 via circuit
+  bool* carry = addBinaryShares(N, x2, b, xr);
+
+  for (unsigned int i = 0; i < N; i++) {
+    xr[i][num_bits] = carry[i];
+
+    fmpz_from_bool_array(xp[i], xr[i], num_bits + 1);  // [x + r]_2
+
+    delete[] x2[i];
+    delete[] b[i];
+    delete[] xr[i];
+  }
+  delete[] carry;
+  delete[] x2;
+  delete[] b;
+  delete[] xr;
+
+  // reveal x + r, convert to mod p shares
+  if (server_num == 0) {
+    fmpz_t xr_other; fmpz_init(xr_other);
+    for (unsigned int i = 0; i < N; i++) {
+      recv_fmpz(serverfd, xr_other);     // get other [x + r]_2
+      fmpz_xor(xp[i], xp[i], xr_other);  // real x + r
+    }
+    for (unsigned int i = 0; i < N; i++) {
+      fmpz_randm(xr_other, seed, Int_Modulus);  // other [x + r]_p
+      fmpz_sub(xp[i], xp[i], xr_other);
+      fmpz_mod(xp[i], xp[i], Int_Modulus);  // This [x + r]_p
+      send_fmpz(serverfd, xr_other);
+    }
+    fmpz_clear(xr_other);
+  } else {
+    for (unsigned int i = 0; i < N; i++)
+      send_fmpz(serverfd, xp[i]);
+    for (unsigned int i = 0; i < N; i++)
+      recv_fmpz(serverfd, xp[i]);
+  }
+
+  // [x]_p = [x+r]_p - [r]_p
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_sub(xp[i], xp[i], ebit_r[i]);
+    fmpz_mod(xp[i], xp[i], Int_Modulus);
+  }
+
+  clear_fmpz_array(ebit_r, N);
+
+  return xp;
+}
+
+bool* CorrelatedStore::validateSharesMatch(const size_t N,
+                                           const fmpz_t* const x2,
+                                           const fmpz_t* const xp) {
+  bool* ans = new bool[N];
+
+  // Compute [x2]_p
+  fmpz_t* x2_p = b2a_edaBit(N, x2);
+
+  // Validate: (x2_0 - xp_0) + (x2_1 - xp_1) = 0
+  if (server_num == 0) {
+    fmpz_t x2_p_other; fmpz_init(x2_p_other);
+    for (unsigned int i = 0; i < N; i++) {
+      // x2 - xp
+      fmpz_sub(x2_p[i], x2_p[i], xp[i]);
+      fmpz_mod(x2_p[i], x2_p[i], Int_Modulus);
+      recv_fmpz(serverfd, x2_p_other);
+      fmpz_add(x2_p[i], x2_p[i], x2_p_other);
+      fmpz_mod(x2_p[i], x2_p[i], Int_Modulus);
+    }
+    for (unsigned int i = 0; i < N; i++) {
+      ans[i] = fmpz_is_zero(x2_p[i]);
+      send_bool(serverfd, ans[i]);
+    }
+    fmpz_clear(x2_p_other);
+  } else {
+    for (unsigned int i = 0; i < N; i++) {
+      // x2 - xp
+      fmpz_sub(x2_p[i], x2_p[i], xp[i]);
+      fmpz_mod(x2_p[i], x2_p[i], Int_Modulus);
+      send_fmpz(serverfd, x2_p[i]);
+    }
+    for (unsigned int i = 0; i < N; i++)
+      recv_bool(serverfd, ans[i]);
+  }
+
+  clear_fmpz_array(x2_p, N);
+  return ans;
+}
+
+CorrelatedStore::~CorrelatedStore() {
+  while (!edabit_store.empty()) {
+    EdaBit* bit = edabit_store.front();
+    edabit_store.pop();
+    delete bit;
+  }
+  while (!dabit_store.empty()) {
+    DaBit* bit = dabit_store.front();
+    dabit_store.pop();
+    delete bit;
+  }
+  while (!atriple_store.empty()) {
+    BeaverTriple* triple = atriple_store.front();
+    atriple_store.pop();
+    delete triple;
+  }
+  while (!btriple_store.empty()) {
+    BooleanBeaverTriple* triple = btriple_store.front();
+    btriple_store.pop();
+    delete triple;
+  }
+  delete io0;
+  delete io1;
 }

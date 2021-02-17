@@ -129,38 +129,7 @@ std::string get_pk(const int serverfd) {
     return pk;
 }
 
-// Ensures [share]_2 and [wire]_p encode the same value.
-bool validate_input_wire(const int serverfd, const int server_num, const uint64_t share, const fmpz_t wire, const size_t num_bits) {
-
-    // std::cout << "validating input wire\n";
-    // std::cout << "  share: " << share << std::endl;
-    // std::cout << "  wire: "; fmpz_print(wire); std::cout << std::endl;
-
-    fmpz_t fshare;
-    fmpz_init_set_ui(fshare, share);
-
-    EdaBit* edabit = correlated_store->getEdaBit();
-    auto triples = correlated_store->getBoolTriples(num_bits);
-
-    // edabit->print();
-
-    bool ans = validate_shares_match(serverfd, server_num, fshare, wire, num_bits, edabit, triples);
-
-    fmpz_clear(fshare);
-    delete edabit;
-
-    bool other_ans;
-    send_bool(serverfd, ans);
-    recv_bool(serverfd, other_ans);
-
-    return (ans and other_ans);
-}
-
-bool run_snip(Circuit* const circuit, const ClientPacket* const packet, const int serverfd, const int server_num) {
-
-    Checker* const checker = new Checker(circuit, server_num, packet);
-    const size_t N = circuit->N();
-
+CheckerPreComp* getPrecomp(const size_t N) {
     CheckerPreComp* pre;
     if (precomp_store.find(N) == precomp_store.end()) {
         pre = new CheckerPreComp(N);
@@ -169,33 +138,97 @@ bool run_snip(Circuit* const circuit, const ClientPacket* const packet, const in
     } else {
         pre = precomp_store[N];
     }
-    randx_uses += 1;
+    return pre;
+}
 
-    CorShare* cor_share = checker->CorShareFn(pre);
-    CorShare* cor_share_other = new CorShare();
+// Batch of N (snips + num_input wire/share) validations
+bool* validate_snips(const size_t N,
+                     const size_t num_inputs,
+                     const int serverfd,
+                     const int server_num,
+                     const size_t num_bits,
+                     Circuit* const * const circuit,
+                     const ClientPacket* const * const packet,
+                     const uint64_t* const share
+                     ) {
+    bool* ans = new bool[N];
+    for (unsigned int i = 0; i < N; i++)
+        ans[i] = true;
 
-    send_CorShare(serverfd, cor_share);
-    recv_CorShare(serverfd, cor_share_other);
+    // validate wires
+    // Ensures [share]_2 and [wire]_p encode the same value.
 
-    Cor* const cor = checker->CorFn(cor_share, cor_share_other);
-    fmpz_t valid_share, valid_share_other;
-    fmpz_init(valid_share);
-    fmpz_init(valid_share_other);
-    checker->OutShare(valid_share, cor);
+    fmpz_t* fshare; new_fmpz_array(&fshare, N * num_inputs);
+    fmpz_t* wireshare; new_fmpz_array(&wireshare, N * num_inputs);
 
-    send_fmpz(serverfd, valid_share);
-    recv_fmpz(serverfd, valid_share_other);
+    for (unsigned int i = 0; i < N; i++) {
+        for (unsigned int j = 0; j < num_inputs; j++) {
+            int k = i * num_inputs + j;
+            fmpz_set_ui(fshare[k], share[k]);
+            fmpz_set(wireshare[k], packet[i]->WireShares[j]);
+        }
+    }
 
-    bool circuit_valid = checker->OutputIsValid(valid_share, valid_share_other);
+    bool* valid = correlated_store->validateSharesMatch(
+            N * num_inputs, fshare, wireshare);
 
-    fmpz_clear(valid_share);
+    for (unsigned int i = 0; i < N; i++)
+        for (unsigned int j = 0; j < num_inputs; j++)
+            ans[i] &= valid[i * num_inputs + j];
+
+    clear_fmpz_array(fshare, N * num_inputs);
+    clear_fmpz_array(wireshare, N * num_inputs);
+    delete[] valid;
+
+    // run SNIPs
+
+    init_roots(circuit[0]->N());
+
+    Checker** const checker = new Checker*[N];
+    for (unsigned int i = 0; i < N; i++)
+        checker[i] = new Checker(circuit[i], server_num, packet[i]);
+    CheckerPreComp* pre = getPrecomp(circuit[0]->N());
+    randx_uses += N;
+
+    CorShare** cor_share = new CorShare*[N];
+    for (unsigned int i = 0; i < N; i++) {
+        cor_share[i] = checker[i]->CorShareFn(pre);
+        send_CorShare(serverfd, cor_share[i]);
+    }
+    CorShare** cor_share_other = new CorShare*[N];
+    for (unsigned int i = 0; i < N; i++) {
+        cor_share_other[i] = new CorShare();
+        recv_CorShare(serverfd, cor_share_other[i]);
+    }
+
+    Cor** cor = new Cor*[N];
+    fmpz_t* valid_share; new_fmpz_array(&valid_share, N);
+    for (unsigned int i = 0; i < N; i++) {
+        cor[i] = checker[i]->CorFn(cor_share[i], cor_share_other[i]);
+        checker[i]->OutShare(valid_share[i], cor[i]);
+        send_fmpz(serverfd, valid_share[i]);
+    }
+    fmpz_t valid_share_other; fmpz_init(valid_share_other);
+    for (unsigned int i = 0; i < N; i++) {
+        recv_fmpz(serverfd, valid_share_other);
+        ans[i] &= checker[i]->OutputIsValid(valid_share[i], valid_share_other);
+        // if (!ans[i])
+        //     std::cout << "snip[" << i << "] invalid" << std::endl;
+    }
+
+    for (unsigned int i = 0; i < N; i++) {
+        delete cor[i];
+        delete cor_share_other[i];
+        delete cor_share[i];
+        delete checker[i];
+    }
+    delete[] cor;
+    delete[] cor_share_other;
+    delete[] cor_share;
+    delete[] checker;
+    clear_fmpz_array(valid_share, N);
     fmpz_clear(valid_share_other);
-    delete checker;
-    delete cor_share;
-    delete cor_share_other;
-    delete cor;
-
-    return circuit_valid;
+    return ans;
 }
 
 returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint64_t& ans) {
@@ -609,66 +642,53 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         // For OT
         uint64_t* shares = new uint64_t[num_inputs];
         uint64_t* shares_squared = new uint64_t[num_inputs];
+        ClientPacket** packet = new ClientPacket*[num_inputs];
 
-        bool have_roots_init = false;  // Only run once for N
+        std::string* pk_list = new std::string[num_inputs];
+        Circuit** circuit = new Circuit*[num_inputs];
+        uint64_t* wire_shares = new uint64_t[2 * num_inputs];
 
-        size_t i = 0;
+        size_t idx = 0;
         for (const auto& share : share_map) {
-            std::string pk = share.first;
-            send_out(serverfd, &pk[0], PK_LENGTH);
-            bool other_valid;
-            recv_bool(serverfd, other_valid);
+            send_out(serverfd, &share.first[0], PK_LENGTH);
+            pk_list[idx] = share.first;
+            idx++;
+        }
 
-            ClientPacket* packet;
-            std::tie(shares[i], shares_squared[i], packet) = share.second;
-            i++;
-
-            if (!other_valid) {
-                delete packet;
-                continue;
-            }
-
-            bool wire_valid;
-            wire_valid = validate_input_wire(serverfd, server_num, shares[i-1], packet->WireShares[0], num_bits);
-            if (not wire_valid) {
-                std::cout << " wire invalid" << std::endl;
-                delete packet;
-                continue;
-            }
-            wire_valid = validate_input_wire(serverfd, server_num, shares_squared[i-1], packet->WireShares[1], num_bits);
-            if (not wire_valid) {
-                std::cout << " wire squared invalid" << std::endl;
-                delete packet;
-                continue;
-            }
-
-            // SNIPS
-            Circuit* const circuit = CheckVar();
-            if (not have_roots_init) {
-                init_roots(N);
-                have_roots_init = true;
-            }
-
-            bool circuit_valid = run_snip(circuit, packet, serverfd, server_num);
-            delete packet;
-            delete circuit;
-            // std::cout << " Circuit for " << (i - 1) << " validity: " << std::boolalpha << circuit_valid << std::endl;
-            send_bool(serverfd, circuit_valid);
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            std::tie(shares[i], shares_squared[i], packet[i]) = share_map[pk_list[i]];
+            circuit[i] = CheckVar();
+            wire_shares[2 * i] = shares[i];
+            wire_shares[2 * i + 1] = shares_squared[i];
+        }
+        bool* snip_valid = validate_snips(num_inputs, 2, serverfd, server_num,
+                                          num_bits, circuit, packet, wire_shares);
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            send_bool(serverfd, snip_valid[i]);
         }
 
         // Compute result
         NetIO* const io = new NetIO(SERVER0_IP, 60051, true);
         uint64_t b = intsum_ot_receiver(io, &shares[0], num_inputs, num_bits);
-        send_uint64(serverfd, b);
-
         uint64_t b2 = intsum_ot_receiver(io, &shares_squared[0], num_inputs, num_bits);
+
+        send_uint64(serverfd, b);
         send_uint64(serverfd, b2);
 
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            delete circuit[i];
+            delete packet[i];
+        }
         delete io;
         delete[] shares;
         delete[] shares_squared;
+        delete[] packet;
+        delete[] pk_list;
+        delete[] circuit;
+        delete[] wire_shares;
+        delete[] snip_valid;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
@@ -677,70 +697,60 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         // For OT
         uint64_t* shares = new uint64_t[num_inputs];
         uint64_t* shares_squared = new uint64_t[num_inputs];
+        ClientPacket** packet = new ClientPacket*[num_inputs];
+
         bool* valid = new bool[num_inputs];
+        std::string* pk_list = new std::string[num_inputs];
+        Circuit** circuit = new Circuit*[num_inputs];
+        uint64_t* wire_shares = new uint64_t[2 * num_inputs];
 
-        bool have_roots_init = false;
-
+        std::cout << "getting PKs" << std::endl;
         for (unsigned int i = 0; i < num_inputs; i++) {
             std::string pk = get_pk(serverfd);
-
-            bool is_valid = (share_map.find(pk) != share_map.end());
-            valid[i] = is_valid;
-            send_bool(serverfd, is_valid);
-            if (!is_valid)
-                continue;
-
-            ClientPacket* packet;
-            std::tie(shares[i], shares_squared[i], packet) = share_map[pk];
-
-            bool wire_valid;
-            // std::cout << "shares[" << i << "] = " << shares[i] << std::endl;
-            wire_valid = validate_input_wire(serverfd, server_num, shares[i], packet->WireShares[0], num_bits);
-            if (not wire_valid) {
-                std::cout << " wire invalid" << std::endl;
-                valid[i] = false;
-                continue;
+            pk_list[i] = pk;
+            valid[i] = (share_map.find(pk) != share_map.end());
+        }
+        std::cout << "unpacking" << std::endl;
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            if (valid[i]) {
+                std::tie(shares[i], shares_squared[i], packet[i]) = share_map[pk_list[i]];
+            } else {
+                packet[i] = new ClientPacket(N, NWires);  // mock empty packet
             }
-            wire_valid = validate_input_wire(serverfd, server_num, shares_squared[i], packet->WireShares[1], num_bits);
-            if (not wire_valid) {
-                std::cout << " wire squared invalid" << std::endl;
-                valid[i] = false;
-                continue;
-            }
-
-            Circuit* const circuit = CheckVar();
-            if (not have_roots_init) {
-                init_roots(N);
-                have_roots_init = true;
-            }
-
-            bool circuit_valid = run_snip(circuit, packet, serverfd, server_num);
-            delete circuit;
-            if (!circuit_valid)
-                valid[i] = false;
-            // std::cout << " Circuit for " << i << " validity: " << std::boolalpha << circuit_valid << std::endl;
-
+            circuit[i] = CheckVar();
+            wire_shares[2 * i] = shares[i];
+            wire_shares[2 * i + 1] = shares_squared[i];
+        }
+        std::cout << "validating snips" << std::endl;
+        bool* snip_valid = validate_snips(num_inputs, 2, serverfd, server_num,
+                                          num_bits, circuit, packet, wire_shares);
+        std::cout << "getting valid" << std::endl;
+        for (unsigned int i = 0; i < num_inputs; i++) {
             bool other_valid;
             recv_bool(serverfd, other_valid);
-            if (!other_valid)
-                valid[i] = false;
-            // std::cout << " Other Circuit for " << i << " validity: " << std::boolalpha << other_valid << std::endl;
-
+            valid[i] &= snip_valid[i];
+            valid[i] &= other_valid;
             if (valid[i])
                 num_valid++;
         }
-
-        for (const auto& share : share_map)
-            delete std::get<2>(share.second);
 
         // Compute result
         NetIO* const io = new NetIO(nullptr, 60051, true);
         uint64_t a = intsum_ot_sender(io, &shares[0], &valid[0], num_inputs, num_bits);
         uint64_t a2 = intsum_ot_sender(io, &shares_squared[0], &valid[0], num_inputs, num_bits);
+
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            delete circuit[i];
+            delete packet[i];
+        }
         delete io;
         delete[] shares;
         delete[] shares_squared;
         delete[] valid;
+        delete[] pk_list;
+        delete[] circuit;
+        delete[] wire_shares;
+        delete[] snip_valid;
 
         uint64_t b, b2;
         recv_uint64(serverfd, b);
