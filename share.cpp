@@ -58,7 +58,17 @@ void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {
     fmpz_randm(bit, seed, two);
 
     // random r
-    fmpz_randm(bit0->bp, seed, Int_Modulus);
+    /*
+    If b >= r, then b - r doesn't roll over. This breaks assumptions for making b
+    So we need r > b, so we randomly pick r between b+1 and modulus
+    or, 0 and modulus - (b+1), then add b+1
+    This case only happens odds ~1/p anyways, but since it's local we are free to adjust
+    */
+    fmpz_t adjust_mod; fmpz_init_set(adjust_mod, Int_Modulus);
+    fmpz_t adjust; fmpz_init_set(adjust, bit); fmpz_add_si(adjust, adjust, 1);
+    fmpz_sub(adjust_mod, adjust_mod, adjust);
+    fmpz_randm(bit0->bp, seed, adjust_mod);
+    fmpz_add(bit0->bp, bit0->bp, adjust);
 
     // b - r
     fmpz_sub(bit1->bp, bit, bit0->bp);
