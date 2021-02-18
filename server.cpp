@@ -512,7 +512,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     int num_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        num_bytes += recv_in(clientfd, &share, sizeof(MaxShare));
+        num_bytes += recv_in(clientfd, &share, PK_LENGTH);
         std::string pk(share.pk, share.pk + PK_LENGTH);
 
         num_bytes += recv_in(clientfd, &shares[i*(B+1)], share_sz);

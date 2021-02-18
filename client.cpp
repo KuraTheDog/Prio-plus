@@ -56,7 +56,7 @@ std::string pub_key_to_hex(const uint64_t* const key) {
 int send_maxshare(const MaxShare& maxshare, const int server_num, const unsigned int B) {
     int sock = (server_num == 0) ? sockfd0 : sockfd1;
 
-    int ret = send(sock, (void *)&maxshare, sizeof(MaxShare), 0);
+    int ret = send(sock, (void *)&maxshare, PK_LENGTH, 0);
 
     for (unsigned int i = 0; i <= B; i++)
         ret += send(sock, (void *)&(maxshare.arr[i]), sizeof(uint32_t), 0);
@@ -623,7 +623,7 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
 }
 
 void max_op(const std::string protocol, const size_t numreqs) {
-    const unsigned int B = 250;
+    const uint64_t B = max_int;
 
     uint32_t ans;
     int num_bytes = 0;
@@ -1028,7 +1028,9 @@ int main(int argc, char** argv) {
 
     if (argc >= 6) {
         int num_bits = atoi(argv[5]);
+        std::cout << "num bits: " << num_bits << std::endl;
         max_int = 1ULL << num_bits;
+        std::cout << "max int: " << max_int << std::endl;
         small_max_int = 1ULL << (num_bits / 2);
         if (num_bits > 63) {
             error_exit("Num bits is too large. Int math is done mod 2^64.");
