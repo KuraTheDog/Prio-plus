@@ -266,15 +266,15 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
     std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     start = clock_start();
 
-    // if (fork() > 0) return RET_NO_ANS;
+    int server_bytes = 0;
 
     if (server_num == 1) {
         const unsigned int num_inputs = share_map.size();
-        send_size(serverfd, num_inputs);
+        server_bytes += send_size(serverfd, num_inputs);
         bool* shares = new bool[num_inputs];
         int i = 0;
         for (const auto& share : share_map) {
-            send_out(serverfd, &share.first[0], PK_LENGTH);
+            server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             shares[i] = share.second;
             i++;
         }
@@ -285,6 +285,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
 
         send_uint64(serverfd, b);
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
@@ -349,15 +350,15 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
     std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     start = clock_start();
 
-    // if (fork() > 0) return RET_NO_ANS;
+    int server_bytes = 0;
 
     if (server_num == 1) {
         const unsigned int num_inputs = share_map.size();
-        send_size(serverfd, num_inputs);
+        server_bytes += send_size(serverfd, num_inputs);
         uint64_t* shares = new uint64_t[num_inputs];
         int i = 0;
         for (const auto& share : share_map) {
-            send_out(serverfd, &share.first[0], PK_LENGTH);
+            server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             shares[i] = share.second;
             i++;
         }
@@ -368,6 +369,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
 
         send_uint64(serverfd, b);
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
@@ -428,16 +430,16 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
     std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     start = clock_start();
 
-    // if (fork() > 0) return RET_NO_ANS;
+    int server_bytes = 0;
 
     if (server_num == 1) {
         const unsigned int num_inputs = share_map.size();
-        send_size(serverfd, num_inputs);
+        server_bytes += send_size(serverfd, num_inputs);
         uint64_t b = 0;
         std::string* pk_list = new std::string[num_inputs];
         size_t idx = 0;
         for (const auto& share : share_map) {
-            send_out(serverfd, &share.first[0], PK_LENGTH);
+            server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             pk_list[idx] = share.first;
             idx++;
         }
@@ -451,6 +453,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
         send_uint64(serverfd, b);
         delete[] pk_list;
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
@@ -467,7 +470,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
             a ^= share_map[pk];
         }
         for (unsigned int i = 0; i < num_inputs; i++) {
-            send_bool(serverfd, valid[i]);
+            server_bytes += send_bool(serverfd, valid[i]);
         }
         delete[] valid;
 
@@ -477,6 +480,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "sent server bytes: " << server_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             return RET_INVALID;
@@ -523,17 +527,17 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
     std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     start = clock_start();
 
-    // if (fork() > 0) return RET_NO_ANS;
+    int server_bytes = 0;
 
     if (server_num == 1) {
         const unsigned int num_inputs = share_map.size();
-        send_size(serverfd, num_inputs);
+        server_bytes += send_size(serverfd, num_inputs);
         uint32_t b[B+1];
         memset(b, 0, sizeof(b));
         std::string* pk_list = new std::string[num_inputs];
         size_t idx = 0;
         for (const auto& share : share_map) {
-            send_out(serverfd, &share.first[0], PK_LENGTH);
+            server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             pk_list[idx] = share.first;
             idx++;
         }
@@ -549,6 +553,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         delete[] shares;
         delete[] pk_list;
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;;
@@ -567,7 +572,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
                 a[j] ^= share_map[pk][j];
         }
         for (unsigned int i = 0; i < num_inputs; i++) {
-            send_bool(serverfd, valid[i]);
+            server_bytes += send_bool(serverfd, valid[i]);
         }
         delete[] shares;
         delete[] valid;
@@ -576,9 +581,9 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "sent server bytes: " << server_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
-            std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
             return RET_INVALID;
         }
 
@@ -718,13 +723,11 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         Circuit** circuit = new Circuit*[num_inputs];
         uint64_t* wire_shares = new uint64_t[2 * num_inputs];
 
-        std::cout << "getting PKs" << std::endl;
         for (unsigned int i = 0; i < num_inputs; i++) {
             std::string pk = get_pk(serverfd);
             pk_list[i] = pk;
             valid[i] = (share_map.find(pk) != share_map.end());
         }
-        std::cout << "unpacking" << std::endl;
         for (unsigned int i = 0; i < num_inputs; i++) {
             if (valid[i]) {
                 std::tie(shares[i], shares_squared[i], packet[i]) = share_map[pk_list[i]];
@@ -735,10 +738,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             wire_shares[2 * i] = shares[i];
             wire_shares[2 * i + 1] = shares_squared[i];
         }
-        std::cout << "validating snips" << std::endl;
         bool* snip_valid = validate_snips(num_inputs, 2, serverfd, server_num,
                                           num_bits, circuit, packet, wire_shares);
-        std::cout << "getting valid" << std::endl;
         for (unsigned int i = 0; i < num_inputs; i++) {
             bool other_valid;
             recv_bool(serverfd, other_valid);

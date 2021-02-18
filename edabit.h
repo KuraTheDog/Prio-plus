@@ -48,8 +48,8 @@ public:
   {
     if (lazy)
       std::cout << "Doing fast but insecure precomputes." << std::endl;
-    io0 = new NetIO(server_num == 0 ? nullptr : server0_ip, 60051, true);
-    io1 = new NetIO(server_num == 1 ? nullptr : server1_ip, 60052, true);
+    io0 = new NetIO(server_num == 0 ? nullptr : server0_ip, 60052, true);
+    io1 = new NetIO(server_num == 1 ? nullptr : server1_ip, 60053, true);
   }
 
   ~CorrelatedStore();

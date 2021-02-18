@@ -167,46 +167,10 @@ EdaBit** CorrelatedStore::generateEdaBit(const size_t N) {
   return edabit;
 }
 
-void makeLocalBoolTriple(BooleanBeaverTriple* x, BooleanBeaverTriple* y) {
-  fmpz_t two; fmpz_init_set_ui(two, 2);
-  fmpz_t tmp; fmpz_init(tmp);
-  fmpz_randm(tmp, seed, two); x->a = fmpz_is_zero(tmp);
-  fmpz_randm(tmp, seed, two); y->a = fmpz_is_zero(tmp);
-  fmpz_randm(tmp, seed, two); x->b = fmpz_is_zero(tmp);
-  fmpz_randm(tmp, seed, two); y->b = fmpz_is_zero(tmp);
-  fmpz_randm(tmp, seed, two); x->c = fmpz_is_zero(tmp);
-
-  y->c = ((x->a ^ y->a) and (x->b ^ y->b)) ^ x->c;
-
-  fmpz_clear(tmp);
-  fmpz_clear(two);
-}
-
 void CorrelatedStore::addBoolTriples(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > bool_batch_size ? n : bool_batch_size);
-
-  if (lazy) {
-    if (server_num == 0) {  // make on server 0
-      BooleanBeaverTriple* other_triple = new BooleanBeaverTriple();
-      for (unsigned int i = 0; i < num_to_make; i++) {
-        BooleanBeaverTriple* triple = new BooleanBeaverTriple();
-        makeLocalBoolTriple(triple, other_triple);
-        send_BooleanBeaverTriple(serverfd, other_triple);
-        btriple_store.push(triple);
-      }
-      delete other_triple;
-    } else {
-      for (unsigned int i = 0; i < num_to_make; i++) {
-        BooleanBeaverTriple* triple = new BooleanBeaverTriple();
-        recv_BooleanBeaverTriple(serverfd, triple);
-        btriple_store.push(triple);
-      }
-    }
-
-    return;
-  }
-
+  std::cout << "adding booltriples: " << num_to_make << std::endl;
   std::queue<BooleanBeaverTriple*> new_triples = gen_boolean_beaver_triples(server_num, num_to_make, io0, io1);
   for (unsigned int i = 0; i < num_to_make; i++) {
     btriple_store.push(new_triples.front());
@@ -219,16 +183,19 @@ void CorrelatedStore::addBoolTriples(const size_t n) {
 void CorrelatedStore::addTriples(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > batch_size ? n : batch_size);
+  std::cout << "adding triples: " << num_to_make << std::endl;
+  std::cout << "Using lazy beaver triples" << std::endl;
   for (unsigned int i = 0; i < num_to_make; i++) {
     BeaverTriple* triple = generate_beaver_triple_lazy(serverfd, server_num);
     atriple_store.push(triple);
   }
- std::cout << "addTriples timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+  std::cout << "addTriples timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }
 
 void CorrelatedStore::addDaBits(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > batch_size ? n : batch_size);
+  std::cout << "adding dabits: " << num_to_make << std::endl;
   DaBit** dabit = generateDaBit(num_to_make);
   for (unsigned int i = 0; i < num_to_make; i++)
     dabit_store.push(dabit[i]);
@@ -239,7 +206,7 @@ void CorrelatedStore::addDaBits(const size_t n) {
 void CorrelatedStore::addEdaBits(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > batch_size ? n : batch_size);
-
+  std::cout << "adding edabits: " << num_to_make << std::endl;
   if (lazy) {
     if (server_num == 0) {  // make on server 0
       EdaBit* other_edabit = new EdaBit(num_bits);
@@ -257,7 +224,7 @@ void CorrelatedStore::addEdaBits(const size_t n) {
         edabit_store.push(edabit);
       }
     }
-
+    std::cout << "lazy addEdaBits timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     return;
   }
 
@@ -304,9 +271,19 @@ EdaBit* CorrelatedStore::getEdaBit() {
 void CorrelatedStore::maybeUpdate() {
   std::cout << "precomputing..." << std::endl;
   auto start = clock_start();
+  if (!lazy) {
+    if (btriple_store.size() < bool_batch_size / 2)
+      addBoolTriples();
+    if (atriple_store.size() < batch_size / 2)
+      addTriples();
+    if (dabit_store.size() < batch_size / 2)
+      addDaBits();
+  }
   if (edabit_store.size() < batch_size / 2)
     addEdaBits();
   if (!lazy) {
+    if (atriple_store.size() < batch_size / 2)
+      addTriples();
     if (dabit_store.size() < batch_size / 2)
       addDaBits();
     if (atriple_store.size() < batch_size / 2)

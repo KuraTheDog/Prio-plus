@@ -196,7 +196,7 @@ uint64_t intsum_ot_receiver(NetIO* const io, const uint64_t* const shares, const
 }
 
 // Functions to convert XOR shared input values to shares that add up
-// Problem : Do they add up with Int_Modulus?
+// Add up base 2^64
 uint64_t xor_to_sum_share_sender(NetIO* const io, const uint64_t share, const size_t num_bits){
     PRG prg(fix_key);
 
