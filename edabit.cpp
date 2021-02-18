@@ -310,12 +310,16 @@ bool* CorrelatedStore::multiplyBoolShares(const size_t N,
     BooleanBeaverTriple* triple = getBoolTriple();
     d_this[i] = x[i] ^ triple->a;
     e_this[i] = y[i] ^ triple->b;
-    send_bool(serverfd, d_this[i]);
-    send_bool(serverfd, e_this[i]);
-
     z[i] = triple->c;
-
     delete triple;
+  }
+  int pid = fork(), status = 0;
+  if (pid == 0) {
+    for (unsigned int i = 0; i < N; i++) {
+      send_bool(serverfd, d_this[i]);
+      send_bool(serverfd, e_this[i]);
+    }
+    exit(EXIT_SUCCESS);
   }
   for (unsigned int i = 0; i < N; i++) {
     bool d_other, e_other;
@@ -332,6 +336,7 @@ bool* CorrelatedStore::multiplyBoolShares(const size_t N,
   delete[] d_this;
   delete[] e_this;
 
+  waitpid(pid, &status, 0);
   return z;
 }
 
