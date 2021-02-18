@@ -54,6 +54,7 @@ struct BeaverTriple {
     }
 };
 
+// I kind of want ot just combine this with BeaverTriple, since it's the same
 struct BeaverTripleShare {
     fmpz_t shareA;
     fmpz_t shareB;

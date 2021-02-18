@@ -190,7 +190,7 @@ bool* validate_snips(const size_t N,
     CheckerPreComp* pre = getPrecomp(circuit[0]->N());
     randx_uses += N;
 
-    int pid, status = 0;
+    pid_t pid, status = 0;
 
     CorShare** cor_share = new CorShare*[N];
     for (unsigned int i = 0; i < N; i++)
@@ -654,9 +654,11 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     // if (fork() > 0) return RET_NO_ANS;
 
+    int server_bytes = 0;
+
     if (server_num == 1) {
         const unsigned int num_inputs = share_map.size();
-        send_size(serverfd, num_inputs);
+        server_bytes += send_size(serverfd, num_inputs);
 
         // For OT
         uint64_t* shares = new uint64_t[num_inputs];
@@ -669,7 +671,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            send_out(serverfd, &share.first[0], PK_LENGTH);
+            server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             pk_list[idx] = share.first;
             idx++;
         }
@@ -683,7 +685,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         bool* snip_valid = validate_snips(num_inputs, 2, serverfd, server_num,
                                           num_bits, circuit, packet, wire_shares);
         for (unsigned int i = 0; i < num_inputs; i++) {
-            send_bool(serverfd, snip_valid[i]);
+            server_bytes += send_bool(serverfd, snip_valid[i]);
         }
 
         // Compute result
@@ -695,6 +697,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         send_uint64(serverfd, b2);
 
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             delete circuit[i];
@@ -773,6 +776,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             return RET_INVALID;

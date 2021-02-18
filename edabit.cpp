@@ -29,7 +29,7 @@ DaBit** CorrelatedStore::generateDaBit(const size_t N) {
     makeLocalDaBit(dabit0[i], dabit1[i]);
   }
   // Exchange
-  int pid = fork(), status = 0;
+  pid_t pid = fork(), status = 0;
   if (pid == 0) {
     for (unsigned int i = 0; i < N; i++) {
       if (server_num == 0) {
@@ -97,7 +97,7 @@ EdaBit** CorrelatedStore::generateEdaBit(const size_t N) {
     makeLocalEdaBit(edabit0[i], edabit1[i], num_bits);
   }
   // Exchange
-  int pid = fork(), status = 0;
+  pid_t pid = fork(), status = 0;
   if (pid == 0) {
     for (unsigned int i = 0; i < N; i++) {
       if (server_num == 0) {
@@ -313,7 +313,7 @@ bool* CorrelatedStore::multiplyBoolShares(const size_t N,
     z[i] = triple->c;
     delete triple;
   }
-  int pid = fork(), status = 0;
+  pid_t pid = fork(), status = 0;
   if (pid == 0) {
     for (unsigned int i = 0; i < N; i++) {
       send_bool(serverfd, d_this[i]);
@@ -365,7 +365,7 @@ fmpz_t* CorrelatedStore::multiplyArithmeticShares(const size_t N,
   }
 
   // Spawn a child to do the sending, so that can recieve at the same time
-  int pid = fork(), status = 0;
+  pid_t pid = fork(), status = 0;
   if (pid == 0) {
     for (unsigned int i = 0; i < N; i++) {
       send_fmpz(serverfd, d[i]);
@@ -448,7 +448,7 @@ fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
     // consume the daBit
     delete dabit;
   }
-  int pid = fork(), status = 0;
+  pid_t pid = fork(), status = 0;
   if (pid == 0) {
     for (unsigned int i = 0; i < N; i++) {
       send_bool(serverfd, v_this[i]);
