@@ -1,5 +1,8 @@
 /* edaBit related logic, for share conversion.
 Based on ia.cr/2020/338
+
+Due to send buffers potentially filling up, it forks out a child to do sending, while parent receives.
+It also waits for the child to finish before exiting or moving to a substep that will send, to stay synced.
 */
 #include "edabit.h"
 
@@ -24,12 +27,18 @@ DaBit** CorrelatedStore::generateDaBit(const size_t N) {
     dabit0[i] = new DaBit();
     dabit1[i] = new DaBit();
     makeLocalDaBit(dabit0[i], dabit1[i]);
-    // Exchange
-    if (server_num == 0) {
-      send_DaBit(serverfd, dabit1[i]);
-    } else {
-      send_DaBit(serverfd, dabit0[i]);
+  }
+  // Exchange
+  int pid = fork(), status = 0;
+  if (pid == 0) {
+    for (unsigned int i = 0; i < N; i++) {
+      if (server_num == 0) {
+        send_DaBit(serverfd, dabit1[i]);
+      } else {
+        send_DaBit(serverfd, dabit0[i]);
+      }
     }
+    exit(EXIT_SUCCESS);
   }
 
   for (unsigned int i = 0; i < N; i++) {
@@ -51,6 +60,8 @@ DaBit** CorrelatedStore::generateDaBit(const size_t N) {
   }
   delete[] dabit0;
   delete[] dabit1;
+
+  waitpid(pid, &status, 0);
 
   // Xor Arithmetic shares, using a xor b = a + b - 2ab
   fmpz_t* z = multiplyArithmeticShares(N, x, y);
@@ -84,13 +95,18 @@ EdaBit** CorrelatedStore::generateEdaBit(const size_t N) {
     edabit0[i] = new EdaBit(num_bits);
     edabit1[i] = new EdaBit(num_bits);
     makeLocalEdaBit(edabit0[i], edabit1[i], num_bits);
-
-    // Exchange
-    if (server_num == 0) {
-      send_EdaBit(serverfd, edabit1[i], num_bits);
-    } else {
-      send_EdaBit(serverfd, edabit0[i], num_bits);
+  }
+  // Exchange
+  int pid = fork(), status = 0;
+  if (pid == 0) {
+    for (unsigned int i = 0; i < N; i++) {
+      if (server_num == 0) {
+        send_EdaBit(serverfd, edabit1[i], num_bits);
+      } else {
+        send_EdaBit(serverfd, edabit0[i], num_bits);
+      }
     }
+    exit(EXIT_SUCCESS);
   }
 
   for (unsigned int i = 0; i < N; i++) {
@@ -117,6 +133,8 @@ EdaBit** CorrelatedStore::generateEdaBit(const size_t N) {
   delete[] edabit0;
   delete[] edabit1;
 
+  waitpid(pid, &status, 0);
+
   // Add binary shares via circuit
   bool* carry = addBinaryShares(N, b0, b1, b);
 
@@ -134,9 +152,6 @@ EdaBit** CorrelatedStore::generateEdaBit(const size_t N) {
     fmpz_submul(edabit[i]->r, carry_p[i], pow);
     fmpz_mod(edabit[i]->r, edabit[i]->r, Int_Modulus);
 
-    for (unsigned int j = 0; j < num_bits; j++) {  // memcpy?
-      edabit[i]->b[j] = b[i][j];
-    }
     memcpy(edabit[i]->b, b[i], num_bits * sizeof(bool));
 
     delete[] b[i];
@@ -365,9 +380,16 @@ fmpz_t* CorrelatedStore::multiplyArithmeticShares(const size_t N,
 
     // consume the triple
     delete triple;
+  }
 
-    send_fmpz(serverfd, d[i]);
-    send_fmpz(serverfd, e[i]);
+  // Spawn a child to do the sending, so that can recieve at the same time
+  int pid = fork(), status = 0;
+  if (pid == 0) {
+    for (unsigned int i = 0; i < N; i++) {
+      send_fmpz(serverfd, d[i]);
+      send_fmpz(serverfd, e[i]);
+    }
+    exit(EXIT_SUCCESS);
   }
 
   for (unsigned int i = 0; i < N; i++) {
@@ -392,6 +414,9 @@ fmpz_t* CorrelatedStore::multiplyArithmeticShares(const size_t N,
   fmpz_clear(e_other);
   clear_fmpz_array(d, N);
   clear_fmpz_array(e, N);
+
+  // Wait for send child to finish
+  waitpid(pid, &status, 0);
 
   return z;
 }
@@ -441,8 +466,12 @@ fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
     // consume the daBit
     delete dabit;
   }
-  for (unsigned int i = 0; i < N; i++) {
-    send_bool(serverfd, v_this[i]);
+  int pid = fork(), status = 0;
+  if (pid == 0) {
+    for (unsigned int i = 0; i < N; i++) {
+      send_bool(serverfd, v_this[i]);
+    }
+    exit(EXIT_SUCCESS);
   }
 
   for (unsigned int i = 0; i < N; i++) {
@@ -461,6 +490,9 @@ fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
   }
 
   delete[] v_this;
+
+  waitpid(pid, &status, 0);
+
   return xp;
 }
 
