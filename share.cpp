@@ -14,6 +14,14 @@ void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B) {
     fmpz_mod(B, B, Int_Modulus);
 }
 
+Cor::Cor(const CorShare* const x, const CorShare* const y) : Cor() {
+    fmpz_add(D, x->shareD, y->shareD);
+    fmpz_mod(D, D, Int_Modulus);
+
+    fmpz_add(E, x->shareE, y->shareE);
+    fmpz_mod(E, E, Int_Modulus);
+}
+
 // Unused?
 /*
 void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B, const int num_bits) {

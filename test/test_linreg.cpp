@@ -80,8 +80,8 @@ void test_CheckLinReg() {
   auto corshare0 = checker_0->CorShareFn(pre0);
   auto corshare1 = checker_1->CorShareFn(pre1);
 
-  auto cor0 = checker_0->CorFn(corshare0,corshare1);
-  auto cor1 = checker_1->CorFn(corshare0,corshare1);
+  Cor* cor0 = new Cor(corshare0, corshare1);
+  Cor* cor1 = new Cor(corshare0, corshare1);
 
   fmpz_t out0, out1;
   fmpz_init(out0);
@@ -90,8 +90,8 @@ void test_CheckLinReg() {
   checker_0->OutShare(out0,cor0);
   checker_1->OutShare(out1,cor1);
 
-  bool result0 = checker_0->OutputIsValid(out0,out1);
-  bool result1 = checker_1->OutputIsValid(out0,out1);
+  bool result0 = AddToZero(out0, out1);
+  bool result1 = AddToZero(out0, out1);
 
   std::cout << "out0 : "; fmpz_print(out0); std::cout << ", out1 : "; fmpz_print(out1); std::cout << std::endl;
 

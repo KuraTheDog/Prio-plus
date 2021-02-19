@@ -6,6 +6,8 @@
 // For fmpz types
 #include "fmpz_utils.h"
 
+struct CorShare;
+
 struct Cor {
     fmpz_t D;
     fmpz_t E;
@@ -15,12 +17,15 @@ struct Cor {
         fmpz_init(E);
     }
 
+    Cor(const CorShare* const x, const CorShare* const y);
+
     ~Cor(){
         fmpz_clear(D);
         fmpz_clear(E);
     }
 };
 
+// Combine with Cor?
 struct CorShare {
     fmpz_t shareD;
     fmpz_t shareE;

@@ -203,19 +203,18 @@ bool* validate_snips(const size_t N,
         exit(EXIT_SUCCESS);
     }
 
-    CorShare** cor_share_other = new CorShare*[N];
+    fmpz_t* valid_share; new_fmpz_array(&valid_share, N);
+    CorShare* cor_share_other = new CorShare();
     for (unsigned int i = 0; i < N; i++) {
-        cor_share_other[i] = new CorShare();
-        recv_CorShare(serverfd, cor_share_other[i]);
+        cor_share_other = new CorShare();
+        recv_CorShare(serverfd, cor_share_other);
+
+        Cor* cor = new Cor(cor_share[i], cor_share_other);
+        checker[i]->OutShare(valid_share[i], cor);
+        delete cor;
     }
     waitpid(pid, &status, 0);
 
-    Cor** cor = new Cor*[N];
-    fmpz_t* valid_share; new_fmpz_array(&valid_share, N);
-    for (unsigned int i = 0; i < N; i++) {
-        cor[i] = checker[i]->CorFn(cor_share[i], cor_share_other[i]);
-        checker[i]->OutShare(valid_share[i], cor[i]);
-    }
     // TODO: Can be simplified: one sends share, other sends if valid
     pid = fork();
     if (pid == 0) {
@@ -226,17 +225,13 @@ bool* validate_snips(const size_t N,
     fmpz_t valid_share_other; fmpz_init(valid_share_other);
     for (unsigned int i = 0; i < N; i++) {
         recv_fmpz(serverfd, valid_share_other);
-        ans[i] &= checker[i]->OutputIsValid(valid_share[i], valid_share_other);
+        ans[i] &= AddToZero(valid_share[i], valid_share_other);
     }
 
     for (unsigned int i = 0; i < N; i++) {
-        delete cor[i];
-        delete cor_share_other[i];
         delete cor_share[i];
         delete checker[i];
     }
-    delete[] cor;
-    delete[] cor_share_other;
     delete[] cor_share;
     delete[] checker;
     clear_fmpz_array(valid_share, N);
