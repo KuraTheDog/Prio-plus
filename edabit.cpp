@@ -315,19 +315,20 @@ bool* CorrelatedStore::multiplyBoolShares(const size_t N,
   }
   pid_t pid = fork(), status = 0;
   if (pid == 0) {
-    for (unsigned int i = 0; i < N; i++) {
-      send_bool(serverfd, d_this[i]);
-      send_bool(serverfd, e_this[i]);
-    }
+    send_bool_batch(serverfd, d_this, N);
+    send_bool_batch(serverfd, e_this, N);
+
     exit(EXIT_SUCCESS);
   }
-  for (unsigned int i = 0; i < N; i++) {
-    bool d_other, e_other;
-    recv_bool(serverfd, d_other);
-    recv_bool(serverfd, e_other);
 
-    bool d = d_this[i] ^ d_other;
-    bool e = e_this[i] ^ e_other;
+  bool* d_other = new bool[N];
+  bool* e_other = new bool[N];
+  recv_bool_batch(serverfd, d_other, N);
+  recv_bool_batch(serverfd, e_other, N);
+
+  for (unsigned int i = 0; i < N; i++) {
+    bool d = d_this[i] ^ d_other[i];
+    bool e = e_this[i] ^ e_other[i];
     z[i] ^= (x[i] and e) ^ (y[i] and d);
     if (server_num == 0)
       z[i] ^= (d and e);
@@ -335,6 +336,8 @@ bool* CorrelatedStore::multiplyBoolShares(const size_t N,
 
   delete[] d_this;
   delete[] e_this;
+  delete[] d_other;
+  delete[] e_other;
 
   waitpid(pid, &status, 0);
   return z;
@@ -450,16 +453,15 @@ fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
   }
   pid_t pid = fork(), status = 0;
   if (pid == 0) {
-    for (unsigned int i = 0; i < N; i++) {
-      send_bool(serverfd, v_this[i]);
-    }
+    send_bool_batch(serverfd, v_this, N);
+
     exit(EXIT_SUCCESS);
   }
 
+  bool* v_other = new bool[N];
+  recv_bool_batch(serverfd, v_other, N);
   for (unsigned int i = 0; i < N; i++) {
-    bool v_other;
-    recv_bool(serverfd, v_other);
-    const bool v = v_this[i] ^ v_other;
+    const bool v = v_this[i] ^ v_other[i];
 
     // [x]_p = v + [b]_p - 2 v [b]_p. Note v only added for one server.
     // So since server_num in {0, 1}, we add it when v = 1
@@ -472,6 +474,7 @@ fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
   }
 
   delete[] v_this;
+  delete[] v_other;
 
   waitpid(pid, &status, 0);
 
@@ -569,11 +572,10 @@ bool* CorrelatedStore::validateSharesMatch(const size_t N,
       recv_fmpz(serverfd, x2_p_other);
       fmpz_add(x2_p[i], x2_p[i], x2_p_other);
       fmpz_mod(x2_p[i], x2_p[i], Int_Modulus);
-    }
-    for (unsigned int i = 0; i < N; i++) {
       ans[i] = fmpz_is_zero(x2_p[i]);
-      send_bool(serverfd, ans[i]);
     }
+    send_bool_batch(serverfd, ans, N);
+
     fmpz_clear(x2_p_other);
   } else {
     for (unsigned int i = 0; i < N; i++) {
@@ -582,8 +584,7 @@ bool* CorrelatedStore::validateSharesMatch(const size_t N,
       fmpz_mod(x2_p[i], x2_p[i], Int_Modulus);
       send_fmpz(serverfd, x2_p[i]);
     }
-    for (unsigned int i = 0; i < N; i++)
-      recv_bool(serverfd, ans[i]);
+    recv_bool_batch(serverfd, ans, N);
   }
 
   clear_fmpz_array(x2_p, N);

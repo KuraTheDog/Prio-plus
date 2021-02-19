@@ -35,6 +35,37 @@ int recv_bool(const int sockfd, bool& x) {
     return recv_in(sockfd, &x, sizeof(bool));
 }
 
+int send_bool_batch(const int sockfd, const bool* const x, const size_t n) {
+    const size_t len = (n+7) / 8;  // Number of bytes to hold n, aka ceil(n/8)
+    char* buf = new char[len];
+
+    memset(buf, 0, sizeof(char) * len);
+
+    for (unsigned int i = 0; i < n; i++)
+        if (x[i])
+            buf[i / 8] ^= (1 << (i % 8));
+
+    int ret = send(sockfd, buf, len, 0);
+
+    delete[] buf;
+
+    return ret;
+}
+
+int recv_bool_batch(const int sockfd, bool* const x, const size_t n) {
+    const size_t len = (n+7) / 8;
+    char* buf = new char[len];
+
+    int ret = recv_in(sockfd, buf, len);
+
+    for (unsigned int i = 0; i < n; i++)
+        x[i] = (buf[i/8] & (1 << (i % 8)));
+
+    delete[] buf;
+
+    return ret;
+}
+
 int send_int(const int sockfd, const int x) {
     int x_conv = htonl(x);
     const char* data = (const char*) &x_conv;
@@ -299,25 +330,17 @@ int recv_BeaverTripleShare(const int sockfd, BeaverTripleShare* const x) {
 }
 
 int send_BooleanBeaverTriple(const int sockfd, const BooleanBeaverTriple* const x) {
-    int total = 0, ret;
-    ret = send_bool(sockfd, x->a);
-    if (ret <= 0) return ret; else total += ret;
-    ret = send_bool(sockfd, x->b);
-    if (ret <= 0) return ret; else total += ret;
-    ret = send_bool(sockfd, x->c);
-    if (ret <= 0) return ret; else total += ret;
-    return total;
+    bool buf[3] = {x->a, x->b, x->c};
+    return send_bool_batch(sockfd, buf, 3);
 }
 
 int recv_BooleanBeaverTriple(const int sockfd, BooleanBeaverTriple* const x) {
-    int total = 0, ret;
-    ret = recv_bool(sockfd, x->a);
-    if (ret <= 0) return ret; else total += ret;
-    ret = recv_bool(sockfd, x->b);
-    if (ret <= 0) return ret; else total += ret;
-    ret = recv_bool(sockfd, x->c);
-    if (ret <= 0) return ret; else total += ret;
-    return total;
+    bool buf[3];
+    int ret = recv_bool_batch(sockfd, buf, 3);
+    x->a = buf[0];
+    x->b = buf[1];
+    x->c = buf[2];
+    return ret;
 }
 
 int send_DaBit(const int sockfd, const DaBit* const x) {
@@ -342,7 +365,7 @@ int send_EdaBit(const int sockfd, const EdaBit* const x, const size_t n) {
     int total = 0, ret;
     ret = send_fmpz(sockfd, x->r);
     if (ret <= 0) return ret; else total += ret;
-    ret = send(sockfd, &x->b[0], n * sizeof(bool), 0);
+    ret = send_bool_batch(sockfd, &x->b[0], n);
     if (ret <= 0) return ret; else total += ret;
     return total;
 }
@@ -351,7 +374,7 @@ int recv_EdaBit(const int sockfd, EdaBit* const x, const size_t n) {
     int total = 0, ret;
     ret = recv_fmpz(sockfd, x->r);
     if (ret <= 0) return ret; else total += ret;
-    ret = recv_in(sockfd, &x->b[0], n * sizeof(bool));
+    ret = recv_bool_batch(sockfd, &x->b[0], n);
     if (ret <= 0) return ret; else total += ret;
     return total;
 }

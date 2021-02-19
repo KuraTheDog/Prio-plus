@@ -21,6 +21,18 @@ void run_sender(int sockfd) {
     n = send_bool(sockfd, b);
     std::cout << "send bool \tsize: " << n << " \tval: " << b << std::endl;
 
+    size_t nbool = 15;
+    bool b_arr[nbool];
+    for (int i = 0; i < nbool; i++)
+        b_arr[i] = i % 2;
+    n = send_bool_batch(sockfd, b_arr, nbool);
+    std::cout << "send bool arr \tsize: " << n << " \tval: ";
+    for (int i = 0; i < nbool; i++) {
+        if (i > 0) std::cout << ", ";
+        std::cout << b_arr[i];
+    }
+    std::cout << std::endl;
+
     int in = 13579;
     n = send_int(sockfd, in);
     std::cout << "send int, \tsize: " << n << " \tval: " << in << std::endl;
@@ -58,6 +70,10 @@ void run_sender(int sockfd) {
     n = send_fmpz(sockfd, number);
     std::cout << "send fmpz \tsize: " << n << " \tval: ";
     fmpz_print(number); std::cout << std::endl;
+
+    BooleanBeaverTriple* btrip = new BooleanBeaverTriple(true, false, true);
+    n = send_BooleanBeaverTriple(sockfd, btrip);
+    std::cout << "send btriple \tsize: " << n << " \tvals: " << btrip->a << ", " << btrip->b << ", " << btrip->c << std::endl;
 
     BeaverTriple* trip = NewBeaverTriple();
     n = send_BeaverTriple(sockfd, trip);
@@ -110,6 +126,16 @@ void run_receiver(int sockfd) {
     n = recv_bool(sockfd, b);
     std::cout << "recv bool \tsize: " << n << " \tval: " << b << std::endl;
 
+    const size_t nbool = 15;
+    bool b_arr[nbool];
+    n = recv_bool_batch(sockfd, b_arr, nbool);
+    std::cout << "recv bool arr \tsize: " << n << " \tval: ";
+    for (int i = 0; i < nbool; i++) {
+        if (i > 0) std::cout << ", ";
+        std::cout << b_arr[i];
+    }
+    std::cout << std::endl;
+
     int in;
     n = recv_int(sockfd, in);
     std::cout << "recv int \tsize: " << n << " \tval: " << in << std::endl;
@@ -141,6 +167,10 @@ void run_receiver(int sockfd) {
     n = recv_fmpz(sockfd, number);
     std::cout << "recv fmpz \tsize: " << n << " \tval: ";
     fmpz_print(number); std::cout << std::endl;
+
+    BooleanBeaverTriple* btrip = new BooleanBeaverTriple();
+    n = recv_BooleanBeaverTriple(sockfd, btrip);
+    std::cout << "send btriple \tsize: " << n << " \tvals: " << btrip->a << ", " << btrip->b << ", " << btrip->c << std::endl;
 
     BeaverTriple* trip = new BeaverTriple();
     n = recv_BeaverTriple(sockfd, trip);

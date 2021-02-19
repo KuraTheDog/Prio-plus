@@ -443,13 +443,16 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
             pk_list[idx] = share.first;
             idx++;
         }
+
+        bool* other_valid = new bool[num_inputs];
+        recv_bool_batch(serverfd, other_valid, num_inputs);
         for (unsigned int i = 0; i < num_inputs; i++) {
-            bool other_valid;
-            recv_bool(serverfd, other_valid);
-            if (!other_valid)
+            if (!other_valid[i])
                 continue;
             b ^= share_map[pk_list[i]];
         }
+        delete[] other_valid;
+
         send_uint64(serverfd, b);
         delete[] pk_list;
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
@@ -469,9 +472,9 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
             num_valid++;
             a ^= share_map[pk];
         }
-        for (unsigned int i = 0; i < num_inputs; i++) {
-            server_bytes += send_bool(serverfd, valid[i]);
-        }
+
+        server_bytes += send_bool_batch(serverfd, valid, num_inputs);
+
         delete[] valid;
 
         uint64_t b;
@@ -541,14 +544,15 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
             pk_list[idx] = share.first;
             idx++;
         }
+        bool* other_valid = new bool[num_inputs];
+        recv_bool_batch(serverfd, other_valid, num_inputs);
         for (unsigned int i = 0; i < num_inputs; i++) {
-            bool other_valid;
-            recv_bool(serverfd, other_valid);
-            if (!other_valid)
+            if (!other_valid[i])
                 continue;
             for (unsigned int j = 0; j <= B; j++)
                 b[j] ^= share_map[pk_list[i]][j];
         }
+        delete[] other_valid;
         send_out(serverfd, &b[0], share_sz);
         delete[] shares;
         delete[] pk_list;
@@ -571,9 +575,9 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
             for (unsigned int j = 0; j <= B; j++)
                 a[j] ^= share_map[pk][j];
         }
-        for (unsigned int i = 0; i < num_inputs; i++) {
-            server_bytes += send_bool(serverfd, valid[i]);
-        }
+
+        server_bytes += send_bool_batch(serverfd, valid, num_inputs);
+
         delete[] shares;
         delete[] valid;
         uint32_t b[B+1];
@@ -684,9 +688,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         }
         bool* snip_valid = validate_snips(num_inputs, 2, serverfd, server_num,
                                           num_bits, circuit, packet, wire_shares);
-        for (unsigned int i = 0; i < num_inputs; i++) {
-            server_bytes += send_bool(serverfd, snip_valid[i]);
-        }
+
+        server_bytes += send_bool_batch(serverfd, snip_valid, num_inputs);
 
         // Compute result
         NetIO* const io = new NetIO(SERVER0_IP, 60051, true);
@@ -743,14 +746,14 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         }
         bool* snip_valid = validate_snips(num_inputs, 2, serverfd, server_num,
                                           num_bits, circuit, packet, wire_shares);
+        bool* other_valid = new bool[num_inputs];
+        recv_bool_batch(serverfd, other_valid, num_inputs);
         for (unsigned int i = 0; i < num_inputs; i++) {
-            bool other_valid;
-            recv_bool(serverfd, other_valid);
-            valid[i] &= snip_valid[i];
-            valid[i] &= other_valid;
+            valid[i] &= (snip_valid[i] & other_valid[i]);
             if (valid[i])
                 num_valid++;
         }
+        delete[] other_valid;
 
         // Compute result
         NetIO* const io = new NetIO(nullptr, 60051, true);
