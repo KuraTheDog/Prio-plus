@@ -376,6 +376,8 @@ std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num
     return ans;
 }
 
+// Slow. OT per bit
+// TODO: batched creation to reduce rounds.
 BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, NetIO* const io0, NetIO* const io1) {
 
     // auto start = clock_start();
@@ -448,28 +450,36 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, N
 
     fmpz_t r0; fmpz_init(r0);  // r0_block[i]
     fmpz_t r1; fmpz_init(r1);  // r1_block[i]
-    fmpz_t s; fmpz_init(s);    // s[i]
     fmpz_t d; fmpz_init(d);
-    fmpz_t ti; fmpz_init(ti);
 
     fmpz_t pow; fmpz_init_set_si(pow, 1);  // 2^i
-
     for (unsigned int i = 0; i < n; i++) {
         fmpz_from_block(r0, r0_block[i], n);
         fmpz_mod(r0, r0, Int_Modulus);
         fmpz_from_block(r1, r1_block[i], n);
         fmpz_mod(r1, r1, Int_Modulus);
 
-        // s = r(ai)' = r0' - ai (r0' - r1')
-        fmpz_from_block(s, s_block[i], n);
-        fmpz_mod(s, s, Int_Modulus);
-
         // d = r0 - r1 + b, and swap
         fmpz_sub(d, r0, r1);
         fmpz_add(d, d, triple->B);
         fmpz_mod(d, d, Int_Modulus);
         send_fmpz(serverfd, d);
+
+        fmpz_addmul(q, r0, pow); // r0
+        fmpz_mod(q, q, Int_Modulus);
+
+        fmpz_mul_ui(pow, pow, 2);
+    }
+
+    fmpz_set_si(pow, 1);  // 2^i
+    fmpz_t s; fmpz_init(s);    // s[i]
+    fmpz_t ti; fmpz_init(ti);
+    for (unsigned int i = 0; i < n; i++) {
         recv_fmpz(serverfd, d);
+
+        // s = r(ai)' = r0' - ai (r0' - r1')
+        fmpz_from_block(s, s_block[i], n);
+        fmpz_mod(s, s, Int_Modulus);
 
         // t = s + ai d' = r0' + ai b'
         fmpz_set(ti, s);
@@ -480,8 +490,6 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, N
 
         fmpz_addmul(t, ti, pow); // r0' + ai b'
         fmpz_mod(t, t, Int_Modulus);
-        fmpz_addmul(q, r0, pow); // r0
-        fmpz_mod(q, q, Int_Modulus);
 
         fmpz_mul_ui(pow, pow, 2);
     }
