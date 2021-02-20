@@ -56,7 +56,7 @@ void init_roots(const int N) {
     /*
     N = 2^k, so stepsize = 2^(Ord - k).
     g_ = gen^stepsize.
-    So g_^N = gen^(2^ord) = 1, by fermat little. (Actually 2^ord - 1 enough?)
+    So g_^N = gen^(2^ord) = 1, by fermat little.
     */
     fmpz_powm_ui(g_,Int_Gen,step_size, Int_Modulus);
     fmpz_powm_ui(ginv_,ginv_,step_size, Int_Modulus);

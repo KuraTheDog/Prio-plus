@@ -12,161 +12,6 @@ It also waits for the child to finish before exiting or moving to a substep that
 #include "net_share.h"
 #include "proto.h"
 
-DaBit** CorrelatedStore::generateDaBit(const size_t N) {
-  DaBit** const dabit = new DaBit*[N];
-
-  DaBit** const dabit0 = new DaBit*[N];
-  DaBit** const dabit1 = new DaBit*[N];
-  fmpz_t* x; new_fmpz_array(&x, N);
-  fmpz_t* y; new_fmpz_array(&y, N);
-
-  for (unsigned int i = 0; i < N; i++) {
-    dabit[i] = new DaBit();
-
-    // Create local
-    dabit0[i] = new DaBit();
-    dabit1[i] = new DaBit();
-    makeLocalDaBit(dabit0[i], dabit1[i]);
-  }
-  // Exchange
-  pid_t pid = fork(), status = 0;
-  if (pid == 0) {
-    for (unsigned int i = 0; i < N; i++) {
-      if (server_num == 0) {
-        send_DaBit(serverfd, dabit1[i]);
-      } else {
-        send_DaBit(serverfd, dabit0[i]);
-      }
-    }
-    exit(EXIT_SUCCESS);
-  }
-
-  for (unsigned int i = 0; i < N; i++) {
-    // Exchange
-    if (server_num == 0) {
-      recv_DaBit(serverfd, dabit1[i]);
-    } else {
-      recv_DaBit(serverfd, dabit0[i]);
-    }
-
-    // Xor boolean shares
-    dabit[i]->b2 = dabit0[i]->b2 ^ dabit1[i]->b2;
-
-    fmpz_set(x[i], dabit0[i]->bp);
-    fmpz_set(y[i], dabit1[i]->bp);
-
-    delete dabit0[i];
-    delete dabit1[i];
-  }
-  delete[] dabit0;
-  delete[] dabit1;
-
-  waitpid(pid, &status, 0);
-
-  // Xor Arithmetic shares, using a xor b = a + b - 2ab
-  fmpz_t* z = multiplyArithmeticShares(N, x, y);
-
-  for (unsigned int i = 0; i < N; i++) {
-    fmpz_add(dabit[i]->bp, x[i], y[i]);
-    fmpz_submul_ui(dabit[i]->bp, z[i], 2);
-    fmpz_mod(dabit[i]->bp, dabit[i]->bp, Int_Modulus);
-  }
-
-  clear_fmpz_array(x, N);
-  clear_fmpz_array(y, N);
-  clear_fmpz_array(z, N);
-
-  return dabit;
-}
-
-EdaBit** CorrelatedStore::generateEdaBit(const size_t N) {
-  EdaBit** edabit = new EdaBit*[N];
-
-  EdaBit** edabit0 = new EdaBit*[N];
-  EdaBit** edabit1 = new EdaBit*[N];
-  bool** b = new bool*[N];
-  bool** b0 = new bool*[N];
-  bool** b1 = new bool*[N];
-
-  for (unsigned int i = 0; i < N; i++) {
-    edabit[i] = new EdaBit(num_bits);
-
-    // Create local
-    edabit0[i] = new EdaBit(num_bits);
-    edabit1[i] = new EdaBit(num_bits);
-    makeLocalEdaBit(edabit0[i], edabit1[i], num_bits);
-  }
-  // Exchange
-  pid_t pid = fork(), status = 0;
-  if (pid == 0) {
-    for (unsigned int i = 0; i < N; i++) {
-      if (server_num == 0) {
-        send_EdaBit(serverfd, edabit1[i], num_bits);
-      } else {
-        send_EdaBit(serverfd, edabit0[i], num_bits);
-      }
-    }
-    exit(EXIT_SUCCESS);
-  }
-
-  for (unsigned int i = 0; i < N; i++) {
-    // Exchange
-    if (server_num == 0) {
-      recv_EdaBit(serverfd, edabit1[i], num_bits);
-    } else {
-      recv_EdaBit(serverfd, edabit0[i], num_bits);
-    }
-
-    // Add arithmetic shares
-    fmpz_add(edabit[i]->r, edabit0[i]->r, edabit1[i]->r);
-    fmpz_mod(edabit[i]->r, edabit[i]->r, Int_Modulus);
-
-    b[i] = new bool[num_bits];
-    b0[i] = new bool[num_bits];
-    b1[i] = new bool[num_bits];
-    memcpy(b0[i], edabit0[i]->b, num_bits * sizeof(bool));
-    memcpy(b1[i], edabit1[i]->b, num_bits * sizeof(bool));
-
-    delete edabit0[i];
-    delete edabit1[i];
-  }
-  delete[] edabit0;
-  delete[] edabit1;
-
-  waitpid(pid, &status, 0);
-
-  // Add binary shares via circuit
-  bool* carry = addBinaryShares(N, b0, b1, b);
-
-  fmpz_t tmp; fmpz_init(tmp);
-  fmpz_from_bool_array(tmp, b[0], num_bits);
-
-  // Convert carry to arithmetic [carry]_p
-  fmpz_t* carry_p = b2a_daBit(N, carry);
-  delete[] carry;
-
-  // Subtract out 2^n * [carry]_p from r
-  fmpz_t pow; fmpz_init_set_ui(pow, 2);
-  fmpz_pow_ui(pow, pow, num_bits);
-  for (unsigned int i = 0; i < N; i++) {
-    fmpz_submul(edabit[i]->r, carry_p[i], pow);
-    fmpz_mod(edabit[i]->r, edabit[i]->r, Int_Modulus);
-
-    memcpy(edabit[i]->b, b[i], num_bits * sizeof(bool));
-
-    delete[] b[i];
-    delete[] b0[i];
-    delete[] b1[i];
-  }
-  delete[] b;
-  delete[] b0;
-  delete[] b1;
-  clear_fmpz_array(carry_p, N);
-  fmpz_clear(pow);
-
-  return edabit;
-}
-
 void CorrelatedStore::addBoolTriples(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > bool_batch_size ? n : bool_batch_size);
@@ -185,8 +30,10 @@ void CorrelatedStore::addTriples(const size_t n) {
   const size_t num_to_make = (n > batch_size ? n : batch_size);
   std::cout << "adding triples: " << num_to_make << std::endl;
   std::cout << "Using lazy beaver triples" << std::endl;
+  // std::cout << "Using OT beaver triples" << std::endl;
   for (unsigned int i = 0; i < num_to_make; i++) {
     BeaverTriple* triple = generate_beaver_triple_lazy(serverfd, server_num);
+    // BeaverTriple* triple = generate_beaver_triple(serverfd, server_num, io0, io1);
     atriple_store.push(triple);
   }
   std::cout << "addTriples timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
@@ -209,6 +56,7 @@ void CorrelatedStore::addEdaBits(const size_t n) {
   std::cout << "adding edabits: " << num_to_make << std::endl;
   if (lazy) {
     if (server_num == 0) {  // make on server 0
+      std::cout << "Making lazy edabits" << std::endl;
       EdaBit* other_edabit = new EdaBit(num_bits);
       for (unsigned int i = 0; i < num_to_make; i++) {
         EdaBit* edabit = new EdaBit(num_bits);
@@ -297,6 +145,31 @@ void CorrelatedStore::maybeUpdate() {
   std::cout << " Arith Triples: " << atriple_store.size() << std::endl;
   std::cout << " Bool  Triples: " << btriple_store.size() << std::endl;
   std::cout << "precompute timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+}
+
+CorrelatedStore::~CorrelatedStore() {
+  while (!edabit_store.empty()) {
+    EdaBit* bit = edabit_store.front();
+    edabit_store.pop();
+    delete bit;
+  }
+  while (!dabit_store.empty()) {
+    DaBit* bit = dabit_store.front();
+    dabit_store.pop();
+    delete bit;
+  }
+  while (!atriple_store.empty()) {
+    BeaverTriple* triple = atriple_store.front();
+    atriple_store.pop();
+    delete triple;
+  }
+  while (!btriple_store.empty()) {
+    BooleanBeaverTriple* triple = btriple_store.front();
+    btriple_store.pop();
+    delete triple;
+  }
+  delete io0;
+  delete io1;
 }
 
 bool* CorrelatedStore::multiplyBoolShares(const size_t N,
@@ -591,27 +464,158 @@ bool* CorrelatedStore::validateSharesMatch(const size_t N,
   return ans;
 }
 
-CorrelatedStore::~CorrelatedStore() {
-  while (!edabit_store.empty()) {
-    EdaBit* bit = edabit_store.front();
-    edabit_store.pop();
-    delete bit;
+
+DaBit** CorrelatedStore::generateDaBit(const size_t N) {
+  DaBit** const dabit = new DaBit*[N];
+
+  DaBit** const dabit0 = new DaBit*[N];
+  DaBit** const dabit1 = new DaBit*[N];
+  fmpz_t* x; new_fmpz_array(&x, N);
+  fmpz_t* y; new_fmpz_array(&y, N);
+
+  for (unsigned int i = 0; i < N; i++) {
+    dabit[i] = new DaBit();
+
+    // Create local
+    dabit0[i] = new DaBit();
+    dabit1[i] = new DaBit();
+    makeLocalDaBit(dabit0[i], dabit1[i]);
   }
-  while (!dabit_store.empty()) {
-    DaBit* bit = dabit_store.front();
-    dabit_store.pop();
-    delete bit;
+  // Exchange
+  pid_t pid = fork(), status = 0;
+  if (pid == 0) {
+    for (unsigned int i = 0; i < N; i++) {
+      if (server_num == 0) {
+        send_DaBit(serverfd, dabit1[i]);
+      } else {
+        send_DaBit(serverfd, dabit0[i]);
+      }
+    }
+    exit(EXIT_SUCCESS);
   }
-  while (!atriple_store.empty()) {
-    BeaverTriple* triple = atriple_store.front();
-    atriple_store.pop();
-    delete triple;
+
+  for (unsigned int i = 0; i < N; i++) {
+    // Exchange
+    if (server_num == 0) {
+      recv_DaBit(serverfd, dabit1[i]);
+    } else {
+      recv_DaBit(serverfd, dabit0[i]);
+    }
+
+    // Xor boolean shares
+    dabit[i]->b2 = dabit0[i]->b2 ^ dabit1[i]->b2;
+
+    fmpz_set(x[i], dabit0[i]->bp);
+    fmpz_set(y[i], dabit1[i]->bp);
+
+    delete dabit0[i];
+    delete dabit1[i];
   }
-  while (!btriple_store.empty()) {
-    BooleanBeaverTriple* triple = btriple_store.front();
-    btriple_store.pop();
-    delete triple;
+  delete[] dabit0;
+  delete[] dabit1;
+
+  waitpid(pid, &status, 0);
+
+  // Xor Arithmetic shares, using a xor b = a + b - 2ab
+  fmpz_t* z = multiplyArithmeticShares(N, x, y);
+
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_add(dabit[i]->bp, x[i], y[i]);
+    fmpz_submul_ui(dabit[i]->bp, z[i], 2);
+    fmpz_mod(dabit[i]->bp, dabit[i]->bp, Int_Modulus);
   }
-  delete io0;
-  delete io1;
+
+  clear_fmpz_array(x, N);
+  clear_fmpz_array(y, N);
+  clear_fmpz_array(z, N);
+
+  return dabit;
+}
+
+EdaBit** CorrelatedStore::generateEdaBit(const size_t N) {
+  EdaBit** edabit = new EdaBit*[N];
+
+  EdaBit** edabit0 = new EdaBit*[N];
+  EdaBit** edabit1 = new EdaBit*[N];
+  bool** b = new bool*[N];
+  bool** b0 = new bool*[N];
+  bool** b1 = new bool*[N];
+
+  for (unsigned int i = 0; i < N; i++) {
+    edabit[i] = new EdaBit(num_bits);
+
+    // Create local
+    edabit0[i] = new EdaBit(num_bits);
+    edabit1[i] = new EdaBit(num_bits);
+    makeLocalEdaBit(edabit0[i], edabit1[i], num_bits);
+  }
+  // Exchange
+  pid_t pid = fork(), status = 0;
+  if (pid == 0) {
+    for (unsigned int i = 0; i < N; i++) {
+      if (server_num == 0) {
+        send_EdaBit(serverfd, edabit1[i], num_bits);
+      } else {
+        send_EdaBit(serverfd, edabit0[i], num_bits);
+      }
+    }
+    exit(EXIT_SUCCESS);
+  }
+
+  for (unsigned int i = 0; i < N; i++) {
+    // Exchange
+    if (server_num == 0) {
+      recv_EdaBit(serverfd, edabit1[i], num_bits);
+    } else {
+      recv_EdaBit(serverfd, edabit0[i], num_bits);
+    }
+
+    // Add arithmetic shares
+    fmpz_add(edabit[i]->r, edabit0[i]->r, edabit1[i]->r);
+    fmpz_mod(edabit[i]->r, edabit[i]->r, Int_Modulus);
+
+    b[i] = new bool[num_bits];
+    b0[i] = new bool[num_bits];
+    b1[i] = new bool[num_bits];
+    memcpy(b0[i], edabit0[i]->b, num_bits * sizeof(bool));
+    memcpy(b1[i], edabit1[i]->b, num_bits * sizeof(bool));
+
+    delete edabit0[i];
+    delete edabit1[i];
+  }
+  delete[] edabit0;
+  delete[] edabit1;
+
+  waitpid(pid, &status, 0);
+
+  // Add binary shares via circuit
+  bool* carry = addBinaryShares(N, b0, b1, b);
+
+  fmpz_t tmp; fmpz_init(tmp);
+  fmpz_from_bool_array(tmp, b[0], num_bits);
+
+  // Convert carry to arithmetic [carry]_p
+  fmpz_t* carry_p = b2a_daBit(N, carry);
+  delete[] carry;
+
+  // Subtract out 2^n * [carry]_p from r
+  fmpz_t pow; fmpz_init_set_ui(pow, 2);
+  fmpz_pow_ui(pow, pow, num_bits);
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_submul(edabit[i]->r, carry_p[i], pow);
+    fmpz_mod(edabit[i]->r, edabit[i]->r, Int_Modulus);
+
+    memcpy(edabit[i]->b, b[i], num_bits * sizeof(bool));
+
+    delete[] b[i];
+    delete[] b0[i];
+    delete[] b1[i];
+  }
+  delete[] b;
+  delete[] b0;
+  delete[] b1;
+  clear_fmpz_array(carry_p, N);
+  fmpz_clear(pow);
+
+  return edabit;
 }
