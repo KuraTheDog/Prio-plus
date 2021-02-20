@@ -2,6 +2,7 @@
 
 #include <sys/socket.h>
 
+#include "constants.h"
 #include "fmpz_utils.h"
 
 // Ensure this is defined, as it's architecture dependent
@@ -151,11 +152,18 @@ int recv_string(const int sockfd, std::string& x) {
 
 int send_fmpz(const int sockfd, const fmpz_t x) {
     int total = 0, ret;
-    size_t len = fmpz_size(x);
+    size_t len;
+    if (FIXED_FMPZ_SIZE) {
+        len = fmpz_size(Int_Modulus);
+    } else {
+        len = fmpz_size(x);
+        ret = send_size(sockfd, len);
+        if (ret <= 0) return ret; else total += ret;
+    }
+    
     ulong arr[len];
     fmpz_get_ui_array(arr, len, x);
-    ret = send_size(sockfd, len);
-    if (ret <= 0) return ret; else total += ret;
+
     for (unsigned int i = 0; i < len; i++) {
         ret = send_ulong(sockfd, arr[i]);
         if (ret <= 0) return ret; else total += ret;
@@ -166,8 +174,14 @@ int send_fmpz(const int sockfd, const fmpz_t x) {
 int recv_fmpz(const int sockfd, fmpz_t x) {
     int total = 0, ret;
     size_t len;
-    ret = recv_size(sockfd, len);
-    if (ret <= 0) return ret; else total += ret;
+
+    if (FIXED_FMPZ_SIZE) {
+        len = fmpz_size(Int_Modulus);
+    } else {
+        ret = recv_size(sockfd, len);
+        if (ret <= 0) return ret; else total += ret;
+    }
+
     if (len == 0) {
         fmpz_set_ui(x, 0);
         return total;

@@ -33,6 +33,10 @@ ulong array: Always uses ulongs. 32 or 64 bits. "perfect" space efficiency, for 
 string: best is base 62, so 62/256 ~ 25% space efficiency. So needs ~4x bits compared to numbers.
 */
 
+// Since fmpz is bound by Int modulus, we can leave off sending size?
+// Reduces number of bits to send fmpz
+#define FIXED_FMPZ_SIZE true
+
 /* Core functions */
 
 // Send trivial. 
@@ -63,7 +67,6 @@ int recv_uint64(const int sockfd, uint64_t& x);
 int send_ulong(const int sockfd, const ulong x);
 int recv_ulong(const int sockfd, ulong& x);
 
-// Unused
 int send_string(const int sockfd, const std::string x);
 int recv_string(const int sockfd, std::string& x);
 
