@@ -74,6 +74,7 @@ void run_sender(int sockfd) {
     BooleanBeaverTriple* btrip = new BooleanBeaverTriple(true, false, true);
     n = send_BooleanBeaverTriple(sockfd, btrip);
     std::cout << "send btriple \tsize: " << n << " \tvals: " << btrip->a << ", " << btrip->b << ", " << btrip->c << std::endl;
+    delete btrip;
 
     BeaverTriple* trip = NewBeaverTriple();
     n = send_BeaverTriple(sockfd, trip);
@@ -81,18 +82,21 @@ void run_sender(int sockfd) {
     fmpz_print(trip->A); std::cout << ", ";
     fmpz_print(trip->B); std::cout << ", ";
     fmpz_print(trip->C); std::cout << std::endl;
+    delete trip;
 
     ClientPacket* packet = new ClientPacket(1, 2);
     fmpz_set_si(packet->f0_s, 10);
     n = send_ClientPacket(sockfd, packet);
     std::cout << "send packet \tsize: " << n << " \tf0_s: ";
     fmpz_print(packet->f0_s); std::cout << std::endl;
+    delete packet;
 
     ClientPacket* packet2 = new ClientPacket(2, 3);
     fmpz_set_si(packet2->f0_s, 20);
     n = send_ClientPacket(sockfd, packet2);
     std::cout << "send packet \tsize: " << n << " \tf0_s = ";
     fmpz_print(packet2->f0_s); std::cout << std::endl;
+    delete packet2;
 
     size_t edasize = 8;
     EdaBit* b0 = new EdaBit(edasize);
@@ -101,6 +105,8 @@ void run_sender(int sockfd) {
     n = send_EdaBit(sockfd, b0, edasize);
     std::cout << "send EdaBit " << edasize << " \tsize: " << n << std::endl;
     b0->print();
+    delete b0;
+    delete b1;
 
     // Poly
     // fmpz_set_ui(number, 100);
@@ -115,12 +121,13 @@ void run_sender(int sockfd) {
     n = send_fmpz(sockfd, number);
     std::cout << "send fmpz \tsize: " << n << "\t fmpz: ";
     fmpz_print(number); std::cout << std::endl;
+
+    fmpz_clear(number);
 }
 
 void run_receiver(int sockfd) {
     int n;
-    fmpz_t number;
-    fmpz_init(number);
+    fmpz_t number; fmpz_init(number);
 
     bool b;
     n = recv_bool(sockfd, b);
@@ -171,6 +178,7 @@ void run_receiver(int sockfd) {
     BooleanBeaverTriple* btrip = new BooleanBeaverTriple();
     n = recv_BooleanBeaverTriple(sockfd, btrip);
     std::cout << "send btriple \tsize: " << n << " \tvals: " << btrip->a << ", " << btrip->b << ", " << btrip->c << std::endl;
+    delete btrip;
 
     BeaverTriple* trip = new BeaverTriple();
     n = recv_BeaverTriple(sockfd, trip);
@@ -178,22 +186,26 @@ void run_receiver(int sockfd) {
     fmpz_print(trip->A); std::cout << ", ";
     fmpz_print(trip->B); std::cout << ", ";
     fmpz_print(trip->C); std::cout << std::endl;
+    delete trip;
 
     ClientPacket* packet = new ClientPacket(1, 2);
     n = recv_ClientPacket(sockfd, packet);
     std::cout << "recv packet \tsize: " << n << "\t f0_s: ";
     fmpz_print(packet->f0_s); std::cout << std::endl;
+    delete packet;
 
     ClientPacket* packet2 = new ClientPacket(2, 3);
     n = recv_ClientPacket(sockfd, packet2);
     std::cout << "recv packet \tsize: " << n << "\t f0_s: ";
     fmpz_print(packet2->f0_s); std::cout << std::endl;
+    delete packet2;
 
     size_t edasize = 8;
     EdaBit* b0 = new EdaBit(edasize);
     n = recv_EdaBit(sockfd, b0, edasize);
     std::cout << "recv EdaBit " << edasize << " \tsize: " << n << std::endl;
     b0->print();
+    delete b0;
 
     // fmpz_set_ui(number, 100);
     // fmpz_mod_poly_t f; fmpz_mod_poly_init(f, number);
@@ -204,6 +216,8 @@ void run_receiver(int sockfd) {
     n = recv_fmpz(sockfd, number);
     std::cout << "recv fmpz \tsize: " << n << " \tval: ";
     fmpz_print(number); std::cout << std::endl;
+
+    fmpz_clear(number);
 }
 
 int main(int argc, char** argv) {

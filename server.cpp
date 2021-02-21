@@ -35,7 +35,9 @@ std::unordered_map<size_t, CheckerPreComp*> precomp_store;
 
 // Precompute cache of edabits and beaver triples
 CorrelatedStore* correlated_store;
+// #define CACHE_SIZE 8192
 #define CACHE_SIZE 65536
+// #define CACHE_SIZE 2097152
 // If set, does fast but insecure offline precompute.
 #define LAZY_PRECOMPUTE true
 
@@ -172,12 +174,13 @@ bool* validate_snips(const size_t N,
     bool* valid = correlated_store->validateSharesMatch(
             N * num_inputs, fshare, wireshare);
 
+    clear_fmpz_array(fshare, N * num_inputs);
+    clear_fmpz_array(wireshare, N * num_inputs);
+
     for (unsigned int i = 0; i < N; i++)
         for (unsigned int j = 0; j < num_inputs; j++)
             ans[i] &= valid[i * num_inputs + j];
-
-    clear_fmpz_array(fshare, N * num_inputs);
-    clear_fmpz_array(wireshare, N * num_inputs);
+    
     delete[] valid;
 
     // run SNIPs
@@ -205,14 +208,15 @@ bool* validate_snips(const size_t N,
 
     fmpz_t* valid_share; new_fmpz_array(&valid_share, N);
     CorShare* cor_share_other = new CorShare();
+    cor_share_other = new CorShare();
     for (unsigned int i = 0; i < N; i++) {
-        cor_share_other = new CorShare();
         recv_CorShare(serverfd, cor_share_other);
 
         Cor* cor = new Cor(cor_share[i], cor_share_other);
         checker[i]->OutShare(valid_share[i], cor);
         delete cor;
     }
+    delete cor_share_other;
     waitpid(pid, &status, 0);
 
     // TODO: Can be simplified: one sends share, other sends if valid
@@ -748,6 +752,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             if (valid[i])
                 num_valid++;
         }
+        delete[] snip_valid;
         delete[] other_valid;
 
         // Compute result
@@ -762,11 +767,11 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         delete io;
         delete[] shares;
         delete[] shares_squared;
+        delete[] packet;
         delete[] valid;
         delete[] pk_list;
         delete[] circuit;
         delete[] wire_shares;
-        delete[] snip_valid;
 
         uint64_t b, b2;
         recv_uint64(serverfd, b);
