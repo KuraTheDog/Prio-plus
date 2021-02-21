@@ -263,37 +263,40 @@ Circuit* CheckVar() {
     return out;
 }
 
-
-
-Circuit* CheckLinReg(const unsigned int num_fields) {
-    const unsigned int num_inputs = num_fields + (num_fields * (num_fields+1))/2;
-
+/*
+2: x, x^2, y, xy
+3: x, x^2, x^3, x^4, y, xy, x^2 y
+*/
+Circuit* CheckLinReg(const size_t degree) {
+    // std::cout << "Lin reg deg circuit: " << degree << std::endl;
     Circuit* out = new Circuit();
+    
+    const unsigned int num_inputs = 3 * (degree - 1) + 1;
 
     for (unsigned int i = 0; i < num_inputs; i++) {
         Gate* inp = new Gate(Gate_Input);
         out->addGate(inp);
     }
 
-    unsigned int k = num_fields;
+    Gate* x = out->gates[0];
 
-    for (unsigned int i = 0; i < num_fields; i++) {
-        for (unsigned int j = i; j < num_fields; j++) {
-            Gate* x_i = out->gates[i];
-            Gate* x_j = out->gates[j];
-            Gate* x_i_j = out->gates[k];
-            k++;
+    // Ensure x * x^i = x^{i+1}, or x * (x^i y) = x^{i+1} y
+    for (unsigned int i = 0; i < 3 * (degree - 1); i++) {
+        if (i == 2 * (degree - 1) - 1)  // skip x^d -> y
+            continue;
+        Gate* base = out->gates[i];
+        Gate* next = out->gates[i+1];
 
-            Gate* mul = new Gate(Gate_Mul, x_i, x_j);
+        Gate* mul = new Gate(Gate_Mul, x, base);
+        Gate* inv = MulByNegOne(next);
+        Gate* add = new Gate(Gate_Add, mul, inv);
 
-            Gate* inv = MulByNegOne(x_i_j);
-            Gate* add = new Gate(Gate_Add, mul, inv);
+        out->addGate(mul);
+        out->addGate(inv);
+        out->addGate(add);
+        out->addZeroGate(add);
 
-            out->addGate(mul);
-            out->addGate(inv);
-            out->addGate(add);
-            out->addZeroGate(add);
-        }
+        // std::cout << "Gate: inp[" << 0 << "] * inp[" << i << "] = inp[" << i+1 << "]" << std::endl;
     }
 
     return out;

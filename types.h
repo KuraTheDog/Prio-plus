@@ -29,8 +29,8 @@ struct VarShare {
 
 struct LinRegShare {
     char pk[PK_LENGTH];
-    uint32_t num_fields;
-    uint64_t* vals;
+    uint64_t* x_vals;  // x, x^2, x^3, ...
+    uint64_t* y_vals;  // y, xy, x^2 y, ...
 };
 
 enum messageType {
@@ -43,6 +43,7 @@ enum messageType {
     MIN_OP,
     VAR_OP,
     STDDEV_OP,
+    LINREG_OP,
 };
 
 struct initMsg {

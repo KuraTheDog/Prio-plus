@@ -14,29 +14,21 @@ extern "C" {
 
 void test_CheckLinReg() {
   std::cout << "Testing CheckLinReg Eval and share_polynomials" << std::endl;
-  Circuit* linreg_circuit = CheckLinReg(2);  // x^2 == y
+  Circuit* linreg_circuit = CheckLinReg(2);
 
-  fmpz_t inp[5];
+  // return;
+
+  fmpz_t inp[4];
   fmpz_init(inp[0]);
   fmpz_init(inp[1]);
   fmpz_init(inp[2]);
   fmpz_init(inp[3]);
-  fmpz_init(inp[4]);
 
-  fmpz_set_si(inp[0], 2);  // Set first input to 9
-  fmpz_set_si(inp[1], 3);  // Set second to 81
-  fmpz_set_si(inp[2], 4);  // Set first input to 9
-  fmpz_set_si(inp[3], 6);  // Set second to 81
-  fmpz_set_si(inp[4], 9);  // Set first input to 9
+  fmpz_set_si(inp[0], 2);  // x
+  fmpz_set_si(inp[1], 4);  // y
+  fmpz_set_si(inp[2], 3);  // x^2
+  fmpz_set_si(inp[3], 6);  // xy
 
-  // Eval to verify 9^2 = 81
-  /*
-  Gate 0: input gate, x = 9
-  Gate 1: input gate, y = 81
-  Gate 2: mult gate, x^2 = 81
-  Gate 3: negation gate, "-y" mod Int_Modulus
-  Gate 4: addition gate, x^2 - y = 0, checked to be 0
-  */
   bool eval = linreg_circuit->Eval(inp);
   std::cout << "Eval: " << eval << std::endl;
 
@@ -135,7 +127,6 @@ void test_CheckLinReg() {
   fmpz_clear(inp[1]);
   fmpz_clear(inp[2]);
   fmpz_clear(inp[3]);
-  fmpz_clear(inp[4]);
 }
 
 int main(int argc, char* argv[])
