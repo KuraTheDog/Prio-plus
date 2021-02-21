@@ -53,8 +53,8 @@ std::string pub_key_to_hex(const uint64_t* const key) {
     return ss.str();
 }
 
-int send_maxshare(const MaxShare& maxshare, const int server_num, const unsigned int B) {
-    int sock = (server_num == 0) ? sockfd0 : sockfd1;
+int send_maxshare(const int server_num, const MaxShare& maxshare, const unsigned int B) {
+    const int sock = (server_num == 0) ? sockfd0 : sockfd1;
 
     int ret = send(sock, (void *)&maxshare, PK_LENGTH, 0);
 
@@ -80,7 +80,7 @@ int send_linregshare(const int server_num, const LinRegShare& share,  const size
 
 // Wrapper around send, with error catching.
 int send_to_server(const int server, const void* const buffer, const size_t n, const int flags = 0) {
-    int socket = (server == 0 ? sockfd0 : sockfd1);
+    const int socket = (server == 0 ? sockfd0 : sockfd1);
     int ret = send(socket, buffer, n, flags);
     if (ret < 0) error_exit("Failed to send to server ");
     return ret;
@@ -92,9 +92,9 @@ int bit_sum_helper(const std::string protocol, const size_t numreqs,
     int num_bytes = 0;
 
     emp::block* const b = new block[numreqs];
-    bool* real_vals = new bool[numreqs];
-    bool* shares0 = new bool[numreqs];
-    bool* shares1 = new bool[numreqs];
+    bool* const real_vals = new bool[numreqs];
+    bool* const shares0 = new bool[numreqs];
+    bool* const shares1 = new bool[numreqs];
 
     // Can't use a fixed key, or serial will have the same key every time
     emp::PRG prg;
@@ -102,11 +102,11 @@ int bit_sum_helper(const std::string protocol, const size_t numreqs,
     prg.random_bool(real_vals, numreqs);
     prg.random_bool(shares0, numreqs);
 
-    BitShare* bitshare0 = new BitShare[numreqs];
-    BitShare* bitshare1 = new BitShare[numreqs];
+    BitShare* const bitshare0 = new BitShare[numreqs];
+    BitShare* const bitshare1 = new BitShare[numreqs];
     for (unsigned int i = 0; i < numreqs; i++) {
         const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_s.c_str();
+        const char* const pk = pk_s.c_str();
 
         shares1[i] = real_vals[i]^shares0[i];
         ans += (real_vals[i] ? 1 : 0);
@@ -191,7 +191,7 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
         BitShare share0, share1;
         const char* prev_pk = pk_str.c_str();
         pk_str = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_str.c_str();
+        const char* const pk = pk_str.c_str();
 
         shares1[i] = real_vals[i]^shares0[i];
         std::cout << i << ": " << std::boolalpha << shares0[i] << " ^ " << shares1[i] << " = " << real_vals[i];
@@ -228,17 +228,17 @@ int int_sum_helper(const std::string protocol, const size_t numreqs,
     int num_bytes = 0;
 
     emp::block* const b = new block[numreqs];
-    uint64_t* real_vals = new uint64_t[numreqs];
-    uint64_t* shares0 = new uint64_t[numreqs];
-    uint64_t* shares1 = new uint64_t[numreqs];
+    uint64_t* const real_vals = new uint64_t[numreqs];
+    uint64_t* const shares0 = new uint64_t[numreqs];
+    uint64_t* const shares1 = new uint64_t[numreqs];
 
     emp::PRG prg;
     prg.random_block(b, numreqs);
     prg.random_data(real_vals, numreqs * sizeof(uint64_t));
     prg.random_data(shares0, numreqs * sizeof(uint64_t));
 
-    IntShare* intshare0 = new IntShare[numreqs];
-    IntShare* intshare1 = new IntShare[numreqs];
+    IntShare* const intshare0 = new IntShare[numreqs];
+    IntShare* const intshare1 = new IntShare[numreqs];
 
     for (unsigned int i = 0; i < numreqs; i++) {
         real_vals[i] = real_vals[i] % max_int;
@@ -247,7 +247,7 @@ int int_sum_helper(const std::string protocol, const size_t numreqs,
         ans += real_vals[i];
 
         const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_s.c_str();
+        const char* const pk = pk_s.c_str();
 
         memcpy(intshare0[i].pk, &pk[0], PK_LENGTH);
         intshare0[i].val = shares0[i];
@@ -341,7 +341,7 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
         IntShare share0, share1;
         const char* prev_pk = pk_str.c_str();
         pk_str = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_str.c_str();
+        const char* const pk = pk_str.c_str();
 
         memcpy(share0.pk, &pk[0], PK_LENGTH);
         share0.val = shares0[i];
@@ -370,10 +370,10 @@ int xor_op_helper(const std::string protocol, const size_t numreqs,
     int num_bytes = 0;
 
     emp::block* const b = new block[numreqs];
-    bool* values = new bool[numreqs];
-    uint64_t* encoded_values = new uint64_t[numreqs];
-    uint64_t* shares0 = new uint64_t[numreqs];
-    uint64_t* shares1 = new uint64_t[numreqs];
+    bool* const values = new bool[numreqs];
+    uint64_t* const encoded_values = new uint64_t[numreqs];
+    uint64_t* const shares0 = new uint64_t[numreqs];
+    uint64_t* const shares1 = new uint64_t[numreqs];
 
     emp::PRG prg;
     prg.random_block(b, numreqs);
@@ -381,8 +381,8 @@ int xor_op_helper(const std::string protocol, const size_t numreqs,
     prg.random_data(encoded_values, numreqs * sizeof(uint64_t));
     prg.random_data(shares0, numreqs * sizeof(uint64_t));
 
-    IntShare* intshare0 = new IntShare[numreqs];
-    IntShare* intshare1 = new IntShare[numreqs];
+    IntShare* const intshare0 = new IntShare[numreqs];
+    IntShare* const intshare1 = new IntShare[numreqs];
     // encode step. set to all 0's for values that don't force the ans.
     if (protocol == "ANDOP") {
         for (unsigned int i = 0; i < numreqs; i++) {
@@ -405,7 +405,7 @@ int xor_op_helper(const std::string protocol, const size_t numreqs,
         shares1[i] = encoded_values[i] ^ shares0[i];
 
         const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_s.c_str();
+        const char* const pk = pk_s.c_str();
 
         memcpy(intshare0[i].pk, &pk[0], PK_LENGTH);
         intshare0[i].val = shares0[i];
@@ -532,7 +532,7 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
         IntShare share0, share1;
         const char* prev_pk = pk_str.c_str();
         pk_str = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_str.c_str();
+        const char* const pk = pk_str.c_str();
 
         memcpy(share0.pk, &pk[0], PK_LENGTH);
         share0.val = shares0[i];
@@ -564,17 +564,17 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
     start = clock_start();
 
     emp::block* const b = new block[numreqs];
-    uint32_t* values = new uint32_t[numreqs];
-    uint32_t* or_encoded_array = new uint32_t[B+1];
-    uint32_t* shares0 = new uint32_t[B+1];
-    uint32_t* shares1 = new uint32_t[B+1];
+    uint32_t* const values = new uint32_t[numreqs];
+    uint32_t* const or_encoded_array = new uint32_t[B+1];
+    uint32_t* const shares0 = new uint32_t[B+1];
+    uint32_t* const shares1 = new uint32_t[B+1];
 
     emp::PRG prg;
     prg.random_block(b, numreqs);
     prg.random_data(values, numreqs * sizeof(uint32_t));
 
-    MaxShare* maxshare0 = new MaxShare[numreqs];
-    MaxShare* maxshare1 = new MaxShare[numreqs];
+    MaxShare* const maxshare0 = new MaxShare[numreqs];
+    MaxShare* const maxshare1 = new MaxShare[numreqs];
     for (unsigned int i = 0; i < numreqs; i++) {
         values[i] = values[i] % (B + 1);
         if (protocol == "MAXOP")
@@ -598,15 +598,15 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
             shares1[j] = shares0[j] ^ or_encoded_array[j];
 
         const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_s.c_str();
+        const char* const pk = pk_s.c_str();
 
         memcpy(maxshare0[i].pk, &pk[0], PK_LENGTH);
         maxshare0[i].arr = new uint32_t[B+1];
-        memcpy(maxshare0[i].arr, &shares0[0], (B+1)*sizeof(uint32_t));
+        memcpy(maxshare0[i].arr, shares0, (B+1)*sizeof(uint32_t));
 
         memcpy(maxshare1[i].pk, &pk[0], PK_LENGTH);
         maxshare1[i].arr = new uint32_t[B+1];
-        memcpy(maxshare1[i].arr, &shares1[0], (B+1)*sizeof(uint32_t));
+        memcpy(maxshare1[i].arr, shares1, (B+1)*sizeof(uint32_t));
     }
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
@@ -616,8 +616,8 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
         num_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
     }
     for (unsigned int i = 0; i < numreqs; i++) {
-        num_bytes += send_maxshare(maxshare0[i], 0, B);
-        num_bytes += send_maxshare(maxshare1[i], 1, B);
+        num_bytes += send_maxshare(0, maxshare0[i], B);
+        num_bytes += send_maxshare(1, maxshare1[i], B);
 
         delete[] maxshare0[i].arr;
         delete[] maxshare1[i].arr;
@@ -735,7 +735,7 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
 
         const char* prev_pk = pk_str.c_str();
         pk_str = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_str.c_str();
+        const char* const pk = pk_str.c_str();
 
         memcpy(share0.pk, &pk[0], PK_LENGTH);
         share0.arr = shares0;
@@ -749,8 +749,8 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
         if (i == 4)
             memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
 
-        send_maxshare(share0, 0, B);
-        send_maxshare(share1, 1, B);
+        send_maxshare(0, share0, B);
+        send_maxshare(1, share1, B);
     }
 
     std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
@@ -759,17 +759,17 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
 }
 
 int var_op_helper(const std::string protocol, const size_t numreqs,
-                   uint64_t& sum, uint64_t& sumsquared,
-                   const initMsg* const msg_ptr = nullptr) {
+                  uint64_t& sum, uint64_t& sumsquared,
+                  const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
     int num_bytes = 0;
 
     emp::block* const b = new block[numreqs];
-    uint64_t* real_vals = new uint64_t[numreqs];
-    uint64_t* shares0 = new uint64_t[numreqs];
-    uint64_t* shares1 = new uint64_t[numreqs];
-    uint64_t* shares0_squared = new uint64_t[numreqs];
-    uint64_t* shares1_squared = new uint64_t[numreqs];
+    uint64_t* const real_vals = new uint64_t[numreqs];
+    uint64_t* const shares0 = new uint64_t[numreqs];
+    uint64_t* const shares1 = new uint64_t[numreqs];
+    uint64_t* const shares0_squared = new uint64_t[numreqs];
+    uint64_t* const shares1_squared = new uint64_t[numreqs];
 
     fmpz_t inp[2];
     fmpz_init(inp[0]);
@@ -781,23 +781,23 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
     prg.random_data(shares0, numreqs * sizeof(uint64_t));
     prg.random_data(shares0_squared, numreqs * sizeof(uint64_t));
 
-    VarShare* varshare0 = new VarShare[numreqs];
-    VarShare* varshare1 = new VarShare[numreqs];
-    ClientPacket** packet0 = new ClientPacket*[numreqs];
-    ClientPacket** packet1 = new ClientPacket*[numreqs];
+    VarShare* const varshare0 = new VarShare[numreqs];
+    VarShare* const varshare1 = new VarShare[numreqs];
+    ClientPacket** const packet0 = new ClientPacket*[numreqs];
+    ClientPacket** const packet1 = new ClientPacket*[numreqs];
 
     for (unsigned int i = 0; i < numreqs; i++) {
         real_vals[i] = real_vals[i] % small_max_int;
         shares0[i] = shares0[i] % small_max_int;
         shares1[i] = real_vals[i] ^ shares0[i];
-        uint64_t squared = real_vals[i] * real_vals[i];
+        const uint64_t squared = real_vals[i] * real_vals[i];
         shares0_squared[i] = shares0_squared[i] % max_int;
         shares1_squared[i] = squared ^ shares0_squared[i];
         sum += real_vals[i];
         sumsquared += squared;
 
         const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_s.c_str();
+        const char* const pk = pk_s.c_str();
 
         memcpy(varshare0[i].pk, &pk[0], PK_LENGTH);
         varshare0[i].val = shares0[i];
@@ -808,8 +808,8 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
         varshare1[i].val_squared = shares1_squared[i];
 
         fmpz_set_si(inp[0], real_vals[i]);
-        fmpz_set_si(inp[1], real_vals[i] * real_vals[i]);
-        Circuit* circuit = CheckVar();
+        fmpz_set_si(inp[1], squared);
+        Circuit* const circuit = CheckVar();
         circuit->Eval(inp);
         packet0[i] = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
         packet1[i] = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
@@ -966,7 +966,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         VarShare share0, share1;
         const char* prev_pk = pk_str.c_str();
         pk_str = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_str.c_str();
+        const char* const pk = pk_str.c_str();
 
         memcpy(share0.pk, &pk[0], PK_LENGTH);
         share0.val = shares0[i];
@@ -989,7 +989,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         fmpz_set_si(inp[1], real_vals[i] * real_vals[i]);
         if (i == 3)
             fmpz_set_si(inp[1], (real_vals[i] * real_vals[i] + 10) % max_int);
-        Circuit* circuit = CheckVar();
+        Circuit* const circuit = CheckVar();
         // Run through circuit to set wires
         circuit->Eval(inp);
         ClientPacket* p0;
@@ -1068,10 +1068,10 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
     prg.random_data(x2_share0, numreqs * sizeof(uint64_t));
     prg.random_data(xy_share0, numreqs * sizeof(uint64_t));
 
-    LinRegShare* linshare0 = new LinRegShare[numreqs];
-    LinRegShare* linshare1 = new LinRegShare[numreqs];
-    ClientPacket** packet0 = new ClientPacket*[numreqs];
-    ClientPacket** packet1 = new ClientPacket*[numreqs];
+    LinRegShare* const linshare0 = new LinRegShare[numreqs];
+    LinRegShare* const linshare1 = new LinRegShare[numreqs];
+    ClientPacket** const packet0 = new ClientPacket*[numreqs];
+    ClientPacket** const packet1 = new ClientPacket*[numreqs];
 
     for (unsigned int i = 0; i < numreqs; i++) {
         x_real[i] = x_real[i] % small_max_int;
@@ -1082,11 +1082,11 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
         y_share0[i] = y_share0[i] % small_max_int;
         y_share1[i] = y_real[i] ^ y_share0[i];
 
-        uint64_t x2 = x_real[i] * x_real[i];
+        const uint64_t x2 = x_real[i] * x_real[i];
         x2_share0[i] = x2_share0[i] % max_int;
         x2_share1[i] = x2 ^ x2_share0[i];
 
-        uint64_t xy = x_real[i] * y_real[i];
+        const uint64_t xy = x_real[i] * y_real[i];
         xy_share0[i] = xy_share0[i] % max_int;
         xy_share1[i] = xy ^ xy_share0[i];
 
@@ -1099,7 +1099,7 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
 
         // build shares
         const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* pk = pk_s.c_str();
+        const char* const pk = pk_s.c_str();
 
         memcpy(linshare0[i].pk, &pk[0], PK_LENGTH);
         linshare0[i].x_vals = new uint64_t[num_x];
@@ -1122,7 +1122,7 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
         fmpz_set_si(inp[1], x2);
         fmpz_set_si(inp[2], y_real[i]);
         fmpz_set_si(inp[3], xy);
-        Circuit* circuit = CheckLinReg(2);
+        Circuit* const circuit = CheckLinReg(2);
         circuit->Eval(inp);
         packet0[i] = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
         packet1[i] = new ClientPacket(circuit->N(), circuit->NumMulInpGates());

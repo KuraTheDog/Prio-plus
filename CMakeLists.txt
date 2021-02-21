@@ -41,8 +41,8 @@ endforeach()
 
 foreach(_target
   test_net_share
-	test_circuit
-	test_linreg
+  test_circuit
+  test_linreg
   test_proto
   test_bits
 )
