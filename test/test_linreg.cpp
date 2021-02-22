@@ -16,8 +16,6 @@ void test_CheckLinReg() {
   std::cout << "Testing CheckLinReg Eval and share_polynomials" << std::endl;
   Circuit* linreg_circuit = CheckLinReg(2);
 
-  // return;
-
   fmpz_t inp[4];
   fmpz_init(inp[0]);
   fmpz_init(inp[1]);
@@ -25,8 +23,8 @@ void test_CheckLinReg() {
   fmpz_init(inp[3]);
 
   fmpz_set_si(inp[0], 2);  // x
-  fmpz_set_si(inp[1], 4);  // y
-  fmpz_set_si(inp[2], 3);  // x^2
+  fmpz_set_si(inp[1], 4);  // x^2
+  fmpz_set_si(inp[2], 3);  // y
   fmpz_set_si(inp[3], 6);  // xy
 
   bool eval = linreg_circuit->Eval(inp);

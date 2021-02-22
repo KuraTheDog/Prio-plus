@@ -48,6 +48,15 @@ unsigned int NextPowerofTwo(const unsigned int n) {
     return ans;
 }
 
+Gate* MulByNegOne(Gate* const gate) {
+    Gate* out = new Gate(Gate_MulConst, gate);
+
+    fmpz_set_si(out->Constant, -1);
+    fmpz_mod(out->Constant, out->Constant, Int_Modulus);
+
+    return out;
+}
+
 struct Circuit {
     std::vector<Gate*> gates;        // All gates
     // std::vector<Gate*> outputs;      // only used by unused
@@ -59,6 +68,13 @@ struct Circuit {
 
     // Circuit(int n = 31) : max_bits(n) {}
     Circuit() {}
+
+    Circuit(const size_t num_inputs) : Circuit() {
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            Gate* inp = new Gate(Gate_Input);
+            addGate(inp);
+        }
+    }
 
     ~Circuit() {
         // All gates, so don't need to also go over outputs and result_zero
@@ -191,6 +207,18 @@ struct Circuit {
             }
         }
     }
+
+    // Adds Gate[i] * Gate[j] = Gate[k] to circuit
+    void AddCheckMulEqual(const size_t i, const size_t j, const size_t k) {
+        Gate* mul = new Gate(Gate_Mul, gates[i], gates[j]);
+        Gate* inv = MulByNegOne(gates[k]);
+        Gate* add = new Gate(Gate_Add, mul, inv);
+
+        addGate(mul);
+        addGate(inv);
+        addGate(add);
+        addZeroGate(add);
+    }
 };
 
 // Unused
@@ -208,57 +236,15 @@ Circuit* AndCircuits(std::vector<Circuit*>& circuits) {
 }
 */
 
-Gate* MulByNegOne(Gate* const gate) {
-    Gate* out = new Gate(Gate_MulConst, gate);
-
-    fmpz_set_si(out->Constant, -1);
-    fmpz_mod(out->Constant, out->Constant, Int_Modulus);
-
-    return out;
-}
-
 /*
 Various VALID(*) circuits.
 */
 
-// Returns circuit that checks L*R == Prod
-/*
-Circuit* CheckMul(Gate* const L, Gate* const R, Gate* const Prod) {
-    Circuit* out = new Circuit();
-
-    Gate* mul = new Gate(Gate_Mul, L, R);
-
-    Gate* inv = MulByNegOne(Prod);
-    Gate* add = new Gate(Gate_Add, inv, mul);
-
-    out->addGate(mul);
-    out->addGate(inv);
-    out->addGate(add);
-    out->addZeroGate(add);
-
-    return out;
-}
-*/
-
 // Returns circuit for x^2 == y. For Varience and StdDev.
 Circuit* CheckVar() {
-    Gate* x = new Gate(Gate_Input);
-    Gate* y = new Gate(Gate_Input);
+    Circuit* out = new Circuit(2);
 
-    Circuit* out = new Circuit();
-
-    out->addGate(x);
-    out->addGate(y);
-
-    Gate* mul = new Gate(Gate_Mul, x, x);
-
-    Gate* inv = MulByNegOne(y);
-    Gate* add = new Gate(Gate_Add, inv, mul);
-
-    out->addGate(mul);
-    out->addGate(inv);
-    out->addGate(add);
-    out->addZeroGate(add);
+    out->AddCheckMulEqual(0, 0, 1);
 
     return out;
 }
