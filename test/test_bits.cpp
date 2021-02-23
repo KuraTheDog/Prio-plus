@@ -10,6 +10,7 @@ const size_t batch_size = 100; // flexible
 const size_t N = 10;           // Must be >= 2
 
 const size_t num_bits = 3;     // fixed
+const bool do_fork = true;     // false to do leaks testing
 
 void test_multiplyBoolShares(const size_t N, const int server_num, const int serverfd, CorrelatedStore* store) {
   bool* x = new bool[N];
@@ -262,7 +263,7 @@ void test_validateSharesMatch(const size_t N, const size_t* const nbits, const i
 
 void runServerTest(const int server_num, const int serverfd) {
   const bool lazy = false;
-  CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, "127.0.0.1", "127.0.0.1", num_bits, batch_size, lazy);
+  CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, "127.0.0.1", "127.0.0.1", num_bits, batch_size, lazy, do_fork);
 
   store->maybeUpdate();
 

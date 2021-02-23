@@ -146,28 +146,35 @@ EdaBit* CorrelatedStore::getEdaBit(const size_t num_bits) {
 void CorrelatedStore::maybeUpdate() {
   std::cout << "precomputing..." << std::endl;
   auto start = clock_start();
-  if (btriple_store.size() < bool_batch_size / 2)
-      addBoolTriples();
+  // Make necessary triples/da for edabits, if needed
+  const bool make_eda = edabit_store.size() < batch_size / 2;
+  const bool make_eda2 = edabit_store_2.size() < batch_size / 2;
+  const size_t da_target = (make_eda + make_eda2 + 1);
+  const size_t atrip_target = da_target + 1;
+  const size_t btrip_target = (make_eda + 2 * make_eda2 + 1);
+  if (btriple_store.size() < btrip_target * bool_batch_size)
+      addBoolTriples(btrip_target * bool_batch_size);
   if (!lazy) {
-    if (atriple_store.size() < batch_size / 2)
-      addTriples(6 * batch_size);
-    if (dabit_store.size() < batch_size / 2)
-      addDaBits(4 * batch_size);
+    if (atriple_store.size() < atrip_target * batch_size)
+      addTriples(atrip_target * batch_size);
+    if (dabit_store.size() < da_target * batch_size)
+      addDaBits(da_target * batch_size);
   }
-  if (edabit_store.size() < batch_size / 2)
+
+  if (make_eda)
     addEdaBits(nbits);
-  if (edabit_store_2.size() < batch_size / 2)
+  if (make_eda2)
     addEdaBits(nbits * 2);
-  if (!lazy) {
-    if (atriple_store.size() < batch_size / 2)
-      addTriples();
-    if (dabit_store.size() < batch_size / 2)
-      addDaBits();
-    if (atriple_store.size() < batch_size / 2)
-      addTriples();
-  }
+
+  // Also stock up again? Not needed?
   if (btriple_store.size() < bool_batch_size / 2)
     addBoolTriples();
+  if (!lazy) {
+    if (atriple_store.size() < batch_size / 2)
+      addTriples(2 * batch_size);
+    if (dabit_store.size() < batch_size / 2)
+      addDaBits();
+  }
   std::cout << "Current store sizes:" << std::endl;
   std::cout << "       EdaBits: " << edabit_store.size() << std::endl;
   std::cout << "     EdaBits 2: " << edabit_store_2.size() << std::endl;
@@ -181,6 +188,11 @@ CorrelatedStore::~CorrelatedStore() {
   while (!edabit_store.empty()) {
     EdaBit* bit = edabit_store.front();
     edabit_store.pop();
+    delete bit;
+  }
+  while (!edabit_store_2.empty()) {
+    EdaBit* bit = edabit_store_2.front();
+    edabit_store_2.pop();
     delete bit;
   }
   while (!dabit_store.empty()) {
@@ -216,12 +228,13 @@ bool* CorrelatedStore::multiplyBoolShares(const size_t N,
     z[i] = triple->c;
     delete triple;
   }
-  pid_t pid = fork(), status = 0;
+  pid_t pid = 0, status = 0;
+  if (do_fork) pid = fork();
   if (pid == 0) {
     send_bool_batch(serverfd, d_this, N);
     send_bool_batch(serverfd, e_this, N);
 
-    exit(EXIT_SUCCESS);
+    if (do_fork) exit(EXIT_SUCCESS);
   }
 
   bool* d_other = new bool[N];
@@ -242,7 +255,7 @@ bool* CorrelatedStore::multiplyBoolShares(const size_t N,
   delete[] d_other;
   delete[] e_other;
 
-  waitpid(pid, &status, 0);
+  if (do_fork) waitpid(pid, &status, 0);
   return z;
 }
 
@@ -271,13 +284,14 @@ fmpz_t* CorrelatedStore::multiplyArithmeticShares(const size_t N,
   }
 
   // Spawn a child to do the sending, so that can recieve at the same time
-  pid_t pid = fork(), status = 0;
+  pid_t pid = 0, status = 0;
+  if (do_fork) pid = fork();
   if (pid == 0) {
     for (unsigned int i = 0; i < N; i++) {
       send_fmpz(serverfd, d[i]);
       send_fmpz(serverfd, e[i]);
     }
-    exit(EXIT_SUCCESS);
+    if (do_fork) exit(EXIT_SUCCESS);
   }
 
   for (unsigned int i = 0; i < N; i++) {
@@ -304,7 +318,7 @@ fmpz_t* CorrelatedStore::multiplyArithmeticShares(const size_t N,
   clear_fmpz_array(e, N);
 
   // Wait for send child to finish
-  waitpid(pid, &status, 0);
+  if (do_fork) waitpid(pid, &status, 0);
 
   return z;
 }
@@ -367,11 +381,12 @@ fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
     // consume the daBit
     delete dabit;
   }
-  pid_t pid = fork(), status = 0;
+  pid_t pid = 0, status = 0;
+  if (do_fork) pid = fork();
   if (pid == 0) {
     send_bool_batch(serverfd, v_this, N);
 
-    exit(EXIT_SUCCESS);
+    if (do_fork) exit(EXIT_SUCCESS);
   }
 
   bool* v_other = new bool[N];
@@ -392,7 +407,7 @@ fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
   delete[] v_this;
   delete[] v_other;
 
-  waitpid(pid, &status, 0);
+  if (do_fork) waitpid(pid, &status, 0);
 
   return xp;
 }
@@ -528,7 +543,8 @@ DaBit** CorrelatedStore::generateDaBit(const size_t N) {
     makeLocalDaBit(dabit0[i], dabit1[i]);
   }
   // Exchange
-  pid_t pid = fork(), status = 0;
+  pid_t pid = 0, status = 0;
+  if (do_fork) pid = fork();
   if (pid == 0) {
     for (unsigned int i = 0; i < N; i++) {
       if (server_num == 0) {
@@ -537,7 +553,7 @@ DaBit** CorrelatedStore::generateDaBit(const size_t N) {
         send_DaBit(serverfd, dabit0[i]);
       }
     }
-    exit(EXIT_SUCCESS);
+    if (do_fork) exit(EXIT_SUCCESS);
   }
 
   for (unsigned int i = 0; i < N; i++) {
@@ -560,7 +576,7 @@ DaBit** CorrelatedStore::generateDaBit(const size_t N) {
   delete[] dabit0;
   delete[] dabit1;
 
-  waitpid(pid, &status, 0);
+  if (do_fork) waitpid(pid, &status, 0);
 
   // Xor Arithmetic shares, using a xor b = a + b - 2ab
   fmpz_t* z = multiplyArithmeticShares(N, x, y);
@@ -596,7 +612,8 @@ EdaBit** CorrelatedStore::generateEdaBit(const size_t N, const size_t num_bits) 
     makeLocalEdaBit(edabit0[i], edabit1[i], num_bits);
   }
   // Exchange
-  pid_t pid = fork(), status = 0;
+  pid_t pid = 0, status = 0;
+  if (do_fork) pid = fork();
   if (pid == 0) {
     for (unsigned int i = 0; i < N; i++) {
       if (server_num == 0) {
@@ -605,7 +622,7 @@ EdaBit** CorrelatedStore::generateEdaBit(const size_t N, const size_t num_bits) 
         send_EdaBit(serverfd, edabit0[i], num_bits);
       }
     }
-    exit(EXIT_SUCCESS);
+    if (do_fork) exit(EXIT_SUCCESS);
   }
 
   for (unsigned int i = 0; i < N; i++) {
@@ -632,7 +649,7 @@ EdaBit** CorrelatedStore::generateEdaBit(const size_t N, const size_t num_bits) 
   delete[] edabit0;
   delete[] edabit1;
 
-  waitpid(pid, &status, 0);
+  if (do_fork) waitpid(pid, &status, 0);
 
   // Add binary shares via circuit
   size_t* bits_arr = new size_t[N];

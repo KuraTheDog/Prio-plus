@@ -196,17 +196,17 @@ bool* validate_snips(const size_t N,
     CheckerPreComp* const pre = getPrecomp(circuit[0]->N());
     randx_uses += N;
 
-    pid_t pid, status = 0;
+    pid_t pid = 0, status = 0;
 
     CorShare** const cor_share = new CorShare*[N];
     for (unsigned int i = 0; i < N; i++)
       cor_share[i] = checker[i]->CorShareFn(pre);
 
-    pid = fork();
+    if (correlated_store->do_fork) pid = fork();
     if (pid == 0) {
         for (unsigned int i = 0; i < N; i++)
             send_CorShare(serverfd, cor_share[i]);
-        exit(EXIT_SUCCESS);
+        if (correlated_store->do_fork) exit(EXIT_SUCCESS);
     }
 
     fmpz_t* valid_share; new_fmpz_array(&valid_share, N);
@@ -219,14 +219,14 @@ bool* validate_snips(const size_t N,
         delete cor;
     }
     delete cor_share_other;
-    waitpid(pid, &status, 0);
+    if (correlated_store->do_fork) waitpid(pid, &status, 0);
 
     // TODO: Can be simplified: one sends share, other sends if valid
-    pid = fork();
+    if (correlated_store->do_fork) pid = fork();
     if (pid == 0) {
         for (unsigned int i = 0; i < N; i++)
             send_fmpz(serverfd, valid_share[i]);
-        exit(EXIT_SUCCESS);
+        if (correlated_store->do_fork) exit(EXIT_SUCCESS);
     }
     fmpz_t valid_share_other; fmpz_init(valid_share_other);
     for (unsigned int i = 0; i < N; i++) {
@@ -242,7 +242,7 @@ bool* validate_snips(const size_t N,
     delete[] checker;
     clear_fmpz_array(valid_share, N);
     fmpz_clear(valid_share_other);
-    waitpid(pid, &status, 0);
+    if (correlated_store->do_fork) waitpid(pid, &status, 0);
     return ans;
 }
 
@@ -998,7 +998,6 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         recv_bool_batch(serverfd, other_valid, num_inputs);
         for (unsigned int i = 0; i < num_inputs; i++) {
             valid[i] &= (snip_valid[i] & other_valid[i]);
-            // valid[i] = true;
             if (valid[i])
                 num_valid++;
 
@@ -1051,6 +1050,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             delete[] x2_vals[i];
             delete[] xy_vals[i];
         }
+        delete[] valid;
         delete[] x_vals;
         delete[] y_vals;
         delete[] x2_vals;
@@ -1072,6 +1072,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             if (i > 0) std::cout << " * x_" << (i-1);
         }
         std::cout << std::endl;
+        delete[] x_accum;
+        delete[] y_accum;
         delete[] c;
 
         return RET_ANS;

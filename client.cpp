@@ -1249,6 +1249,9 @@ void lin_reg(const std::string protocol, const size_t numreqs) {
     // compute answer
     double* c = SolveLinReg(degree, x_accum, y_accum);
 
+    delete[] x_accum;
+    delete[] y_accum;
+
     std::cout << "Estimate: y = ";
     for (unsigned int i = 0; i < degree; i++) {
         if (i > 0) std::cout << " + ";

@@ -36,16 +36,21 @@ class CorrelatedStore {
 
 public:
 
+  // True to work correctly on large batches, and faster
+  // False to do debugging
+  const bool do_fork;
+
   CorrelatedStore(const int serverfd, const int idx,
                   const char* const server0_ip, const char* const server1_ip,
                   const size_t nbits, const size_t batch_size = 64,
-                  const bool lazy = false) 
+                  const bool lazy = false, const bool do_fork = true) 
   : batch_size(batch_size)
   , server_num(idx)
   , serverfd(serverfd)
   , nbits(nbits)
   , lazy(lazy)
-  , bool_batch_size(2 * batch_size * nbits)
+  , bool_batch_size(batch_size * nbits)
+  , do_fork(do_fork)
   {
     if (lazy)
       std::cout << "Doing fast but insecure precomputes." << std::endl;
