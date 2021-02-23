@@ -8,6 +8,7 @@
 #include "share.h"
 
 extern "C" {
+    #include "flint/fmpq_mat.h"  // for LinReg solving
     #include "poly/fft.h"
 }
 
@@ -218,6 +219,8 @@ struct Circuit {
         addGate(inv);
         addGate(add);
         addZeroGate(add);
+
+        // std::cout << "[" << i << "] * [" << j << "] = [" << k << "]\n";
     }
 };
 
@@ -251,41 +254,96 @@ Circuit* CheckVar() {
 
 /*
 2: x, x^2, y, xy
-3: x, x^2, x^3, x^4, y, xy, x^2 y
+3: x0, x1, x0^2, x0x1, x1^2, y, x0 y, x1 y
+4: x0, x1, x2, x0^2, x0x1, x0x2, x1^2, x1x2, x2^2, y, x0 y, x1 y, x2 y
 */
 Circuit* CheckLinReg(const size_t degree) {
-    // std::cout << "Lin reg deg circuit: " << degree << std::endl;
-    Circuit* out = new Circuit();
-    
-    const unsigned int num_inputs = 3 * (degree - 1) + 1;
+    const size_t num_x = degree - 1;
+    const size_t num_fields = 2 * num_x + 1 + num_x * (num_x + 1) / 2;
 
-    for (unsigned int i = 0; i < num_inputs; i++) {
-        Gate* inp = new Gate(Gate_Input);
-        out->addGate(inp);
+    Circuit* out = new Circuit(num_fields);
+
+    // xi * xj
+    unsigned int idx = degree;
+    for (unsigned int i = 0; i < num_x; i++) {
+        for (unsigned int j = i; j < num_x; j++) {
+            out->AddCheckMulEqual(i, j, idx);
+            idx++;
+        }
     }
 
-    Gate* x = out->gates[0];
-
-    // Ensure x * x^i = x^{i+1}, or x * (x^i y) = x^{i+1} y
-    for (unsigned int i = 0; i < 3 * (degree - 1); i++) {
-        if (i == 2 * (degree - 1) - 1)  // skip x^d -> y
-            continue;
-        Gate* base = out->gates[i];
-        Gate* next = out->gates[i+1];
-
-        Gate* mul = new Gate(Gate_Mul, x, base);
-        Gate* inv = MulByNegOne(next);
-        Gate* add = new Gate(Gate_Add, mul, inv);
-
-        out->addGate(mul);
-        out->addGate(inv);
-        out->addGate(add);
-        out->addZeroGate(add);
-
-        // std::cout << "Gate: inp[" << 0 << "] * inp[" << i << "] = inp[" << i+1 << "]" << std::endl;
-    }
+    // y * xi
+    for (unsigned int i = 0; i < num_x; i++)
+        out->AddCheckMulEqual(num_x, i, idx + i);
 
     return out;
+}
+
+double* SolveLinReg(const size_t degree, const uint64_t* const x, const uint64_t* const y) {
+
+    size_t idx = degree;
+
+    // const size_t num_x = degree - 1;
+    // std::cout << "n = " << x[0] << std::endl;
+    // for (unsigned int i = 0; i < num_x; i++)
+    //     std::cout << "x_" << i << " = " << x[i + 1] << std::endl;
+    // std::cout << "y = " << y[0] << std::endl;
+
+    // for (unsigned int i = 0; i < num_x; i++) {
+    //     for (unsigned int j = i; j < num_x; j++) {
+    //         std::cout << "x_" << i << " * " << "x_" << j << " = " << x[idx] << std::endl;
+    //         idx++;
+    //     }
+    // }
+
+    // for (unsigned int i = 0; i < num_x; i++)
+    //     std::cout << "x_" << i << " * y = " << y[i + 1] << std::endl;
+
+    fmpq_mat_t X; fmpq_mat_init(X, degree, degree);
+    fmpq_mat_t Y; fmpq_mat_init(Y, degree, 1);
+    
+    for (unsigned int i = 0; i < degree; i++) {
+        fmpq_set_ui(fmpq_mat_entry(X, i, 0), x[i], 1);
+        if (i > 0)
+            fmpq_set_ui(fmpq_mat_entry(X, 0, i), x[i], 1);
+
+        fmpq_set_ui(fmpq_mat_entry(Y, i, 0), y[i], 1);
+    }
+    idx = degree;
+    for (unsigned int i = 1; i < degree; i++) {
+        for (unsigned int j = i; j < degree; j++) {
+            fmpq_set_ui(fmpq_mat_entry(X, i, j), x[idx], 1);
+            if (j != i)
+                fmpq_set_ui(fmpq_mat_entry(X, j, i), x[idx], 1);
+            idx++;
+        }
+    }
+
+    // std::cout << "X: ";
+    // fmpq_mat_print(X);
+    // std::cout << "Y: ";
+    // fmpq_mat_print(Y);
+
+    int ret = fmpq_mat_inv(X, X);
+    if (ret == 0) {
+        std::cout << "WARNING: X is singular" << std::endl;
+    }
+    // std::cout << "X^-1: ";
+    // fmpq_mat_print(X);
+
+    fmpq_mat_mul(Y, X, Y);
+    // std::cout << "X^-1 Y: ";
+    // fmpq_mat_print(Y);
+
+
+    double* ans = new double[degree];
+    for (unsigned int i = 0; i < degree; i++)
+        ans[i] = fmpq_get_d(fmpq_mat_entry(Y, i, 0));
+
+    fmpq_mat_clear(X);
+    fmpq_mat_clear(Y);
+
+    return ans;
 }
 
 #endif

@@ -799,18 +799,24 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 }
 
 returnType linreg_op(const initMsg msg, const int clientfd,
-                     const int serverfd, const int server_num,
-                     double* const coeffs) {
+                     const int serverfd, const int server_num) {
     auto start = clock_start();
     int num_bytes = 0;
 
     size_t degree;
     num_bytes += recv_size(clientfd, degree);
-    const size_t num_x = 2 * (degree - 1);
-    const size_t num_y = degree;
-    const size_t num_fields = num_x + num_y;
 
-    typedef std::tuple <uint64_t*, uint64_t*, ClientPacket*> sharetype;
+    std::cout << "Linreg degree: " << degree << std::endl;
+
+    const size_t num_x = degree - 1;
+    const size_t num_quad = num_x * (num_x + 1) / 2;
+    const size_t num_fields = 2 * num_x + 1 + num_quad;
+    // std::cout << "num_x: " << num_x << std::endl;
+    // std::cout << "num_quad: " << num_quad << std::endl;
+    // std::cout << "num_fields: " << num_fields << std::endl;
+
+    // [x], y, [x2], [xy]
+    typedef std::tuple <uint64_t*, uint64_t, uint64_t*, uint64_t*, ClientPacket*> sharetype;
     std::unordered_map<std::string, sharetype> share_map;
 
     // const uint64_t max_val = 1ULL << num_bits;
@@ -830,9 +836,16 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         share.x_vals = new uint64_t[num_x];
         for (unsigned int j = 0; j < num_x; j++)
             num_bytes += recv_uint64(clientfd, share.x_vals[j]);
-        share.y_vals = new uint64_t[num_y];
-        for (unsigned int j = 0; j < num_y; j++)
-            num_bytes += recv_uint64(clientfd, share.y_vals[j]);
+
+        num_bytes += recv_uint64(clientfd, share.y);
+
+        share.x2_vals = new uint64_t[num_quad];
+        for (unsigned int j = 0; j < num_quad; j++)
+            num_bytes += recv_uint64(clientfd, share.x2_vals[j]);
+
+        share.xy_vals = new uint64_t[num_x];
+        for (unsigned int j = 0; j < num_x; j++)
+            num_bytes += recv_uint64(clientfd, share.xy_vals[j]);
 
         ClientPacket* packet = new ClientPacket(N, NWires);
         int packet_bytes = recv_ClientPacket(clientfd, packet);
@@ -840,7 +853,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
         // TODO: size validations
 
-        share_map[pk] = {share.x_vals, share.y_vals, packet};
+        share_map[pk] = {share.x_vals, share.y, share.x2_vals, share.xy_vals, packet};
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
@@ -858,7 +871,9 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         server_bytes += send_size(serverfd, num_inputs);
 
         uint64_t** const x_vals = new uint64_t*[num_inputs];
-        uint64_t** const y_vals = new uint64_t*[num_inputs];
+        uint64_t* const y_vals = new uint64_t[num_inputs];
+        uint64_t** const x2_vals = new uint64_t*[num_inputs];
+        uint64_t** const xy_vals = new uint64_t*[num_inputs];
         ClientPacket** const packet = new ClientPacket*[num_inputs];
 
         std::string* const pk_list = new std::string[num_inputs];
@@ -873,13 +888,16 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         }
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            std::tie(x_vals[i], y_vals[i], packet[i]) = share_map[pk_list[i]];
+            std::tie(x_vals[i], y_vals[i], x2_vals[i], xy_vals[i], packet[i]) = share_map[pk_list[i]];
             circuit[i] = CheckLinReg(degree);
 
-            for (unsigned int j = 0; j < num_x; j++)
-                wire_shares[num_fields * i + j] = x_vals[i][j];
-            for (unsigned int j = 0; j < num_y; j++)
-                wire_shares[num_fields * i + num_x + j] = y_vals[i][j];
+            memcpy(&wire_shares[num_fields * i],
+                   x_vals[i], num_x * sizeof(uint64_t));
+            wire_shares[num_fields * i + num_x] = y_vals[i];
+            memcpy(&wire_shares[num_fields * i + num_x + 1],
+                   x2_vals[i], num_quad * sizeof(uint64_t));
+            memcpy(&wire_shares[num_fields * i + num_x + num_quad + 1],
+                   xy_vals[i], num_x * sizeof(uint64_t));
         }
         const bool* const snip_valid = validate_snips(
             num_inputs, num_fields, bits_arr, serverfd, server_num,
@@ -898,28 +916,43 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
         // OT
         NetIO* const io = new NetIO(SERVER0_IP, 60051, true);
+        uint64_t b;
         uint64_t* const buf = new uint64_t[num_inputs];
         for (unsigned int j = 0; j < num_x; j++) {
             for (unsigned int i = 0; i < num_inputs; i++)
                 buf[i] = x_vals[i][j];
-            const uint64_t b = intsum_ot_receiver(io, buf, num_inputs, num_bits);
+            b = intsum_ot_receiver(io, buf, num_inputs, num_bits);
             send_uint64(serverfd, b);
         }
-        for (unsigned int j = 0; j < num_y; j++) {
+        for (unsigned int j = 0; j < num_quad; j++) {
             for (unsigned int i = 0; i < num_inputs; i++)
-                buf[i] = y_vals[i][j];
-            const uint64_t b = intsum_ot_receiver(io, buf, num_inputs, num_bits);
+                buf[i] = x2_vals[i][j];
+            b = intsum_ot_receiver(io, buf, num_inputs, 2 * num_bits);
             send_uint64(serverfd, b);
         }
+        b = intsum_ot_receiver(io, y_vals, num_inputs, num_bits);
+        send_uint64(serverfd, b);
+        for (unsigned int j = 0; j < num_x; j++) {
+            for (unsigned int i = 0; i < num_inputs; i++)
+                buf[i] = xy_vals[i][j];
+            b = intsum_ot_receiver(io, buf, num_inputs, 2 * num_bits);
+            send_uint64(serverfd, b);
+        }
+
+        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
 
         delete io;
         delete[] buf;
         for (unsigned int i = 0; i < num_inputs; i++) {
             delete[] x_vals[i];
-            delete[] y_vals[i];
+            delete[] x2_vals[i];
+            delete[] xy_vals[i];
         }
         delete[] x_vals;
         delete[] y_vals;
+        delete[] x2_vals;
+        delete[] xy_vals;
 
         return RET_NO_ANS;
     } else {
@@ -927,7 +960,9 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         recv_size(serverfd, num_inputs);
 
         uint64_t** const x_vals = new uint64_t*[num_inputs];
-        uint64_t** const y_vals = new uint64_t*[num_inputs];
+        uint64_t* const y_vals = new uint64_t[num_inputs];
+        uint64_t** const x2_vals = new uint64_t*[num_inputs];
+        uint64_t** const xy_vals = new uint64_t*[num_inputs];
         ClientPacket** const packet = new ClientPacket*[num_inputs];
 
         bool* const valid = new bool[num_inputs];
@@ -943,15 +978,18 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             if (valid[i]) {
-                std::tie(x_vals[i], y_vals[i], packet[i]) = share_map[pk_list[i]];
+                std::tie(x_vals[i], y_vals[i], x2_vals[i], xy_vals[i], packet[i]) = share_map[pk_list[i]];
             } else {
                 packet[i] = new ClientPacket(N, NWires);
             }
             circuit[i] = CheckLinReg(degree);
-            for (unsigned int j = 0; j < num_x; j++)
-                wire_shares[num_fields * i + j] = x_vals[i][j];
-            for (unsigned int j = 0; j < num_y; j++)
-                wire_shares[num_fields * i + num_x + j] = y_vals[i][j];
+            memcpy(&wire_shares[num_fields * i],
+                   x_vals[i], num_x * sizeof(uint64_t));
+            wire_shares[num_fields * i + num_x] = y_vals[i];
+            memcpy(&wire_shares[num_fields * i + num_x + 1],
+                   x2_vals[i], num_quad * sizeof(uint64_t));
+            memcpy(&wire_shares[num_fields * i + num_x + num_quad + 1],
+                   xy_vals[i], num_x * sizeof(uint64_t));
         }
         const bool* const snip_valid = validate_snips(
             num_inputs, num_fields, bits_arr, serverfd, server_num,
@@ -960,6 +998,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         recv_bool_batch(serverfd, other_valid, num_inputs);
         for (unsigned int i = 0; i < num_inputs; i++) {
             valid[i] &= (snip_valid[i] & other_valid[i]);
+            // valid[i] = true;
             if (valid[i])
                 num_valid++;
 
@@ -976,37 +1015,46 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         // OT
         NetIO* const io = new NetIO(nullptr, 60051, true);
         uint64_t* const buf = new uint64_t[num_inputs];
-        uint64_t b;
-        uint64_t* const x_accum = new uint64_t[num_x];
-        uint64_t* const y_accum = new uint64_t[num_y];
+        uint64_t a, b;
+        uint64_t* const x_accum = new uint64_t[num_x + num_quad + 1];
+        uint64_t* const y_accum = new uint64_t[num_x + 1];
+        x_accum[0] = num_valid;
         for (unsigned int j = 0; j < num_x; j++) {
             for (unsigned int i = 0; i < num_inputs; i++)
                 buf[i] = x_vals[i][j];
-            const uint64_t a = intsum_ot_sender(io, buf, valid, num_inputs, num_bits);
-
+            a = intsum_ot_sender(io, buf, valid, num_inputs, num_bits);
             recv_uint64(serverfd, b);
-            x_accum[j] = a + b;
+            x_accum[1 + j] = a + b;
         }
-        for (unsigned int j = 0; j < num_y; j++) {
+        for (unsigned int j = 0; j < num_quad; j++) {
             for (unsigned int i = 0; i < num_inputs; i++)
-                buf[i] = y_vals[i][j];
-            const uint64_t a = intsum_ot_sender(io, buf, valid, num_inputs, num_bits);
-
+                buf[i] = x2_vals[i][j];
+            a = intsum_ot_sender(io, buf, valid, num_inputs, 2 * num_bits);
             recv_uint64(serverfd, b);
-            y_accum[j] = a + b;
+            x_accum[1 + num_x + j] = a + b;
+        }
+        a = intsum_ot_sender(io, y_vals, valid, num_inputs, num_bits);
+        recv_uint64(serverfd, b);
+        y_accum[0] = a + b;
+        for (unsigned int j = 0; j < num_x; j++) {
+            for (unsigned int i = 0; i < num_inputs; i++)
+                buf[i] = xy_vals[i][j];
+            a = intsum_ot_sender(io, buf, valid, num_inputs, 2 * num_bits);
+            recv_uint64(serverfd, b);
+            y_accum[1 + j] = a + b;
         }
 
         delete io;
         delete[] buf;
-
         for (unsigned int i = 0; i < num_inputs; i++) {
             delete[] x_vals[i];
-            delete[] y_vals[i];
+            delete[] x2_vals[i];
+            delete[] xy_vals[i];
         }
-
         delete[] x_vals;
         delete[] y_vals;
-        delete[] valid;
+        delete[] x2_vals;
+        delete[] xy_vals;
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
@@ -1016,25 +1064,15 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             return RET_INVALID;
         }
 
-        /*
-        [n    , sum x  ] [c0] = [sum y ]
-        [sum x, sum x^2] [c1] = [sum xy]
-
-        [c0] = [sum x^2, - sum x][sum y ] / (n sum x^2 - (sum x)^2)
-        [c1] = [- sum x, n      ][sum xy] / (n sum x^2 - (sum x)^2)
-        */
-        uint64_t det = num_valid * x_accum[1] - (x_accum[0] * x_accum[0]);
-        double det_inv = 1. / det;
-        double c0 = det_inv * (1. * x_accum[1] * y_accum[0] - 1. * x_accum[0] * y_accum[1]);
-        double c1 = det_inv * (-1. * x_accum[0] * y_accum[0] + 1. * num_valid * y_accum[1]);
-
-        std::cout << "sum x   : " << x_accum[0] << std::endl;
-        std::cout << "sum x^2 : " << x_accum[1] << std::endl;
-        std::cout << "sum y   : " << y_accum[0] << std::endl;
-        std::cout << "sum xy  : " << y_accum[1] << std::endl;
-
-        coeffs[0] = c0;
-        coeffs[1] = c1;
+        double* c = SolveLinReg(degree, x_accum, y_accum);
+        std::cout << "Estimate: y = ";
+        for (unsigned int i = 0; i < degree; i++) {
+            if (i > 0) std::cout << " + ";
+            std::cout << c[i];
+            if (i > 0) std::cout << " * x_" << (i-1);
+        }
+        std::cout << std::endl;
+        delete[] c;
 
         return RET_ANS;
     }
@@ -1191,15 +1229,12 @@ int main(int argc, char** argv) {
             std::cout << "LINREG_OP" << std::endl;
             auto start = clock_start();
 
-            double* ans = new double[2];
-            returnType ret = linreg_op(msg, newsockfd, serverfd, server_num, ans);
+            returnType ret = linreg_op(msg, newsockfd, serverfd, server_num);
             if (ret == RET_ANS) {
-                std::cout << "Estimate: h(x) = " << ans[0] << " + " << ans[1] << " * x" << std::endl;
+                ;
             }
 
             std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
-
-            delete[] ans;
         } else if (msg.type == NONE_OP) {
             std::cout << "Empty client message" << std::endl;
         } else {

@@ -6,9 +6,10 @@
 #include "../fmpz_utils.h"
 #include "../net_share.h"
 
-const size_t batch_size = 10;
-const size_t N = 10;  // >= 2
-const size_t num_bits = 3;
+const size_t batch_size = 100; // flexible
+const size_t N = 10;           // Must be >= 2
+
+const size_t num_bits = 3;     // fixed
 
 void test_multiplyBoolShares(const size_t N, const int server_num, const int serverfd, CorrelatedStore* store) {
   bool* x = new bool[N];
@@ -80,37 +81,35 @@ void test_multiplyArithmeticShares(const size_t N, const int server_num, const i
   clear_fmpz_array(z, N);
 }
 
-void test_addBinaryShares(const size_t N, const size_t nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
+void test_addBinaryShares(const size_t N, const size_t* const nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
   bool** x = new bool*[N];
   bool** y = new bool*[N];
   bool** z = new bool*[N];
   for (unsigned int i = 0; i < N; i++) {
-    x[i] = new bool[nbits];
-    y[i] = new bool[nbits];
-    z[i] = new bool[nbits];
+    x[i] = new bool[nbits[i]];
+    y[i] = new bool[nbits[i]];
+    z[i] = new bool[nbits[i]];
   }
-  memset(x[0], 0, nbits);
-  memset(x[1], 0, nbits);
-  memset(y[0], 0, nbits);
-  memset(y[1], 0, nbits);
+  memset(x[0], 0, nbits[0]);
+  memset(x[1], 0, nbits[1]);
+  memset(y[0], 0, nbits[0]);
+  memset(y[1], 0, nbits[1]);
 
   if (server_num == 0) {
     x[0][0] = 1; x[0][1] = 0; x[0][2] = 1;  // 3
     y[0][0] = 1; y[0][1] = 1; y[0][2] = 0;  // 2
 
-    x[1][0] = 0; x[1][1] = 0; x[1][2] = 1;  // 5
-    y[1][0] = 1; y[1][1] = 0; y[1][2] = 0;  // 4
+    x[1][0] = 0; x[1][1] = 0; x[1][2] = 1;  x[1][3] = 0; // 13
+    y[1][0] = 1; y[1][1] = 0; y[1][2] = 0;  y[1][3] = 1; // 12
   } else {
     x[0][0] = 0; x[0][1] = 1; x[0][2] = 1;
     y[0][0] = 1; y[0][1] = 0; y[0][2] = 0;
 
-    x[1][0] = 1; x[1][1] = 0; x[1][2] = 0;
-    y[1][0] = 1; y[1][1] = 0; y[1][2] = 1;
+    x[1][0] = 1; x[1][1] = 0; x[1][2] = 0; x[1][3] = 1;
+    y[1][0] = 1; y[1][1] = 0; y[1][2] = 1; y[1][3] = 0;
   }
 
   bool* carry = store->addBinaryShares(N, nbits, x, y, z);
-
-  const bool case2 = (nbits == 2 * num_bits);
 
   if (server_num == 0) {
     bool other;
@@ -121,55 +120,35 @@ void test_addBinaryShares(const size_t N, const size_t nbits, const int server_n
     assert((z[0][1] ^ other) == false);
     recv_bool(serverfd, other);
     assert((z[0][2] ^ other) == true);
-    if (case2) {
-      recv_bool(serverfd, other);
-      assert((z[0][3] ^ other) == false);
-      recv_bool(serverfd, other);
-      assert((z[0][4] ^ other) == false);
-      recv_bool(serverfd, other);
-      assert((z[0][5] ^ other) == false);
-    }
     recv_bool(serverfd, other);
     assert((carry[0] ^ other) == false);
-    // 4 + 5 = 9
+    // 13 + 12 = 25
     recv_bool(serverfd, other);
     assert((z[1][0] ^ other) == true);
     recv_bool(serverfd, other);
     assert((z[1][1] ^ other) == false);
     recv_bool(serverfd, other);
     assert((z[1][2] ^ other) == false);
-    if (case2) {
-      recv_bool(serverfd, other);
-      assert((z[1][3] ^ other) == true);
-      recv_bool(serverfd, other);
-      assert((z[1][4] ^ other) == false);
-      recv_bool(serverfd, other);
-      assert((z[1][5] ^ other) == false);
-      recv_bool(serverfd, other);
-      assert((carry[1] ^ other) == false);
-    } else {
-      recv_bool(serverfd, other);
-      assert((carry[1] ^ other) == true);
-    }
+    recv_bool(serverfd, other);
+    assert((z[1][3] ^ other) == true);
+    recv_bool(serverfd, other);
+    assert((z[1][4] ^ other) == true);
+    recv_bool(serverfd, other);
+    assert((z[1][5] ^ other) == false);
+    recv_bool(serverfd, other);
+    assert((carry[1] ^ other) == false);
   } else {
     send_bool(serverfd, z[0][0]);
     send_bool(serverfd, z[0][1]);
     send_bool(serverfd, z[0][2]);
-    if (case2) {
-      send_bool(serverfd, z[0][3]);
-      send_bool(serverfd, z[0][4]);
-      send_bool(serverfd, z[0][5]);
-    }
     send_bool(serverfd, carry[0]);
 
     send_bool(serverfd, z[1][0]);
     send_bool(serverfd, z[1][1]);
     send_bool(serverfd, z[1][2]);
-    if (case2) {
-      send_bool(serverfd, z[1][3]);
-      send_bool(serverfd, z[1][4]);
-      send_bool(serverfd, z[1][5]);
-    }
+    send_bool(serverfd, z[1][3]);
+    send_bool(serverfd, z[1][4]);
+    send_bool(serverfd, z[1][5]);
     send_bool(serverfd, carry[1]);
 
   }
@@ -219,7 +198,7 @@ void test_b2a_daBit(const size_t N, const int server_num, const int serverfd, Co
   clear_fmpz_array(xp, N);
 } 
 
-void test_b2a_edaBit(const size_t N, const size_t nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
+void test_b2a_edaBit(const size_t N, const size_t* const nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
   fmpz_t* x; new_fmpz_array(&x, N);
 
   if (server_num == 0) {
@@ -255,7 +234,7 @@ void test_b2a_edaBit(const size_t N, const size_t nbits, const int server_num, c
   clear_fmpz_array(xp, N);
 }
 
-void test_validateSharesMatch(const size_t N, const size_t nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
+void test_validateSharesMatch(const size_t N, const size_t* const nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
   fmpz_t* x2; new_fmpz_array(&x2, N);
   fmpz_t* xp; new_fmpz_array(&xp, N);
 
@@ -289,6 +268,11 @@ void runServerTest(const int server_num, const int serverfd) {
 
   std::cout << std::endl;
 
+  size_t* bits_arr = new size_t[N];
+  for (unsigned int i = 0; i < N; i++)
+    bits_arr[i] = (i % 2 == 0 ? num_bits : 2 * num_bits);
+  bits_arr[1] = num_bits * 2;
+
   for (int i = 0; i < 1; i++) {
     std::cout << "iteration: " << i << std::endl;
     std::cout << "mul bool" << std::endl;
@@ -296,21 +280,16 @@ void runServerTest(const int server_num, const int serverfd) {
     std::cout << "mul arith" << std::endl;
     test_multiplyArithmeticShares(N, server_num, serverfd, store);
     std::cout << "add bin" << std::endl;
-    test_addBinaryShares(N, num_bits, server_num, serverfd, store);
-    std::cout << "add bin 2" << std::endl;
-    test_addBinaryShares(N, 2 * num_bits, server_num, serverfd, store);
+    test_addBinaryShares(N, bits_arr, server_num, serverfd, store);
     std::cout << "b2a da" << std::endl;
     test_b2a_daBit(N, server_num, serverfd, store);
     std::cout << "b2a ed" << std::endl;
-    test_b2a_edaBit(N, num_bits, server_num, serverfd, store);
-    std::cout << "b2a ed 2" << std::endl;
-    test_b2a_edaBit(N, 2 * num_bits, server_num, serverfd, store);
+    test_b2a_edaBit(N, bits_arr, server_num, serverfd, store);
     std::cout << "validate" << std::endl;
-    test_validateSharesMatch(N, num_bits, server_num, serverfd, store);
-    std::cout << "validate 2" << std::endl;
-    test_validateSharesMatch(N, 2 * num_bits, server_num, serverfd, store);
+    test_validateSharesMatch(N, bits_arr, server_num, serverfd, store);
   }
 
+  delete[] bits_arr;
   delete store;
 }
 

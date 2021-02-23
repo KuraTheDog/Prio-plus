@@ -29,8 +29,10 @@ struct VarShare {
 
 struct LinRegShare {
     char pk[PK_LENGTH];
-    uint64_t* x_vals;  // x, x^2, x^3, ...
-    uint64_t* y_vals;  // y, xy, x^2 y, ...
+    uint64_t* x_vals;   // Feats: x0, x1, ... d-1
+    uint64_t y;         // Target: y 1
+    uint64_t* x2_vals;  // Quadratic in feats: x0^2, x0 x1, x1^2, ... d(d-1)/2
+    uint64_t* xy_vals;  // Feat * target: x0 y, x1 y, (d-1)
 };
 
 enum messageType {

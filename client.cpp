@@ -64,15 +64,22 @@ int send_maxshare(const int server_num, const MaxShare& maxshare, const unsigned
 int send_linregshare(const int server_num, const LinRegShare& share,  const size_t degree) {
     const int sock = (server_num == 0) ? sockfd0 : sockfd1;
 
-    const size_t num_x = 2 * (degree - 1);
-    const size_t num_y = degree;
+    const size_t num_x = degree - 1;
+    const size_t num_quad = num_x * (num_x + 1) / 2;
 
     int ret = send(sock, (void*) &share, PK_LENGTH, 0);
 
     for (unsigned int i = 0; i < num_x; i++)
         ret += send_uint64(sock, share.x_vals[i]);
-    for (unsigned int i = 0; i < num_y; i++)
-        ret += send_uint64(sock, share.y_vals[i]);
+
+    ret += send_uint64(sock, share.y);
+
+    for (unsigned int i = 0; i < num_quad; i++)
+        ret += send_uint64(sock, share.x2_vals[i]);
+
+    for (unsigned int i = 0; i < num_x; i++)
+        ret += send_uint64(sock, share.xy_vals[i]);
+
     return ret;
 }
 
@@ -1032,96 +1039,131 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
 
 // Currently just degree 2
 int lin_reg_helper(const std::string protocol, const size_t numreqs,
+                   const size_t degree,
                    uint64_t* const x_accum, uint64_t* const y_accum,
                    const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
 
-    const size_t degree = 2;
-    const size_t num_x = 2 * (degree - 1);
-    const size_t num_y = degree;
-    std::cout << "Degree: " << degree << std::endl;
-    std::cout << "Num x: " << num_x << std::endl;
-    std::cout << "Num y: " << num_y << std::endl;
+    const size_t num_x = degree - 1;
+    const size_t num_quad = num_x * (num_x + 1) / 2;
+    const size_t num_fields = 2 * num_x + 1 + num_quad;
 
     int num_bytes = 0;
 
     emp::block* const b = new block[numreqs];
-    uint64_t* const x_real = new uint64_t[numreqs];
-    uint64_t* const y_real = new uint64_t[numreqs];
-    uint64_t* const x_share0 = new uint64_t[numreqs];
-    uint64_t* const x_share1 = new uint64_t[numreqs];
-    uint64_t* const x2_share0 = new uint64_t[numreqs];
-    uint64_t* const x2_share1 = new uint64_t[numreqs];
-    uint64_t* const y_share0 = new uint64_t[numreqs];
-    uint64_t* const y_share1 = new uint64_t[numreqs];
-    uint64_t* const xy_share0 = new uint64_t[numreqs];
-    uint64_t* const xy_share1 = new uint64_t[numreqs];
-
-    fmpz_t* inp; new_fmpz_array(&inp, 4);
+    uint64_t* const x_real = new uint64_t[num_x];
+    uint64_t* const x_share0 = new uint64_t[num_x];
+    uint64_t* const x_share1 = new uint64_t[num_x];
+    uint64_t y_real, y_share0, y_share1;
+    uint64_t* const x2_real = new uint64_t[num_quad];
+    uint64_t* const x2_share0 = new uint64_t[num_quad];
+    uint64_t* const x2_share1 = new uint64_t[num_quad];
+    uint64_t* const xy_real = new uint64_t[num_x];
+    uint64_t* const xy_share0 = new uint64_t[num_x];
+    uint64_t* const xy_share1 = new uint64_t[num_x];
 
     emp::PRG prg;
     prg.random_block(b, numreqs);
-    prg.random_data(x_real, numreqs * sizeof(uint64_t));
-    prg.random_data(y_real, numreqs * sizeof(uint64_t));
-    prg.random_data(x_share0, numreqs * sizeof(uint64_t));
-    prg.random_data(y_share0, numreqs * sizeof(uint64_t));
-    prg.random_data(x2_share0, numreqs * sizeof(uint64_t));
-    prg.random_data(xy_share0, numreqs * sizeof(uint64_t));
 
     LinRegShare* const linshare0 = new LinRegShare[numreqs];
     LinRegShare* const linshare1 = new LinRegShare[numreqs];
     ClientPacket** const packet0 = new ClientPacket*[numreqs];
     ClientPacket** const packet1 = new ClientPacket*[numreqs];
 
+    fmpz_t* inp; new_fmpz_array(&inp, num_fields);
+
     for (unsigned int i = 0; i < numreqs; i++) {
+        prg.random_data(x_real, num_x * sizeof(uint64_t));
+        prg.random_data(x_share0, num_x * sizeof(uint64_t));
+        prg.random_data(x2_share0, num_quad * sizeof(uint64_t));
+        prg.random_data(xy_share0, num_x * sizeof(uint64_t));
+        prg.random_data(&y_real, sizeof(uint64_t));
+        prg.random_data(&y_share0, sizeof(uint64_t));
 
-        const uint64_t x2 = x_real[i] * x_real[i];
-        x2_share0[i] = x2_share0[i] % max_int;
-        x2_share1[i] = x2 ^ x2_share0[i];
+        for (unsigned int j = 0; j < num_x; j++) {
+            x_real[j] = x_real[j] % max_int;
+            x_share0[j] = x_share0[j] % max_int;
+            x_share1[j] = x_share0[j] ^ x_real[j];
+            x_accum[j + 1] += x_real[j];
+            // std::cout << "x[" << j << "]  = " << x_real[j] << " = " << x_share0[j] << " ^ " << x_share1[j] << std::endl;
+        }
+        y_real = y_real % max_int;
+        y_share0 = y_share0 % max_int;
+        y_share1 = y_share0 ^ y_real;
+        y_accum[0] += y_real;
+        // std::cout << "y     = " << y_real << " = " << y_share0 << " ^ " << y_share1 << std::endl;
 
-        const uint64_t xy = x_real[i] * y_real[i];
-        xy_share0[i] = xy_share0[i] % max_int;
-        xy_share1[i] = xy ^ xy_share0[i];
+        // std::cout << "x: ";
+        // for (unsigned int j = 0; j < num_x; j++) {
+        //     if (j > 0) std::cout << ", ";
+        //     std::cout << x_real[j];
+        // }
+        // std::cout << ", y: " << y_real << std::endl;
 
-        x_accum[0] += x_real[i];
-        x_accum[1] += x2;
-        y_accum[0] += y_real[i];
-        y_accum[1] += xy;
+        unsigned int idx = 0;
+        for (unsigned int j = 0; j < num_x; j++) {
+            for (unsigned int k = j; k < num_x; k++) {
+                x2_real[idx] = x_real[j] * x_real[k];
+                x2_share0[idx] = x2_share0[idx] % (max_int * max_int);
+                x2_share1[idx] = x2_share0[idx] ^ x2_real[idx];
+                // std::cout << "x2[" << idx << "] = " << x2_real[idx] << " = " << x2_share0[idx] << " ^ " << x2_share1[idx] << std::endl;
 
-        std::cout << "x: " << x_real[i] << ", y: " << y_real[i] << std::endl;
+                x_accum[idx + num_x + 1] += x2_real[idx];
+                idx++;
+            }
+            xy_real[j] = x_real[j] * y_real;
+            xy_share0[j] = xy_share0[j] % (max_int * max_int);
+            xy_share1[j] = xy_share0[j] ^ xy_real[j];
+            // std::cout << "xy[" << j << "] = " << xy_real[j] << " = " << xy_share0[j] << " ^ " << xy_share1[j] << std::endl;
+            
+            y_accum[j + 1] += xy_real[j];
+        }
 
         // build shares
         const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
         const char* const pk = pk_s.c_str();
 
         memcpy(linshare0[i].pk, &pk[0], PK_LENGTH);
+        linshare0[i].y = y_share0;
         linshare0[i].x_vals = new uint64_t[num_x];
-        linshare0[i].y_vals = new uint64_t[num_y];
-        linshare0[i].x_vals[0] = x_share0[i];
-        linshare0[i].x_vals[1] = x2_share0[i];
-        linshare0[i].y_vals[0] = y_share0[i];
-        linshare0[i].y_vals[1] = xy_share0[i];
+        linshare0[i].x2_vals = new uint64_t[num_quad];
+        linshare0[i].xy_vals = new uint64_t[num_x];
+        memcpy(linshare0[i].x_vals, x_share0, num_x * sizeof(uint64_t));
+        memcpy(linshare0[i].x2_vals, x2_share0, num_quad * sizeof(uint64_t));
+        memcpy(linshare0[i].xy_vals, xy_share0, num_x * sizeof(uint64_t));
 
         memcpy(linshare1[i].pk, &pk[0], PK_LENGTH);
+        linshare1[i].y = y_share1;
         linshare1[i].x_vals = new uint64_t[num_x];
-        linshare1[i].y_vals = new uint64_t[num_y];
-        linshare1[i].x_vals[0] = x_share1[i];
-        linshare1[i].x_vals[1] = x2_share1[i];
-        linshare1[i].y_vals[0] = y_share1[i];
-        linshare1[i].y_vals[1] = xy_share1[i];
+        linshare1[i].x2_vals = new uint64_t[num_quad];
+        linshare1[i].xy_vals = new uint64_t[num_x];
+        memcpy(linshare1[i].x_vals, x_share1, num_x * sizeof(uint64_t));
+        memcpy(linshare1[i].x2_vals, x2_share1, num_quad * sizeof(uint64_t));
+        memcpy(linshare1[i].xy_vals, xy_share1, num_x * sizeof(uint64_t));
 
         // build packets
-        fmpz_set_si(inp[0], x_real[i]);
-        fmpz_set_si(inp[1], x2);
-        fmpz_set_si(inp[2], y_real[i]);
-        fmpz_set_si(inp[3], xy);
-        Circuit* const circuit = CheckLinReg(2);
+        for (unsigned int j = 0; j < num_x; j++)
+            fmpz_set_si(inp[j], x_real[j]);
+        fmpz_set_si(inp[num_x], y_real);
+        for (unsigned int j = 0; j < num_quad; j++)
+            fmpz_set_si(inp[j + num_x + 1], x2_real[j]);
+        for (unsigned int j = 0; j < num_x; j++)
+            fmpz_set_si(inp[j + num_x + num_quad + 1], xy_real[j]);
+
+        // for (unsigned int j = 0; j < num_fields; j++) {
+        //     std::cout << "inp[" << j << "] = ";
+        //     fmpz_print(inp[j]);
+        //     std::cout << std::endl;
+        // }
+
+        Circuit* const circuit = CheckLinReg(degree);
         circuit->Eval(inp);
         packet0[i] = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
         packet1[i] = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
         share_polynomials(circuit, packet0[i], packet1[i]);
         delete circuit;
     }
+    x_accum[0] += numreqs;
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     start = clock_start();
@@ -1131,10 +1173,8 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
         
         num_bytes += send_size(sockfd0, degree);
         num_bytes += send_size(sockfd1, degree);
-
     }
     for (unsigned int i = 0; i < numreqs; i++) {
-        // TODO: actual packets, similar to max
         num_bytes += send_linregshare(0, linshare0[i], degree);
         num_bytes += send_linregshare(1, linshare1[i], degree);
 
@@ -1142,9 +1182,11 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
         num_bytes += send_ClientPacket(sockfd1, packet1[i]);
 
         delete[] linshare0[i].x_vals;
-        delete[] linshare0[i].y_vals;
+        delete[] linshare0[i].x2_vals;
+        delete[] linshare0[i].xy_vals;
         delete[] linshare1[i].x_vals;
-        delete[] linshare1[i].y_vals;
+        delete[] linshare1[i].x2_vals;
+        delete[] linshare1[i].xy_vals;
         delete packet0[i];
         delete packet1[i];
     }
@@ -1155,23 +1197,39 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
     delete[] packet1;
     delete[] b;
     delete[] x_real;
-    delete[] y_real;
     delete[] x_share0;
     delete[] x_share1;
+    delete[] x2_real;
     delete[] x2_share0;
     delete[] x2_share1;
-    delete[] y_share0;
-    delete[] y_share1;
+    delete[] xy_real;
     delete[] xy_share0;
     delete[] xy_share1;
-    clear_fmpz_array(inp, 4);
+    clear_fmpz_array(inp, num_fields);
+
+    if (numreqs > 1)
+        std::cout << "batch send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 
     return num_bytes;
 }
 
 void lin_reg(const std::string protocol, const size_t numreqs) {
-    uint64_t x_accum[2] = {0, 0};  // x, x^2
-    uint64_t y_accum[2] = {0, 0};  // y, x y
+    if (num_bits > 31)
+        error_exit("Num bits is too large. x^2 > 2^64.");
+
+    const size_t degree = 2;  // TODO: from input
+    const size_t num_x = degree - 1;
+    const size_t num_quad = num_x * (num_x + 1) / 2;
+    const size_t num_fields = 2 * num_x + 1 + num_quad;
+
+    std::cout << "num_x: " << num_x << std::endl;
+    std::cout << "num_quad: " << num_quad << std::endl;
+    std::cout << "num_fields: " << num_fields << std::endl;
+
+    uint64_t* const x_accum = new uint64_t[num_x + num_quad + 1];
+    uint64_t* const y_accum = new uint64_t[num_x + 1];
+    memset(x_accum, 0, (num_x + num_quad + 1) * sizeof(uint64_t));
+    memset(y_accum, 0, (num_x + 1) * sizeof(uint64_t));
 
     int num_bytes = 0;
     initMsg msg;
@@ -1179,39 +1237,27 @@ void lin_reg(const std::string protocol, const size_t numreqs) {
     msg.type = LINREG_OP;
 
     if (do_batch) {
-        num_bytes += lin_reg_helper(protocol, numreqs, x_accum, y_accum, &msg);
+        num_bytes += lin_reg_helper(protocol, numreqs, degree, x_accum, y_accum, &msg);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            num_bytes += lin_reg_helper(protocol, 1, x_accum, y_accum,
+            num_bytes += lin_reg_helper(protocol, 1, degree, x_accum, y_accum,
                                         i == 0 ? &msg : nullptr);
         std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
     // compute answer
+    double* c = SolveLinReg(degree, x_accum, y_accum);
 
-    /*
-    [n    , sum x  ] [c0] = [sum y ]
-    [sum x, sum x^2] [c1] = [sum xy]
+    std::cout << "Estimate: y = ";
+    for (unsigned int i = 0; i < degree; i++) {
+        if (i > 0) std::cout << " + ";
+        std::cout << c[i];
+        if (i > 0) std::cout << " * x_" << (i-1);
+    }
+    std::cout << std::endl;
 
-    [c0] = [sum x^2, - sum x][sum y ] / (n sum x^2 - (sum x)^2)
-    [c1] = [- sum x, n      ][sum xy] / (n sum x^2 - (sum x)^2)
-
-    Doesn't work on numreqs = 1
-    */
-
-    uint64_t det = numreqs * x_accum[1] - (x_accum[0] * x_accum[0]);
-    std::cout << "det: " << det << std::endl;
-    double det_inv = 1. / det;
-    double c0 = det_inv * (1. * x_accum[1] * y_accum[0] - 1. * x_accum[0] * y_accum[1]);
-    double c1 = det_inv * (-1. * x_accum[0] * y_accum[0] + 1. * numreqs * y_accum[1]);
-
-    std::cout << "sum x   : " << x_accum[0] << std::endl;
-    std::cout << "sum x^2 : " << x_accum[1] << std::endl;
-    std::cout << "sum y   : " << y_accum[0] << std::endl;
-    std::cout << "sum xy  : " << y_accum[1] << std::endl;
-
-    std::cout << "Estimate: h(x) = " << c0 << " + " << c1 << " * x" << std::endl;
+    delete[] c;
 
     std::cout << "Total sent bytes: " << num_bytes << std::endl;
 }
