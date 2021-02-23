@@ -13,7 +13,6 @@ x_op_invalid: For testing/debugging, does a basic run with intentionally invalid
 #include "client.h"
 
 #include <arpa/inet.h>
-#include <math.h>  // sqrt
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -34,9 +33,8 @@ x_op_invalid: For testing/debugging, does a basic run with intentionally invalid
 #define SERVER0_IP "127.0.0.1"
 #define SERVER1_IP "127.0.0.1"
 
-
+uint32_t num_bits;
 uint64_t max_int;
-uint64_t small_max_int; // sqrt(max_int)
 int sockfd0, sockfd1;
 bool include_invalid = false;
 bool do_batch = true;
@@ -787,11 +785,11 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
     ClientPacket** const packet1 = new ClientPacket*[numreqs];
 
     for (unsigned int i = 0; i < numreqs; i++) {
-        real_vals[i] = real_vals[i] % small_max_int;
-        shares0[i] = shares0[i] % small_max_int;
+        real_vals[i] = real_vals[i] % max_int;
+        shares0[i] = shares0[i] % max_int;
         shares1[i] = real_vals[i] ^ shares0[i];
         const uint64_t squared = real_vals[i] * real_vals[i];
-        shares0_squared[i] = shares0_squared[i] % max_int;
+        shares0_squared[i] = shares0_squared[i] % (max_int * max_int);
         shares1_squared[i] = squared ^ shares0_squared[i];
         sum += real_vals[i];
         sumsquared += squared;
@@ -855,6 +853,9 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
 }
 
 void var_op(const std::string protocol, const size_t numreqs) {
+    if (num_bits > 31)
+        error_exit("Num bits is too large. x^2 > 2^64.");
+
     uint64_t sum = 0, sumsquared = 0;
     int num_bytes = 0;
     initMsg msg;
@@ -928,7 +929,6 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
     prg.random_data(shares0, numreqs * sizeof(uint64_t));
     prg.random_data(shares0_squared, numreqs * sizeof(uint64_t));
 
-    std::cout << "small_max_int: " << small_max_int << std::endl;
     std::cout << "max_int: " << max_int << std::endl;
 
     fmpz_t inp[2];
@@ -938,16 +938,16 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
     std::string pk_str = "";
 
     for (unsigned int i = 0; i < numreqs; i++) {
-        real_vals[i] = real_vals[i] % small_max_int;
+        real_vals[i] = real_vals[i] % max_int;
         if (i == 0)  // x over cap
-            real_vals[i] += small_max_int;
-        shares0[i] = shares0[i] % small_max_int;
+            real_vals[i] += max_int;
+        shares0[i] = shares0[i] % max_int;
         if (i == 1)  // x shares over capped
-            shares0[i] += small_max_int;
+            shares0[i] += max_int;
         shares1[i] = real_vals[i] ^ shares0[i];
         uint64_t squared = real_vals[i] * real_vals[i];
         if (i == 3 or i == 4)  // x^2 != x * x
-            squared = (squared + 10) % max_int;
+            squared = (squared + 10) % (max_int * max_int);
         if (i != 2)  // x^2 not capped
             shares0_squared[i] = shares0_squared[i] % max_int;
         shares1_squared[i] = squared ^ shares0_squared[i];
@@ -1074,13 +1074,6 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
     ClientPacket** const packet1 = new ClientPacket*[numreqs];
 
     for (unsigned int i = 0; i < numreqs; i++) {
-        x_real[i] = x_real[i] % small_max_int;
-        x_share0[i] = x_share0[i] % small_max_int;
-        x_share1[i] = x_real[i] ^ x_share0[i];
-
-        y_real[i] = y_real[i] % small_max_int;
-        y_share0[i] = y_share0[i] % small_max_int;
-        y_share1[i] = y_real[i] ^ y_share0[i];
 
         const uint64_t x2 = x_real[i] * x_real[i];
         x2_share0[i] = x2_share0[i] % max_int;
@@ -1235,14 +1228,12 @@ int main(int argc, char** argv) {
     const std::string protocol(argv[4]);
 
     if (argc >= 6) {
-        int num_bits = atoi(argv[5]);
+        num_bits = atoi(argv[5]);
         std::cout << "num bits: " << num_bits << std::endl;
         max_int = 1ULL << num_bits;
         std::cout << "max int: " << max_int << std::endl;
-        small_max_int = 1ULL << (num_bits / 2);
-        if (num_bits > 63) {
+        if (num_bits > 63)
             error_exit("Num bits is too large. Int math is done mod 2^64.");
-        }
     }
 
     if (argc >= 7) {

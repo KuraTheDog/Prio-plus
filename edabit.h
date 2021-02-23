@@ -15,16 +15,17 @@ class CorrelatedStore {
   const size_t batch_size;  // How many to make at once
   const int server_num;
   const int serverfd;
-  const size_t num_bits;    // for size of edabits
+  const size_t nbits;       // base # of bits. Makes this and *2
 
   // If lazy, does fast but insecure offline.
   const bool lazy;
 
   // Since we use these a lot more, make much bigger batches at once.
-  // num_bits * batch_size
+  // nbits * batch_size
   const size_t bool_batch_size;
 
-  std::queue<EdaBit*> edabit_store;
+  std::queue<EdaBit*> edabit_store;    // nbits edabits
+  std::queue<EdaBit*> edabit_store_2;  // 2 nbits edabits
   std::queue<DaBit*> dabit_store;
   std::queue<BooleanBeaverTriple*> btriple_store;
   std::queue<BeaverTriple*> atriple_store;
@@ -37,14 +38,14 @@ public:
 
   CorrelatedStore(const int serverfd, const int idx,
                   const char* const server0_ip, const char* const server1_ip,
-                  const size_t num_bits, const size_t batch_size = 64,
+                  const size_t nbits, const size_t batch_size = 64,
                   const bool lazy = false) 
   : batch_size(batch_size)
   , server_num(idx)
   , serverfd(serverfd)
-  , num_bits(num_bits)
+  , nbits(nbits)
   , lazy(lazy)
-  , bool_batch_size(2 * batch_size * num_bits)
+  , bool_batch_size(2 * batch_size * nbits)
   {
     if (lazy)
       std::cout << "Doing fast but insecure precomputes." << std::endl;
@@ -57,20 +58,20 @@ public:
   // return N new daBits
   DaBit** generateDaBit(const size_t N);
   // return N new edaBits
-  EdaBit** generateEdaBit(const size_t N);
+  EdaBit** generateEdaBit(const size_t N, const size_t num_bits);
 
   // add to the store.
   // Adds at least batch_size (or bool_batch_size), or n if bigger
   void addBoolTriples(const size_t n = 0);
   void addTriples(const size_t n = 0);
   void addDaBits(const size_t n = 0);
-  void addEdaBits(const size_t n = 0);
+  void addEdaBits(const size_t num_bits, const size_t n = 0);
 
   // get from store, and maybe add if necessary
   BooleanBeaverTriple* getBoolTriple();
   BeaverTriple* getTriple();
   DaBit* getDaBit();
-  EdaBit* getEdaBit();
+  EdaBit* getEdaBit(const size_t num_bits);
 
   // Precompute if not enough
   void maybeUpdate();
@@ -87,18 +88,20 @@ public:
   // x, y, z are [N][num_bits], ret is [N]
   // Treats x[i], y[i], z[i] as array of bits
   // sets z[i] and ret[i] as x[i] + y[i] and carry[i], as shares
-  bool* addBinaryShares(const size_t N,
+  bool* addBinaryShares(const size_t N, const size_t* const num_bits,
                         const bool* const * const x, const bool* const * const y,
                         bool* const * const z);
 
   // x, ret is [N]
   // Turns binary share x[i] into arith share ret[i]
   fmpz_t* b2a_daBit(const size_t N, const bool* const x);
-  fmpz_t* b2a_edaBit(const size_t N, const fmpz_t* const x);
+  fmpz_t* b2a_edaBit(const size_t N, const size_t* const num_bits,
+                     const fmpz_t* const x);
 
   // x2, xp, ret are [N]
   // ret[i] is if xor shares x2[i] and additive shares xp[i] are the same value
-  bool* validateSharesMatch(const size_t N,
+  // TODO: instead pass in num_bits as an array?
+  bool* validateSharesMatch(const size_t N, const size_t* const num_bits,
                             const fmpz_t* const x2, const fmpz_t* const xp);
 };
 

@@ -3,6 +3,9 @@ Based on ia.cr/2020/338
 
 Due to send buffers potentially filling up, it forks out a child to do sending, while parent receives.
 It also waits for the child to finish before exiting or moving to a substep that will send, to stay synced.
+
+TODO: Add check at start of functions to make enough if needed. 
+For when request size >> buffer size
 */
 #include "edabit.h"
 
@@ -50,10 +53,10 @@ void CorrelatedStore::addDaBits(const size_t n) {
   std::cout << "addDaBits timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }
 
-void CorrelatedStore::addEdaBits(const size_t n) {
+void CorrelatedStore::addEdaBits(const size_t num_bits, const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > batch_size ? n : batch_size);
-  std::cout << "adding edabits: " << num_to_make << std::endl;
+  std::cout << "adding " << num_bits << " bit edabits: " << num_to_make << std::endl;
   if (lazy) {
     if (server_num == 0) {  // make on server 0
       std::cout << "Making lazy edabits" << std::endl;
@@ -62,23 +65,33 @@ void CorrelatedStore::addEdaBits(const size_t n) {
         EdaBit* edabit = new EdaBit(num_bits);
         makeLocalEdaBit(edabit, other_edabit, num_bits);
         send_EdaBit(serverfd, other_edabit, num_bits);
-        edabit_store.push(edabit);
+        if (num_bits == nbits)
+          edabit_store.push(edabit);
+        else if (num_bits == 2 * nbits)
+          edabit_store_2.push(edabit);
       }
       delete other_edabit;
     } else {
       for (unsigned int i = 0; i < num_to_make; i++) {
         EdaBit* edabit = new EdaBit(num_bits);
         recv_EdaBit(serverfd, edabit, num_bits);
-        edabit_store.push(edabit);
+        if (num_bits == nbits)
+          edabit_store.push(edabit);
+        else if (num_bits == 2 * nbits)
+          edabit_store_2.push(edabit);
       }
     }
     std::cout << "lazy addEdaBits timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     return;
   }
 
-  EdaBit** edabit = generateEdaBit(num_to_make);
-  for (unsigned int i = 0; i < num_to_make; i++)
-    edabit_store.push(edabit[i]);
+  EdaBit** edabit = generateEdaBit(num_to_make, num_bits);
+  for (unsigned int i = 0; i < num_to_make; i++) {
+    if (num_bits == nbits)
+      edabit_store.push(edabit[i]);
+    else if (num_bits == 2 * nbits)
+      edabit_store_2.push(edabit[i]);
+  }
   delete[] edabit;
 
   std::cout << "addEdaBits timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
@@ -108,27 +121,43 @@ DaBit* CorrelatedStore::getDaBit() {
   return ans;
 }
 
-EdaBit* CorrelatedStore::getEdaBit() {
-  if (edabit_store.empty())
-    addEdaBits();
-  EdaBit* ans = edabit_store.front();
-  edabit_store.pop();
+EdaBit* CorrelatedStore::getEdaBit(const size_t num_bits) {
+  EdaBit* ans;
+  if (num_bits == nbits) {
+    if (edabit_store.empty())
+      addEdaBits(num_bits);
+    ans = edabit_store.front();
+    edabit_store.pop();
+    return ans;
+  } else if (num_bits == 2 * nbits) {
+    if (edabit_store_2.empty())
+      addEdaBits(num_bits);
+    ans = edabit_store_2.front();
+    edabit_store_2.pop();
+  } else {
+    std::cerr << "Cannot get a " << num_bits << " edabit.";
+    std::cerr << "Only " << nbits << " or " << 2 * nbits << " is supported" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  
   return ans;
 }
 
 void CorrelatedStore::maybeUpdate() {
   std::cout << "precomputing..." << std::endl;
   auto start = clock_start();
-  if (!lazy) {
-    if (btriple_store.size() < bool_batch_size / 2)
+  if (btriple_store.size() < bool_batch_size / 2)
       addBoolTriples();
+  if (!lazy) {
     if (atriple_store.size() < batch_size / 2)
-      addTriples();
+      addTriples(6 * batch_size);
     if (dabit_store.size() < batch_size / 2)
-      addDaBits();
+      addDaBits(4 * batch_size);
   }
   if (edabit_store.size() < batch_size / 2)
-    addEdaBits();
+    addEdaBits(nbits);
+  if (edabit_store_2.size() < batch_size / 2)
+    addEdaBits(nbits * 2);
   if (!lazy) {
     if (atriple_store.size() < batch_size / 2)
       addTriples();
@@ -141,6 +170,7 @@ void CorrelatedStore::maybeUpdate() {
     addBoolTriples();
   std::cout << "Current store sizes:" << std::endl;
   std::cout << "       EdaBits: " << edabit_store.size() << std::endl;
+  std::cout << "     EdaBits 2: " << edabit_store_2.size() << std::endl;
   std::cout << "        Dabits: " << dabit_store.size() << std::endl;
   std::cout << " Arith Triples: " << atriple_store.size() << std::endl;
   std::cout << " Bool  Triples: " << btriple_store.size() << std::endl;
@@ -281,27 +311,40 @@ fmpz_t* CorrelatedStore::multiplyArithmeticShares(const size_t N,
 
 // c_{i+1} = c_i xor ((x_i xor c_i) and (y_i xor c_i))
 // output z_i = x_i xor y_i xor c_i
-bool* CorrelatedStore::addBinaryShares(const size_t N, 
+bool* CorrelatedStore::addBinaryShares(const size_t N,
+                                       const size_t* const num_bits,
                                        const bool* const * const x,
                                        const bool* const * const y,
                                        bool* const * const z) {
   bool* carry = new bool[N];
-
+  memset(carry, false, N);
   bool* xi = new bool[N];
   bool* yi = new bool[N];
+
+  size_t max_bits = 0;
   for (unsigned int i = 0; i < N; i++)
-    carry[i] = false;
-  for (unsigned int j = 0; j < num_bits; j++) {
+    max_bits = (num_bits[i] > max_bits ? num_bits[i] : max_bits);
+
+  for (unsigned int j = 0; j < max_bits; j++) {
+    size_t idx = 0;
     for (unsigned int i = 0; i < N; i++) {
+      if (j >= num_bits[i])
+        continue;
       z[i][j] = carry[i] ^ x[i][j] ^ y[i][j];
-      xi[i] = carry[i] ^ x[i][j];
-      yi[i] = carry[i] ^ y[i][j];
+      xi[idx] = carry[i] ^ x[i][j];
+      yi[idx] = carry[i] ^ y[i][j];
+      idx++;
     }
 
-    bool* new_carry = multiplyBoolShares(N, xi, yi);
+    bool* new_carry = multiplyBoolShares(idx, xi, yi);
 
-    for (unsigned int i = 0; i < N; i++)
-      carry[i] ^= new_carry[i];
+    idx = 0;
+    for (unsigned int i = 0; i < N; i++) {
+      if (j >= num_bits[i])
+        continue;
+      carry[i] ^= new_carry[idx];
+      idx++;
+    }
 
     delete[] new_carry;
   }
@@ -354,7 +397,9 @@ fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
   return xp;
 }
 
-fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N, const fmpz_t* const x) {
+fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
+                                    const size_t* const num_bits,
+                                    const fmpz_t* const x) {
   fmpz_t* xp; new_fmpz_array(&xp, N);
 
   bool** x2 = new bool*[N];
@@ -363,11 +408,11 @@ fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N, const fmpz_t* const x) {
   fmpz_t* ebit_r; new_fmpz_array(&ebit_r, N);
 
   for (unsigned int i = 0; i < N; i++) {
-    x2[i] = new bool[num_bits];
-    b[i] = new bool[num_bits];
-    xr[i] = new bool[num_bits + 1];
-    EdaBit* edabit = getEdaBit();
-    for (unsigned int j = 0; j < num_bits; j++) {
+    x2[i] = new bool[num_bits[i]];
+    b[i] = new bool[num_bits[i]];
+    xr[i] = new bool[num_bits[i] + 1];
+    EdaBit* edabit = getEdaBit(num_bits[i]);
+    for (unsigned int j = 0; j < num_bits[i]; j++) {
       // Convert x2 to bool array
       x2[i][j] = fmpz_tstbit(x[i], j);
       b[i][j] = edabit->b[j];
@@ -379,12 +424,12 @@ fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N, const fmpz_t* const x) {
   }
   
   // [x + r]_2 = [x]_2 + [r]_2 via circuit
-  bool* carry = addBinaryShares(N, x2, b, xr);
+  bool* carry = addBinaryShares(N, num_bits, x2, b, xr);
 
   for (unsigned int i = 0; i < N; i++) {
-    xr[i][num_bits] = carry[i];
+    xr[i][num_bits[i]] = carry[i];
 
-    fmpz_from_bool_array(xp[i], xr[i], num_bits + 1);  // [x + r]_2
+    fmpz_from_bool_array(xp[i], xr[i], num_bits[i] + 1);  // [x + r]_2
 
     delete[] x2[i];
     delete[] b[i];
@@ -428,12 +473,13 @@ fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N, const fmpz_t* const x) {
 }
 
 bool* CorrelatedStore::validateSharesMatch(const size_t N,
+                                           const size_t* const num_bits,
                                            const fmpz_t* const x2,
                                            const fmpz_t* const xp) {
   bool* ans = new bool[N];
 
   // Compute [x2]_p
-  fmpz_t* x2_p = b2a_edaBit(N, x2);
+  fmpz_t* x2_p = b2a_edaBit(N, num_bits, x2);
 
   // Validate: (x2_0 - xp_0) + (x2_1 - xp_1) = 0
   if (server_num == 0) {
@@ -532,7 +578,7 @@ DaBit** CorrelatedStore::generateDaBit(const size_t N) {
   return dabit;
 }
 
-EdaBit** CorrelatedStore::generateEdaBit(const size_t N) {
+EdaBit** CorrelatedStore::generateEdaBit(const size_t N, const size_t num_bits) {
   EdaBit** edabit = new EdaBit*[N];
 
   EdaBit** edabit0 = new EdaBit*[N];
@@ -589,7 +635,11 @@ EdaBit** CorrelatedStore::generateEdaBit(const size_t N) {
   waitpid(pid, &status, 0);
 
   // Add binary shares via circuit
-  bool* carry = addBinaryShares(N, b0, b1, b);
+  size_t* bits_arr = new size_t[N];
+  for (unsigned int i = 0; i < N; i++)
+    bits_arr[i] = num_bits;
+  bool* carry = addBinaryShares(N, bits_arr, b0, b1, b);
+  delete[] bits_arr;
 
   fmpz_t tmp; fmpz_init(tmp);
   fmpz_from_bool_array(tmp, b[0], num_bits);

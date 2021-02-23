@@ -1,6 +1,5 @@
 #include "server.h"
 
-#include <math.h>  // sqrt
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -146,9 +145,9 @@ CheckerPreComp* getPrecomp(const size_t N) {
 // Batch of N (snips + num_input wire/share) validations
 bool* validate_snips(const size_t N,
                      const size_t num_inputs,
+                     const size_t* const num_bits,
                      const int serverfd,
                      const int server_num,
-                     const size_t num_bits,
                      Circuit* const * const circuit,
                      const ClientPacket* const * const packet,
                      const uint64_t* const share
@@ -161,10 +160,12 @@ bool* validate_snips(const size_t N,
     // Ensures [share]_2 and [wire]_p encode the same value.
     // Matches share[i] with wire[i] for num_input
 
+    size_t* bits_arr = new size_t[N * num_inputs];
     fmpz_t* fshare; new_fmpz_array(&fshare, N * num_inputs);
     fmpz_t* wireshare; new_fmpz_array(&wireshare, N * num_inputs);
 
     for (unsigned int i = 0; i < N; i++) {
+        memcpy(&bits_arr[i * num_inputs], num_bits, num_inputs * sizeof(size_t));
         for (unsigned int j = 0; j < num_inputs; j++) {
             int k = i * num_inputs + j;
             fmpz_set_ui(fshare[k], share[k]);
@@ -172,8 +173,10 @@ bool* validate_snips(const size_t N,
         }
     }
 
-    bool* const valid = correlated_store->validateSharesMatch(N * num_inputs, fshare, wireshare);
+    bool* const valid = correlated_store->validateSharesMatch(
+        N * num_inputs, bits_arr, fshare, wireshare);
 
+    delete[] bits_arr;
     clear_fmpz_array(fshare, N * num_inputs);
     clear_fmpz_array(wireshare, N * num_inputs);
 
@@ -617,9 +620,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     std::unordered_map<std::string, sharetype> share_map;
 
     VarShare share; 
-    // We have x^2 < max, so we want x < sqrt(max)
-    const uint64_t small_max = 1ULL << (num_bits / 2);
-    const uint64_t square_max = 1ULL << num_bits;
+    const uint64_t max_val = 1ULL << num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
 
     // Just for getting sizes
@@ -640,8 +641,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         // std::cout << "share[" << i << "] = " << share.val << ", " << share.val_squared << std::endl;
 
         if ((share_map.find(pk) != share_map.end())
-            or (share.val >= small_max)
-            or (share.val_squared >= square_max)
+            or (share.val >= max_val)
+            or (share.val_squared >= max_val * max_val)
             or (packet_bytes <= 0)
             ) {
             delete packet;
@@ -658,6 +659,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     // if (fork() > 0) return RET_NO_ANS;
 
     int server_bytes = 0;
+    const size_t bits_arr[2] = {num_bits, 2 * num_bits};
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -685,14 +687,14 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             wire_shares[2 * i] = shares[i];
             wire_shares[2 * i + 1] = shares_squared[i];
         }
-        const bool* const snip_valid = validate_snips(num_inputs, 2, serverfd, server_num, num_bits, circuit, packet, wire_shares);
+        const bool* const snip_valid = validate_snips(num_inputs, 2, bits_arr, serverfd, server_num, circuit, packet, wire_shares);
 
         server_bytes += send_bool_batch(serverfd, snip_valid, num_inputs);
 
         // Compute result
         NetIO* const io = new NetIO(SERVER0_IP, 60051, true);
         const uint64_t b = intsum_ot_receiver(io, shares, num_inputs, num_bits);
-        const uint64_t b2 = intsum_ot_receiver(io, shares_squared, num_inputs, num_bits);
+        const uint64_t b2 = intsum_ot_receiver(io, shares_squared, num_inputs, 2 * num_bits);
 
         send_uint64(serverfd, b);
         send_uint64(serverfd, b2);
@@ -742,7 +744,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             wire_shares[2 * i] = shares[i];
             wire_shares[2 * i + 1] = shares_squared[i];
         }
-        const bool* const snip_valid = validate_snips(num_inputs, 2, serverfd, server_num, num_bits, circuit, packet, wire_shares);
+        const bool* const snip_valid = validate_snips(num_inputs, 2, bits_arr, serverfd, server_num, circuit, packet, wire_shares);
         bool* const other_valid = new bool[num_inputs];
         recv_bool_batch(serverfd, other_valid, num_inputs);
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -763,7 +765,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         // Compute result
         NetIO* const io = new NetIO(nullptr, 60051, true);
         const uint64_t a = intsum_ot_sender(io, shares, valid, num_inputs, num_bits);
-        const uint64_t a2 = intsum_ot_sender(io, shares_squared, valid, num_inputs, num_bits);
+        const uint64_t a2 = intsum_ot_sender(io, shares_squared, valid, num_inputs, 2 * num_bits);
 
         delete io;
         delete[] shares;
@@ -811,7 +813,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     typedef std::tuple <uint64_t*, uint64_t*, ClientPacket*> sharetype;
     std::unordered_map<std::string, sharetype> share_map;
 
-    // TODO: size validations
+    // const uint64_t max_val = 1ULL << num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
 
     // Just for getting sizes
@@ -847,6 +849,9 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     start = clock_start();
 
     int server_bytes = 0;
+    size_t bits_arr[num_fields];
+    for (unsigned int i = 0; i < num_fields; i++)
+        bits_arr[i] = (i < degree ? num_bits : 2 * num_bits);
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -876,7 +881,9 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             for (unsigned int j = 0; j < num_y; j++)
                 wire_shares[num_fields * i + num_x + j] = y_vals[i][j];
         }
-        const bool* const snip_valid = validate_snips(num_inputs, num_fields, serverfd, server_num, num_bits, circuit, packet, wire_shares);
+        const bool* const snip_valid = validate_snips(
+            num_inputs, num_fields, bits_arr, serverfd, server_num,
+            circuit, packet, wire_shares);
         server_bytes += send_bool_batch(serverfd, snip_valid, num_inputs);
 
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -946,7 +953,9 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             for (unsigned int j = 0; j < num_y; j++)
                 wire_shares[num_fields * i + num_x + j] = y_vals[i][j];
         }
-        const bool* const snip_valid = validate_snips(num_inputs, num_fields, serverfd, server_num, num_bits, circuit, packet, wire_shares);
+        const bool* const snip_valid = validate_snips(
+            num_inputs, num_fields, bits_arr, serverfd, server_num,
+            circuit, packet, wire_shares);
         bool* const other_valid = new bool[num_inputs];
         recv_bool_batch(serverfd, other_valid, num_inputs);
         for (unsigned int i = 0; i < num_inputs; i++) {
