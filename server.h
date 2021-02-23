@@ -118,6 +118,8 @@ struct CheckerPreComp {
             delete xN;
             delete x2N;
         }
+        xN = nullptr;
+        x2N = nullptr;
     }
 
     ~CheckerPreComp() {

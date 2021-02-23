@@ -27,7 +27,7 @@ uint32_t num_bits;
 
 // Can keep the same random X for a while. TODO: how much?
 #define RANDOMX_THRESHOLD 1e6
-uint32_t randx_uses = 0;
+uint64_t randx_uses = 0;
 fmpz_t randomX;
 // Precomputes for random X
 std::unordered_map<size_t, CheckerPreComp*> precomp_store;
@@ -1125,13 +1125,11 @@ int main(int argc, char** argv) {
     while(1) {
         // Refresh randomX if used too much
         if (randx_uses > RANDOMX_THRESHOLD) {
-            randx_uses -= RANDOMX_THRESHOLD;
+            randx_uses = 0;
             sync_randomX(serverfd, server_num, randomX);
             // Update precomps
-            for (const auto& pair : precomp_store) {
-                pair.second -> clear_preX();
+            for (const auto& pair : precomp_store)
                 pair.second -> setCheckerPrecomp(randomX);
-            }
         }
 
         correlated_store->maybeUpdate();
