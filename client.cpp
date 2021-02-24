@@ -6,6 +6,10 @@ General layout:
 X_op_helper: Makes then sends a batch of client requests
 X_op: Sends init msg, then sends either one batch or a bunch in serial
 x_op_invalid: For testing/debugging, does a basic run with intentionally invalid clients.
+
+TODO: invalid linreg
+TODO: linreg degree as arg
+TODO: probably leave invalid and batch as constants
 */
 
 // TODO: Eventually htonl/ntohl wrappers on shares. Fine when client/server on same machine.
@@ -33,11 +37,16 @@ x_op_invalid: For testing/debugging, does a basic run with intentionally invalid
 #define SERVER0_IP "127.0.0.1"
 #define SERVER1_IP "127.0.0.1"
 
+// Whether to include invalid client submissions for testing
+#define DEBUG_INVALID false
+// Whether to have the client batch or not
+#define CLIENT_BATCH true
+
 uint32_t num_bits;
 uint64_t max_int;
+uint32_t linreg_degree = 2;
+
 int sockfd0, sockfd1;
-bool include_invalid = false;
-bool do_batch = true;
 
 void error_exit(const char* const msg) {
     perror(msg);
@@ -49,6 +58,12 @@ std::string pub_key_to_hex(const uint64_t* const key) {
     ss << std::setfill('0') << std::setw(16) << std::hex << key[0];
     ss << std::setfill('0') << std::setw(16) << std::hex << key[1];
     return ss.str();
+}
+
+std::string make_pk(emp::PRG prg) {
+    emp::block b;
+    prg.random_block(&b, 1);
+    return pub_key_to_hex((uint64_t*)&b);
 }
 
 int send_maxshare(const int server_num, const MaxShare& maxshare, const unsigned int B) {
@@ -96,36 +111,33 @@ int bit_sum_helper(const std::string protocol, const size_t numreqs,
     auto start = clock_start();
     int num_bytes = 0;
 
-    emp::block* const b = new block[numreqs];
-    bool* const real_vals = new bool[numreqs];
-    bool* const shares0 = new bool[numreqs];
-    bool* const shares1 = new bool[numreqs];
+    bool real_val, share0, share1;
 
     // Can't use a fixed key, or serial will have the same key every time
     emp::PRG prg;
-    prg.random_block(b, numreqs);
-    prg.random_bool(real_vals, numreqs);
-    prg.random_bool(shares0, numreqs);
 
     BitShare* const bitshare0 = new BitShare[numreqs];
     BitShare* const bitshare1 = new BitShare[numreqs];
     for (unsigned int i = 0; i < numreqs; i++) {
-        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* const pk = pk_s.c_str();
+        prg.random_bool(&real_val, 1);
+        prg.random_bool(&share0, 1);
+        share1 = share0 ^ real_val;
+        ans += real_val;
 
-        shares1[i] = real_vals[i]^shares0[i];
-        ans += (real_vals[i] ? 1 : 0);
+        const std::string pk_s = make_pk(prg);
+        const char* const pk = pk_s.c_str();
 
         // std::cout << pk << ": " << std::noboolalpha << real_vals[i] << " = " << shares0[i] << " ^ " << shares1[i] << std::endl;
 
         memcpy(bitshare0[i].pk, &pk[0], PK_LENGTH);
-        bitshare0[i].val = shares0[i];
+        bitshare0[i].val = share0;
 
         memcpy(bitshare1[i].pk, &pk[0], PK_LENGTH);
-        bitshare1[i].val = shares1[i];
+        bitshare1[i].val = share1;
     }
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+
     start = clock_start();
     if (msg_ptr != nullptr) {
         num_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
@@ -136,10 +148,6 @@ int bit_sum_helper(const std::string protocol, const size_t numreqs,
         num_bytes += send_to_server(1, &bitshare1[i], sizeof(BitShare));
     }
 
-    delete[] b;
-    delete[] real_vals;
-    delete[] shares0;
-    delete[] shares1;
     delete[] bitshare0;
     delete[] bitshare1;
 
@@ -156,7 +164,7 @@ void bit_sum(const std::string protocol, const size_t numreqs) {
     msg.num_of_inputs = numreqs;
     msg.type = BIT_SUM;
 
-    if (do_batch) {
+    if (CLIENT_BATCH) {
         num_bytes += bit_sum_helper(protocol, numreqs, ans, &msg);
     } else {
         auto start = clock_start();
@@ -165,7 +173,7 @@ void bit_sum(const std::string protocol, const size_t numreqs) {
         std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
-    std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
+    std::cout << "Ans : " << ans << std::endl;
     std::cout << "Total sent bytes: " << num_bytes << std::endl;
 }
 
@@ -222,7 +230,7 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
         send_to_server(0, &share0, sizeof(BitShare));
         send_to_server(1, &share1, sizeof(BitShare));
     }
-    std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
+    std::cout << "Ans : " << ans << std::endl;
 
     delete[] b;
 }
@@ -232,36 +240,33 @@ int int_sum_helper(const std::string protocol, const size_t numreqs,
     auto start = clock_start();
     int num_bytes = 0;
 
-    emp::block* const b = new block[numreqs];
-    uint64_t* const real_vals = new uint64_t[numreqs];
-    uint64_t* const shares0 = new uint64_t[numreqs];
-    uint64_t* const shares1 = new uint64_t[numreqs];
+    uint64_t real_val, share0, share1;
 
     emp::PRG prg;
-    prg.random_block(b, numreqs);
-    prg.random_data(real_vals, numreqs * sizeof(uint64_t));
-    prg.random_data(shares0, numreqs * sizeof(uint64_t));
 
     IntShare* const intshare0 = new IntShare[numreqs];
     IntShare* const intshare1 = new IntShare[numreqs];
 
     for (unsigned int i = 0; i < numreqs; i++) {
-        real_vals[i] = real_vals[i] % max_int;
-        shares0[i] = shares0[i] % max_int;
-        shares1[i] = real_vals[i] ^ shares0[i];
-        ans += real_vals[i];
+        prg.random_data(&real_val, sizeof(uint64_t));
+        prg.random_data(&share0, sizeof(uint64_t));
+        real_val = real_val % max_int;
+        share0 = share0 % max_int;
+        share1 = share0 ^ real_val;
+        ans += real_val;
 
-        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+        const std::string pk_s = make_pk(prg);
         const char* const pk = pk_s.c_str();
 
         memcpy(intshare0[i].pk, &pk[0], PK_LENGTH);
-        intshare0[i].val = shares0[i];
+        intshare0[i].val = share0;
 
         memcpy(intshare1[i].pk, &pk[0], PK_LENGTH);
-        intshare1[i].val = shares1[i];
+        intshare1[i].val = share1;
     }
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+
     start = clock_start();
     if (msg_ptr != nullptr) {
         num_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
@@ -273,10 +278,6 @@ int int_sum_helper(const std::string protocol, const size_t numreqs,
     }
     delete[] intshare0;
     delete[] intshare1;
-    delete[] b;
-    delete[] real_vals;
-    delete[] shares0;
-    delete[] shares1;
 
     if (numreqs > 1)
         std::cout << "batch send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
@@ -291,7 +292,7 @@ void int_sum(const std::string protocol, const size_t numreqs) {
     msg.num_of_inputs = numreqs;
     msg.type = INT_SUM;
 
-    if (do_batch) {
+    if (CLIENT_BATCH) {
         num_bytes += int_sum_helper(protocol, numreqs, ans, &msg);
     } else {
         auto start = clock_start();
@@ -300,7 +301,7 @@ void int_sum(const std::string protocol, const size_t numreqs) {
         std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
-    std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
+    std::cout << "Ans : " << ans << std::endl;
     std::cout << "Total sent bytes: " << num_bytes << std::endl;
 }
 
@@ -364,7 +365,7 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
         send_to_server(1, &share1, sizeof(IntShare));
     }
 
-    std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
+    std::cout << "Ans : " << ans << std::endl;
 
     delete[] b;
 }
@@ -374,49 +375,40 @@ int xor_op_helper(const std::string protocol, const size_t numreqs,
     auto start = clock_start();
     int num_bytes = 0;
 
-    emp::block* const b = new block[numreqs];
-    bool* const values = new bool[numreqs];
-    uint64_t* const encoded_values = new uint64_t[numreqs];
-    uint64_t* const shares0 = new uint64_t[numreqs];
-    uint64_t* const shares1 = new uint64_t[numreqs];
+    bool value;
+    uint64_t encoded, share0, share1;
 
     emp::PRG prg;
-    prg.random_block(b, numreqs);
-    prg.random_bool(values, numreqs);
-    prg.random_data(encoded_values, numreqs * sizeof(uint64_t));
-    prg.random_data(shares0, numreqs * sizeof(uint64_t));
 
     IntShare* const intshare0 = new IntShare[numreqs];
     IntShare* const intshare1 = new IntShare[numreqs];
-    // encode step. set to all 0's for values that don't force the ans.
-    if (protocol == "ANDOP") {
-        for (unsigned int i = 0; i < numreqs; i++) {
-            // values[i] = true;
-            ans &= values[i];
-            if (values[i])
-                encoded_values[i] = 0;
-        }
-    }
-    if (protocol == "OROP") {
-        for (unsigned int i = 0; i < numreqs; i++) {
-            // values[i] = false;
-            ans |= values[i];
-            if (not values[i])
-                encoded_values[i] = 0;
-        }
-    }
 
     for (unsigned int i = 0; i < numreqs; i++) {
-        shares1[i] = encoded_values[i] ^ shares0[i];
-
-        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+        prg.random_bool(&value, 1);
+        if (protocol == "ANDOP") {
+            ans &= value;
+            if (value)
+                encoded = 0;
+            else
+                prg.random_data(&encoded, sizeof(uint64_t));
+        } else if (protocol == "OROP") {
+            ans |= value;
+            if (not value)
+                encoded = 0;
+            else
+                prg.random_data(&encoded, sizeof(uint64_t));
+        }
+        prg.random_data(&share0, sizeof(uint64_t));
+        share1 = share0 ^ encoded;
+    
+        const std::string pk_s = make_pk(prg);
         const char* const pk = pk_s.c_str();
 
         memcpy(intshare0[i].pk, &pk[0], PK_LENGTH);
-        intshare0[i].val = shares0[i];
+        intshare0[i].val = share0;
 
         memcpy(intshare1[i].pk, &pk[0], PK_LENGTH);
-        intshare1[i].val = shares1[i];
+        intshare1[i].val = share1;
     }
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
@@ -432,11 +424,6 @@ int xor_op_helper(const std::string protocol, const size_t numreqs,
 
     delete[] intshare0;
     delete[] intshare1;
-    delete[] b;
-    delete[] values;
-    delete[] encoded_values;
-    delete[] shares0;
-    delete[] shares1;
 
     if (numreqs > 1)
         std::cout << "batch send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
@@ -459,7 +446,7 @@ void xor_op(const std::string protocol, const size_t numreqs) {
         return;
     }
 
-    if (do_batch) {
+    if (CLIENT_BATCH) {
         num_bytes += xor_op_helper(protocol, numreqs, ans, &msg);
     } else {
         auto start = clock_start();
@@ -468,7 +455,7 @@ void xor_op(const std::string protocol, const size_t numreqs) {
         std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
-    std::cout << "Uploaded all shares. Ans : " << std::boolalpha << ans << std::endl;
+    std::cout << "Ans : " << std::boolalpha << ans << std::endl;
     std::cout << "Total sent bytes: " << num_bytes << std::endl;
 }
 
@@ -541,21 +528,21 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
 
         memcpy(share0.pk, &pk[0], PK_LENGTH);
         share0.val = shares0[i];
-        if (include_invalid && i == 0)
+        if (i == 0)
             share0.pk[0] = 'q';
-        if (include_invalid && i == 2)
+        if (i == 2)
             memcpy(share0.pk, &prev_pk[0], PK_LENGTH);
 
         memcpy(share1.pk, &pk[0], PK_LENGTH);
         share1.val = shares1[i];
-        if (include_invalid && i == 4)
+        if (i == 4)
             memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
 
         send_to_server(0, &share0, sizeof(IntShare));
         send_to_server(1, &share1, sizeof(IntShare));
     }
 
-    std::cout << "Uploaded all shares. Ans : " << std::boolalpha << ans << std::endl;
+    std::cout << "Ans : " << std::boolalpha << ans << std::endl;
 
     delete[] b;
 }
@@ -568,53 +555,56 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
 
     start = clock_start();
 
-    emp::block* const b = new block[numreqs];
-    uint32_t* const values = new uint32_t[numreqs];
+    uint32_t value;
     uint32_t* const or_encoded_array = new uint32_t[B+1];
-    uint32_t* const shares0 = new uint32_t[B+1];
-    uint32_t* const shares1 = new uint32_t[B+1];
+    uint32_t* const share0 = new uint32_t[B+1];
+    uint32_t* const share1 = new uint32_t[B+1];
 
     emp::PRG prg;
-    prg.random_block(b, numreqs);
-    prg.random_data(values, numreqs * sizeof(uint32_t));
 
     MaxShare* const maxshare0 = new MaxShare[numreqs];
     MaxShare* const maxshare1 = new MaxShare[numreqs];
     for (unsigned int i = 0; i < numreqs; i++) {
-        values[i] = values[i] % (B + 1);
+        prg.random_data(&value, sizeof(uint32_t));
+        value = value % (B + 1);
+
         if (protocol == "MAXOP")
-            ans = (values[i] > ans? values[i] : ans);
+            ans = (value > ans ? value : ans);
         if (protocol == "MINOP")
-            ans = (values[i] < ans? values[i] : ans);
+            ans = (value < ans ? value : ans);
 
         prg.random_data(or_encoded_array, (B+1)*sizeof(uint32_t));
-        prg.random_data(shares0, (B+1)*sizeof(uint32_t));
+        prg.random_data(share0, (B+1)*sizeof(uint32_t));
 
         uint32_t v = 0;
         if (protocol == "MAXOP")
-            v = values[i];
+            v = value;
         if (protocol == "MINOP")
-            v = B - values[i];
+            v = B - value;
 
         for (unsigned int j = v + 1; j <= B ; j++)
             or_encoded_array[j] = 0;
 
         for (unsigned int j = 0; j <= B; j++)
-            shares1[j] = shares0[j] ^ or_encoded_array[j];
+            share1[j] = share0[j] ^ or_encoded_array[j];
 
-        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+        const std::string pk_s = make_pk(prg);
         const char* const pk = pk_s.c_str();
 
         memcpy(maxshare0[i].pk, &pk[0], PK_LENGTH);
         maxshare0[i].arr = new uint32_t[B+1];
-        memcpy(maxshare0[i].arr, shares0, (B+1)*sizeof(uint32_t));
+        memcpy(maxshare0[i].arr, share0, (B+1)*sizeof(uint32_t));
 
         memcpy(maxshare1[i].pk, &pk[0], PK_LENGTH);
         maxshare1[i].arr = new uint32_t[B+1];
-        memcpy(maxshare1[i].arr, shares1, (B+1)*sizeof(uint32_t));
+        memcpy(maxshare1[i].arr, share1, (B+1)*sizeof(uint32_t));
     }
+    delete[] or_encoded_array;
+    delete[] share0;
+    delete[] share1;
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+
     start = clock_start();
     if (msg_ptr != nullptr) {
         num_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
@@ -630,11 +620,6 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
 
     delete[] maxshare0;
     delete[] maxshare1;
-    delete[] b;
-    delete[] values;
-    delete[] or_encoded_array;
-    delete[] shares0;
-    delete[] shares1;
 
     if (numreqs > 1)
         std::cout << "batch send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
@@ -660,7 +645,7 @@ void max_op(const std::string protocol, const size_t numreqs) {
         return;
     }
 
-    if (do_batch) {
+    if (CLIENT_BATCH) {
         num_bytes += max_op_helper(protocol, numreqs, B, ans, &msg);
     } else {
         auto start = clock_start();
@@ -669,7 +654,7 @@ void max_op(const std::string protocol, const size_t numreqs) {
         std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
-    std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
+    std::cout << "Ans : " << ans << std::endl;
     std::cout << "Total sent bytes: " << num_bytes << std::endl;
 }
 
@@ -758,7 +743,7 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
         send_maxshare(1, share1, B);
     }
 
-    std::cout << "Uploaded all shares. Ans : " << ans << std::endl;
+    std::cout << "Ans : " << ans << std::endl;
 
     delete[] b;
 }
@@ -769,22 +754,13 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
     auto start = clock_start();
     int num_bytes = 0;
 
-    emp::block* const b = new block[numreqs];
-    uint64_t* const real_vals = new uint64_t[numreqs];
-    uint64_t* const shares0 = new uint64_t[numreqs];
-    uint64_t* const shares1 = new uint64_t[numreqs];
-    uint64_t* const shares0_squared = new uint64_t[numreqs];
-    uint64_t* const shares1_squared = new uint64_t[numreqs];
+    uint64_t real_val, share0, share1, share0_2, share1_2;
 
     fmpz_t inp[2];
     fmpz_init(inp[0]);
     fmpz_init(inp[1]);
 
     emp::PRG prg;
-    prg.random_block(b, numreqs);
-    prg.random_data(real_vals, numreqs * sizeof(uint64_t));
-    prg.random_data(shares0, numreqs * sizeof(uint64_t));
-    prg.random_data(shares0_squared, numreqs * sizeof(uint64_t));
 
     VarShare* const varshare0 = new VarShare[numreqs];
     VarShare* const varshare1 = new VarShare[numreqs];
@@ -792,27 +768,30 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
     ClientPacket** const packet1 = new ClientPacket*[numreqs];
 
     for (unsigned int i = 0; i < numreqs; i++) {
-        real_vals[i] = real_vals[i] % max_int;
-        shares0[i] = shares0[i] % max_int;
-        shares1[i] = real_vals[i] ^ shares0[i];
-        const uint64_t squared = real_vals[i] * real_vals[i];
-        shares0_squared[i] = shares0_squared[i] % (max_int * max_int);
-        shares1_squared[i] = squared ^ shares0_squared[i];
-        sum += real_vals[i];
+        prg.random_data(&real_val, sizeof(uint64_t));
+        prg.random_data(&share0, sizeof(uint64_t));
+        prg.random_data(&share0_2, sizeof(uint64_t));
+        real_val = real_val % max_int;
+        share0 = share0 % max_int;
+        share1 = share0 ^ real_val;
+        const uint64_t squared = real_val * real_val;
+        share0_2 = share0_2 % (max_int * max_int);
+        share1_2 = share0_2 ^ squared;
+        sum += real_val;
         sumsquared += squared;
 
-        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+        const std::string pk_s = make_pk(prg);
         const char* const pk = pk_s.c_str();
 
         memcpy(varshare0[i].pk, &pk[0], PK_LENGTH);
-        varshare0[i].val = shares0[i];
-        varshare0[i].val_squared = shares0_squared[i];
+        varshare0[i].val = share0;
+        varshare0[i].val_squared = share0_2;
 
         memcpy(varshare1[i].pk, &pk[0], PK_LENGTH);
-        varshare1[i].val = shares1[i];
-        varshare1[i].val_squared = shares1_squared[i];
+        varshare1[i].val = share1;
+        varshare1[i].val_squared = share1_2;
 
-        fmpz_set_si(inp[0], real_vals[i]);
+        fmpz_set_si(inp[0], real_val);
         fmpz_set_si(inp[1], squared);
         Circuit* const circuit = CheckVar();
         circuit->Eval(inp);
@@ -821,9 +800,9 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
         share_polynomials(circuit, packet0[i], packet1[i]);
         delete circuit;
     }
-
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+
     start = clock_start();
     if (msg_ptr != nullptr) {
         num_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
@@ -844,12 +823,6 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
     delete[] varshare1;
     delete[] packet0;
     delete[] packet1;
-    delete[] b;
-    delete[] real_vals;
-    delete[] shares0;
-    delete[] shares1;
-    delete[] shares0_squared;
-    delete[] shares1_squared;
     fmpz_clear(inp[0]);
     fmpz_clear(inp[1]);
 
@@ -875,7 +848,7 @@ void var_op(const std::string protocol, const size_t numreqs) {
         return;
     }
 
-    if (do_batch) {
+    if (CLIENT_BATCH) {
         num_bytes += var_op_helper(protocol, numreqs, sum, sumsquared, &msg);
     } else {
         auto start = clock_start();
@@ -1050,7 +1023,6 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
 
     int num_bytes = 0;
 
-    emp::block* const b = new block[numreqs];
     uint64_t* const x_real = new uint64_t[num_x];
     uint64_t* const x_share0 = new uint64_t[num_x];
     uint64_t* const x_share1 = new uint64_t[num_x];
@@ -1063,7 +1035,6 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
     uint64_t* const xy_share1 = new uint64_t[num_x];
 
     emp::PRG prg;
-    prg.random_block(b, numreqs);
 
     LinRegShare* const linshare0 = new LinRegShare[numreqs];
     LinRegShare* const linshare1 = new LinRegShare[numreqs];
@@ -1120,7 +1091,7 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
         }
 
         // build shares
-        const std::string pk_s = pub_key_to_hex((uint64_t*)&b[i]);
+        const std::string pk_s = make_pk(prg);
         const char* const pk = pk_s.c_str();
 
         memcpy(linshare0[i].pk, &pk[0], PK_LENGTH);
@@ -1164,8 +1135,18 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
         delete circuit;
     }
     x_accum[0] += numreqs;
+    delete[] x_real;
+    delete[] x_share0;
+    delete[] x_share1;
+    delete[] x2_real;
+    delete[] x2_share0;
+    delete[] x2_share1;
+    delete[] xy_real;
+    delete[] xy_share0;
+    delete[] xy_share1;
     if (numreqs > 1)
         std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+
     start = clock_start();
     if (msg_ptr != nullptr) {
         num_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
@@ -1195,16 +1176,6 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
     delete[] linshare1;
     delete[] packet0;
     delete[] packet1;
-    delete[] b;
-    delete[] x_real;
-    delete[] x_share0;
-    delete[] x_share1;
-    delete[] x2_real;
-    delete[] x2_share0;
-    delete[] x2_share1;
-    delete[] xy_real;
-    delete[] xy_share0;
-    delete[] xy_share1;
     clear_fmpz_array(inp, num_fields);
 
     if (numreqs > 1)
@@ -1217,14 +1188,12 @@ void lin_reg(const std::string protocol, const size_t numreqs) {
     if (num_bits > 31)
         error_exit("Num bits is too large. x^2 > 2^64.");
 
-    const size_t degree = 2;  // TODO: from input
+    const size_t degree = linreg_degree;
     const size_t num_x = degree - 1;
     const size_t num_quad = num_x * (num_x + 1) / 2;
-    const size_t num_fields = 2 * num_x + 1 + num_quad;
+    // const size_t num_fields = 2 * num_x + 1 + num_quad;
 
-    std::cout << "num_x: " << num_x << std::endl;
-    std::cout << "num_quad: " << num_quad << std::endl;
-    std::cout << "num_fields: " << num_fields << std::endl;
+    std::cout << "Linreg degree: " << degree << std::endl;
 
     uint64_t* const x_accum = new uint64_t[num_x + num_quad + 1];
     uint64_t* const y_accum = new uint64_t[num_x + 1];
@@ -1236,7 +1205,7 @@ void lin_reg(const std::string protocol, const size_t numreqs) {
     msg.num_of_inputs = numreqs;
     msg.type = LINREG_OP;
 
-    if (do_batch) {
+    if (CLIENT_BATCH) {
         num_bytes += lin_reg_helper(protocol, numreqs, degree, x_accum, y_accum, &msg);
     } else {
         auto start = clock_start();
@@ -1267,7 +1236,7 @@ void lin_reg(const std::string protocol, const size_t numreqs) {
 
 int main(int argc, char** argv) {
     if (argc < 4) {
-        std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits do_batch include_invalid" << endl;
+        std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits linreg_degree" << endl;
     }
 
     const int numreqs = atoi(argv[1]);  // Number of simulated clients
@@ -1286,18 +1255,11 @@ int main(int argc, char** argv) {
     }
 
     if (argc >= 7) {
-        std::stringstream ss(argv[6]);
-        if (!(ss >> std::boolalpha >> do_batch))
-            error_exit("Could not parse to bool");
+        linreg_degree = atoi(argv[6]);
+        std::cout << "linreg degree: " << num_bits << std::endl;
+        if (linreg_degree < 2)
+            error_exit("Linreg Degree must be >= 2");
     }
-    std::cout << "Doing batching: " << std::boolalpha << do_batch << std::endl;
-
-    if (argc >= 8) {
-        std::stringstream ss(argv[7]);
-        if (!(ss >> std::boolalpha >> include_invalid))
-            error_exit("Could not parse to bool");
-    }
-    std::cout << "Include Invalid: " << std::boolalpha << include_invalid << std::endl;
 
     // Set up server connections
 
@@ -1337,7 +1299,7 @@ int main(int argc, char** argv) {
     auto start = clock_start();
     if (protocol == "BITSUM") {
         std::cout << "Uploading all BITSUM shares: " << numreqs << std::endl;
-        if (include_invalid)
+        if (DEBUG_INVALID)
             bit_sum_invalid(protocol, numreqs);
         else
             bit_sum(protocol, numreqs);
@@ -1346,7 +1308,7 @@ int main(int argc, char** argv) {
 
     else if (protocol == "INTSUM") {
         std::cout << "Uploading all INTSUM shares: " << numreqs << std::endl;
-        if (include_invalid)
+        if (DEBUG_INVALID)
             int_sum_invalid(protocol, numreqs);
         else
             int_sum(protocol, numreqs);
@@ -1355,7 +1317,7 @@ int main(int argc, char** argv) {
 
     else if (protocol == "ANDOP") {
         std::cout << "Uploading all AND shares: " << numreqs << std::endl;
-        if (include_invalid)
+        if (DEBUG_INVALID)
             xor_op_invalid(protocol, numreqs);
         else
             xor_op(protocol, numreqs);
@@ -1364,7 +1326,7 @@ int main(int argc, char** argv) {
 
     else if (protocol == "OROP") {
         std::cout << "Uploading all OR shares: " << numreqs << std::endl;
-        if (include_invalid)
+        if (DEBUG_INVALID)
             xor_op_invalid(protocol, numreqs);
         else
             xor_op(protocol, numreqs);
@@ -1373,7 +1335,7 @@ int main(int argc, char** argv) {
 
     else if (protocol == "MAXOP") {
         std::cout << "Uploading all MAX shares: " << numreqs << std::endl;
-        if (include_invalid)
+        if (DEBUG_INVALID)
             max_op_invalid(protocol, numreqs);
         else
             max_op(protocol, numreqs);
@@ -1383,7 +1345,7 @@ int main(int argc, char** argv) {
     else if (protocol == "MINOP") {
         // Min(x) = - max(-x) = b - max(b - x)
         std::cout << "Uploading all MIN shares: " << numreqs << std::endl;
-        if (include_invalid)
+        if (DEBUG_INVALID)
             max_op_invalid(protocol, numreqs);
         else
             max_op(protocol, numreqs);
@@ -1392,7 +1354,7 @@ int main(int argc, char** argv) {
 
     else if (protocol == "VAROP") {
         std::cout << "Uploading all VAR shares: " << numreqs << std::endl;
-        if (include_invalid)
+        if (DEBUG_INVALID)
             var_op_invalid(protocol, numreqs);
         else
             var_op(protocol, numreqs);
@@ -1402,7 +1364,7 @@ int main(int argc, char** argv) {
     else if (protocol == "STDDEVOP") {
         // Stddev(x) = sqrt(Var(x))
         std::cout << "Uploading all STDDEV shares: " << numreqs << std::endl;
-        if (include_invalid)
+        if (DEBUG_INVALID)
             var_op_invalid(protocol, numreqs);
         else
             var_op(protocol, numreqs);

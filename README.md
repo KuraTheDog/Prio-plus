@@ -15,12 +15,7 @@
 5. Repeat step 4 as desired with different num_inputs and operands. 
 
 * Server arguments are `server_num Client_listen_port server_0_port max_bits`
-* Client arguments are `num_inputs server0_port server1_port operand max_bits do_batch include_invalid`
-  * `do_batch` (default `true`)
-    * If `true`, the client make all shares, then send them all
-    * If `false`, the client makes and sends shares one at a time
-  * `include_invalid` (default false)
-    * For testing/debugging. If true, does a modified run where some clients intentionally send bad data.
+* Client arguments are `num_inputs server0_port server1_port operand max_bits linreg_degree`
 
 Ports and max bits need to be consistent across runs and both servers and the client.
 Max bits is only used for int based summations.
