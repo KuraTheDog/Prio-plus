@@ -42,13 +42,6 @@ struct Gate {
     }
 };
 
-unsigned int NextPowerofTwo(const unsigned int n) {
-    unsigned int ans = 1;
-    while(n > ans)
-        ans *= 2;
-    return ans;
-}
-
 Gate* MulByNegOne(Gate* const gate) {
     Gate* out = new Gate(Gate_MulConst, gate);
 
@@ -65,7 +58,6 @@ struct Circuit {
     // const size_t max_bits;           // Unused?
 
     std::vector<Gate*> mul_gates;
-    std::vector<Gate*> mul_inp_gates;
 
     // Circuit(int n = 31) : max_bits(n) {}
     Circuit() {}
@@ -85,12 +77,8 @@ struct Circuit {
 
     void addGate(Gate* gate) {
         gates.push_back(gate);
-        if (gate->type == Gate_Mul) {
+        if (gate->type == Gate_Mul)
             mul_gates.push_back(gate);
-            mul_inp_gates.push_back(gate);
-        } else if (gate->type == Gate_Input) {
-            mul_inp_gates.push_back(gate);
-        }
     }
 
     void addZeroGate(Gate* zerogate) {
@@ -158,39 +146,32 @@ struct Circuit {
         return mul_gates.size();
     }
 
-    unsigned int N() const {
-        return NextPowerofTwo(NumMulGates() + 1);
-    }
-
-    unsigned int NumMulInpGates() const {
-        return mul_inp_gates.size();
-    }
-
-    void GetWireShares(fmpz_t** shares0, fmpz_t** shares1) const {
+    void GetMulShares(fmpz_t** shares0, fmpz_t** shares1) const {
         unsigned int i = 0;
 
-        for (Gate* gate : mul_inp_gates) {
+        for (Gate* gate : mul_gates) {
             SplitShare(gate->WireValue, (*shares0)[i], (*shares1)[i]);
             i++;
         }
     }
 
-    void ImportWires(const ClientPacket* const p, const int server_num) {
-        unsigned int i = 0;
+    void ImportWires(const ClientPacket* const p, const int server_num,
+                     const fmpz_t* const InputShares) {
+        unsigned int mul_idx = 0, inp_idx = 0;
 
         for (Gate* gate : gates) {
             switch (gate->type) {
             case Gate_Input:
-                fmpz_set(gate->WireValue, p->WireShares[i]);
-                i++;
+                fmpz_set(gate->WireValue, InputShares[inp_idx]);
+                inp_idx++;
                 break;
             case Gate_Add:
                 fmpz_add(gate->WireValue, gate->ParentL->WireValue, gate->ParentR->WireValue);
                 fmpz_mod(gate->WireValue, gate->WireValue, Int_Modulus);
                 break;
             case Gate_Mul:
-                fmpz_set(gate->WireValue, p->WireShares[i]);
-                i++;
+                fmpz_set(gate->WireValue, p->MulShares[mul_idx]);
+                mul_idx++;
                 break;
             case Gate_AddConst:
                 if (server_num == 0)

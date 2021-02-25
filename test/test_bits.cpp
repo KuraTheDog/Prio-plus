@@ -235,6 +235,7 @@ void test_b2a_edaBit(const size_t N, const size_t* const nbits, const int server
   clear_fmpz_array(xp, N);
 }
 
+/*
 void test_validateSharesMatch(const size_t N, const size_t* const nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
   fmpz_t* x2; new_fmpz_array(&x2, N);
   fmpz_t* xp; new_fmpz_array(&xp, N);
@@ -260,6 +261,7 @@ void test_validateSharesMatch(const size_t N, const size_t* const nbits, const i
   clear_fmpz_array(x2, N);
   clear_fmpz_array(xp, N);
 }
+*/
 
 void runServerTest(const int server_num, const int serverfd) {
   const bool lazy = false;
@@ -286,8 +288,8 @@ void runServerTest(const int server_num, const int serverfd) {
     test_b2a_daBit(N, server_num, serverfd, store);
     std::cout << "b2a ed" << std::endl;
     test_b2a_edaBit(N, bits_arr, server_num, serverfd, store);
-    std::cout << "validate" << std::endl;
-    test_validateSharesMatch(N, bits_arr, server_num, serverfd, store);
+    // std::cout << "validate" << std::endl;
+    // test_validateSharesMatch(N, bits_arr, server_num, serverfd, store);
   }
 
   delete[] bits_arr;

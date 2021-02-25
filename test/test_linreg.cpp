@@ -23,18 +23,20 @@ void test_CheckLinReg() {
   fmpz_init(inp[3]);
 
   fmpz_set_si(inp[0], 2);  // x
-  fmpz_set_si(inp[1], 4);  // x^2
-  fmpz_set_si(inp[2], 3);  // y
+  fmpz_set_si(inp[1], 3);  // y
+  fmpz_set_si(inp[2], 4);  // x^2
   fmpz_set_si(inp[3], 6);  // xy
 
   bool eval = linreg_circuit->Eval(inp);
   std::cout << "Eval: " << eval << std::endl;
 
+  size_t N = NextPowerOfTwo(linreg_circuit->NumMulGates());
+
   /*
   One mult gate (#2). Next power of 2 is 2 (N).
   */
-  ClientPacket* p0 = new ClientPacket(linreg_circuit->N(), linreg_circuit->NumMulInpGates());;
-  ClientPacket* p1 = new ClientPacket(linreg_circuit->N(), linreg_circuit->NumMulInpGates());;
+  ClientPacket* p0 = new ClientPacket(linreg_circuit->NumMulGates());
+  ClientPacket* p1 = new ClientPacket(linreg_circuit->NumMulGates());
   share_polynomials(linreg_circuit, p0, p1);
   delete linreg_circuit;
 
@@ -44,6 +46,14 @@ void test_CheckLinReg() {
   std::cout << "p1" << std::endl;
   p1->print();
 
+  // Will be done with share conversion
+  fmpz_t inp0[4];
+  fmpz_t inp1[4];
+  SplitShare(inp[0], inp0[0], inp1[0]);
+  SplitShare(inp[1], inp0[1], inp1[1]);
+  SplitShare(inp[2], inp0[2], inp1[2]);
+  SplitShare(inp[3], inp0[3], inp1[3]);
+
   std::cout << "------ Running through validity checks" << std::endl;
 
   fmpz_t randomX;
@@ -52,23 +62,21 @@ void test_CheckLinReg() {
   std::cout << "Random X: "; fmpz_print(randomX); std::cout << std::endl;
 
   Circuit* linreg_circuit0 = CheckLinReg(2);
-  Checker* checker_0 = new Checker(linreg_circuit0, 0, p0);
-
-  CheckerPreComp* pre0 = new CheckerPreComp(linreg_circuit0->N());
+  CheckerPreComp* pre0 = new CheckerPreComp(N);
   pre0->setCheckerPrecomp(randomX);
-  // checker_0->evalPoly(pre0, p0);
+
+  Checker* checker_0 = new Checker(linreg_circuit0, 0, p0, pre0, inp0);
 
   std::cout << "-=-=-=-=-=-" << std::endl;
 
   Circuit* linreg_circuit1 = CheckLinReg(2);
-  Checker* checker_1 = new Checker(linreg_circuit1, 1, p1);
-
-  CheckerPreComp* pre1 = new CheckerPreComp(linreg_circuit1->N());
+  CheckerPreComp* pre1 = new CheckerPreComp(N);
   pre1->setCheckerPrecomp(randomX);
-  // checker_1->evalPoly(pre1);
 
-  auto corshare0 = checker_0->CorShareFn(pre0);
-  auto corshare1 = checker_1->CorShareFn(pre1);
+  Checker* checker_1 = new Checker(linreg_circuit1, 1, p1, pre1, inp1);
+
+  auto corshare0 = checker_0->CorShareFn();
+  auto corshare1 = checker_1->CorShareFn();
 
   Cor* cor0 = new Cor(corshare0, corshare1);
   Cor* cor1 = new Cor(corshare0, corshare1);
@@ -77,15 +85,14 @@ void test_CheckLinReg() {
   fmpz_init(out0);
   fmpz_init(out1);
 
-  checker_0->OutShare(out0,cor0);
-  checker_1->OutShare(out1,cor1);
+  checker_0->OutShare(out0, cor0);
+  checker_1->OutShare(out1, cor1);
 
-  bool result0 = AddToZero(out0, out1);
-  bool result1 = AddToZero(out0, out1);
+  bool result = AddToZero(out0, out1);
 
   std::cout << "out0 : "; fmpz_print(out0); std::cout << ", out1 : "; fmpz_print(out1); std::cout << std::endl;
 
-  std::cout << "Result0 : " << result0 << " , Result1 : " << result1 << std::endl;
+  std::cout << "Result : " << result << std::endl;
 
 //   std::cout << "^v^v^ Shared validation: " << std::endl;
 //   fmpz_t tmp, rgr;
@@ -121,10 +128,11 @@ void test_CheckLinReg() {
 
   delete p0;
   delete p1;
-  fmpz_clear(inp[0]);
-  fmpz_clear(inp[1]);
-  fmpz_clear(inp[2]);
-  fmpz_clear(inp[3]);
+  for (unsigned int i = 0; i < 4; i++) {
+    fmpz_clear(inp[i]);
+    fmpz_clear(inp0[i]);
+    fmpz_clear(inp1[i]);  
+  }
 }
 
 int main(int argc, char* argv[])

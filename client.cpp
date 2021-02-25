@@ -767,6 +767,10 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
     ClientPacket** const packet0 = new ClientPacket*[numreqs];
     ClientPacket** const packet1 = new ClientPacket*[numreqs];
 
+    Circuit* const mock_circuit = CheckVar();
+    const size_t NMul = mock_circuit->NumMulGates();
+    delete mock_circuit;
+
     for (unsigned int i = 0; i < numreqs; i++) {
         prg.random_data(&real_val, sizeof(uint64_t));
         prg.random_data(&share0, sizeof(uint64_t));
@@ -795,8 +799,9 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
         fmpz_set_si(inp[1], squared);
         Circuit* const circuit = CheckVar();
         circuit->Eval(inp);
-        packet0[i] = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
-        packet1[i] = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
+        const size_t NMul = circuit->NumMulGates();
+        packet0[i] = new ClientPacket(NMul);
+        packet1[i] = new ClientPacket(NMul);
         share_polynomials(circuit, packet0[i], packet1[i]);
         delete circuit;
     }
@@ -812,8 +817,8 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
         num_bytes += send_to_server(0, &varshare0[i], sizeof(VarShare));
         num_bytes += send_to_server(1, &varshare1[i], sizeof(VarShare));
 
-        num_bytes += send_ClientPacket(sockfd0, packet0[i]);
-        num_bytes += send_ClientPacket(sockfd1, packet1[i]);
+        num_bytes += send_ClientPacket(sockfd0, packet0[i], NMul);
+        num_bytes += send_ClientPacket(sockfd1, packet1[i], NMul);
 
         delete packet0[i];
         delete packet1[i];
@@ -872,9 +877,9 @@ void var_op(const std::string protocol, const size_t numreqs) {
    2: x^2 shares > max
    3: x^2 = x * x + junk, run through snip
    4: x^2 = x * x + junk, run snip with correct x^2  NOT CAUGHT, Server doesn't check equality
-   5: p0 N corruption
+   5: p0 h points corruption
    6: p1 const value corruption
-   7: p0 wire corruption
+   7: p0 mul share corruption
    8: p1 triple corruption
    9: pk mismatch
    11: share0 has same pk as 10
@@ -892,6 +897,10 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
     }
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
+
+    Circuit* const mock_circuit = CheckVar();
+    const size_t NMul = mock_circuit->NumMulGates();
+    delete mock_circuit;
 
     emp::block* const b = new block[numreqs];
     uint64_t real_vals[numreqs];
@@ -972,23 +981,20 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         Circuit* const circuit = CheckVar();
         // Run through circuit to set wires
         circuit->Eval(inp);
-        ClientPacket* p0;
-        if (i == 5) {
-            p0 = new ClientPacket(1, circuit->NumMulInpGates());
-        } else {
-            p0 = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
-        }
-        ClientPacket* p1 = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
+        ClientPacket* p0 = new ClientPacket(NMul);
+        ClientPacket* p1 = new ClientPacket(NMul);
         share_polynomials(circuit, p0, p1);
         delete circuit;
+        if (i == 5)
+            fmpz_add_si(p0->h_points[0], p0->h_points[0], 1);
         if (i == 6)
             fmpz_add_si(p1->f0_s, p1->f0_s, 1);
         if (i == 7)
-            fmpz_add_si(p0->WireShares[0], p0->WireShares[0], 1);
+            fmpz_add_si(p0->MulShares[0], p0->MulShares[0], 1);
         if (i == 8)
             fmpz_add_si(p1->triple_share->shareA, p1->triple_share->shareA, 1);
-        send_ClientPacket(sockfd0, p0);
-        send_ClientPacket(sockfd1, p1);
+        send_ClientPacket(sockfd0, p0, NMul);
+        send_ClientPacket(sockfd1, p1, NMul);
         delete p0;
         delete p1;
     }
@@ -1042,6 +1048,10 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
     ClientPacket** const packet1 = new ClientPacket*[numreqs];
 
     fmpz_t* inp; new_fmpz_array(&inp, num_fields);
+
+    Circuit* const mock_circuit = CheckLinReg(degree);
+    const size_t NMul = mock_circuit->NumMulGates();
+    delete mock_circuit;
 
     for (unsigned int i = 0; i < numreqs; i++) {
         prg.random_data(x_real, num_x * sizeof(uint64_t));
@@ -1129,8 +1139,8 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
 
         Circuit* const circuit = CheckLinReg(degree);
         circuit->Eval(inp);
-        packet0[i] = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
-        packet1[i] = new ClientPacket(circuit->N(), circuit->NumMulInpGates());
+        packet0[i] = new ClientPacket(NMul);
+        packet1[i] = new ClientPacket(NMul);
         share_polynomials(circuit, packet0[i], packet1[i]);
         delete circuit;
     }
@@ -1159,8 +1169,8 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
         num_bytes += send_linregshare(0, linshare0[i], degree);
         num_bytes += send_linregshare(1, linshare1[i], degree);
 
-        num_bytes += send_ClientPacket(sockfd0, packet0[i]);
-        num_bytes += send_ClientPacket(sockfd1, packet1[i]);
+        num_bytes += send_ClientPacket(sockfd0, packet0[i], NMul);
+        num_bytes += send_ClientPacket(sockfd1, packet1[i], NMul);
 
         delete[] linshare0[i].x_vals;
         delete[] linshare0[i].x2_vals;

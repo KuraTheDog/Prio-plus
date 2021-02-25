@@ -487,6 +487,8 @@ fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
   return xp;
 }
 
+/* 
+//Unused
 bool* CorrelatedStore::validateSharesMatch(const size_t N,
                                            const size_t* const num_bits,
                                            const fmpz_t* const x2,
@@ -524,6 +526,7 @@ bool* CorrelatedStore::validateSharesMatch(const size_t N,
   clear_fmpz_array(x2_p, N);
   return ans;
 }
+*/
 
 
 DaBit** CorrelatedStore::generateDaBit(const size_t N) {

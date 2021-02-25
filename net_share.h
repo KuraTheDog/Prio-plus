@@ -84,8 +84,10 @@ int recv_Cor(const int sockfd, Cor* const x);
 int send_CorShare(const int sockfd, const CorShare* const x);
 int recv_CorShare(const int sockfd, CorShare* const x);
 
-int send_ClientPacket(const int sockfd, const ClientPacket* const x);
-int recv_ClientPacket(const int sockfd, ClientPacket* const x);
+int send_ClientPacket(const int sockfd, const ClientPacket* const x,
+                      const size_t NMul);
+int recv_ClientPacket(const int sockfd, ClientPacket* const x,
+                      const size_t NMul);
 
 // Only used in making lazy triples
 int send_BeaverTriple(const int sockfd, const BeaverTriple* const x);

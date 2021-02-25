@@ -233,16 +233,13 @@ int recv_CorShare(const int sockfd, CorShare* const x) {
     return total;
 }
 
-int send_ClientPacket(const int sockfd, const ClientPacket* const x) {
+int send_ClientPacket(const int sockfd, const ClientPacket* const x,
+                      const size_t NMul) {
     int total = 0, ret;
-    size_t N = x->N, NWires = x->NWires;
-    ret = send_size(sockfd, N);
-    if (ret <= 0) return ret; else total += ret;
-    ret = send_size(sockfd, NWires);
-    if (ret <= 0) return ret; else total += ret;
+    const size_t N = NextPowerOfTwo(NMul);
 
-    for (unsigned int i = 0; i < NWires; i++) {
-        ret = send_fmpz(sockfd, x->WireShares[i]);
+    for (unsigned int i = 0; i < NMul; i++) {
+        ret = send_fmpz(sockfd, x->MulShares[i]);
         if (ret <= 0) return ret; else total += ret;
     }
 
@@ -264,20 +261,13 @@ int send_ClientPacket(const int sockfd, const ClientPacket* const x) {
     return total;
 }
 
-int recv_ClientPacket(const int sockfd, ClientPacket* const x) {
+int recv_ClientPacket(const int sockfd, ClientPacket* const x,
+                      const size_t NMul) {
     int total = 0, ret;
-    bool is_valid = true;
-    size_t N, NWires;
-    ret = recv_size(sockfd, N);
-    if (ret <= 0) return ret; else total += ret;
-    ret = recv_size(sockfd, NWires);
-    if (ret <= 0) return ret; else total += ret;
+    const size_t N = NextPowerOfTwo(NMul);
 
-    if (x->N != N or x->NWires != NWires)
-        is_valid = false;
-
-    for (unsigned int i = 0; i < NWires; i++) {
-        ret = recv_fmpz(sockfd, x->WireShares[i]);
+    for (unsigned int i = 0; i < NMul; i++) {
+        ret = recv_fmpz(sockfd, x->MulShares[i]);
         if (ret <= 0) return ret; else total += ret;
     }
 
@@ -296,7 +286,7 @@ int recv_ClientPacket(const int sockfd, ClientPacket* const x) {
     ret = recv_BeaverTripleShare(sockfd, x->triple_share);
     if (ret <= 0) return ret; else total += ret;
 
-    return (is_valid ? total : -1);
+    return total;
 }
 
 int send_BeaverTriple(const int sockfd, const BeaverTriple* const x) {

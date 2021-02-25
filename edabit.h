@@ -103,11 +103,11 @@ public:
   fmpz_t* b2a_edaBit(const size_t N, const size_t* const num_bits,
                      const fmpz_t* const x);
 
+  // Unused
   // x2, xp, ret are [N]
   // ret[i] is if xor shares x2[i] and additive shares xp[i] are the same value
-  // TODO: instead pass in num_bits as an array?
-  bool* validateSharesMatch(const size_t N, const size_t* const num_bits,
-                            const fmpz_t* const x2, const fmpz_t* const xp);
+  // bool* validateSharesMatch(const size_t N, const size_t* const num_bits,
+  //                           const fmpz_t* const x2, const fmpz_t* const xp);
 };
 
 #endif

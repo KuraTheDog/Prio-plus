@@ -84,16 +84,16 @@ void run_sender(int sockfd) {
     fmpz_print(trip->C); std::cout << std::endl;
     delete trip;
 
-    ClientPacket* packet = new ClientPacket(1, 2);
+    ClientPacket* packet = new ClientPacket(1);
     fmpz_set_si(packet->f0_s, 10);
-    n = send_ClientPacket(sockfd, packet);
+    n = send_ClientPacket(sockfd, packet, 1);
     std::cout << "send packet \tsize: " << n << " \tf0_s: ";
     fmpz_print(packet->f0_s); std::cout << std::endl;
     delete packet;
 
-    ClientPacket* packet2 = new ClientPacket(2, 3);
+    ClientPacket* packet2 = new ClientPacket(2);
     fmpz_set_si(packet2->f0_s, 20);
-    n = send_ClientPacket(sockfd, packet2);
+    n = send_ClientPacket(sockfd, packet2, 2);
     std::cout << "send packet \tsize: " << n << " \tf0_s = ";
     fmpz_print(packet2->f0_s); std::cout << std::endl;
     delete packet2;
@@ -188,14 +188,14 @@ void run_receiver(int sockfd) {
     fmpz_print(trip->C); std::cout << std::endl;
     delete trip;
 
-    ClientPacket* packet = new ClientPacket(1, 2);
-    n = recv_ClientPacket(sockfd, packet);
+    ClientPacket* packet = new ClientPacket(1);
+    n = recv_ClientPacket(sockfd, packet, 1);
     std::cout << "recv packet \tsize: " << n << "\t f0_s: ";
     fmpz_print(packet->f0_s); std::cout << std::endl;
     delete packet;
 
-    ClientPacket* packet2 = new ClientPacket(2, 3);
-    n = recv_ClientPacket(sockfd, packet2);
+    ClientPacket* packet2 = new ClientPacket(2);
+    n = recv_ClientPacket(sockfd, packet2, 2);
     std::cout << "recv packet \tsize: " << n << "\t f0_s: ";
     fmpz_print(packet2->f0_s); std::cout << std::endl;
     delete packet2;

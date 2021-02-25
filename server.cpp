@@ -35,7 +35,8 @@ std::unordered_map<size_t, CheckerPreComp*> precomp_store;
 // Precompute cache of edabits and beaver triples
 CorrelatedStore* correlated_store;
 // #define CACHE_SIZE 8192
-#define CACHE_SIZE 65536
+// #define CACHE_SIZE 65536
+#define CACHE_SIZE 262144
 // #define CACHE_SIZE 2097152
 // If set, does fast but insecure offline precompute.
 #define LAZY_PRECOMPUTE true
@@ -153,58 +154,48 @@ bool* validate_snips(const size_t N,
                      const uint64_t* const share
                      ) {
     auto start = clock_start();
-    bool* const ans = new bool[N];
-    for (unsigned int i = 0; i < N; i++)
-        ans[i] = true;
 
-    // validate wires
-    // Ensures [share]_2 and [wire]_p encode the same value.
-    // Matches share[i] with wire[i] for num_input
+    bool* const ans = new bool[N];
+
+    // Convert xor share into additive input wire shares
 
     size_t* bits_arr = new size_t[N * num_inputs];
     fmpz_t* fshare; new_fmpz_array(&fshare, N * num_inputs);
-    fmpz_t* wireshare; new_fmpz_array(&wireshare, N * num_inputs);
 
     for (unsigned int i = 0; i < N; i++) {
         memcpy(&bits_arr[i * num_inputs], num_bits, num_inputs * sizeof(size_t));
-        for (unsigned int j = 0; j < num_inputs; j++) {
-            int k = i * num_inputs + j;
-            fmpz_set_ui(fshare[k], share[k]);
-            fmpz_set(wireshare[k], packet[i]->WireShares[j]);
-        }
+        for (unsigned int j = 0; j < num_inputs; j++)
+            fmpz_set_ui(fshare[i * num_inputs + j], share[i * num_inputs + j]);
     }
 
-    bool* const valid = correlated_store->validateSharesMatch(
-        N * num_inputs, bits_arr, fshare, wireshare);
+    fmpz_t* const inputWires = correlated_store->b2a_edaBit(
+        N * num_inputs, bits_arr, fshare);
 
     delete[] bits_arr;
     clear_fmpz_array(fshare, N * num_inputs);
-    clear_fmpz_array(wireshare, N * num_inputs);
 
-    for (unsigned int i = 0; i < N; i++)
-        for (unsigned int j = 0; j < num_inputs; j++)
-            ans[i] &= valid[i * num_inputs + j];
-    
-    delete[] valid;
-
-    std::cout << "wire validation time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
-    start = clock_start();
+    std::cout << "Input Wire time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 
     // run SNIPs
+    start = clock_start();
 
-    init_roots(circuit[0]->N());
+    const size_t NumRoots = NextPowerOfTwo(circuit[0]->NumMulGates());
+    pid_t pid = 0, status = 0;
+
+    init_roots(NumRoots);
 
     Checker** const checker = new Checker*[N];
-    for (unsigned int i = 0; i < N; i++)
-        checker[i] = new Checker(circuit[i], server_num, packet[i]);
-    CheckerPreComp* const pre = getPrecomp(circuit[0]->N());
+    CheckerPreComp* const pre = getPrecomp(NumRoots);
     randx_uses += N;
+    for (unsigned int i = 0; i < N; i++)
+        checker[i] = new Checker(circuit[i], server_num, packet[i], pre,
+                                 &inputWires[i * num_inputs]);
 
-    pid_t pid = 0, status = 0;
+    clear_fmpz_array(inputWires, N * num_inputs);
 
     CorShare** const cor_share = new CorShare*[N];
     for (unsigned int i = 0; i < N; i++)
-      cor_share[i] = checker[i]->CorShareFn(pre);
+      cor_share[i] = checker[i]->CorShareFn();
 
     if (correlated_store->do_fork) pid = fork();
     if (pid == 0) {
@@ -235,7 +226,7 @@ bool* validate_snips(const size_t N,
     fmpz_t valid_share_other; fmpz_init(valid_share_other);
     for (unsigned int i = 0; i < N; i++) {
         recv_fmpz(serverfd, valid_share_other);
-        ans[i] &= AddToZero(valid_share[i], valid_share_other);
+        ans[i] = AddToZero(valid_share[i], valid_share_other);
     }
 
     for (unsigned int i = 0; i < N; i++) {
@@ -428,6 +419,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         }
 
         ans = a[0] + b;
+        delete[] a;
         return RET_ANS;
     }
 }
@@ -658,8 +650,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     // Just for getting sizes
     Circuit* const mock_circuit = CheckVar();
-    const size_t N = mock_circuit->N();
-    const size_t NWires = mock_circuit->NumMulInpGates();
+    const size_t NMul = mock_circuit->NumMulGates();
     delete mock_circuit;
 
     int num_bytes = 0;
@@ -667,8 +658,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         num_bytes += recv_in(clientfd, &share, sizeof(VarShare));
         const std::string pk(share.pk, share.pk + PK_LENGTH);
 
-        ClientPacket* packet = new ClientPacket(N, NWires);
-        int packet_bytes = recv_ClientPacket(clientfd, packet);
+        ClientPacket* packet = new ClientPacket(NMul);
+        int packet_bytes = recv_ClientPacket(clientfd, packet, NMul);
         num_bytes += packet_bytes;
 
         // std::cout << "share[" << i << "] = " << share.val << ", " << share.val_squared << std::endl;
@@ -774,7 +765,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             if (valid[i]) {
                 std::tie(share, share2, packet[i]) = share_map[pk_list[i]];
             } else {
-                packet[i] = new ClientPacket(N, NWires);  // mock empty packet
+                packet[i] = new ClientPacket(NMul);  // mock empty packet
             }
             circuit[i] = CheckVar();
             shares[2 * i] = share;
@@ -865,8 +856,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
     // Just for getting sizes
     Circuit* const mock_circuit = CheckLinReg(degree);
-    const size_t N = mock_circuit->N();
-    const size_t NWires = mock_circuit->NumMulInpGates();
+    const size_t NMul = mock_circuit->NumMulGates();
     delete mock_circuit;
 
     LinRegShare share;
@@ -888,8 +878,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         for (unsigned int j = 0; j < num_x; j++)
             num_bytes += recv_uint64(clientfd, share.xy_vals[j]);
 
-        ClientPacket* packet = new ClientPacket(N, NWires);
-        int packet_bytes = recv_ClientPacket(clientfd, packet);
+        ClientPacket* packet = new ClientPacket(NMul);
+        int packet_bytes = recv_ClientPacket(clientfd, packet, NMul);
         num_bytes += packet_bytes;
 
         // TODO: size validations
@@ -1001,7 +991,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             if (valid[i]) {
                 std::tie(x_vals, y_val, x2_vals, xy_vals, packet[i]) = share_map[pk_list[i]];
             } else {
-                packet[i] = new ClientPacket(N, NWires);
+                packet[i] = new ClientPacket(NMul);
             }
             circuit[i] = CheckLinReg(degree);
             memcpy(&shares[num_fields * i],

@@ -8,6 +8,13 @@ extern "C" {
   #include "flint/fmpz.h"
 };
 
+unsigned int NextPowerOfTwo(const unsigned int n) {
+    unsigned int ans = 1;
+    while(n + 1 > ans)
+        ans *= 2;
+    return ans;
+}
+
 void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B) {
     fmpz_randm(A, seed, Int_Modulus);
     fmpz_sub(B, val, A);

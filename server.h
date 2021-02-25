@@ -155,7 +155,7 @@ struct Checker {
     Circuit* const ckt;      // Validation circuit
 
     const size_t n;  // number of mult gates
-    const size_t N;  // NextPowerofTwo(n)
+    const size_t N;  // NextPowerOfTwo(n)
 
     fmpz_t *pointsF;  // Points on f. f(i) = ith mul gate left input
     fmpz_t *pointsG;  // Points on g. g(i) = ith mul gate right input
@@ -166,12 +166,13 @@ struct Checker {
     fmpz_t evalG;  // [r * g(r)]
     fmpz_t evalH;  // [r * h(r)]
 
-    Checker(Circuit* const c, const int idx, const ClientPacket* const req)
+    Checker(Circuit* const c, const int idx, const ClientPacket* const req,
+            const CheckerPreComp* const pre, const fmpz_t* const InputShares)
     : server_num(idx)
     , req(req)
     , ckt(c)
     , n(c->NumMulGates())
-    , N(c->N())
+    , N(NextPowerOfTwo(n))
     {
         new_fmpz_array(&pointsF, N);
         new_fmpz_array(&pointsG, N);
@@ -181,7 +182,8 @@ struct Checker {
         fmpz_init(evalG);
         fmpz_init(evalH);
 
-        ckt->ImportWires(req, server_num);
+        ckt->ImportWires(req, server_num, InputShares);
+        evalPoly(pre);
     }
 
     ~Checker() {
@@ -226,8 +228,7 @@ struct Checker {
         fmpz_mod(evalH, evalH, Int_Modulus);
     }
 
-    CorShare* CorShareFn(const CheckerPreComp* const pre) {
-        evalPoly(pre);
+    CorShare* CorShareFn() {
         // std::cout << "CorShareFn" << std::endl;
         CorShare* out = new CorShare();
 
