@@ -6,37 +6,27 @@
 uint64_t bitsum_ot_sender(NetIO* const io, const bool* const shares, const bool* const valid, const size_t n){
     PRG prg(fix_key);
 
-    uint64_t* b0 = new uint64_t[n];
-    uint64_t* b1 = new uint64_t[n];
-    uint64_t* r = new uint64_t[n];
+    uint64_t b0, b1;
     uint64_t sum = 0;
-    prg.random_data(b0,n*sizeof(uint64_t));
-
-    for (unsigned int i = 0; i < n; i++){
-        if(shares[i] == true){
-            b1[i] = b0[i] - 1;
-            r[i] = (UINT64_MAX - b1[i]) + 1;
-        }
-        else {
-            b1[i] = b0[i] + 1;
-            r[i] = (UINT64_MAX - b0[i]) + 1;
-        }
-    }
 
     block* const b0_ot = new block[n];
     block* const b1_ot = new block[n];
 
     for (unsigned int i = 0; i < n; i++){
-        uint64_t* const p = (uint64_t*)&b0_ot[i];
-        p[0] = valid[i] ? 0:1;
-        p[1] = b0[i];
-        uint64_t* const q = (uint64_t*)&b1_ot[i];
-        q[0] = p[0];
-        q[1] = b1[i];
-    }
+        prg.random_data(&b0, sizeof(uint64_t));
 
-    delete[] b0;
-    delete[] b1;
+        b1 = b0 + 1 - 2 * shares[i];
+
+        if (valid[i])
+            sum += (UINT64_MAX - b0) + 1 + shares[i];
+
+        uint64_t* const p = (uint64_t*)&b0_ot[i];
+        p[0] = valid[i];
+        p[1] = b0;
+        uint64_t* const q = (uint64_t*)&b1_ot[i];
+        q[0] = valid[i];
+        q[1] = b1; // b1
+    }
 
     io->sync();
     IKNP<NetIO>* const ot = new IKNP<NetIO>(io);
@@ -47,16 +37,10 @@ uint64_t bitsum_ot_sender(NetIO* const io, const bool* const shares, const bool*
     delete[] b0_ot;
     delete ot;
 
-    for (unsigned int i = 0; i < n; i++){
-        if(valid[i])
-            sum += r[i];
-    }
-
-    delete[] r;
-
     return sum;
 }
 
+/*
 uint64_t intsum_ot_sender(NetIO* const io, const uint64_t* const shares, const bool* const valid, const size_t n, const size_t num_bits){
     PRG prg(fix_key);
 
@@ -81,10 +65,10 @@ uint64_t intsum_ot_sender(NetIO* const io, const uint64_t* const shares, const b
 
             uint64_t* const p = (uint64_t*)&b0_ot[idx];
             p[0] = valid[i];
-            p[1] = ((bool_share)*(1ULL << j) - r);
+            p[1] = (bool_share)*(1ULL << j) - r;
             uint64_t* const q = (uint64_t*)&b1_ot[idx];
             q[0] = valid[i];
-            q[1] = ((1 - bool_share)*(1ULL << j) - r);
+            q[1] = (1 - bool_share)*(1ULL << j) - r;
         }
     }
 
@@ -99,11 +83,12 @@ uint64_t intsum_ot_sender(NetIO* const io, const uint64_t* const shares, const b
 
     return sum;
 }
+*/
 
 uint64_t bitsum_ot_receiver(NetIO* const io, const bool* const shares, const size_t n){
-
     block* const r = new block[n];
     uint64_t sum = 0;
+
     io->sync();
     IKNP<NetIO>* const ot = new IKNP<NetIO>(io);
     ot->recv(r, shares, n);
@@ -111,7 +96,7 @@ uint64_t bitsum_ot_receiver(NetIO* const io, const bool* const shares, const siz
 
     for (unsigned int i = 0; i < n; i++){
         uint64_t* const p = (uint64_t*)&r[i];
-        sum += ((p[0] == 0) ? p[1] : 0);
+        sum += p[0] * p[1];
     }
 
     delete[] r;
@@ -120,6 +105,7 @@ uint64_t bitsum_ot_receiver(NetIO* const io, const bool* const shares, const siz
     return sum;
 }
 
+/*
 uint64_t intsum_ot_receiver(NetIO* const io, const uint64_t* const shares, const size_t n, const size_t num_bits){
 
     block* const r = new block[n*num_bits];
@@ -160,9 +146,121 @@ uint64_t intsum_ot_receiver(NetIO* const io, const uint64_t* const shares, const
 
     return sum;
 }
+*/
 
-// Functions to convert XOR shared input values to shares that add up
-// Add up base 2^64
+
+uint64_t* intsum_ot_sender(NetIO* const io,  const uint64_t* const shares,
+                           const bool* const valid, const size_t* const num_bits,
+                           const size_t num_shares, const size_t num_values) {
+    PRG prg;
+
+    size_t total_bits = 0;
+    for (unsigned int j = 0; j < num_values; j++)
+        total_bits += num_bits[j];
+
+    uint64_t bool_share, r;
+    uint64_t* sum = new uint64_t[num_values];
+    memset(sum, 0, num_values * sizeof(uint64_t));
+
+    block* const b0_ot = new block[num_shares * total_bits];
+    block* const b1_ot = new block[num_shares * total_bits];
+
+    size_t idx = 0;
+    for (unsigned int i = 0; i < num_shares; i++) {
+        // std::cout << "valid[" << i << "] = " << valid[i] << std::endl;
+        for (unsigned int j = 0; j < num_values; j++) {
+            uint64_t num = shares[i * num_values + j];
+            // std::cout << "val[" << j << "] = " << num << std::endl;
+            for (unsigned int k = 0; k < num_bits[j]; k++) {
+                bool_share = num % 2;
+                num = num >> 1;
+
+                prg.random_data(&r, sizeof(uint64_t));
+
+                if (valid[i])
+                    sum[j] += r;
+
+                // std::cout << idx << "(" << bool_share << "): " << bool_share * (1ULL << k) - r << ", " << (1 - bool_share) * (1ULL << k) - r << std::endl;
+
+                uint64_t* const p = (uint64_t*)&b0_ot[idx];
+                p[0] = valid[i];
+                p[1] = bool_share * (1ULL << k) - r;
+                uint64_t* const q = (uint64_t*)&b1_ot[idx];
+                q[0] = valid[i];
+                q[1] = (1 - bool_share) * (1ULL << k) - r;
+
+                idx++;
+            }
+        }
+    }
+
+    io->sync();
+    IKNP<NetIO>* const ot = new IKNP<NetIO>(io);
+    ot->send(b0_ot, b1_ot, num_shares * total_bits);
+    io->flush();
+
+    delete ot;
+    delete[] b0_ot;
+    delete[] b1_ot;
+
+    return sum;
+}
+
+uint64_t* intsum_ot_receiver(NetIO* const io, const uint64_t* const shares,
+                             const size_t* const num_bits,
+                             const size_t num_shares, const size_t num_values) {
+    size_t total_bits = 0;
+    for (unsigned int j = 0; j < num_values; j++)
+        total_bits += num_bits[j];
+
+    block* const r = new block[num_shares * total_bits];
+    bool* const bool_shares = new bool[num_shares * total_bits];
+    uint64_t* sum = new uint64_t[num_values];
+    memset(sum, 0, num_values * sizeof(uint64_t));
+
+    size_t idx = 0;
+    for (unsigned int i = 0; i < num_shares; i++) {
+        for (unsigned int j = 0; j < num_values; j++) {
+            uint64_t num = shares[i * num_values + j];
+            // std::cout << "val[" << j << "] = " << num << std::endl;
+            for (unsigned int k = 0; k < num_bits[j]; k++) {
+                bool_shares[idx] = num % 2;
+                num = num >> 1;
+                idx++;
+            }
+        }
+    }
+
+    io->sync();
+    IKNP<NetIO>* const ot = new IKNP<NetIO>(io);
+    ot->recv(r, bool_shares, num_shares * total_bits);
+    io->flush();
+
+    delete ot;
+    delete[] bool_shares;
+
+    idx = 0;
+    for (unsigned int i = 0; i < num_shares; i++) {
+        uint64_t valid = ((uint64_t*) &r[idx])[0];
+        // std::cout << "valid[" << i << "] = " << valid << std::endl;
+        if (!valid) {
+            idx += total_bits;
+            continue;
+        }
+        for (unsigned int j = 0; j < num_values; j++) {
+            for (unsigned int k = 0; k < num_bits[j]; k++) {
+                // std::cout << idx << "(" << bool_shares[idx] << ") = " << ((uint64_t*)&r[idx])[1] << std::endl;
+                sum[j] += ((uint64_t*)&r[idx])[1];
+                idx++;
+            }
+        }
+    }
+    delete[] r;
+    return sum;
+}
+
+
+// Unused
 uint64_t xor_to_sum_share_sender(NetIO* const io, const uint64_t share, const size_t num_bits){
     PRG prg(fix_key);
 
@@ -224,6 +322,7 @@ uint64_t xor_to_sum_share_sender(NetIO* const io, const uint64_t share, const si
     return sum;
 }
 
+// Unused
 uint64_t xor_to_sum_share_receiver(NetIO* const io, const uint64_t share, const size_t num_bits){
     block* const r = new block[num_bits];
     bool* bool_shares = new bool[num_bits];
