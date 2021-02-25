@@ -1,6 +1,8 @@
 /**
 Oblivious Transfer code.
-For BITSUM and INTSUM.
+For share conversion
+
+TODO: batch OTs: do one round for multiple values
 */
 
 #ifndef PROTO_H
