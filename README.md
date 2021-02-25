@@ -29,11 +29,9 @@ Server 0 port tells Server 0 which port to open, and server 1 which port of serv
 3. Client connects to servers, sends corresponding shares
 4. Servers recieve all shares
 5. For each share, servers check if public keys line up
-6. If relevent, servers also do SNIPS validation for each share
-7. If relevant, Server 1 uses an OT Reciever with all of it's shares.
-8. Server 1 sends it's aggregate value to server 0. 
-9. If relevant, Server 0 uses an OT sender with it's shares, and the shared information about share validity.
-10. Server 0 computes it's own aggregate value, and combines it with the one from server 1 to produce a final answer.
-
-block - 128 bit number
-In the ot protocols, the first 64 bits to encode validity(done at server0) and second 64 bits contain the actual digit.
+6. If relevant, servers use share conversion to get wire shares for SNIPS
+7. If relevent, servers run SNIPS validations
+8. If relevant, Server 1 does OT share conversion and aggregates.
+9. Server 1 sends it's aggregate values to server 0. 
+10. If relevant, Server 0 does OT share conversion and aggregates, accounting for validity
+11. Server 0 computes the final answer using the combined aggregates
