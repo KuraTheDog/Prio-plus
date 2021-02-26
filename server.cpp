@@ -533,7 +533,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     int num_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        num_bytes += recv_in(clientfd, &share, PK_LENGTH);
+        num_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
         const std::string pk(share.pk, share.pk + PK_LENGTH);
 
         num_bytes += recv_in(clientfd, &shares[i*(B+1)], share_sz);
@@ -564,7 +564,6 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
             idx++;
         }
         std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
-        start2 = clock_start();
         bool* const other_valid = new bool[num_inputs];
         recv_bool_batch(serverfd, other_valid, num_inputs);
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -577,7 +576,6 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         send_out(serverfd, &b[0], share_sz);
         delete[] shares;
         delete[] pk_list;
-        std::cout << "bool time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
@@ -599,7 +597,6 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         }
 
         std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
-        start2 = clock_start();
 
         server_bytes += send_bool_batch(serverfd, valid, num_inputs);
 
@@ -609,7 +606,6 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         recv_in(serverfd, &b[0], share_sz);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "bool time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
@@ -862,7 +858,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
     LinRegShare share;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        num_bytes += recv_in(clientfd, &share, PK_LENGTH);
+        num_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
         const std::string pk(share.pk, share.pk + PK_LENGTH);
 
         share.x_vals = new uint64_t[num_x];

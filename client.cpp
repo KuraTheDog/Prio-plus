@@ -69,7 +69,7 @@ std::string make_pk(emp::PRG prg) {
 int send_maxshare(const int server_num, const MaxShare& maxshare, const unsigned int B) {
     const int sock = (server_num == 0) ? sockfd0 : sockfd1;
 
-    int ret = send(sock, (void *)&maxshare, PK_LENGTH, 0);
+    int ret = send(sock, (void*)&(maxshare.pk[0]), PK_LENGTH, 0);
 
     for (unsigned int i = 0; i <= B; i++)
         ret += send(sock, (void *)&(maxshare.arr[i]), sizeof(uint32_t), 0);
@@ -82,7 +82,7 @@ int send_linregshare(const int server_num, const LinRegShare& share,  const size
     const size_t num_x = degree - 1;
     const size_t num_quad = num_x * (num_x + 1) / 2;
 
-    int ret = send(sock, (void*) &share, PK_LENGTH, 0);
+    int ret = send(sock, (void*)&(share.pk[0]), PK_LENGTH, 0);
 
     for (unsigned int i = 0; i < num_x; i++)
         ret += send_uint64(sock, share.x_vals[i]);
