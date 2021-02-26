@@ -2,6 +2,7 @@
 
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <cstdlib>
@@ -746,7 +747,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         recv_size(serverfd, num_inputs);
 
         // For OT
-        uint64_t share, share2;
+        uint64_t share = 0, share2 = 0;
         uint64_t* const shares = new uint64_t[2 * num_inputs];
         ClientPacket** const packet = new ClientPacket*[num_inputs];
 
@@ -932,6 +933,10 @@ returnType linreg_op(const initMsg msg, const int clientfd,
                    x2_vals, num_quad * sizeof(uint64_t));
             memcpy(&shares[num_fields * i + num_x + num_quad + 1],
                    xy_vals, num_x * sizeof(uint64_t));
+
+            delete x_vals;
+            delete x2_vals;
+            delete xy_vals;
         }
         const bool* const snip_valid = validate_snips(
             num_inputs, num_fields, bits_arr, serverfd, server_num,
@@ -1001,6 +1006,11 @@ returnType linreg_op(const initMsg msg, const int clientfd,
                    x2_vals, num_quad * sizeof(uint64_t));
             memcpy(&shares[num_fields * i + num_x + num_quad + 1],
                    xy_vals, num_x * sizeof(uint64_t));
+            if (valid[i]) {
+                delete x_vals;
+                delete x2_vals;
+                delete xy_vals;
+            }
         }
         const bool* const snip_valid = validate_snips(
             num_inputs, num_fields, bits_arr, serverfd, server_num,
@@ -1053,6 +1063,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             recv_uint64(serverfd, b);
             y_accum[1 + j] = a[degree + num_quad + j] + b;
         }
+        delete[] a;
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;

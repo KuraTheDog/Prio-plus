@@ -9,6 +9,8 @@ For when request size >> buffer size
 */
 #include "edabit.h"
 
+#include <sys/wait.h>
+
 #include <iostream>
 
 #include "constants.h"

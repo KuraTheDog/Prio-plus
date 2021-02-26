@@ -29,7 +29,7 @@ void clear_constants() {
     fmpz_clear(Int_Gen);
 }
 
-void init_roots(const int N) {
+void init_roots(const size_t N) {
     if (num_roots == N) {
         return;
     }
@@ -65,7 +65,7 @@ void init_roots(const int N) {
     fmpz_set_ui(invroots[0], 1);
     fmpz_set_ui(roots2[0], 1);
 
-    for (int i = 1; i < N; i++) {
+    for (unsigned int i = 1; i < N; i++) {
         fmpz_mul(roots[i],roots[i-1],g_);
         fmpz_mul(invroots[i],invroots[i-1],ginv_);
 
@@ -73,7 +73,7 @@ void init_roots(const int N) {
         fmpz_mod(invroots[i],invroots[i],Int_Modulus);
     }
 
-    for (int i = 1; i < 2 * N; i++) {
+    for (unsigned int i = 1; i < 2 * N; i++) {
         fmpz_mul(roots2[i], roots2[i-1], ghalf_);
         fmpz_mod(roots2[i], roots2[i], Int_Modulus);
     }

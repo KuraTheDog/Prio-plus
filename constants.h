@@ -92,6 +92,6 @@ void init_constants();
 
 void clear_constants();
 
-void init_roots(const int N);
+void init_roots(const size_t N);
 
 #endif

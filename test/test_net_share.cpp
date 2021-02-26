@@ -23,11 +23,11 @@ void run_sender(int sockfd) {
 
     size_t nbool = 15;
     bool b_arr[nbool];
-    for (int i = 0; i < nbool; i++)
+    for (unsigned int i = 0; i < nbool; i++)
         b_arr[i] = i % 2;
     n = send_bool_batch(sockfd, b_arr, nbool);
     std::cout << "send bool arr \tsize: " << n << " \tval: ";
-    for (int i = 0; i < nbool; i++) {
+    for (unsigned int i = 0; i < nbool; i++) {
         if (i > 0) std::cout << ", ";
         std::cout << b_arr[i];
     }
@@ -137,7 +137,7 @@ void run_receiver(int sockfd) {
     bool b_arr[nbool];
     n = recv_bool_batch(sockfd, b_arr, nbool);
     std::cout << "recv bool arr \tsize: " << n << " \tval: ";
-    for (int i = 0; i < nbool; i++) {
+    for (unsigned int i = 0; i < nbool; i++) {
         if (i > 0) std::cout << ", ";
         std::cout << b_arr[i];
     }
