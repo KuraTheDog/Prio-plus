@@ -904,7 +904,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         server_bytes += send_size(serverfd, num_inputs);
 
         uint64_t* x_vals;
-        uint64_t y_val;
+        uint64_t y_val = 0;
         uint64_t* x2_vals;
         uint64_t* xy_vals;
         uint64_t* const shares = new uint64_t[num_inputs * num_fields];
@@ -974,7 +974,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         recv_size(serverfd, num_inputs);
 
         uint64_t* x_vals;
-        uint64_t y_val;
+        uint64_t y_val = 0;
         uint64_t* x2_vals;
         uint64_t* xy_vals;
         uint64_t* const shares = new uint64_t[num_inputs * num_fields];
@@ -996,6 +996,9 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             if (valid[i]) {
                 std::tie(x_vals, y_val, x2_vals, xy_vals, packet[i]) = share_map[pk_list[i]];
             } else {
+                x_vals = new uint64_t[num_x];
+                x2_vals = new uint64_t[num_quad];
+                xy_vals = new uint64_t[num_x];
                 packet[i] = new ClientPacket(NMul);
             }
             circuit[i] = CheckLinReg(degree);
@@ -1006,11 +1009,10 @@ returnType linreg_op(const initMsg msg, const int clientfd,
                    x2_vals, num_quad * sizeof(uint64_t));
             memcpy(&shares[num_fields * i + num_x + num_quad + 1],
                    xy_vals, num_x * sizeof(uint64_t));
-            if (valid[i]) {
-                delete x_vals;
-                delete x2_vals;
-                delete xy_vals;
-            }
+            
+            delete x_vals;
+            delete x2_vals;
+            delete xy_vals;
         }
         const bool* const snip_valid = validate_snips(
             num_inputs, num_fields, bits_arr, serverfd, server_num,
