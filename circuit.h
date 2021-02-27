@@ -8,6 +8,7 @@
 #include "share.h"
 
 extern "C" {
+    #include "flint/fmpq_mat.h"  // for LinReg solving
     #include "poly/fft.h"
 }
 
@@ -20,29 +21,17 @@ enum GateType {
 };
 
 struct Gate {
-    GateType type;
-    Gate* ParentL;
-    Gate* ParentR;
+    const GateType type;
+    Gate* const ParentL;
+    Gate* const ParentR;
     fmpz_t Constant;
     fmpz_t WireValue;
 
-    Gate() {
-        ParentL = ParentR = nullptr;
-        fmpz_init(Constant);
-        fmpz_init(WireValue);
-    }
-
-    Gate(GateType gatetype) {
-        type = gatetype;
-        ParentL = ParentR = nullptr;
-        fmpz_init(Constant);
-        fmpz_init(WireValue);
-    }
-
-    Gate(GateType gatetype, Gate* pL, Gate* pR) {
-        type = gatetype;
-        ParentL = pL;
-        ParentR = pR;
+    Gate(GateType gatetype, Gate* pL = nullptr, Gate* pR = nullptr)
+    : type(gatetype)
+    , ParentL(pL)
+    , ParentR(pR)
+    {
         fmpz_init(Constant);
         fmpz_init(WireValue);
     }
@@ -53,20 +42,32 @@ struct Gate {
     }
 };
 
-int NextPowerofTwo(const int n) {
-    int ans = 1;
-    while(n > ans)
-        ans *= 2;
-    return ans;
+Gate* MulByNegOne(Gate* const gate) {
+    Gate* out = new Gate(Gate_MulConst, gate);
+
+    fmpz_set_si(out->Constant, -1);
+    fmpz_mod(out->Constant, out->Constant, Int_Modulus);
+
+    return out;
 }
 
 struct Circuit {
     std::vector<Gate*> gates;        // All gates
-    std::vector<Gate*> outputs;      // only used by unused
+    // std::vector<Gate*> outputs;      // only used by unused
     std::vector<Gate*> result_zero;  // Gates that must be zero for eval to pass.
-    const size_t max_bits;           // Unused?
+    // const size_t max_bits;           // Unused?
 
-    Circuit(int n = 31) : max_bits(n) {}
+    std::vector<Gate*> mul_gates;
+
+    // Circuit(int n = 31) : max_bits(n) {}
+    Circuit() {}
+
+    Circuit(const size_t num_inputs) : Circuit() {
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            Gate* inp = new Gate(Gate_Input);
+            addGate(inp);
+        }
+    }
 
     ~Circuit() {
         // All gates, so don't need to also go over outputs and result_zero
@@ -76,6 +77,8 @@ struct Circuit {
 
     void addGate(Gate* gate) {
         gates.push_back(gate);
+        if (gate->type == Gate_Mul)
+            mul_gates.push_back(gate);
     }
 
     void addZeroGate(Gate* zerogate) {
@@ -133,73 +136,42 @@ struct Circuit {
         }
         
         // all result_zero should be zero.
-        for (auto zero_gate : this->result_zero) 
+        for (Gate* zero_gate : this->result_zero) 
             if (not fmpz_is_zero(zero_gate->WireValue))
                 return false;
         return true;
     }
 
-    std::vector<Gate*> MulGates() const {
-        std::vector<Gate*> res;
-        for (auto gate : this->gates)
-            if (gate->type == Gate_Mul)
-                res.push_back(gate);
-        return res;
-    }
-
     unsigned int NumMulGates() const {
-        unsigned int total = 0;
-        for (auto gate: this->gates)
-            if (gate->type == Gate_Mul)
-                total += 1;
-        return total;
+        return mul_gates.size();
     }
 
-    unsigned int N() const {
-        return NextPowerofTwo(NumMulGates() + 1);
-    }
-
-    unsigned int NumMulInpGates() const {
-        unsigned int total = 0;
-        for (auto gate: this->gates)
-            if (gate->type == Gate_Mul or gate->type == Gate_Input)
-                total += 1;
-        return total;
-    }
-
-    void GetWireShares(fmpz_t** shares0, fmpz_t** shares1) const {
-        const unsigned int n = NumMulInpGates();
-
-        new_fmpz_array(shares0, n);
-        new_fmpz_array(shares1, n);
-
+    void GetMulShares(fmpz_t** shares0, fmpz_t** shares1) const {
         unsigned int i = 0;
 
-        // TODO: Input gate values should be dependnet on original client shares.
-        for (auto gate : gates) {
-            if (gate->type == Gate_Mul or gate->type == Gate_Input) {
-                SplitShare(gate->WireValue, (*shares0)[i], (*shares1)[i]);
-                i++;
-            }
+        for (Gate* gate : mul_gates) {
+            SplitShare(gate->WireValue, (*shares0)[i], (*shares1)[i]);
+            i++;
         }
     }
 
-    void ImportWires(const ClientPacket p, const int server_num) {
-        unsigned int i = 0;
+    void ImportWires(const ClientPacket* const p, const int server_num,
+                     const fmpz_t* const InputShares) {
+        unsigned int mul_idx = 0, inp_idx = 0;
 
-        for (auto gate : gates) {
+        for (Gate* gate : gates) {
             switch (gate->type) {
             case Gate_Input:
-                fmpz_set(gate->WireValue, p->WireShares[i]);
-                i++;
+                fmpz_set(gate->WireValue, InputShares[inp_idx]);
+                inp_idx++;
                 break;
             case Gate_Add:
                 fmpz_add(gate->WireValue, gate->ParentL->WireValue, gate->ParentR->WireValue);
                 fmpz_mod(gate->WireValue, gate->WireValue, Int_Modulus);
                 break;
             case Gate_Mul:
-                fmpz_set(gate->WireValue, p->WireShares[i]);
-                i++;
+                fmpz_set(gate->WireValue, p->MulShares[mul_idx]);
+                mul_idx++;
                 break;
             case Gate_AddConst:
                 if (server_num == 0)
@@ -217,9 +189,24 @@ struct Circuit {
             }
         }
     }
+
+    // Adds Gate[i] * Gate[j] = Gate[k] to circuit
+    void AddCheckMulEqual(const size_t i, const size_t j, const size_t k) {
+        Gate* mul = new Gate(Gate_Mul, gates[i], gates[j]);
+        Gate* inv = MulByNegOne(gates[k]);
+        Gate* add = new Gate(Gate_Add, mul, inv);
+
+        addGate(mul);
+        addGate(inv);
+        addGate(add);
+        addZeroGate(add);
+
+        // std::cout << "[" << i << "] * [" << j << "] = [" << k << "]\n";
+    }
 };
 
 // Unused
+/*
 Circuit* AndCircuits(std::vector<Circuit*>& circuits) {
     Circuit* out = new Circuit();
 
@@ -231,104 +218,113 @@ Circuit* AndCircuits(std::vector<Circuit*>& circuits) {
 
     return out;
 }
-
-Gate* MulByNegOne(Gate* const gate) {
-    Gate* out = new Gate(Gate_MulConst);
-
-    fmpz_set_si(out->Constant, -1);
-    fmpz_mod(out->Constant, out->Constant, Int_Modulus);
-
-    out->ParentL = gate;
-
-    return out;
-}
+*/
 
 /*
 Various VALID(*) circuits.
 */
 
-// Returns circuit that checks L*R == Prod
-Circuit* CheckMul(Gate* const L, Gate* const R, Gate* const Prod) {
-    Circuit* out = new Circuit();
-
-    Gate* mul = new Gate(Gate_Mul);
-    mul->ParentL = L;
-    mul->ParentR = R;
-
-    Gate* inv = MulByNegOne(Prod);
-    Gate* add = new Gate(Gate_Add);
-    add->ParentL = inv;
-    add->ParentR = mul;
-
-    out->addGate(mul);
-    out->addGate(inv);
-    out->addGate(add);
-    out->addZeroGate(add);
-
-    return out;
-}
-
 // Returns circuit for x^2 == y. For Varience and StdDev.
 Circuit* CheckVar() {
-    Gate* x = new Gate(Gate_Input);
-    Gate* y = new Gate(Gate_Input);
+    Circuit* out = new Circuit(2);
 
-    Circuit* out = new Circuit();
-
-    out->addGate(x);
-    out->addGate(y);
-
-    Gate* mul = new Gate(Gate_Mul);
-    mul->ParentL = x;
-    mul->ParentR = x;
-
-    Gate* inv = MulByNegOne(y);
-    Gate* add = new Gate(Gate_Add);
-    add->ParentL = inv;
-    add->ParentR = mul;
-
-    out->addGate(mul);
-    out->addGate(inv);
-    out->addGate(add);
-    out->addZeroGate(add);
+    out->AddCheckMulEqual(0, 0, 1);
 
     return out;
 }
 
+/*
+2: x, x^2, y, xy
+3: x0, x1, x0^2, x0x1, x1^2, y, x0 y, x1 y
+4: x0, x1, x2, x0^2, x0x1, x0x2, x1^2, x1x2, x2^2, y, x0 y, x1 y, x2 y
+*/
+Circuit* CheckLinReg(const size_t degree) {
+    const size_t num_x = degree - 1;
+    const size_t num_fields = 2 * num_x + 1 + num_x * (num_x + 1) / 2;
 
+    Circuit* out = new Circuit(num_fields);
 
-Circuit* CheckLinReg(const unsigned int num_fields) {
-    const unsigned int num_inputs = num_fields + (num_fields * (num_fields+1))/2;
-
-    Circuit* out = new Circuit();
-
-    for (unsigned int i = 0; i < num_inputs; i++) {
-        Gate* inp = new Gate(Gate_Input);
-        out->addGate(inp);
-    }
-
-    int k = num_fields;
-
-    for (unsigned int i = 0; i < num_fields; i++) {
-        for (unsigned int j = i; j < num_fields; j++) {
-            Gate* x_i = out->gates[i];
-            Gate* x_j = out->gates[j];
-            Gate* x_i_j = out->gates[k];
-            k++;
-
-            Gate* mul = new Gate(Gate_Mul, x_i, x_j);
-
-            Gate* inv = MulByNegOne(x_i_j);
-            Gate* add = new Gate(Gate_Add, mul, inv);
-
-            out->addGate(mul);
-            out->addGate(inv);
-            out->addGate(add);
-            out->addZeroGate(add);
+    // xi * xj
+    unsigned int idx = degree;
+    for (unsigned int i = 0; i < num_x; i++) {
+        for (unsigned int j = i; j < num_x; j++) {
+            out->AddCheckMulEqual(i, j, idx);
+            idx++;
         }
     }
 
+    // y * xi
+    for (unsigned int i = 0; i < num_x; i++)
+        out->AddCheckMulEqual(num_x, i, idx + i);
+
     return out;
+}
+
+double* SolveLinReg(const size_t degree, const uint64_t* const x, const uint64_t* const y) {
+
+    size_t idx = degree;
+
+    // const size_t num_x = degree - 1;
+    // std::cout << "n = " << x[0] << std::endl;
+    // for (unsigned int i = 0; i < num_x; i++)
+    //     std::cout << "x_" << i << " = " << x[i + 1] << std::endl;
+    // std::cout << "y = " << y[0] << std::endl;
+
+    // for (unsigned int i = 0; i < num_x; i++) {
+    //     for (unsigned int j = i; j < num_x; j++) {
+    //         std::cout << "x_" << i << " * " << "x_" << j << " = " << x[idx] << std::endl;
+    //         idx++;
+    //     }
+    // }
+
+    // for (unsigned int i = 0; i < num_x; i++)
+    //     std::cout << "x_" << i << " * y = " << y[i + 1] << std::endl;
+
+    fmpq_mat_t X; fmpq_mat_init(X, degree, degree);
+    fmpq_mat_t Y; fmpq_mat_init(Y, degree, 1);
+    
+    for (unsigned int i = 0; i < degree; i++) {
+        fmpq_set_ui(fmpq_mat_entry(X, i, 0), x[i], 1);
+        if (i > 0)
+            fmpq_set_ui(fmpq_mat_entry(X, 0, i), x[i], 1);
+
+        fmpq_set_ui(fmpq_mat_entry(Y, i, 0), y[i], 1);
+    }
+    idx = degree;
+    for (unsigned int i = 1; i < degree; i++) {
+        for (unsigned int j = i; j < degree; j++) {
+            fmpq_set_ui(fmpq_mat_entry(X, i, j), x[idx], 1);
+            if (j != i)
+                fmpq_set_ui(fmpq_mat_entry(X, j, i), x[idx], 1);
+            idx++;
+        }
+    }
+
+    // std::cout << "X: ";
+    // fmpq_mat_print(X);
+    // std::cout << "Y: ";
+    // fmpq_mat_print(Y);
+
+    int ret = fmpq_mat_inv(X, X);
+    if (ret == 0) {
+        std::cout << "WARNING: X is singular" << std::endl;
+    }
+    // std::cout << "X^-1: ";
+    // fmpq_mat_print(X);
+
+    fmpq_mat_mul(Y, X, Y);
+    // std::cout << "X^-1 Y: ";
+    // fmpq_mat_print(Y);
+
+
+    double* ans = new double[degree];
+    for (unsigned int i = 0; i < degree; i++)
+        ans[i] = fmpq_get_d(fmpq_mat_entry(Y, i, 0));
+
+    fmpq_mat_clear(X);
+    fmpq_mat_clear(Y);
+
+    return ans;
 }
 
 #endif

@@ -6,6 +6,8 @@
 // For fmpz types
 #include "fmpz_utils.h"
 
+struct CorShare;
+
 struct Cor {
     fmpz_t D;
     fmpz_t E;
@@ -15,12 +17,15 @@ struct Cor {
         fmpz_init(E);
     }
 
+    Cor(const CorShare* const x, const CorShare* const y);
+
     ~Cor(){
         fmpz_clear(D);
         fmpz_clear(E);
     }
 };
 
+// Combine with Cor?
 struct CorShare {
     fmpz_t shareD;
     fmpz_t shareE;
@@ -54,6 +59,7 @@ struct BeaverTriple {
     }
 };
 
+// I kind of want ot just combine this with BeaverTriple, since it's the same
 struct BeaverTripleShare {
     fmpz_t shareA;
     fmpz_t shareB;
@@ -77,47 +83,60 @@ struct BooleanBeaverTriple {
     bool b;
     bool c;
 
-    void set(const bool a, const bool b, const bool c) {
-        this->a = a;
-        this->b = b;
-        this->c = c;
-    }
+    BooleanBeaverTriple(){}
+
+    BooleanBeaverTriple(const bool a, const bool b, const bool c)
+    : a(a), b(b), c(c) {}
 };
+
+// Not inclusive, so next(2) = 4
+unsigned int NextPowerOfTwo(const unsigned int n);
 
 /* Shares one server has for checking multiplcation gates
    See share_polynomial.
    Should satisfy f * g = h
-   N = NextPowerOf2(M + 1), where M is the number of mul circuits.
+   N = NextPowerOf2(NMul), where M is the number of mul circuits.
 
    h_points is evaluated on 2N-th roots of unity, excluding points
    that are also N-th roots of unity. So all odd points.
 */
-struct client_packet {
-    size_t N;            // N = length of h_points = # mult gates.
-    size_t NWires;       // Num wire shares = # mult gates + # input gates
-    fmpz_t* WireShares;  // share of input/mulgate (output) wires
-    fmpz_t f0_s;         // share of f(0) = pointsF[0] = u_0
-    fmpz_t g0_s;         // share of g(0) = pointsG[0] = v_0
-    fmpz_t h0_s;         // share of h(0)
-    fmpz_t* h_points;    // h evaluated on odd 2N-th roots of unity
+struct ClientPacket {
+    const size_t NMul;    // # mul gates = num wire shares
+    const size_t N;       // N = length of h_points = # mult gates.
+    fmpz_t* MulShares;   // share of mulgate (output) wires, aka h(even)
+    fmpz_t f0_s;          // share of f(0) = pointsF[0] = u_0
+    fmpz_t g0_s;          // share of g(0) = pointsG[0] = v_0
+    fmpz_t h0_s;          // share of h(0)
+    fmpz_t* h_points;     // h evaluated on odd 2N-th roots of unity
     BeaverTripleShare* triple_share;
 
-    ~client_packet() {
+    ClientPacket(const size_t NMul)
+    : NMul(NMul), N(NextPowerOfTwo(NMul)) {
+        new_fmpz_array(&MulShares, NMul);
+        fmpz_init(f0_s);
+        fmpz_init(g0_s);
+        fmpz_init(h0_s);
+        new_fmpz_array(&h_points, N);
+        triple_share = new BeaverTripleShare();
+    }
+
+    ~ClientPacket() {
+        clear_fmpz_array(MulShares, NMul);
         fmpz_clear(f0_s);
         fmpz_clear(g0_s);
         fmpz_clear(h0_s);
-        clear_fmpz_array(WireShares, NWires);
         clear_fmpz_array(h_points, N);
+        delete triple_share;
     }
 
     void print() const {
+        std::cout << " NMul = " << NMul << std::endl;
         std::cout << " N = " << N << std::endl;
-        std::cout << " NWires = " << NWires << std::endl;
-        std::cout << " WireShares = {";
-        for (unsigned int i = 0; i < NWires; i++) {
+        std::cout << " MulShares = {";
+        for (unsigned int i = 0; i < NMul; i++) {
             if (i > 0)
                 std::cout << ", ";
-            fmpz_print(WireShares[i]);
+            fmpz_print(MulShares[i]);
         }
         std::cout << "}" << std::endl;
         std::cout << " f0_s = "; fmpz_print(f0_s); std::cout << std::endl;
@@ -133,13 +152,13 @@ struct client_packet {
     }
 };
 
-typedef struct client_packet* ClientPacket;
-
 // Unused?
+/*
 struct ClientSubmission {
     fmpz_t* vals;
     BeaverTripleShare triple;
 };
+*/
 
 struct DaBit {
     fmpz_t bp;   // [b]_p, mod p
@@ -187,21 +206,20 @@ struct EdaBit {
 
     void print() const {
         std::cout << " r = "; fmpz_print(r); std::cout << std::endl;
-        fmpz_t x;
+        fmpz_t x; fmpz_init(x);
         fmpz_from_bool_array(x, b, n);
         std::cout << " b = "; fmpz_print(x); std::cout << std::endl;
         fmpz_clear(x);
     }
 };
 
-// Can this be an alternative constructor? Or the only one?
-void init_client_packet(ClientPacket &p, const int N, const int NumMulInpGates);
-
 void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B);
 
 BeaverTriple* NewBeaverTriple();
 
-BeaverTripleShare* BeaverTripleShares(const BeaverTriple* const inp);
+void BeaverTripleShares(const BeaverTriple* const inp,
+                        BeaverTripleShare* const out0,
+                        BeaverTripleShare* const out1);
 
 void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1);
 void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n);

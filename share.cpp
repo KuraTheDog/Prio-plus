@@ -8,21 +8,11 @@ extern "C" {
   #include "flint/fmpz.h"
 };
 
-void init_client_packet(ClientPacket &p, const int N, const int NumMulInpGates) {
-    p = new client_packet();
-
-    p->N = N;
-    p->NWires = NumMulInpGates;
-
-    new_fmpz_array(&p->WireShares, NumMulInpGates);
-
-    fmpz_init(p->f0_s);
-    fmpz_init(p->g0_s);
-    fmpz_init(p->h0_s);
-
-    new_fmpz_array(&p->h_points, N);
-
-    p->triple_share = new BeaverTripleShare();
+unsigned int NextPowerOfTwo(const unsigned int n) {
+    unsigned int ans = 1;
+    while(n + 1 > ans)
+        ans *= 2;
+    return ans;
 }
 
 void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B) {
@@ -31,18 +21,28 @@ void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B) {
     fmpz_mod(B, B, Int_Modulus);
 }
 
-// Unused?
-// void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B, const int num_bits) {
-//     // num_bits < 32
-//     uint64_t mod = 1L << num_bits;
+Cor::Cor(const CorShare* const x, const CorShare* const y) : Cor() {
+    fmpz_add(D, x->shareD, y->shareD);
+    fmpz_mod(D, D, Int_Modulus);
 
-//     fmpz_t max_val;
-//     fmpz_init(max_val);
-//     fmpz_set_ui(max_val, mod);
-//     fmpz_randm(A, seed, max_val);
-//     fmpz_xor(B, A, val);
-//     fmpz_clear(max_val);
-// }
+    fmpz_add(E, x->shareE, y->shareE);
+    fmpz_mod(E, E, Int_Modulus);
+}
+
+// Unused?
+/*
+void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B, const int num_bits) {
+    // num_bits < 32
+    uint64_t mod = 1L << num_bits;
+
+    fmpz_t max_val;
+    fmpz_init(max_val);
+    fmpz_set_ui(max_val, mod);
+    fmpz_randm(A, seed, max_val);
+    fmpz_xor(B, A, val);
+    fmpz_clear(max_val);
+}
+*/
 
 BeaverTriple* NewBeaverTriple() {
     BeaverTriple* out = new BeaverTriple();
@@ -55,18 +55,16 @@ BeaverTriple* NewBeaverTriple() {
     return out;
 }
 
-BeaverTripleShare* BeaverTripleShares(const BeaverTriple* const inp) {
-    BeaverTripleShare* out = new BeaverTripleShare[2];
-
-    SplitShare(inp->A, out[0].shareA, out[1].shareA);
-    SplitShare(inp->B, out[0].shareB, out[1].shareB);
-    SplitShare(inp->C, out[0].shareC, out[1].shareC);
-
-    return out;
+void BeaverTripleShares(const BeaverTriple* const inp,
+                        BeaverTripleShare* const out0,
+                        BeaverTripleShare* const out1) {
+    SplitShare(inp->A, out0->shareA, out1->shareA);
+    SplitShare(inp->B, out0->shareB, out1->shareB);
+    SplitShare(inp->C, out0->shareC, out1->shareC);
 }
 
 void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {
-    fmpz_t two;  // TODO: Is there a nicer way to do this?
+    fmpz_t two;
     fmpz_init_set_si(two, 2);
 
     // random bit b
@@ -75,7 +73,17 @@ void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {
     fmpz_randm(bit, seed, two);
 
     // random r
-    fmpz_randm(bit0->bp, seed, Int_Modulus);
+    /*
+    If b >= r, then b - r doesn't roll over. This breaks assumptions for making b
+    So we need r > b, so we randomly pick r between b+1 and modulus
+    or, 0 and modulus - (b+1), then add b+1
+    This case only happens odds ~1/p anyways, but since it's local we are free to adjust
+    */
+    fmpz_t adjust_mod; fmpz_init_set(adjust_mod, Int_Modulus);
+    fmpz_t adjust; fmpz_init_set(adjust, bit); fmpz_add_si(adjust, adjust, 1);
+    fmpz_sub(adjust_mod, adjust_mod, adjust);
+    fmpz_randm(bit0->bp, seed, adjust_mod);
+    fmpz_add(bit0->bp, bit0->bp, adjust);
 
     // b - r
     fmpz_sub(bit1->bp, bit, bit0->bp);

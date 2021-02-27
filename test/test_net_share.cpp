@@ -17,133 +17,207 @@ void run_sender(int sockfd) {
     int n;
     fmpz_t number; fmpz_init(number);
 
+    bool b = true;
+    n = send_bool(sockfd, b);
+    std::cout << "send bool \tsize: " << n << " \tval: " << b << std::endl;
+
+    size_t nbool = 15;
+    bool b_arr[nbool];
+    for (unsigned int i = 0; i < nbool; i++)
+        b_arr[i] = i % 2;
+    n = send_bool_batch(sockfd, b_arr, nbool);
+    std::cout << "send bool arr \tsize: " << n << " \tval: ";
+    for (unsigned int i = 0; i < nbool; i++) {
+        if (i > 0) std::cout << ", ";
+        std::cout << b_arr[i];
+    }
+    std::cout << std::endl;
+
+    int in = 13579;
+    n = send_int(sockfd, in);
+    std::cout << "send int, \tsize: " << n << " \tval: " << in << std::endl;
+
+    size_t sz = 92;
+    n = send_size(sockfd, sz);
+    std::cout << "send size, \tsize: " << n << " \tval: " << sz << std::endl;
+
     uint32_t i = 1 << 20;
     n = send_uint32(sockfd, i);
-    std::cout << "send: size = " << n << ", uint32_t: " << i << std::endl;
+    std::cout << "send uint32_t \tsize: " << n << " \tval: " << i << std::endl;
 
     uint64_t j = 1ul << 50;
     n = send_uint64(sockfd, j);
-    std::cout << "send: size = " << n << ", uint64_t: " << j << std::endl;
+    std::cout << "send uint64_t \tsize: " << n << " \tval: " << j << std::endl;
 
     std::string s = "Hello World!";
     n = send_string(sockfd, s);
-    std::cout << "send: size = " << n << ", string: " << s << std::endl;
+    std::cout << "send string \tsize: " << n << " \tval: " << s << std::endl;
 
     // Small number
     fmpz_set_d(number, 12345);
     n = send_fmpz(sockfd, number);
-    std::cout << "send: size = " << n << ", fmpz: ";
+    std::cout << "send fmpz \tsize: " << n << " \tval: ";
     fmpz_print(number); std::cout << std::endl;
 
     // Large unsigned long
     fmpz_set_ui(number, 12345678900987654321ul);
     n = send_fmpz(sockfd, number);
-    std::cout << "send: size = " << n << ", fmpz: ";
+    std::cout << "send fmpz \tsize: " << n << " \tval: ";
     fmpz_print(number); std::cout << std::endl;
 
     // Very large multi-limbed number
     fmpz_set_str(number, "3141592653589793238462643383279502884197169399", 10);
     n = send_fmpz(sockfd, number);
-    std::cout << "send: size = " << n << ", fmpz: ";
+    std::cout << "send fmpz \tsize: " << n << " \tval: ";
     fmpz_print(number); std::cout << std::endl;
+
+    BooleanBeaverTriple* btrip = new BooleanBeaverTriple(true, false, true);
+    n = send_BooleanBeaverTriple(sockfd, btrip);
+    std::cout << "send btriple \tsize: " << n << " \tvals: " << btrip->a << ", " << btrip->b << ", " << btrip->c << std::endl;
+    delete btrip;
 
     BeaverTriple* trip = NewBeaverTriple();
     n = send_BeaverTriple(sockfd, trip);
-    std::cout << "send: size = " << n << ", triple: ";
+    std::cout << "send triple \tsize: " << n << " \tvals: ";
     fmpz_print(trip->A); std::cout << ", ";
     fmpz_print(trip->B); std::cout << ", ";
     fmpz_print(trip->C); std::cout << std::endl;
+    delete trip;
 
-    ClientPacket packet;
-    init_client_packet(packet, 1, 2);
-    n = send_ClientPacket(sockfd, packet);
-    std::cout << "send: size = " << n << ", packet, N = " << packet->N << ", NWires = " << packet->NWires << std::endl;
+    ClientPacket* packet = new ClientPacket(1);
+    fmpz_set_si(packet->f0_s, 10);
+    n = send_ClientPacket(sockfd, packet, 1);
+    std::cout << "send packet \tsize: " << n << " \tf0_s: ";
+    fmpz_print(packet->f0_s); std::cout << std::endl;
+    delete packet;
 
-    ClientPacket packet2;
-    init_client_packet(packet2, 2, 3);
-    n = send_ClientPacket(sockfd, packet2);
-    std::cout << "send: size = " << n << ", packet, N = " << packet2->N << ", NWires = " << packet2->NWires << std::endl;
+    ClientPacket* packet2 = new ClientPacket(2);
+    fmpz_set_si(packet2->f0_s, 20);
+    n = send_ClientPacket(sockfd, packet2, 2);
+    std::cout << "send packet \tsize: " << n << " \tf0_s = ";
+    fmpz_print(packet2->f0_s); std::cout << std::endl;
+    delete packet2;
 
-    EdaBit* b0 = new EdaBit(4);
-    EdaBit* b1 = new EdaBit(4);
-    makeLocalEdaBit(b0, b1, 4);
-    n = send_EdaBit(sockfd, b0, 4);
-    std::cout << "send EdaBit size = " << n << std::endl;
+    size_t edasize = 8;
+    EdaBit* b0 = new EdaBit(edasize);
+    EdaBit* b1 = new EdaBit(edasize);
+    makeLocalEdaBit(b0, b1, edasize);
+    n = send_EdaBit(sockfd, b0, edasize);
+    std::cout << "send EdaBit " << edasize << " \tsize: " << n << std::endl;
     b0->print();
+    delete b0;
+    delete b1;
 
     // Poly
     // fmpz_set_ui(number, 100);
     // fmpz_mod_poly_t f; fmpz_mod_poly_init(f, number);
     // fmpz_mod_poly_randtest(f, seed, 5);
     // n = send_poly(sockfd, f);
-    // std::cout << "send: size = " << n << ", poly: ";
+    // std::cout << "send X \tsize: " << n << "\t poly: ";
     // fmpz_mod_poly_print_pretty(f, "x"); std::cout << std::endl;
 
     // Sanity: sending numbers still works
     fmpz_set_d(number, 54321);
     n = send_fmpz(sockfd, number);
-    std::cout << "send: size = " << n << ", fmpz: ";
+    std::cout << "send fmpz \tsize: " << n << "\t fmpz: ";
     fmpz_print(number); std::cout << std::endl;
+
+    fmpz_clear(number);
 }
 
-void run_receiver(int newsockfd) {
+void run_receiver(int sockfd) {
     int n;
-    fmpz_t number;
-    fmpz_init(number);
+    fmpz_t number; fmpz_init(number);
+
+    bool b;
+    n = recv_bool(sockfd, b);
+    std::cout << "recv bool \tsize: " << n << " \tval: " << b << std::endl;
+
+    const size_t nbool = 15;
+    bool b_arr[nbool];
+    n = recv_bool_batch(sockfd, b_arr, nbool);
+    std::cout << "recv bool arr \tsize: " << n << " \tval: ";
+    for (unsigned int i = 0; i < nbool; i++) {
+        if (i > 0) std::cout << ", ";
+        std::cout << b_arr[i];
+    }
+    std::cout << std::endl;
+
+    int in;
+    n = recv_int(sockfd, in);
+    std::cout << "recv int \tsize: " << n << " \tval: " << in << std::endl;
+
+    size_t sz;
+    n = recv_size(sockfd, sz);
+    std::cout << "recv size \tsize: " << n << " \tval: " << sz << std::endl;
 
     uint32_t i;
-    n = recv_uint32(newsockfd, i);
-    std::cout << "recv: size = " << n << ", uint32_t: " << i << std::endl;
+    n = recv_uint32(sockfd, i);
+    std::cout << "recv uint32_t \tsize: " << n << " \tval: " << i << std::endl;
 
     uint64_t j;
-    n = recv_uint64(newsockfd, j);
-    std::cout << "recv: size = " << n << ", uint64_t: " << j << std::endl;
+    n = recv_uint64(sockfd, j);
+    std::cout << "recv uint64_t \tsize: " << n << " \tval: " << j << std::endl;
 
     std::string s;
-    n = recv_string(newsockfd, s);
-    std::cout << "recv: size = " << n << ", string: " << s << std::endl;
+    n = recv_string(sockfd, s);
+    std::cout << "recv string \tsize: " << n << " \tval: " << s << std::endl;
 
-    n = recv_fmpz(newsockfd, number);
-    std::cout << "recv: size = " << n << ", fmpz: ";
+    n = recv_fmpz(sockfd, number);
+    std::cout << "recv fmpz \tsize: " << n << " \tval: ";
     fmpz_print(number); std::cout << std::endl;
 
-    n = recv_fmpz(newsockfd, number);
-    std::cout << "recv: size = " << n << ", fmpz: ";
+    n = recv_fmpz(sockfd, number);
+    std::cout << "recv fmpz \tsize: " << n << " \tval: ";
     fmpz_print(number); std::cout << std::endl;
 
-    n = recv_fmpz(newsockfd, number);
-    std::cout << "recv: size = " << n << ", fmpz: ";
+    n = recv_fmpz(sockfd, number);
+    std::cout << "recv fmpz \tsize: " << n << " \tval: ";
     fmpz_print(number); std::cout << std::endl;
+
+    BooleanBeaverTriple* btrip = new BooleanBeaverTriple();
+    n = recv_BooleanBeaverTriple(sockfd, btrip);
+    std::cout << "send btriple \tsize: " << n << " \tvals: " << btrip->a << ", " << btrip->b << ", " << btrip->c << std::endl;
+    delete btrip;
 
     BeaverTriple* trip = new BeaverTriple();
-    n = recv_BeaverTriple(newsockfd, trip);
-    std::cout << "recv: size = " << n << ", triple: ";
+    n = recv_BeaverTriple(sockfd, trip);
+    std::cout << "recv triple \tsize: " << n << " \tvals: ";
     fmpz_print(trip->A); std::cout << ", ";
     fmpz_print(trip->B); std::cout << ", ";
     fmpz_print(trip->C); std::cout << std::endl;
+    delete trip;
 
-    ClientPacket packet = nullptr;
-    n = recv_ClientPacket(newsockfd, packet);
-    std::cout << "recv: size = " << n << ", packet, N = " << packet->N << ", NWires = " << packet->NWires << std::endl;
+    ClientPacket* packet = new ClientPacket(1);
+    n = recv_ClientPacket(sockfd, packet, 1);
+    std::cout << "recv packet \tsize: " << n << "\t f0_s: ";
+    fmpz_print(packet->f0_s); std::cout << std::endl;
+    delete packet;
 
-    ClientPacket packet2 = nullptr;
-    n = recv_ClientPacket(newsockfd, packet2);
-    std::cout << "recv: size = " << n << ", packet, N = " << packet2->N << ". NWires = " << packet2->NWires << std::endl;
+    ClientPacket* packet2 = new ClientPacket(2);
+    n = recv_ClientPacket(sockfd, packet2, 2);
+    std::cout << "recv packet \tsize: " << n << "\t f0_s: ";
+    fmpz_print(packet2->f0_s); std::cout << std::endl;
+    delete packet2;
 
-    EdaBit* b = new EdaBit(4);
-    n = recv_EdaBit(newsockfd, b, 4);
-    std::cout << "recv EdaBit size = " << n << std::endl;
-    b->print();
+    size_t edasize = 8;
+    EdaBit* b0 = new EdaBit(edasize);
+    n = recv_EdaBit(sockfd, b0, edasize);
+    std::cout << "recv EdaBit " << edasize << " \tsize: " << n << std::endl;
+    b0->print();
+    delete b0;
 
     // fmpz_set_ui(number, 100);
     // fmpz_mod_poly_t f; fmpz_mod_poly_init(f, number);
-    // n = recv_poly(newsockfd, f);
-    // std::cout << "recv: size = " << n << ", poly: ";
+    // n = recv_poly(sockfd, f);
+    // std::cout << "recv X \tsize: " << n << "\t poly: ";
     // fmpz_mod_poly_print_pretty(f, "x"); std::cout << std::endl;
 
-    n = recv_fmpz(newsockfd, number);
-    std::cout << "recv: size = " << n << ", fmpz: ";
+    n = recv_fmpz(sockfd, number);
+    std::cout << "recv fmpz \tsize: " << n << " \tval: ";
     fmpz_print(number); std::cout << std::endl;
+
+    fmpz_clear(number);
 }
 
 int main(int argc, char** argv) {

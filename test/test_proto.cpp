@@ -26,21 +26,24 @@ int main(int argc, char** argv){
 
   std::cout << "Making bool triples" << std::endl;
 
-  BooleanBeaverTriple* triples = gen_boolean_beaver_triples(server_num, m, io0, io1);
+  auto triples = gen_boolean_beaver_triples(server_num, m, io0, io1);
 
   if (pid == 0) {
     sleep(1);
     int cli_sockfd = init_sender();
 
     std::cout << "Validating bool triples" << std::endl;
-    BooleanBeaverTriple triple;
+    BooleanBeaverTriple* other_triple = new BooleanBeaverTriple();
     for (int i = 0; i < m; i++) {
-      recv_BooleanBeaverTriple(cli_sockfd, triple);
-      std::cout << "ab = (" << triple.a << " ^ " << triples[i].a << ") * (";
-      std::cout << triple.b << " ^ " << triples[i].b << ") = ";
-      std::cout << ((triple.a ^ triples[i].a) & (triple.b ^ triples[i].b));
-      std::cout << ", vs c = " << triple.c << " ^ " << triples[i].c << " = " << (triple.c ^ triples[i].c) << std::endl;
+      recv_BooleanBeaverTriple(cli_sockfd, other_triple);
+      BooleanBeaverTriple* triple = triples.front();
+      triples.pop();
+      std::cout << "ab = (" << triple->a << " ^ " << other_triple->a << ") * (";
+      std::cout << triple->b << " ^ " << other_triple->b << ") = ";
+      std::cout << ((triple->a ^ other_triple->a) & (triple->b ^ other_triple->b));
+      std::cout << ", vs c = " << triple->c << " ^ " << other_triple->c << " = " << (triple->c ^ other_triple->c) << std::endl;
     }
+    delete other_triple;
 
     std::cout << "Making arith triple" << std::endl;
     // BeaverTriple* btriple = generate_beaver_triple(cli_sockfd, server_num, io0, io1);
@@ -67,19 +70,28 @@ int main(int argc, char** argv){
     fmpz_mod(tmp, tmp, Int_Modulus);
     fmpz_print(btriple->C); std::cout << " + "; fmpz_print(other_btriple->C);
     std::cout << " = "; fmpz_print(tmp); std::cout << std::endl;
+    
+    delete other_btriple;
+    delete btriple;
 
     close(cli_sockfd);
   } else {
     int sockfd = init_receiver();
     int newsockfd = accept_receiver(sockfd);
 
-    for (int i = 0; i < m; i++)
-      send_BooleanBeaverTriple(newsockfd, triples[i]);
+    for (int i = 0; i < m; i++) {
+      BooleanBeaverTriple* triple = triples.front();
+      triples.pop();
+      send_BooleanBeaverTriple(newsockfd, triple);
+      delete triple;
+    }
 
     // BeaverTriple* btriple = generate_beaver_triple(newsockfd, server_num, io0, io1);
     BeaverTriple* btriple = generate_beaver_triple_lazy(newsockfd, server_num);
 
     send_BeaverTriple(newsockfd, btriple);
+
+    delete btriple;
 
     close(sockfd);
     close(newsockfd);
@@ -87,6 +99,8 @@ int main(int argc, char** argv){
 
   delete io0;
   delete io1;
+
+  clear_constants();
 
   return 0;
 }
