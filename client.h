@@ -10,23 +10,19 @@ extern "C" {
     #include "poly/fft.h"
 }
 
-void share_polynomials(const Circuit* const circuit, ClientPacket& p0, ClientPacket& p1) {
-    auto mulgates = circuit->MulGates();
+// Expects p0, p1 to already be initialized
+void share_polynomials(const Circuit* const circuit, ClientPacket* const p0, ClientPacket* const p1) {
+    auto mulgates = circuit->mul_gates;
 
-    const unsigned int n = mulgates.size() + 1;
-
-    const unsigned int N = NextPowerofTwo(n);
-    const unsigned int NumMulInpGates = circuit->NumMulInpGates();
+    const unsigned int n = circuit->NumMulGates();
+    const unsigned int N = NextPowerOfTwo(n);
 
     // u_t, v_t = left and right wires of mul gates.
     // want f(t) = u_t, g(t) = v(t)
-    fmpz_t* pointsF;
-    fmpz_t* pointsG;
-    new_fmpz_array(&pointsF, N);
-    new_fmpz_array(&pointsG, N);
+    fmpz_t* pointsF; new_fmpz_array(&pointsF, N);
+    fmpz_t* pointsG; new_fmpz_array(&pointsG, N);
 
-    fmpz_t h0;
-    fmpz_init(h0);
+    fmpz_t h0; fmpz_init(h0);
 
     // Random f(0) = u_0, g(0) = v_0.
     fmpz_randm(pointsF[0], seed, Int_Modulus);
@@ -36,25 +32,10 @@ void share_polynomials(const Circuit* const circuit, ClientPacket& p0, ClientPac
     fmpz_mod(h0, h0, Int_Modulus);
 
     // u_i, v_i = left, right of i^th mult gate.
-    for (unsigned int i = 1; i < n; i++) {
-        fmpz_set(pointsF[i], mulgates[i-1]->ParentL->WireValue);
-        fmpz_set(pointsG[i], mulgates[i-1]->ParentR->WireValue);
+    for (unsigned int i = 0; i < n; i++) {
+        fmpz_set(pointsF[i + 1], mulgates[i]->ParentL->WireValue);
+        fmpz_set(pointsG[i + 1], mulgates[i]->ParentR->WireValue);
     }
-
-    // std::cout << " pointsF = [";
-    // for (int i = 0; i < N; i++) {
-    //     if (i > 0)
-    //         std::cout << ", ";
-    //     fmpz_print(pointsF[i]);
-    // }
-    // std::cout << "]" << std::endl;
-    // std::cout << " pointsG = [";
-    // for (int i = 0; i < N; i++) {
-    //     if (i > 0)
-    //         std::cout << ", ";
-    //     fmpz_print(pointsG[i]);
-    // }
-    // std::cout << "]" << std::endl;
 
     // Initialize roots (nth roots of unity) and invroots (their inverse)
     if (roots == nullptr) {
@@ -66,24 +47,9 @@ void share_polynomials(const Circuit* const circuit, ClientPacket& p0, ClientPac
     fmpz_t *polyF = fft_interpolate(Int_Modulus, N, invroots, pointsF, true);
     fmpz_t *polyG = fft_interpolate(Int_Modulus, N, invroots, pointsG, true);
 
-    // std::cout << " polyF = [";
-    // for (int i = 0; i < N; i++) {
-    //     if (i > 0) std::cout << ", ";
-    //     fmpz_print(polyF[i]);
-    // }
-    // std::cout << "]" << std::endl;
-    // std::cout << " polyG = [";
-    // for (int i = 0; i < N; i++) {
-    //     if (i > 0) std::cout << ", ";
-    //     fmpz_print(polyG[i]);
-    // }
-    // std::cout << "]" << std::endl;
-
     // Pad to length 2N, to ensure it fits h.
-    fmpz_t *paddedF, *paddedG;
-
-    new_fmpz_array(&paddedF, 2*N);
-    new_fmpz_array(&paddedG, 2*N);
+    fmpz_t* paddedF; new_fmpz_array(&paddedF, 2*N);
+    fmpz_t* paddedG; new_fmpz_array(&paddedG, 2*N);
 
     copy_fmpz_array(paddedF, polyF, N);
     copy_fmpz_array(paddedG, polyG, N);
@@ -94,23 +60,6 @@ void share_polynomials(const Circuit* const circuit, ClientPacket& p0, ClientPac
     // Evaluate at all 2Nth roots of unity.
     fmpz_t *evalsF = fft_interpolate(Int_Modulus, 2*N, roots2, paddedF, false);
     fmpz_t *evalsG = fft_interpolate(Int_Modulus, 2*N, roots2, paddedG, false);
-
-    // std::cout << " evalsF = [";
-    // for (int i = 0; i < 2 * N; i++) {
-    //     if (i > 0) std::cout << ", ";
-    //     fmpz_print(evalsF[i]);
-    // }
-    // std::cout << "]" << std::endl;
-
-    // std::cout << " evalsG = [";
-    // for (int i = 0; i < 2 * N; i++) {
-    //     if (i > 0) std::cout << ", ";
-    //     fmpz_print(evalsG[i]);
-    // }
-    // std::cout << "]" << std::endl;
-
-    init_client_packet(p0, N, NumMulInpGates);
-    init_client_packet(p1, N, NumMulInpGates);
 
     // Send evaluations of f(r) * g(r) for all 2N-th roots of unity
     //     that aren't also N-th roots of unity
@@ -129,13 +78,10 @@ void share_polynomials(const Circuit* const circuit, ClientPacket& p0, ClientPac
     SplitShare(h0, p0->h0_s, p1->h0_s);
 
     // Split outputs of input/mult gate shares.
-    circuit->GetWireShares(&p0->WireShares, &p1->WireShares);
+    circuit->GetMulShares(&p0->MulShares, &p1->MulShares);
 
-    auto triple = NewBeaverTriple();
-    auto triple_shares = BeaverTripleShares(triple);
-
-    p0->triple_share = &triple_shares[0];
-    p1->triple_share = &triple_shares[1];
+    BeaverTriple* triple = NewBeaverTriple();
+    BeaverTripleShares(triple, p0->triple_share, p1->triple_share);
 
     delete triple;
     fmpz_clear(h0);

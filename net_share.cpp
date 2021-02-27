@@ -2,9 +2,10 @@
 
 #include <sys/socket.h>
 
+#include "constants.h"
 #include "fmpz_utils.h"
 
-// Ensure this is defined.
+// Ensure this is defined, as it's architecture dependent
 #if !defined(htonll) && !defined(ntohll)
 #if __BIG_ENDIAN__
 # define htonll(x) (x)
@@ -33,6 +34,37 @@ int send_bool(const int sockfd, const bool x) {
 
 int recv_bool(const int sockfd, bool& x) {
     return recv_in(sockfd, &x, sizeof(bool));
+}
+
+int send_bool_batch(const int sockfd, const bool* const x, const size_t n) {
+    const size_t len = (n+7) / 8;  // Number of bytes to hold n, aka ceil(n/8)
+    char* buf = new char[len];
+
+    memset(buf, 0, sizeof(char) * len);
+
+    for (unsigned int i = 0; i < n; i++)
+        if (x[i])
+            buf[i / 8] ^= (1 << (i % 8));
+
+    int ret = send(sockfd, buf, len, 0);
+
+    delete[] buf;
+
+    return ret;
+}
+
+int recv_bool_batch(const int sockfd, bool* const x, const size_t n) {
+    const size_t len = (n+7) / 8;
+    char* buf = new char[len];
+
+    int ret = recv_in(sockfd, buf, len);
+
+    for (unsigned int i = 0; i < n; i++)
+        x[i] = (buf[i/8] & (1 << (i % 8)));
+
+    delete[] buf;
+
+    return ret;
 }
 
 int send_int(const int sockfd, const int x) {
@@ -120,11 +152,18 @@ int recv_string(const int sockfd, std::string& x) {
 
 int send_fmpz(const int sockfd, const fmpz_t x) {
     int total = 0, ret;
-    size_t len = fmpz_size(x);
+    size_t len;
+    if (FIXED_FMPZ_SIZE) {
+        len = fmpz_size(Int_Modulus);
+    } else {
+        len = fmpz_size(x);
+        ret = send_size(sockfd, len);
+        if (ret <= 0) return ret; else total += ret;
+    }
+    
     ulong arr[len];
     fmpz_get_ui_array(arr, len, x);
-    ret = send_size(sockfd, len);
-    if (ret <= 0) return ret; else total += ret;
+
     for (unsigned int i = 0; i < len; i++) {
         ret = send_ulong(sockfd, arr[i]);
         if (ret <= 0) return ret; else total += ret;
@@ -135,18 +174,22 @@ int send_fmpz(const int sockfd, const fmpz_t x) {
 int recv_fmpz(const int sockfd, fmpz_t x) {
     int total = 0, ret;
     size_t len;
-    ulong tmp;
-    ret = recv_size(sockfd, len);
-    if (ret <= 0) return ret; else total += ret;
+
+    if (FIXED_FMPZ_SIZE) {
+        len = fmpz_size(Int_Modulus);
+    } else {
+        ret = recv_size(sockfd, len);
+        if (ret <= 0) return ret; else total += ret;
+    }
+
     if (len == 0) {
         fmpz_set_ui(x, 0);
         return total;
     }
     ulong buf[len];
     for (unsigned int i = 0; i < len; i++) {
-        ret = recv_ulong(sockfd, tmp);
+        ret = recv_ulong(sockfd, buf[i]);
         if (ret <= 0) return ret; else total += ret;
-        buf[i] = tmp;
     }
     fmpz_set_ui_array(x, buf, len);
     return total;
@@ -190,17 +233,13 @@ int recv_CorShare(const int sockfd, CorShare* const x) {
     return total;
 }
 
-// ClientPacket = client_packet*
-int send_ClientPacket(const int sockfd, const ClientPacket x) {
-    int N = x->N, NWires = x->NWires, total = 0, ret;
-    ret = send_int(sockfd, N);
-    if (ret <= 0) return ret; else total += ret;
-    ret = send_int(sockfd, NWires);
-    if (ret <= 0) return ret; else total += ret;
+int send_ClientPacket(const int sockfd, const ClientPacket* const x,
+                      const size_t NMul) {
+    int total = 0, ret;
+    const size_t N = NextPowerOfTwo(NMul);
 
-    int i;
-    for (i = 0; i < NWires; i++) {
-        ret = send_fmpz(sockfd, x->WireShares[i]);
+    for (unsigned int i = 0; i < NMul; i++) {
+        ret = send_fmpz(sockfd, x->MulShares[i]);
         if (ret <= 0) return ret; else total += ret;
     }
 
@@ -211,7 +250,7 @@ int send_ClientPacket(const int sockfd, const ClientPacket x) {
     ret = send_fmpz(sockfd, x->h0_s);
     if (ret <= 0) return ret; else total += ret;
 
-    for (i = 0; i < N; i++) {
+    for (unsigned int i = 0; i < N; i++) {
         ret = send_fmpz(sockfd, x->h_points[i]);
         if (ret <= 0) return ret; else total += ret;
     }
@@ -222,17 +261,13 @@ int send_ClientPacket(const int sockfd, const ClientPacket x) {
     return total;
 }
 
-int recv_ClientPacket(const int sockfd, ClientPacket &x) {
-    int N, NWires, total = 0, ret;
-    ret = recv_int(sockfd, N);
-    if (ret <= 0) return ret; else total += ret;
-    ret = recv_int(sockfd, NWires);
-    if (ret <= 0) return ret; else total += ret;
-    init_client_packet(x, N, NWires);
+int recv_ClientPacket(const int sockfd, ClientPacket* const x,
+                      const size_t NMul) {
+    int total = 0, ret;
+    const size_t N = NextPowerOfTwo(NMul);
 
-    int i;
-    for (i = 0; i < NWires; i++) {
-        ret = recv_fmpz(sockfd, x->WireShares[i]);
+    for (unsigned int i = 0; i < NMul; i++) {
+        ret = recv_fmpz(sockfd, x->MulShares[i]);
         if (ret <= 0) return ret; else total += ret;
     }
 
@@ -243,7 +278,7 @@ int recv_ClientPacket(const int sockfd, ClientPacket &x) {
     ret = recv_fmpz(sockfd, x->h0_s);
     if (ret <= 0) return ret; else total += ret;
 
-    for (i = 0; i < N; i++) {
+    for (unsigned int i = 0; i < N; i++) {
         ret = recv_fmpz(sockfd, x->h_points[i]);
         if (ret <= 0) return ret; else total += ret;
     }
@@ -283,6 +318,7 @@ int send_BeaverTripleShare(const int sockfd, const BeaverTripleShare* const x) {
     ret = send_fmpz(sockfd, x->shareB);
     if (ret <= 0) return ret; else total += ret;
     ret = send_fmpz(sockfd, x->shareC);
+    if (ret <= 0) return ret; else total += ret;
     return total;
 }
 
@@ -297,26 +333,18 @@ int recv_BeaverTripleShare(const int sockfd, BeaverTripleShare* const x) {
     return total;
 }
 
-int send_BooleanBeaverTriple(const int sockfd, const BooleanBeaverTriple x) {
-    int total = 0, ret;
-    ret = send_bool(sockfd, x.a);
-    if (ret <= 0) return ret; else total += ret;
-    ret = send_bool(sockfd, x.b);
-    if (ret <= 0) return ret; else total += ret;
-    ret = send_bool(sockfd, x.c);
-    if (ret <= 0) return ret; else total += ret;
-    return total;
+int send_BooleanBeaverTriple(const int sockfd, const BooleanBeaverTriple* const x) {
+    bool buf[3] = {x->a, x->b, x->c};
+    return send_bool_batch(sockfd, buf, 3);
 }
 
-int recv_BooleanBeaverTriple(const int sockfd, BooleanBeaverTriple& x) {
-    int total = 0, ret;
-    ret = recv_bool(sockfd, x.a);
-    if (ret <= 0) return ret; else total += ret;
-    ret = recv_bool(sockfd, x.b);
-    if (ret <= 0) return ret; else total += ret;
-    ret = recv_bool(sockfd, x.c);
-    if (ret <= 0) return ret; else total += ret;
-    return total;
+int recv_BooleanBeaverTriple(const int sockfd, BooleanBeaverTriple* const x) {
+    bool buf[3];
+    int ret = recv_bool_batch(sockfd, buf, 3);
+    x->a = buf[0];
+    x->b = buf[1];
+    x->c = buf[2];
+    return ret;
 }
 
 int send_DaBit(const int sockfd, const DaBit* const x) {
@@ -341,7 +369,7 @@ int send_EdaBit(const int sockfd, const EdaBit* const x, const size_t n) {
     int total = 0, ret;
     ret = send_fmpz(sockfd, x->r);
     if (ret <= 0) return ret; else total += ret;
-    ret = send(sockfd, &x->b[0], n * sizeof(bool), 0);
+    ret = send_bool_batch(sockfd, &x->b[0], n);
     if (ret <= 0) return ret; else total += ret;
     return total;
 }
@@ -350,7 +378,7 @@ int recv_EdaBit(const int sockfd, EdaBit* const x, const size_t n) {
     int total = 0, ret;
     ret = recv_fmpz(sockfd, x->r);
     if (ret <= 0) return ret; else total += ret;
-    ret = recv_in(sockfd, &x->b[0], n * sizeof(bool));
+    ret = recv_bool_batch(sockfd, &x->b[0], n);
     if (ret <= 0) return ret; else total += ret;
     return total;
 }
