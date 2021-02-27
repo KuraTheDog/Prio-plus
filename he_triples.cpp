@@ -11,22 +11,27 @@
 #include "net_share.h"
 #include "share.h"
 
-// Sends a serializable T mine, recieves sent T other.
+// Sends a serializable T mine, receives sent T other.
 template <class T>
-T serializedSwap(const int serverfd, const T mine) {
-  std::string s;
-  std::stringstream ss;
-  Serial::Serialize(mine, ss, SerType::BINARY);
-  s = ss.str();
-  send_string(serverfd, s);
+T* serializedSwap(const int serverfd, const size_t num_batches, const T* mine) {
+  // TODO: fork sending, like edabits
+  for (unsigned int i = 0; i < num_batches; i++) {
+    std::string s;
+    std::stringstream ss;
+    Serial::Serialize(mine[i], ss, SerType::BINARY);
+    s = ss.str();
+    send_string(serverfd, s);
+  }
 
-  T other;
-  std::string s2;
-  std::stringstream ss2;
-  recv_string(serverfd, s2);
-  ss2 << s2;
-  ss2.flush();
-  Serial::Deserialize(other, ss2, SerType::BINARY);
+  T* other = new T[num_batches];
+  for (unsigned int i = 0; i < num_batches; i++) {
+    std::string s2;
+    std::stringstream ss2;
+    recv_string(serverfd, s2);
+    ss2 << s2;
+    ss2.flush();
+    Serial::Deserialize(other[i], ss2, SerType::BINARY);
+  }
 
   return other;
 }
@@ -61,60 +66,97 @@ ArithTripleGenerator::ArithTripleGenerator(const int serverfd, const int server_
   }
 
   // Swap public keys
-  other_pk = serializedSwap(serverfd, pk);
+  LPPublicKey<DCRTPoly> inp[1] = {pk};
+  LPPublicKey<DCRTPoly>* tmp = serializedSwap(serverfd, 1, inp);
+  other_pk = tmp[0];
+  delete[] tmp;
 }
 
 std::vector<BeaverTriple*> ArithTripleGenerator::generateTriples(const size_t n) const {
-  if (n > 8192) {
-    std::cout << "Can only make 8192 triples at a time" << std::endl;
+  std::vector<BeaverTriple*> res;
+  if (n == 0)
+    return res;
+  res.reserve(n);
+
+  // ceil(n / MAX_HE_BATCH)
+  const size_t num_batches = (n - 1) / MAX_HE_BATCH + 1;
+  const size_t last_batch = (n - 1) % MAX_HE_BATCH + 1;
+
+  std::vector<int64_t>* a = new std::vector<int64_t>[num_batches];
+  std::vector<int64_t>* b = new std::vector<int64_t>[num_batches];
+  std::vector<int64_t>* d = new std::vector<int64_t>[num_batches];
+
+  Ciphertext<DCRTPoly>* ct_a = new Ciphertext<DCRTPoly>[num_batches];
+  Ciphertext<DCRTPoly>* ct_d = new Ciphertext<DCRTPoly>[num_batches];
+  Plaintext* plain_b = new Plaintext[num_batches];
+
+  for (unsigned int i = 0; i < num_batches; i++) {
+    const size_t N = (i == num_batches - 1 ? last_batch : MAX_HE_BATCH);
+    // local random values
+    a[i].reserve(N);
+    b[i].reserve(N);
+    d[i].reserve(N);
+    for (unsigned int j = 0; j < N; j++) {
+      a[i].push_back(random_int());
+      b[i].push_back(random_int());
+      d[i].push_back(random_int());
+    }
+
+    Plaintext plain_a = cc->MakePackedPlaintext(a[i]);
+    plain_b[i] = cc->MakePackedPlaintext(b[i]);
+    Plaintext plain_d = cc->MakePackedPlaintext(d[i]);
+    ct_a[i] = cc->Encrypt(pk, plain_a);        // Enc(a)
+    ct_d[i] = cc->Encrypt(other_pk, plain_d);  // Enc'(d)
   }
-  const size_t N = (n > 8192 ? 8192 : n);
 
-  // Generate random local values
-  std::vector<int64_t> a, b, d;
-  for (int i = 0; i < N; i++) {
-    a.push_back(random_int());
-    b.push_back(random_int());
-    d.push_back(random_int());
+  // Swap Enc(a), get Enc'(a')
+  Ciphertext<DCRTPoly>* ct_a2 = serializedSwap(serverfd, num_batches, ct_a);
+
+  Ciphertext<DCRTPoly>* ct_e2 = new Ciphertext<DCRTPoly>[num_batches];
+  for (unsigned int i = 0; i < num_batches; i++) {
+    // E' = b Enc'(a') - Enc'(d)
+    auto ct_a2_b = cc->EvalMult(ct_a2[i], plain_b[i]);
+    ct_e2[i] = cc->EvalSub(ct_a2_b, ct_d[i]);
   }
-
-  Plaintext plain_a = cc->MakePackedPlaintext(a);
-  Plaintext plain_b = cc->MakePackedPlaintext(b);
-  Plaintext plain_d = cc->MakePackedPlaintext(d);
-  auto ct_a = cc->Encrypt(pk, plain_a);          // Enc(a)
-  auto ct_d = cc->Encrypt(other_pk, plain_d);    // Enc'(d)
-
-  // Swap a: get Enc'(a')
-  Ciphertext<DCRTPoly> ct_a2 = serializedSwap(serverfd, ct_a);
-
-  // E' = b Enc'(a') - Enc'(d)
-  auto ct_a2_b = cc->EvalMult(ct_a2, plain_b);
-  auto ct_e2 = cc->EvalSub(ct_a2_b, ct_d);
 
   // Swap E, get E = b' Enc(a) - Enc(d')
-  Ciphertext<DCRTPoly> ct_e = serializedSwap(serverfd, ct_e2);
+  Ciphertext<DCRTPoly>* ct_e = serializedSwap(serverfd, num_batches, ct_e2);
 
-  // e = Dec(E) = b' a - d', so d' + e = a b'
-  Plaintext plain_e;
-  cc->Decrypt(sk, ct_e, &plain_e);
-  // Truncate e to (relevant) first N values
-  plain_e->SetLength(N);
-  auto e = plain_e->GetPackedValue();
+  for (unsigned int i = 0; i < num_batches; i++) {
+    const size_t N = (i == num_batches - 1 ? last_batch : MAX_HE_BATCH);
+    // e = Dec(E) = b' a - d', so d' + e = a b'
+    Plaintext plain_e;
+    cc->Decrypt(sk, ct_e[i], &plain_e);
+    // Truncate e to (relevant) first N values;
+    plain_e->SetLength(N);
+    auto e = plain_e->GetPackedValue();
 
-  std::vector<BeaverTriple*> res;
-  for (unsigned int i = 0; i < N; i++) {
-    BeaverTriple* triple = new BeaverTriple();
-    fmpz_set_si(triple->A, a[i]);
-    fmpz_set_si(triple->B, b[i]);
-    // c = ab + d + e
-    fmpz_set_si(triple->C, a[i]);
-    fmpz_mul_si(triple->C, triple->C, b[i]);
-    fmpz_add_si(triple->C, triple->C, d[i]);
-    fmpz_add_si(triple->C, triple->C, e[i]);
-    fmpz_mod(triple->C, triple->C, Int_Modulus);
+    // Build result
+    for (unsigned int j = 0; j < N; j++) {
+      BeaverTriple* triple = new BeaverTriple();
+      fmpz_set_si(triple->A, a[i][j]);
+      fmpz_set_si(triple->B, b[i][j]);
+      // c = ab + d + e
+      fmpz_set_si(triple->C, a[i][j]);
+      fmpz_mul_si(triple->C, triple->C, b[i][j]);
+      fmpz_mod(triple->C, triple->C, Int_Modulus);
+      fmpz_add_si(triple->C, triple->C, d[i][j]);
+      fmpz_add_si(triple->C, triple->C, e[j]);
+      fmpz_mod(triple->C, triple->C, Int_Modulus);
 
-    res.push_back(triple);
+      res.push_back(triple);
+    }
   }
+
+  delete[] a;
+  delete[] b;
+  delete[] d;
+  delete[] plain_b;
+  delete[] ct_a;
+  delete[] ct_d;
+  delete[] ct_a2;
+  delete[] ct_e2;
+  delete[] ct_e;
 
   return res;
 }

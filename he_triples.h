@@ -12,6 +12,9 @@
 
 using namespace lbcrypto;
 
+// Can make fit at most 8192 entries in a plaintext
+#define MAX_HE_BATCH 8192
+
 /*
 A generator for Arithmetic triples, between two servers.
 
@@ -36,7 +39,7 @@ private:
 
   const int serverfd;
 
-  // TODO: Use FMPZ random instead?
+  // TODO: Use FMPZ or prg random instead?
   std::default_random_engine generator;
   std::function<int64_t()> random_int;
 
@@ -49,7 +52,7 @@ public:
   */
   ArithTripleGenerator(const int serverfd, const int server_num = 0, const unsigned int random_offset = 8);
 
-  // Make n (up to 8192) arithmetic beaver triples at once
+  // Make n arithmetic beaver triples at once, in batches of 8192
   std::vector<BeaverTriple*> generateTriples(const size_t n) const;
 };
 

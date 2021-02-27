@@ -236,11 +236,14 @@ void runServerTest(const int server_num, const int serverfd, const size_t N) {
         fmpz_print(triple->C); std::cout << " + "; fmpz_print(other_triple->C);
         std::cout << " = \n"; fmpz_print(tmp2); std::cout << std::endl;
       }
+      delete other_triple;
+      delete triples[idx];
       if (not valid) break;
     } else {
       send_BeaverTriple(serverfd, triples[idx]);
       bool valid;
       recv_bool(serverfd, valid);
+      delete triples[idx];
       if (not valid) break;
     }
   }
@@ -267,9 +270,27 @@ void serverTest(const size_t N) {
 int main(int argc, char** argv){
   init_constants();
 
-  // runLocal(1);
-  serverTest(8192);
-  // serverTest(1);
+  int server_num = -1;
+  if(argc >= 2){
+    server_num = atoi(argv[1]);
+  }
+
+  const size_t N = 20000;
+
+  if (server_num == -1) {
+    serverTest(N);
+  } else if (server_num == 0) {
+    int sockfd = init_receiver();
+    int newsockfd = accept_receiver(sockfd);
+    runServerTest(0, newsockfd, N);
+    close(newsockfd);
+    close(sockfd);
+  } else if (server_num == 1) {
+    int cli_sockfd = init_sender();
+    runServerTest(1, cli_sockfd, N);
+    close(cli_sockfd);
+  }
+
 
   clear_constants();
   return 0;
