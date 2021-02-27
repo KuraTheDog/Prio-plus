@@ -15,8 +15,6 @@ extern "C" {
 
 void test_CheckVar() {
   std::cout << "Testing CheckVar Eval and share_polynomials" << std::endl;
-  Circuit* var_circuit = CheckVar();  // x^2 == y
-
   fmpz_t inp[2];
   fmpz_init(inp[0]);
   fmpz_init(inp[1]);
@@ -24,6 +22,13 @@ void test_CheckVar() {
   fmpz_set_si(inp[0], 9);  // Set first input to 9
   fmpz_set_si(inp[1], 81);  // Set second to 81
 
+  // Will be done with share conversion
+  fmpz_t inp0[2];
+  fmpz_t inp1[2];
+  SplitShare(inp[0], inp0[0], inp1[0]);
+  SplitShare(inp[1], inp0[1], inp1[1]);
+
+  Circuit* var_circuit = CheckVar();  // x^2 == y
   // Eval to verify 9^2 = 81
   /*
   Gate 0: input gate, x = 9
@@ -35,9 +40,11 @@ void test_CheckVar() {
   bool eval = var_circuit->Eval(inp);
   std::cout << "Eval: " << eval << std::endl;
 
+  size_t N = NextPowerOfTwo(var_circuit->NumMulGates());
+
   // One mult gate (#2). Next power of 2 is 2 (N).
-  ClientPacket* p0 = new ClientPacket(var_circuit->N(), var_circuit->NumMulInpGates());
-  ClientPacket* p1 = new ClientPacket(var_circuit->N(), var_circuit->NumMulInpGates());
+  ClientPacket* p0 = new ClientPacket(var_circuit->NumMulGates());
+  ClientPacket* p1 = new ClientPacket(var_circuit->NumMulGates());
   share_polynomials(var_circuit, p0, p1);
   delete var_circuit;
 
@@ -55,37 +62,43 @@ void test_CheckVar() {
   std::cout << "Random X: "; fmpz_print(randomX); std::cout << std::endl;
 
   Circuit* var_circuit0 = CheckVar();
-  Checker* checker_0 = new Checker(var_circuit0, 0, p0);
-  CheckerPreComp* pre0 = new CheckerPreComp(var_circuit0->N());
+  CheckerPreComp* pre0 = new CheckerPreComp(N);
   pre0->setCheckerPrecomp(randomX);
+  
+  Checker* checker_0 = new Checker(var_circuit0, 0, p0, pre0, inp0);
 
   std::cout << "-=-=-=-=-=-" << std::endl;
 
   Circuit* var_circuit1 = CheckVar();
-  Checker* checker_1 = new Checker(var_circuit1, 1, p1);
-  CheckerPreComp* pre1 = new CheckerPreComp(var_circuit1->N());
+  CheckerPreComp* pre1 = new CheckerPreComp(N);
   pre1->setCheckerPrecomp(randomX);
+  
+  Checker* checker_1 = new Checker(var_circuit1, 1, p1, pre1, inp1);
 
-  auto corshare0 = checker_0->CorShareFn(pre0);
-  auto corshare1 = checker_1->CorShareFn(pre1);
+  std::cout << "checkers made" << std::endl;
 
-  auto cor0 = checker_0->CorFn(corshare0,corshare1);
-  auto cor1 = checker_1->CorFn(corshare0,corshare1);
+  auto corshare0 = checker_0->CorShareFn();
+  auto corshare1 = checker_1->CorShareFn();
+
+  std::cout << "corshares made" << std::endl;
+
+  Cor* cor0 = new Cor(corshare0, corshare1);
+  Cor* cor1 = new Cor(corshare0, corshare1);
+
+  std::cout << "cor made" << std::endl;
 
   fmpz_t out0, out1;
   fmpz_init(out0);
   fmpz_init(out1);
 
-  checker_0->OutShare(out0,cor0);
-  checker_1->OutShare(out1,cor1);
+  checker_0->OutShare(out0, cor0);
+  checker_1->OutShare(out1, cor1);
 
-  bool result0 = checker_0->OutputIsValid(out0,out1);
-  bool result1 = checker_1->OutputIsValid(out0,out1);
+  bool result = AddToZero(out0, out1);
 
   std::cout << "out0 : "; fmpz_print(out0); std::cout << ", out1 : "; fmpz_print(out1); std::cout << std::endl;
 
-  std::cout << "Result0 : " << std::boolalpha << result0 << std::endl;
-  std::cout << "Result1 : " << std::boolalpha << result1 << std::endl;
+  std::cout << "Result : " << std::boolalpha << result << std::endl;
 
   std::cout << "^v^v^ Shared validation: " << std::endl;
   fmpz_t tmp, rgr;
@@ -124,8 +137,8 @@ void test_CheckVar() {
 
   delete p0;
   delete p1;
-  fmpz_clear(inp[0]);
-  fmpz_clear(inp[1]);
+  fmpz_clear(inp[0]); fmpz_clear(inp0[0]); fmpz_clear(inp1[0]);
+  fmpz_clear(inp[1]); fmpz_clear(inp0[1]); fmpz_clear(inp1[1]);
 }
 
 int main(int argc, char* argv[])

@@ -118,6 +118,8 @@ struct CheckerPreComp {
             delete xN;
             delete x2N;
         }
+        xN = nullptr;
+        x2N = nullptr;
     }
 
     ~CheckerPreComp() {
@@ -128,13 +130,32 @@ struct CheckerPreComp {
     }
 };
 
+// TODO: Fix Both servers need to use same random seed. Using constant 1 instead now.
+void randSum(fmpz_t out, const fmpz_t* const arr, const size_t len) {
+    fmpz_t tmp;
+    fmpz_init(tmp);
+
+    for (unsigned int i = 0; i < len; i++) {
+        // fmpz_randm(tmp, seed, Int_Modulus);
+        fmpz_set_ui(tmp, 1);
+        fmpz_mul(tmp, tmp, arr[i]);
+        fmpz_mod(tmp, tmp, Int_Modulus);
+
+        fmpz_add(out, out, tmp);
+    }
+
+    fmpz_mod(out, out, Int_Modulus);
+
+    fmpz_clear(tmp);
+}
+
 struct Checker {
     const int server_num;     // id of this server
     const ClientPacket* const req;  // Client packet
     Circuit* const ckt;      // Validation circuit
 
     const size_t n;  // number of mult gates
-    const size_t N;  // NextPowerofTwo(n)
+    const size_t N;  // NextPowerOfTwo(n)
 
     fmpz_t *pointsF;  // Points on f. f(i) = ith mul gate left input
     fmpz_t *pointsG;  // Points on g. g(i) = ith mul gate right input
@@ -145,12 +166,14 @@ struct Checker {
     fmpz_t evalG;  // [r * g(r)]
     fmpz_t evalH;  // [r * h(r)]
 
-    Checker(Circuit* const c, const int idx, const ClientPacket* const req)
+    Checker(Circuit* const c, const int idx, const ClientPacket* const req,
+            const CheckerPreComp* const pre, const fmpz_t* const InputShares)
     : server_num(idx)
     , req(req)
     , ckt(c)
     , n(c->NumMulGates())
-    , N(c->N()) {
+    , N(NextPowerOfTwo(n))
+    {
         new_fmpz_array(&pointsF, N + 1);
         new_fmpz_array(&pointsG, N + 1);
         new_fmpz_array(&pointsH, 2 * (N + 1));
@@ -159,7 +182,8 @@ struct Checker {
         fmpz_init(evalG);
         fmpz_init(evalH);
 
-        ckt->ImportWires(req, server_num);
+        ckt->ImportWires(req, server_num, InputShares);
+        evalPoly(pre);
     }
 
     ~Checker() {
@@ -204,8 +228,7 @@ struct Checker {
         fmpz_mod(evalH, evalH, Int_Modulus);
     }
 
-    CorShare* CorShareFn(const CheckerPreComp* const pre) {
-        evalPoly(pre);
+    CorShare* CorShareFn() {
         // std::cout << "CorShareFn" << std::endl;
         CorShare* out = new CorShare();
 
@@ -216,39 +239,6 @@ struct Checker {
         fmpz_mod(out->shareE, out->shareE, Int_Modulus);
 
         return out;
-    }
-
-    Cor* CorFn(const CorShare* const cs0, const CorShare* const cs1) const {
-        Cor* out = new Cor();
-        // std::cout << "CorFn" << std::endl;
-        fmpz_add(out->D, cs0->shareD, cs1->shareD);
-        fmpz_mod(out->D, out->D, Int_Modulus);
-
-        fmpz_add(out->E, cs0->shareE, cs1->shareE);
-        fmpz_mod(out->E, out->E, Int_Modulus);
-
-        return out;
-    }
-
-    // To be fixed. Both servers need to use same random seed. Using constant 1 instead now.
-    void randSum(fmpz_t out, const fmpz_t* const arr) const {
-        const size_t len = ckt->result_zero.size() + 1;
-
-        fmpz_t tmp;
-        fmpz_init(tmp);
-
-        for (unsigned int i = 0; i < len; i++) {
-            // fmpz_randm(tmp, seed, Int_Modulus);
-            fmpz_set_ui(tmp, 1);
-            fmpz_mul(tmp, tmp, arr[i]);
-            fmpz_mod(tmp, tmp, Int_Modulus);
-
-            fmpz_add(out, out, tmp);
-        }
-
-        fmpz_mod(out, out, Int_Modulus);
-
-        fmpz_clear(tmp);
     }
 
     void OutShare(fmpz_t out, const Cor* const corIn) const {
@@ -289,25 +279,21 @@ struct Checker {
             fmpz_set(arr[i+1], ckt->result_zero[i]->WireValue);
         }
 
-        randSum(out, arr);
+        randSum(out, arr, ckt->result_zero.size() + 1);
 
         clear_fmpz_array(arr, num_zero_gates+1);
         fmpz_clear(mulCheck);
         fmpz_clear(term);
     }
-
-    bool OutputIsValid(const fmpz_t output0, const fmpz_t output1) const {
-        fmpz_t out;
-        fmpz_init(out);
-
-        fmpz_add(out, output0, output1);
-        fmpz_mod(out, out, Int_Modulus);
-
-        bool ans = fmpz_is_zero(out);
-        fmpz_clear(out);
-
-        return ans;
-    }
 };
+
+bool AddToZero(const fmpz_t x, const fmpz_t y) {
+    fmpz_t sum; fmpz_init(sum);
+    fmpz_add(sum, x, y);
+    fmpz_mod(sum, sum, Int_Modulus);
+    bool ans = fmpz_is_zero(sum);
+    fmpz_clear(sum);
+    return ans;
+}
 
 #endif

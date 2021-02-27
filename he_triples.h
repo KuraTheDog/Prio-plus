@@ -1,6 +1,5 @@
 #ifndef HE_TRIPLES_H
 #define HE_TRIPLES_H
-
 #include <iostream>
 #include <random>
 #include <vector>
