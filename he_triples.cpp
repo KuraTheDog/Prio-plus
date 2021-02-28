@@ -1,5 +1,7 @@
 #include "he_triples.h"
 
+#include <sys/wait.h>
+
 #include <string>
 
 // Serializing
@@ -13,14 +15,20 @@
 
 // Sends a serializable T mine, receives sent T other.
 template <class T>
-T* serializedSwap(const int serverfd, const size_t num_batches, const T* mine) {
-  // TODO: fork sending, like edabits
-  for (unsigned int i = 0; i < num_batches; i++) {
-    std::string s;
-    std::stringstream ss;
-    Serial::Serialize(mine[i], ss, SerType::BINARY);
-    s = ss.str();
-    send_string(serverfd, s);
+T* ArithTripleGenerator::serializedSwap(const size_t num_batches, const T* mine) const {
+  pid_t pid = 0;
+  int status = 0;
+  if (do_fork) pid = fork();
+  if (pid == 0) {
+    for (unsigned int i = 0; i < num_batches; i++) {
+      std::string s;
+      std::stringstream ss;
+      Serial::Serialize(mine[i], ss, SerType::BINARY);
+      s = ss.str();
+      send_string(serverfd, s);
+    }
+
+    if (do_fork) exit(EXIT_SUCCESS);
   }
 
   T* other = new T[num_batches];
@@ -33,11 +41,13 @@ T* serializedSwap(const int serverfd, const size_t num_batches, const T* mine) {
     Serial::Deserialize(other[i], ss2, SerType::BINARY);
   }
 
+  if (do_fork) waitpid(pid, &status, 0);
   return other;
 }
 
-ArithTripleGenerator::ArithTripleGenerator(const int serverfd, const int server_num, const unsigned int random_offset)
+ArithTripleGenerator::ArithTripleGenerator(const int serverfd, const int server_num, const unsigned int random_offset, const bool do_fork)
 : serverfd(serverfd)
+, do_fork(do_fork)
 {
   if (fmpz_cmp_ui(Int_Modulus, 1ULL << 60) > 0) {
     perror("ERROR: PALISADE based triples don't support Int_Modulus >60 bits");
@@ -67,7 +77,7 @@ ArithTripleGenerator::ArithTripleGenerator(const int serverfd, const int server_
 
   // Swap public keys
   LPPublicKey<DCRTPoly> inp[1] = {pk};
-  LPPublicKey<DCRTPoly>* tmp = serializedSwap(serverfd, 1, inp);
+  LPPublicKey<DCRTPoly>* tmp = serializedSwap(1, inp);
   other_pk = tmp[0];
   delete[] tmp;
 }
@@ -110,7 +120,7 @@ std::vector<BeaverTriple*> ArithTripleGenerator::generateTriples(const size_t n)
   }
 
   // Swap Enc(a), get Enc'(a')
-  Ciphertext<DCRTPoly>* ct_a2 = serializedSwap(serverfd, num_batches, ct_a);
+  Ciphertext<DCRTPoly>* ct_a2 = serializedSwap(num_batches, ct_a);
 
   Ciphertext<DCRTPoly>* ct_e2 = new Ciphertext<DCRTPoly>[num_batches];
   for (unsigned int i = 0; i < num_batches; i++) {
@@ -120,7 +130,7 @@ std::vector<BeaverTriple*> ArithTripleGenerator::generateTriples(const size_t n)
   }
 
   // Swap E, get E = b' Enc(a) - Enc(d')
-  Ciphertext<DCRTPoly>* ct_e = serializedSwap(serverfd, num_batches, ct_e2);
+  Ciphertext<DCRTPoly>* ct_e = serializedSwap(num_batches, ct_e2);
 
   for (unsigned int i = 0; i < num_batches; i++) {
     const size_t N = (i == num_batches - 1 ? last_batch : MAX_HE_BATCH);

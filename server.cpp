@@ -181,7 +181,8 @@ bool* validate_snips(const size_t N,
     start = clock_start();
 
     const size_t NumRoots = NextPowerOfTwo(circuit[0]->NumMulGates());
-    pid_t pid = 0, status = 0;
+    pid_t pid = 0;
+    int status = 0;
 
     init_roots(NumRoots);
 
