@@ -69,7 +69,7 @@ void runLocal(size_t N) {
   std::vector<int64_t> a;
   std::vector<int64_t> b;
   std::vector<int64_t> d;
-  for (int i = 0; i < N; i++) {
+  for (unsigned int i = 0; i < N; i++) {
     a.push_back(rint()); b.push_back(rint()); d.push_back(rint());
   }
   Plaintext plain_a = cryptoContext->MakePackedPlaintext(a);
@@ -81,7 +81,7 @@ void runLocal(size_t N) {
   std::vector<int64_t> a2;
   std::vector<int64_t> b2;
   std::vector<int64_t> d2;
-  for (int i = 0; i < N; i++) {
+  for (unsigned int i = 0; i < N; i++) {
     a2.push_back(rint()); b2.push_back(rint()); d2.push_back(rint());
   }
   Plaintext plain_a2 = cryptoContext->MakePackedPlaintext(a2);
@@ -149,7 +149,7 @@ void runLocal(size_t N) {
   fmpz_t tmp; fmpz_init(tmp);
   fmpz_t tmp2; fmpz_init(tmp2);
 
-  for (int i = 0; i < N; i++) {
+  for (unsigned int i = 0; i < N; i++) {
     std::cout << i << ": ";
     fmpz_set_si(c_val, a[i]); fmpz_mul_si(c_val, c_val, b[i]);
     fmpz_add_si(c_val, c_val, d[i]); fmpz_add_si(c_val, c_val, e[i]);
@@ -202,7 +202,7 @@ void runServerTest(const int server_num, const int serverfd, const size_t N) {
     fmpz_print(triples[N-1]->C); std::cout << std::endl;
   }
 
-  for (int idx = 0; idx < N; idx++) {
+  for (unsigned int idx = 0; idx < N; idx++) {
     // std::cout << "Validating triple: " << idx << std::endl;
     if (server_num == 0) {
       BeaverTriple* triple = triples[idx];
