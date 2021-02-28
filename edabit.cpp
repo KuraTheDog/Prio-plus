@@ -220,6 +220,8 @@ CorrelatedStore::~CorrelatedStore() {
   }
   delete io0;
   delete io1;
+  if (triple_gen)
+    delete triple_gen;
 }
 
 bool* CorrelatedStore::multiplyBoolShares(const size_t N,
