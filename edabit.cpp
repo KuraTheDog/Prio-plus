@@ -26,8 +26,7 @@ void CorrelatedStore::addBoolTriples(const size_t n) {
     btriple_store.push(new_triples.front());
     new_triples.pop();
   }
-  long long t = time_from(start);
-  std::cout << "addBoolTriples timing : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
+  std::cout << "addBoolTriples timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }
 
 void CorrelatedStore::addTriples(const size_t n) {

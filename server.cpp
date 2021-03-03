@@ -117,10 +117,10 @@ void server1_connect(int& sockfd, const int port, const int reuse = 0) {
 void sync_randomX(const int serverfd, const int server_num, fmpz_t randomX) {
     if (server_num == 0) {
         recv_fmpz(serverfd, randomX);
-        std::cout << "Got randomX: "; fmpz_print(randomX); std::cout << std::endl;
+        // std::cout << "Got randomX: "; fmpz_print(randomX); std::cout << std::endl;
     } else {
         fmpz_randm(randomX, seed, Int_Modulus);
-        std::cout << "Sending randomX: "; fmpz_print(randomX); std::cout << std::endl;
+        // std::cout << "Sending randomX: "; fmpz_print(randomX); std::cout << std::endl;
         send_fmpz(serverfd, randomX);
     }
 }
@@ -144,41 +144,46 @@ CheckerPreComp* getPrecomp(const size_t N) {
     return pre;
 }
 
+fmpz_t* share_convert(const size_t N,
+                      const size_t num_inputs,
+                      const size_t* const num_bits,
+                      const uint64_t* const shares_2
+                      ) {
+    auto start = clock_start();
+
+    size_t* const bits_arr = new size_t[N * num_inputs];
+    fmpz_t* f_shares2; new_fmpz_array(&f_shares2, N * num_inputs);
+    for (unsigned int i = 0; i < N; i++) {
+        memcpy(&bits_arr[i * num_inputs], num_bits, num_inputs * sizeof(size_t));
+        for (unsigned int j = 0; j < num_inputs; j++)
+            fmpz_set_ui(f_shares2[i * num_inputs + j],
+                        shares_2[i * num_inputs + j]);
+    }
+
+    fmpz_t* const shares_p = correlated_store->b2a_edaBit(
+        N * num_inputs, bits_arr, f_shares2);
+
+    delete[] bits_arr;
+    clear_fmpz_array(f_shares2, N * num_inputs);
+
+    std::cout << "Share convert time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+
+    return shares_p;
+}
+
 // Batch of N (snips + num_input wire/share) validations
+// Due to the nature of the final swap, both servers get the same valid array
 bool* validate_snips(const size_t N,
                      const size_t num_inputs,
-                     const size_t* const num_bits,
                      const int serverfd,
                      const int server_num,
                      Circuit* const * const circuit,
                      const ClientPacket* const * const packet,
-                     const uint64_t* const share
+                     const fmpz_t* const shares_p
                      ) {
     auto start = clock_start();
 
     bool* const ans = new bool[N];
-
-    // Convert xor share into additive input wire shares
-
-    size_t* bits_arr = new size_t[N * num_inputs];
-    fmpz_t* fshare; new_fmpz_array(&fshare, N * num_inputs);
-
-    for (unsigned int i = 0; i < N; i++) {
-        memcpy(&bits_arr[i * num_inputs], num_bits, num_inputs * sizeof(size_t));
-        for (unsigned int j = 0; j < num_inputs; j++)
-            fmpz_set_ui(fshare[i * num_inputs + j], share[i * num_inputs + j]);
-    }
-
-    fmpz_t* const inputWires = correlated_store->b2a_edaBit(
-        N * num_inputs, bits_arr, fshare);
-
-    delete[] bits_arr;
-    clear_fmpz_array(fshare, N * num_inputs);
-
-    std::cout << "Input Wire time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
-
-    // run SNIPs
-    start = clock_start();
 
     const size_t NumRoots = NextPowerOfTwo(circuit[0]->NumMulGates());
     pid_t pid = 0;
@@ -191,9 +196,7 @@ bool* validate_snips(const size_t N,
     randx_uses += N;
     for (unsigned int i = 0; i < N; i++)
         checker[i] = new Checker(circuit[i], server_num, packet[i], pre,
-                                 &inputWires[i * num_inputs]);
-
-    clear_fmpz_array(inputWires, N * num_inputs);
+                                 &shares_p[i * num_inputs]);
 
     CorShare** const cor_share = new CorShare*[N];
     for (unsigned int i = 0; i < N; i++)
@@ -242,6 +245,28 @@ bool* validate_snips(const size_t N,
     if (correlated_store->do_fork) waitpid(pid, &status, 0);
 
     std::cout << "snip circuit time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    return ans;
+}
+
+fmpz_t* accumulate(const size_t N,
+                   const size_t num_inputs,
+                   const fmpz_t* const shares_p,
+                   const bool* const valid
+                   ) {
+    fmpz_t* ans; new_fmpz_array(&ans, num_inputs);
+
+    for (unsigned int j = 0; j < num_inputs; j++)
+        fmpz_zero(ans[j]);
+
+    for (unsigned int i = 0; i < N; i++) {
+        if (!valid[i])
+            continue;
+        for (unsigned int j = 0; j < num_inputs; j++) {
+            fmpz_add(ans[j], ans[j], shares_p[i * num_inputs + j]);
+            fmpz_mod(ans[j], ans[j], Int_Modulus);  // How frequently?
+        }
+    }
+
     return ans;
 }
 
@@ -680,14 +705,11 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     auto start2 = clock_start();
 
     int server_bytes = 0;
-    const size_t bits_arr[2] = {num_bits, 2 * num_bits};
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
         server_bytes += send_size(serverfd, num_inputs);
 
-        // For OT
-        uint64_t share, share2;
         uint64_t* const shares = new uint64_t[2 * num_inputs];
         ClientPacket** const packet = new ClientPacket*[num_inputs];
 
@@ -704,15 +726,23 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            std::tie(share, share2, packet[i]) = share_map[pk_list[i]];
+            uint64_t val = 0, val2 = 0;
+            std::tie(val, val2, packet[i]) = share_map[pk_list[i]];
             circuit[i] = CheckVar();
-            shares[2 * i] = share;
-            shares[2 * i + 1] = share2;
+            shares[2 * i] = val;
+            shares[2 * i + 1] = val2;
         }
-        const bool* const snip_valid = validate_snips(num_inputs, 2, bits_arr, serverfd, server_num, circuit, packet, shares);
-        server_bytes += send_bool_batch(serverfd, snip_valid, num_inputs);
+        fmpz_t* const shares_p = share_convert(num_inputs, 2,
+                                               nbits, shares);
+        const bool* const snip_valid = validate_snips(
+            num_inputs, 2, serverfd, server_num, circuit, packet, shares_p);
+
+        bool* const valid = new bool[num_inputs];
+        recv_bool_batch(serverfd, valid, num_inputs);
 
         for (unsigned int i = 0; i < num_inputs; i++) {
+            valid[i] &= snip_valid[i];
+
             delete circuit[i];
             delete packet[i];
         }
@@ -720,20 +750,19 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         delete[] pk_list;
         delete[] circuit;
         delete[] packet;
-
+        delete[] shares;
         std::cout << "snip time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
 
         // Convert
-        NetIO* const io = new NetIO(SERVER0_IP, 60051, true);
-        const uint64_t* const b = intsum_ot_receiver(io, shares, nbits, num_inputs, 2);
+        fmpz_t* b = accumulate(num_inputs, 2, shares_p, valid);
 
-        send_uint64(serverfd, b[0]);
-        send_uint64(serverfd, b[1]);
+        send_fmpz(serverfd, b[0]);
+        send_fmpz(serverfd, b[1]);
 
-        delete io;
-        delete[] b;
-        delete[] shares;
+        delete[] valid;
+        clear_fmpz_array(b, 2);
+        clear_fmpz_array(shares_p, num_inputs * 2);
 
         std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
@@ -743,8 +772,6 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         size_t num_inputs, num_valid = 0;
         recv_size(serverfd, num_inputs);
 
-        // For OT
-        uint64_t share = 0, share2 = 0;
         uint64_t* const shares = new uint64_t[2 * num_inputs];
         ClientPacket** const packet = new ClientPacket*[num_inputs];
 
@@ -760,45 +787,47 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
         for (unsigned int i = 0; i < num_inputs; i++) {
+            uint64_t val = 0, val2 = 0;
             if (valid[i]) {
-                std::tie(share, share2, packet[i]) = share_map[pk_list[i]];
+                std::tie(val, val2, packet[i]) = share_map[pk_list[i]];
             } else {
                 packet[i] = new ClientPacket(NMul);  // mock empty packet
             }
             circuit[i] = CheckVar();
-            shares[2 * i] = share;
-            shares[2 * i + 1] = share2;
+            shares[2 * i] = val;
+            shares[2 * i + 1] = val2;
         }
-        const bool* const snip_valid = validate_snips(num_inputs, 2, bits_arr, serverfd, server_num, circuit, packet, shares);
-        bool* const other_valid = new bool[num_inputs];
-        recv_bool_batch(serverfd, other_valid, num_inputs);
+        fmpz_t* const shares_p = share_convert(num_inputs, 2,
+                                               nbits, shares);
+        const bool* const snip_valid = validate_snips(
+            num_inputs, 2, serverfd, server_num, circuit, packet, shares_p);
+
         for (unsigned int i = 0; i < num_inputs; i++) {
-            valid[i] &= (snip_valid[i] & other_valid[i]);
+            valid[i] &= snip_valid[i];
             if (valid[i])
                 num_valid++;
 
             delete circuit[i];
             delete packet[i];
         }
+        // Send valid back, to also encapsulate pre-snip valid[]
+        server_bytes += send_bool_batch(serverfd, valid, num_inputs);
         delete[] snip_valid;
-        delete[] other_valid;
         delete[] pk_list;
         delete[] circuit;
         delete[] packet;
+        delete[] shares;
         std::cout << "snip time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
 
         // Convert
-        NetIO* const io = new NetIO(nullptr, 60051, true);
-        const uint64_t* const a = intsum_ot_sender(io, shares, valid, nbits, num_inputs, 2);
+        fmpz_t* a = accumulate(num_inputs, 2, shares_p, valid);
 
-        delete io;
-        delete[] shares;
         delete[] valid;
+        clear_fmpz_array(shares_p, num_inputs * 2);
 
-        uint64_t b, b2;
-        recv_uint64(serverfd, b);
-        recv_uint64(serverfd, b2);
+        fmpz_t b; fmpz_init(b); recv_fmpz(serverfd, b);
+        fmpz_t b2; fmpz_init(b2); recv_fmpz(serverfd, b2);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
@@ -806,12 +835,17 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
-            delete[] a;
+            clear_fmpz_array(a, 2);
+            fmpz_clear(b);
+            fmpz_clear(b2);
             return RET_INVALID;
         }
 
-        const double ex = 1.0 * (a[0] + b) / num_valid;
-        const double ex2 = 1.0 * (a[1] + b2) / num_valid;
+        fmpz_add(b, b, a[0]); fmpz_mod(b, b, Int_Modulus);
+        fmpz_add(b2, b2, a[1]); fmpz_mod(b2, b2, Int_Modulus);
+
+        const double ex = fmpz_get_d(b) / num_valid;
+        const double ex2 = fmpz_get_d(b2) / num_valid;
         ans = ex2 - (ex * ex);
         if (msg.type == VAR_OP) {
             std::cout << "Ans: " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
@@ -820,7 +854,9 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             ans = sqrt(ans);
             std::cout << "Ans: sqrt(" << ex2 << " - (" << ex << ")^2) = " << ans << std::endl;
         }
-        delete[] a;
+        clear_fmpz_array(a, 2);
+        fmpz_clear(b);
+        fmpz_clear(b2);
         return RET_ANS;
     }
 }
@@ -892,18 +928,11 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     auto start2 = clock_start();
 
     int server_bytes = 0;
-    size_t bits_arr[num_fields];
-    for (unsigned int i = 0; i < num_fields; i++)
-        bits_arr[i] = (i < degree ? num_bits : 2 * num_bits);
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
         server_bytes += send_size(serverfd, num_inputs);
 
-        uint64_t* x_vals;
-        uint64_t y_val = 0;
-        uint64_t* x2_vals;
-        uint64_t* xy_vals;
         uint64_t* const shares = new uint64_t[num_inputs * num_fields];
         ClientPacket** const packet = new ClientPacket*[num_inputs];
 
@@ -920,6 +949,11 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
+            uint64_t* x_vals;
+            uint64_t y_val = 0;
+            uint64_t* x2_vals;
+            uint64_t* xy_vals;
+
             std::tie(x_vals, y_val, x2_vals, xy_vals, packet[i]) = share_map[pk_list[i]];
             circuit[i] = CheckLinReg(degree);
 
@@ -935,12 +969,18 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             delete x2_vals;
             delete xy_vals;
         }
+        fmpz_t* const shares_p = share_convert(num_inputs, num_fields,
+                                               nbits, shares);
         const bool* const snip_valid = validate_snips(
-            num_inputs, num_fields, bits_arr, serverfd, server_num,
-            circuit, packet, shares);
-        server_bytes += send_bool_batch(serverfd, snip_valid, num_inputs);
+            num_inputs, num_fields, serverfd, server_num, circuit,
+            packet, shares_p);
+
+        bool* const valid = new bool[num_inputs];
+        recv_bool_batch(serverfd, valid, num_inputs);
 
         for (unsigned int i = 0; i < num_inputs; i++) {
+            valid[i] &= snip_valid[i];
+
             delete circuit[i];
             delete packet[i];
         }
@@ -948,18 +988,19 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         delete[] pk_list;
         delete[] circuit;
         delete[] packet;
+        delete[] shares;
         std::cout << "snip time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
 
         // Convert
-        NetIO* const io = new NetIO(SERVER0_IP, 60051, true);
-        const uint64_t* const b = intsum_ot_receiver(io, shares, nbits, num_inputs, num_fields);
-        for (unsigned int j = 0; j < num_fields; j++)
-            send_uint64(serverfd, b[j]);
+        fmpz_t* b = accumulate(num_inputs, num_fields, shares_p, valid);
 
-        delete io;
-        delete[] b;
-        delete[] shares;
+        for (unsigned int j = 0; j < num_fields; j++)
+            send_fmpz(serverfd, b[j]);
+
+        delete[] valid;
+        clear_fmpz_array(b, num_fields);
+        clear_fmpz_array(shares_p, num_inputs * num_fields);
 
         std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
@@ -970,10 +1011,6 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         size_t num_inputs, num_valid = 0;
         recv_size(serverfd, num_inputs);
 
-        uint64_t* x_vals;
-        uint64_t y_val = 0;
-        uint64_t* x2_vals;
-        uint64_t* xy_vals;
         uint64_t* const shares = new uint64_t[num_inputs * num_fields];
         ClientPacket** const packet = new ClientPacket*[num_inputs];
 
@@ -990,6 +1027,10 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
+            uint64_t* x_vals;
+            uint64_t y_val = 0;
+            uint64_t* x2_vals;
+            uint64_t* xy_vals;
             if (valid[i]) {
                 std::tie(x_vals, y_val, x2_vals, xy_vals, packet[i]) = share_map[pk_list[i]];
             } else {
@@ -1011,58 +1052,72 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             delete x2_vals;
             delete xy_vals;
         }
+        fmpz_t* const shares_p = share_convert(num_inputs, num_fields,
+                                               nbits, shares);
         const bool* const snip_valid = validate_snips(
-            num_inputs, num_fields, bits_arr, serverfd, server_num,
-            circuit, packet, shares);
-        bool* const other_valid = new bool[num_inputs];
-        recv_bool_batch(serverfd, other_valid, num_inputs);
+            num_inputs, num_fields, serverfd, server_num, circuit,
+            packet, shares_p);
+
         for (unsigned int i = 0; i < num_inputs; i++) {
-            valid[i] &= (snip_valid[i] & other_valid[i]);
+            valid[i] &= snip_valid[i];
             if (valid[i])
                 num_valid++;
 
             delete circuit[i];
             delete packet[i];
         }
+        // Send valid back, to also encapsulate pre-snip valid[]
+        server_bytes += send_bool_batch(serverfd, valid, num_inputs);
         delete[] snip_valid;
-        delete[] other_valid;
         delete[] pk_list;
         delete[] circuit;
         delete[] packet;
+        delete[] shares;
         std::cout << "snip time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
 
         // Convert
-        NetIO* const io = new NetIO(nullptr, 60051, true);
-        uint64_t b;
+        fmpz_t* a = accumulate(num_inputs, num_fields, shares_p, valid);
+
+        delete[] valid;
+        clear_fmpz_array(shares_p, num_inputs * num_fields);
+
+
         uint64_t* const x_accum = new uint64_t[degree + num_quad];
         memset(x_accum, 0, (degree + num_quad) * sizeof(uint64_t));
         uint64_t* const y_accum = new uint64_t[degree];
         memset(y_accum, 0, (degree) * sizeof(uint64_t));
 
-        const uint64_t* const a = intsum_ot_sender(io, shares, valid, nbits, num_inputs, num_fields);
-
-        delete io;
-        delete[] shares;
-        delete[] valid;
+        fmpz_t b; fmpz_init(b);
 
         x_accum[0] = num_valid;
         for (unsigned int j = 0; j < num_x; j++) {
-            recv_uint64(serverfd, b);
-            x_accum[1 + j] = a[j] + b;
+            recv_fmpz(serverfd, b);
+            fmpz_add(b, b, a[j]);
+            fmpz_mod(b, b, Int_Modulus);
+            x_accum[1 + j] = fmpz_get_si(b);
         }
-        recv_uint64(serverfd, b);
-        y_accum[0] = a[num_x] + b;
+        recv_fmpz(serverfd, b);
+        fmpz_add(b, b, a[num_x]);
+        fmpz_mod(b, b, Int_Modulus);
+        y_accum[0] = fmpz_get_si(b);
 
         for (unsigned int j = 0; j < num_quad; j++) {
-            recv_uint64(serverfd, b);
-            x_accum[1 + num_x + j] = a[degree + j] + b;
+            recv_fmpz(serverfd, b);
+            fmpz_add(b, b, a[degree + j]);
+            fmpz_mod(b, b, Int_Modulus);
+            x_accum[1 + num_x + j] = fmpz_get_si(b);
         }
         for (unsigned int j = 0; j < num_x; j++) {
-            recv_uint64(serverfd, b);
-            y_accum[1 + j] = a[degree + num_quad + j] + b;
+            recv_fmpz(serverfd, b);
+            fmpz_add(b, b, a[degree + num_quad + j]);
+            fmpz_mod(b, b, Int_Modulus);
+            y_accum[1 + j] = fmpz_get_si(b);
         }
-        delete[] a;
+
+        clear_fmpz_array(a, num_fields);
+        fmpz_clear(b);
+
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
