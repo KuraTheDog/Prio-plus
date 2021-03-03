@@ -37,10 +37,10 @@ std::unordered_map<size_t, CheckerPreComp*> precomp_store;
 CorrelatedStore* correlated_store;
 // #define CACHE_SIZE 8192
 // #define CACHE_SIZE 65536
-#define CACHE_SIZE 262144
-// #define CACHE_SIZE 2097152
+// #define CACHE_SIZE 262144
+#define CACHE_SIZE 2097152
 // If set, does fast but insecure offline precompute.
-#define LAZY_PRECOMPUTE false
+#define LAZY_PRECOMPUTE true
 
 // TODO: const 60051 for netio?
 
@@ -473,6 +473,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     start = clock_start();
+    auto start2 = clock_start();
 
     int server_bytes = 0;
 
@@ -487,6 +488,8 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
             pk_list[idx] = share.first;
             idx++;
         }
+        std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        start2 = clock_start();
 
         bool* const other_valid = new bool[num_inputs];
         recv_bool_batch(serverfd, other_valid, num_inputs);
@@ -499,6 +502,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 
         send_uint64(serverfd, b);
         delete[] pk_list;
+        std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
@@ -516,6 +520,9 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
             num_valid++;
             a ^= share_map[pk];
         }
+
+        std::cout << "PK + convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        start2 = clock_start();
 
         server_bytes += send_bool_batch(serverfd, valid, num_inputs);
 
@@ -590,6 +597,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
             idx++;
         }
         std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        start2 = clock_start();
         bool* const other_valid = new bool[num_inputs];
         recv_bool_batch(serverfd, other_valid, num_inputs);
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -602,6 +610,8 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         send_out(serverfd, &b[0], share_sz);
         delete[] shares;
         delete[] pk_list;
+
+        std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
@@ -622,7 +632,8 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
                 a[j] ^= share_map[pk][j];
         }
 
-        std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "PK+convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        start2 = clock_start();
 
         server_bytes += send_bool_batch(serverfd, valid, num_inputs);
 
@@ -723,7 +734,6 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             idx++;
         }
         std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
-        start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             uint64_t val = 0, val2 = 0;
@@ -751,11 +761,13 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         delete[] circuit;
         delete[] packet;
         delete[] shares;
-        std::cout << "snip time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        // std::cout << "snip time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
 
         // Convert
         fmpz_t* b = accumulate(num_inputs, 2, shares_p, valid);
+
+        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 
         send_fmpz(serverfd, b[0]);
         send_fmpz(serverfd, b[1]);
@@ -764,8 +776,6 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         clear_fmpz_array(b, 2);
         clear_fmpz_array(shares_p, num_inputs * 2);
 
-        std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
     } else {
@@ -818,10 +828,11 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         delete[] packet;
         delete[] shares;
         std::cout << "snip time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
-        start2 = clock_start();
 
         // Convert
         fmpz_t* a = accumulate(num_inputs, 2, shares_p, valid);
+
+        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * 2);
@@ -830,8 +841,6 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         fmpz_t b2; fmpz_init(b2); recv_fmpz(serverfd, b2);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
@@ -990,10 +999,11 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         delete[] packet;
         delete[] shares;
         std::cout << "snip time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
-        start2 = clock_start();
 
         // Convert
         fmpz_t* b = accumulate(num_inputs, num_fields, shares_p, valid);
+
+        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 
         for (unsigned int j = 0; j < num_fields; j++)
             send_fmpz(serverfd, b[j]);
@@ -1002,8 +1012,6 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         clear_fmpz_array(b, num_fields);
         clear_fmpz_array(shares_p, num_inputs * num_fields);
 
-        std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
 
         return RET_NO_ANS;
@@ -1079,6 +1087,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         // Convert
         fmpz_t* a = accumulate(num_inputs, num_fields, shares_p, valid);
 
+        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * num_fields);
 
@@ -1120,8 +1130,6 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
         std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
