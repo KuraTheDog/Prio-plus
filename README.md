@@ -1,20 +1,23 @@
 # Installation
 
-1. Install [emp-ot](https://github.com/emp-toolkit/emp-ot)
-2. Install Boost
-3. Install [PALISADE](https://gitlab.com/palisade/palisade-release)
-3. `cd AggrProject && mkdir build`
-4. `cd build && cmake ..`
-5. `make`
+1. `mkdir build`
+2. `cd build`
+3. `cmake ..`
+4. `make`
+
+## Dependencies
+
+1. Install [Flint 2.7.0+](https://flintlib.org)
+2. Install [emp-ot](https://github.com/emp-toolkit/emp-ot)
+3. Install Boost
+4. Install [PALISADE](https://gitlab.com/palisade/palisade-release)
 
 ## PALISADE Instructions
 
 For full install instructions, see [here](https://gitlab.com/palisade/palisade-release/-/wikis/Build-instructions).  
-Currently, Palisade is built with default args (`cmake ..`).  
-Also make sure to e.g. install with `make install` after `make`.
+Currently, Palisade is built with default args (`cmake ..`).
 
-PALISADE encryption is used to generate beaver triples.  
-It only supports up to 60 bit moduli, so otherwise we use slower methods for now.
+PALISADE encryption is used to generate beaver triples.
 
 # Usage example
 
@@ -28,7 +31,8 @@ It only supports up to 60 bit moduli, so otherwise we use slower methods for now
 * Client arguments are `num_inputs server0_port server1_port operand max_bits linreg_degree`
 
 Ports and max bits need to be consistent across runs and both servers and the client.
-Max bits is only used for int based summations.
+Max bits is used for int based summations, and must match the server value in this case.  
+For MAXOP, client max bit instead determines the max value (e.g. 7 -> 128), and does not have to match the servers.  
 Server 0 port tells Server 0 which port to open, and server 1 which port of server 0 is open.
 
 # Outline
