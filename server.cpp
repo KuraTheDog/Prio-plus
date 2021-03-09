@@ -553,16 +553,16 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 
 // For MAX and MIN
 // TODO: does this need htonl/ntohl wrappers for int arrays?
-returnType max_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint32_t& ans) {
-    std::unordered_map<std::string, uint32_t*> share_map;
+returnType max_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint64_t& ans) {
+    std::unordered_map<std::string, uint64_t*> share_map;
     auto start = clock_start();
 
     MaxShare share;
     const unsigned int total_inputs = msg.num_of_inputs;
     const unsigned int B = msg.max_inp;
-    const size_t share_sz = (B+1) * sizeof(uint32_t);
+    const size_t share_sz = (B+1) * sizeof(uint64_t);
     // Need this to have all share arrays stay in memory, for server1 later.
-    uint32_t* const shares = new uint32_t[total_inputs * (B + 1)];
+    uint64_t* const shares = new uint64_t[total_inputs * (B + 1)];
 
     int num_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
@@ -587,7 +587,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
     if (server_num == 1) {
         const unsigned int num_inputs = share_map.size();
         server_bytes += send_size(serverfd, num_inputs);
-        uint32_t b[B+1];
+        uint64_t b[B+1];
         memset(b, 0, sizeof(b));
         std::string* const pk_list = new std::string[num_inputs];
         size_t idx = 0;
@@ -618,7 +618,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
     } else {
         size_t num_inputs, num_valid = 0;;
         recv_size(serverfd, num_inputs);
-        uint32_t a[B+1];
+        uint64_t a[B+1];
         memset(a, 0, sizeof(a));
         bool* const valid = new bool[num_inputs];
 
@@ -639,7 +639,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 
         delete[] shares;
         delete[] valid;
-        uint32_t b[B+1];
+        uint64_t b[B+1];
         recv_in(serverfd, &b[0], share_sz);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
@@ -1261,7 +1261,7 @@ int main(int argc, char** argv) {
             std::cout << "MAX_OP" << std::endl;
             auto start = clock_start();
 
-            uint32_t ans;
+            uint64_t ans;
             returnType ret = max_op(msg, newsockfd, serverfd, server_num, ans);
             if (ret == RET_ANS)
                 std::cout << "Ans: " << ans << std::endl;
@@ -1271,7 +1271,7 @@ int main(int argc, char** argv) {
             std::cout << "MIN_OP" << std::endl;
             auto start = clock_start();
 
-            uint32_t ans;
+            uint64_t ans;
             returnType ret = max_op(msg, newsockfd, serverfd, server_num, ans);
             if (ret == RET_ANS)
                 std::cout << "Ans: " << ans << std::endl;

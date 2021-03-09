@@ -72,7 +72,7 @@ int send_maxshare(const int server_num, const MaxShare& maxshare, const unsigned
     int ret = send(sock, (void*)&(maxshare.pk[0]), PK_LENGTH, 0);
 
     for (unsigned int i = 0; i <= B; i++)
-        ret += send(sock, (void *)&(maxshare.arr[i]), sizeof(uint32_t), 0);
+        ret += send(sock, (void *)&(maxshare.arr[i]), sizeof(uint64_t), 0);
     return ret;
 }
 
@@ -548,24 +548,24 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
 }
 
 int max_op_helper(const std::string protocol, const size_t numreqs,
-                  const unsigned int B, uint32_t &ans,
+                  const unsigned int B, uint64_t &ans,
                   const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
     int num_bytes = 0;
 
     start = clock_start();
 
-    uint32_t value;
-    uint32_t* const or_encoded_array = new uint32_t[B+1];
-    uint32_t* const share0 = new uint32_t[B+1];
-    uint32_t* const share1 = new uint32_t[B+1];
+    uint64_t value;
+    uint64_t* const or_encoded_array = new uint64_t[B+1];
+    uint64_t* const share0 = new uint64_t[B+1];
+    uint64_t* const share1 = new uint64_t[B+1];
 
     emp::PRG prg;
 
     MaxShare* const maxshare0 = new MaxShare[numreqs];
     MaxShare* const maxshare1 = new MaxShare[numreqs];
     for (unsigned int i = 0; i < numreqs; i++) {
-        prg.random_data(&value, sizeof(uint32_t));
+        prg.random_data(&value, sizeof(uint64_t));
         value = value % (B + 1);
 
         if (protocol == "MAXOP")
@@ -573,10 +573,10 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
         if (protocol == "MINOP")
             ans = (value < ans ? value : ans);
 
-        prg.random_data(or_encoded_array, (B+1)*sizeof(uint32_t));
-        prg.random_data(share0, (B+1)*sizeof(uint32_t));
+        prg.random_data(or_encoded_array, (B+1)*sizeof(uint64_t));
+        prg.random_data(share0, (B+1)*sizeof(uint64_t));
 
-        uint32_t v = 0;
+        uint64_t v = 0;
         if (protocol == "MAXOP")
             v = value;
         if (protocol == "MINOP")
@@ -592,12 +592,12 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
         const char* const pk = pk_s.c_str();
 
         memcpy(maxshare0[i].pk, &pk[0], PK_LENGTH);
-        maxshare0[i].arr = new uint32_t[B+1];
-        memcpy(maxshare0[i].arr, share0, (B+1)*sizeof(uint32_t));
+        maxshare0[i].arr = new uint64_t[B+1];
+        memcpy(maxshare0[i].arr, share0, (B+1)*sizeof(uint64_t));
 
         memcpy(maxshare1[i].pk, &pk[0], PK_LENGTH);
-        maxshare1[i].arr = new uint32_t[B+1];
-        memcpy(maxshare1[i].arr, share1, (B+1)*sizeof(uint32_t));
+        maxshare1[i].arr = new uint64_t[B+1];
+        memcpy(maxshare1[i].arr, share1, (B+1)*sizeof(uint64_t));
     }
     delete[] or_encoded_array;
     delete[] share0;
@@ -630,7 +630,7 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
 void max_op(const std::string protocol, const size_t numreqs) {
     const uint64_t B = max_int;
 
-    uint32_t ans;
+    uint64_t ans;
     int num_bytes = 0;
     initMsg msg;
     msg.num_of_inputs = numreqs;
@@ -668,7 +668,7 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
     msg.num_of_inputs = numreqs;
     msg.max_inp = B;
     emp::PRG prg(fix_key);
-    uint32_t ans;
+    uint64_t ans;
     if (protocol == "MAXOP") {
         msg.type = MAX_OP;
         ans = 0;
@@ -682,11 +682,11 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
     emp::block* const b = new block[numreqs];
     prg.random_block(b, numreqs);
 
-    uint32_t values[numreqs];
-    uint32_t or_encoded_array[B+1];
-    uint32_t shares0[B+1];
-    uint32_t shares1[B+1];
-    prg.random_data(values, numreqs * sizeof(uint32_t));
+    uint64_t values[numreqs];
+    uint64_t or_encoded_array[B+1];
+    uint64_t shares0[B+1];
+    uint64_t shares1[B+1];
+    prg.random_data(values, numreqs * sizeof(uint64_t));
 
     send_to_server(0, &msg, sizeof(initMsg), 0);
     send_to_server(1, &msg, sizeof(initMsg), 0);
@@ -707,11 +707,11 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
                 ans = (values[i] < ans? values[i] : ans);
         }
 
-        prg.random_data(or_encoded_array, (B+1)*sizeof(uint32_t));
-        prg.random_data(shares0, (B+1)*sizeof(uint32_t));
+        prg.random_data(or_encoded_array, (B+1)*sizeof(uint64_t));
+        prg.random_data(shares0, (B+1)*sizeof(uint64_t));
 
         // min(x) = -max(-x) = B - max(B - x)
-        uint32_t v = 0;
+        uint64_t v = 0;
         if (protocol == "MAXOP")
             v = values[i];
         if (protocol == "MINOP")

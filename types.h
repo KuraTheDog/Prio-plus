@@ -17,7 +17,7 @@ struct IntShare {
 // For Max, Min
 struct MaxShare {
     char pk[PK_LENGTH];
-    uint32_t* arr;
+    uint64_t* arr;
 };
 
 // For Var, Stddev
