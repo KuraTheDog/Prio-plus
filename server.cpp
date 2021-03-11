@@ -26,11 +26,11 @@
 uint64_t int_sum_max;
 uint32_t num_bits;
 
-// Can keep the same random X for a while. TODO: how much?
+// Can keep the same random X for a while
 #define RANDOMX_THRESHOLD 1e6
 uint64_t randx_uses = 0;
 fmpz_t randomX;
-// Precomputes for random X
+// Precomputes for the current random X
 std::unordered_map<size_t, CheckerPreComp*> precomp_store;
 
 // Precompute cache of edabits and beaver triples
@@ -42,7 +42,7 @@ CorrelatedStore* correlated_store;
 // If set, does fast but insecure offline precompute.
 #define LAZY_PRECOMPUTE true
 
-// TODO: const 60051 for netio?
+#define OT_PORT 60051
 
 void error_exit(const char* const msg) {
     perror(msg);
@@ -307,7 +307,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
         std::cout << "pk time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
 
-        NetIO* const io = new NetIO(SERVER0_IP, 60051, true);
+        NetIO* const io = new NetIO(SERVER0_IP, OT_PORT, true);
         const uint64_t b = bitsum_ot_receiver(io, shares, num_inputs);
         delete io;
         delete[] shares;
@@ -336,7 +336,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
         std::cout << "pk time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
 
-        NetIO* const io = new NetIO(nullptr, 60051, true);
+        NetIO* const io = new NetIO(nullptr, OT_PORT, true);
         const uint64_t a = bitsum_ot_sender(io, shares, valid, num_inputs);
         delete io;
         delete[] shares;
@@ -400,7 +400,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         }
         std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
-        NetIO* const io = new NetIO(SERVER0_IP, 60051, true);
+        NetIO* const io = new NetIO(SERVER0_IP, OT_PORT, true);
         const uint64_t* const b = intsum_ot_receiver(io, shares, nbits, num_inputs, 1);
         delete io;
         delete[] shares;
@@ -429,7 +429,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         }
         std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
-        NetIO* const io = new NetIO(nullptr, 60051, true);
+        NetIO* const io = new NetIO(nullptr, OT_PORT, true);
         const uint64_t* const a = intsum_ot_sender(io, shares, valid, nbits, num_inputs, 1);
         delete io;
         delete[] shares;

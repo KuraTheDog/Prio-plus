@@ -442,7 +442,7 @@ std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num
 }
 
 // Slow. OT per bit
-// TODO: batched creation to reduce rounds.
+// Not batched, but we also don't really want to do this
 BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, NetIO* const io0, NetIO* const io1) {
 
     // auto start = clock_start();
@@ -467,7 +467,7 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, N
 
     block r0_block[n], r1_block[n], s_block[n];
     // TODO: replace this with Random OT instead.
-    // Note: Random OT breaks. Running 20 varop 8 twice has the second run make bad triples. Future runs line up again. Desync issues?
+    // Note: Random OT seems to break. Running 20 varop 8 twice has the second run make bad triples. Future runs line up again. Desync issues?
     prg.random_block(r0_block, n);
     prg.random_block(r1_block, n);
 

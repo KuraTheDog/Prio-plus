@@ -3,9 +3,6 @@ Based on ia.cr/2020/338
 
 Due to send buffers potentially filling up, it forks out a child to do sending, while parent receives.
 It also waits for the child to finish before exiting or moving to a substep that will send, to stay synced.
-
-TODO: Add check at start of functions to make enough if needed. 
-For when request size >> buffer size
 */
 #include "edabit.h"
 

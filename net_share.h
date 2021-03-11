@@ -6,8 +6,6 @@ Also has htonl/ntohl wrappers for sending various int-like types.
 See test/test_net_share.cpp for a full example.
 
 Returns total bytes sent on success, or first fail return of an internal step (typically 0 or negative)
-
-TODO: maybe hide/delete/comment out ones we don't use.
 */
 
 #ifndef NET_SHARE_H
@@ -23,14 +21,14 @@ extern "C" {
 };
 
 /*
-Other ideas:
+Other ideas for fmpz sending:
 fmpz_in_raw, fmpz_out_raw. Has trouble with using socket for other things.
     can have send_int map to it, but e.g. server has trouble with other general use.
 fmpz_sng + fmpz_get_ui_array: best for really large numbers?
 fmpz_get_str: best for small numbers.
 
 ulong array: Always uses ulongs. 32 or 64 bits. "perfect" space efficiency, for really large numbers.
-string: best is base 62, so 62/256 ~ 25% space efficiency. So needs ~4x bits compared to numbers.
+string: best it can do is base 62, so 62/256 ~ 25% space efficiency. So needs ~4x bits compared to numbers.
 */
 
 // Since fmpz is bound by Int modulus, we can leave off sending size?

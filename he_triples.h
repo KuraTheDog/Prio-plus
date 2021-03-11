@@ -39,7 +39,7 @@ private:
 
   const int serverfd;
 
-  // TODO: Use FMPZ or prg random instead?
+  // Random number generation
   std::default_random_engine generator;
   std::function<int64_t()> random_int;
 
