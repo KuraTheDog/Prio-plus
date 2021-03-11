@@ -891,7 +891,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     typedef std::tuple <uint64_t*, uint64_t, uint64_t*, uint64_t*, ClientPacket*> sharetype;
     std::unordered_map<std::string, sharetype> share_map;
 
-    // const uint64_t max_val = 1ULL << num_bits;
+    const uint64_t max_val = 1ULL << num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
     size_t nbits[num_fields];
     for (unsigned int i = 0; i < num_fields; i++)
@@ -904,28 +904,47 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
     LinRegShare share;
     for (unsigned int i = 0; i < total_inputs; i++) {
+        bool sizes_valid = true;
+
         num_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
         const std::string pk(share.pk, share.pk + PK_LENGTH);
 
         share.x_vals = new uint64_t[num_x];
-        for (unsigned int j = 0; j < num_x; j++)
+        for (unsigned int j = 0; j < num_x; j++) {
             num_bytes += recv_uint64(clientfd, share.x_vals[j]);
+            if (share.x_vals[j] >= max_val)
+                sizes_valid = false;
+        }
 
         num_bytes += recv_uint64(clientfd, share.y);
+        if (share.y >= max_val)
+            sizes_valid = false;
 
         share.x2_vals = new uint64_t[num_quad];
-        for (unsigned int j = 0; j < num_quad; j++)
+        for (unsigned int j = 0; j < num_quad; j++) {
             num_bytes += recv_uint64(clientfd, share.x2_vals[j]);
+            if (share.x2_vals[j] >= max_val * max_val)
+                sizes_valid = false;
+        }
 
         share.xy_vals = new uint64_t[num_x];
-        for (unsigned int j = 0; j < num_x; j++)
+        for (unsigned int j = 0; j < num_x; j++) {
             num_bytes += recv_uint64(clientfd, share.xy_vals[j]);
+            if (share.xy_vals[j] >= max_val * max_val)
+                sizes_valid = false;
+        }
 
         ClientPacket* packet = new ClientPacket(NMul);
         int packet_bytes = recv_ClientPacket(clientfd, packet, NMul);
         num_bytes += packet_bytes;
 
-        // TODO: size validations
+        if ((share_map.find(pk) != share_map.end())
+            or (not sizes_valid)
+            or (packet_bytes  <= 0)
+            ) {
+            delete packet;
+            continue;
+        }
 
         share_map[pk] = {share.x_vals, share.y, share.x2_vals, share.xy_vals, packet};
     }
