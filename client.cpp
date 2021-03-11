@@ -398,7 +398,7 @@ int xor_op_helper(const std::string protocol, const size_t numreqs,
         }
         prg.random_data(&share0, sizeof(uint64_t));
         share1 = share0 ^ encoded;
-    
+
         const std::string pk_s = make_pk(prg);
         const char* const pk = pk_s.c_str();
 
@@ -874,7 +874,7 @@ void var_op(const std::string protocol, const size_t numreqs) {
    1: x shares > max
    2: x^2 shares > max
    3: x^2 = x * x + junk, run through snip
-   4: x^2 = x * x + junk, run snip with correct x^2  NOT CAUGHT, Server doesn't check equality
+   4: x^2 = x * x + junk, run snip with correct x^2
    5: p0 h points corruption
    6: p1 const value corruption
    7: p0 mul share corruption
@@ -1014,7 +1014,6 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
     fmpz_clear(inp[1]);
 }
 
-// Currently just degree 2
 int lin_reg_helper(const std::string protocol, const size_t numreqs,
                    const size_t degree,
                    uint64_t* const x_accum, uint64_t* const y_accum,
@@ -1064,20 +1063,11 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
             x_share0[j] = x_share0[j] % max_int;
             x_share1[j] = x_share0[j] ^ x_real[j];
             x_accum[j + 1] += x_real[j];
-            // std::cout << "x[" << j << "]  = " << x_real[j] << " = " << x_share0[j] << " ^ " << x_share1[j] << std::endl;
         }
         y_real = y_real % max_int;
         y_share0 = y_share0 % max_int;
         y_share1 = y_share0 ^ y_real;
         y_accum[0] += y_real;
-        // std::cout << "y     = " << y_real << " = " << y_share0 << " ^ " << y_share1 << std::endl;
-
-        // std::cout << "x: ";
-        // for (unsigned int j = 0; j < num_x; j++) {
-        //     if (j > 0) std::cout << ", ";
-        //     std::cout << x_real[j];
-        // }
-        // std::cout << ", y: " << y_real << std::endl;
 
         unsigned int idx = 0;
         for (unsigned int j = 0; j < num_x; j++) {
@@ -1085,7 +1075,6 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
                 x2_real[idx] = x_real[j] * x_real[k];
                 x2_share0[idx] = x2_share0[idx] % (max_int * max_int);
                 x2_share1[idx] = x2_share0[idx] ^ x2_real[idx];
-                // std::cout << "x2[" << idx << "] = " << x2_real[idx] << " = " << x2_share0[idx] << " ^ " << x2_share1[idx] << std::endl;
 
                 x_accum[idx + num_x + 1] += x2_real[idx];
                 idx++;
@@ -1093,8 +1082,7 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
             xy_real[j] = x_real[j] * y_real;
             xy_share0[j] = xy_share0[j] % (max_int * max_int);
             xy_share1[j] = xy_share0[j] ^ xy_real[j];
-            // std::cout << "xy[" << j << "] = " << xy_real[j] << " = " << xy_share0[j] << " ^ " << xy_share1[j] << std::endl;
-            
+
             y_accum[j + 1] += xy_real[j];
         }
 
@@ -1129,12 +1117,6 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
         for (unsigned int j = 0; j < num_x; j++)
             fmpz_set_si(inp[j + num_x + num_quad + 1], xy_real[j]);
 
-        // for (unsigned int j = 0; j < num_fields; j++) {
-        //     std::cout << "inp[" << j << "] = ";
-        //     fmpz_print(inp[j]);
-        //     std::cout << std::endl;
-        // }
-
         Circuit* const circuit = CheckLinReg(degree);
         circuit->Eval(inp);
         packet0[i] = new ClientPacket(NMul);
@@ -1159,7 +1141,7 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
     if (msg_ptr != nullptr) {
         num_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
         num_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
-        
+
         num_bytes += send_size(sockfd0, degree);
         num_bytes += send_size(sockfd1, degree);
     }

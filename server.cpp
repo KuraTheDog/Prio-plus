@@ -21,10 +21,8 @@
 // #define SERVER0_IP "52.87.230.64"
 // #define SERVER1_IP "54.213.189.18"
 
+// Fail if more than this fraction of clients provide invalid inputs
 #define INVALID_THRESHOLD 0.5
-
-uint64_t int_sum_max;
-uint32_t num_bits;
 
 // Can keep the same random X for a while
 #define RANDOMX_THRESHOLD 1e6
@@ -43,6 +41,9 @@ CorrelatedStore* correlated_store;
 #define LAZY_PRECOMPUTE true
 
 #define OT_PORT 60051
+
+uint64_t int_sum_max;
+uint32_t num_bits;
 
 void error_exit(const char* const msg) {
     perror(msg);
@@ -77,7 +78,7 @@ void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port, const int r
     }
 
     if (listen(sockfd, 2) < 0)
-        error_exit("Listen failed");   
+        error_exit("Listen failed");
 }
 
 // Asymmetric: 1 connects to 0, 0 listens to 1.
@@ -677,7 +678,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     typedef std::tuple <uint64_t, uint64_t, ClientPacket*> sharetype;
     std::unordered_map<std::string, sharetype> share_map;
 
-    VarShare share; 
+    VarShare share;
     const uint64_t max_val = 1ULL << num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
     const size_t nbits[2] = {num_bits, num_bits * 2};
@@ -1074,7 +1075,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
                    x2_vals, num_quad * sizeof(uint64_t));
             memcpy(&shares[num_fields * i + num_x + num_quad + 1],
                    xy_vals, num_x * sizeof(uint64_t));
-            
+
             delete x_vals;
             delete x2_vals;
             delete xy_vals;
@@ -1189,8 +1190,8 @@ int main(int argc, char** argv) {
 
     init_constants();
 
-    // Set serverfd. 
-    // Server 0 listens, via newsockfd_server.
+    // Set serverfd
+    // Server 0 listens, via newsockfd_server
     // Server 1 connects, via sockfd_server
     int sockfd_server, newsockfd_server, serverfd = 0;
     if (server_num == 0) {

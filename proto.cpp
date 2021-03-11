@@ -455,7 +455,7 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, N
         std::cout << "Int_Modulus is " << n << " bits, which is more than 128, the maximum that the current generate_beaver_triple can handle." << std::endl;
         return triple;
     }
-    
+
     PRG prg(fix_key);
 
     // Random offset, for debug

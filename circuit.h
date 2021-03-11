@@ -134,9 +134,9 @@ struct Circuit {
                 break;
             }
         }
-        
+
         // all result_zero should be zero.
-        for (Gate* zero_gate : this->result_zero) 
+        for (Gate* zero_gate : this->result_zero)
             if (not fmpz_is_zero(zero_gate->WireValue))
                 return false;
         return true;
@@ -282,7 +282,7 @@ double* SolveLinReg(const size_t degree, const uint64_t* const x, const uint64_t
 
     fmpq_mat_t X; fmpq_mat_init(X, degree, degree);
     fmpq_mat_t Y; fmpq_mat_init(Y, degree, 1);
-    
+
     for (unsigned int i = 0; i < degree; i++) {
         fmpq_set_ui(fmpq_mat_entry(X, i, 0), x[i], 1);
         if (i > 0)

@@ -12,7 +12,7 @@
 
 using namespace lbcrypto;
 
-// Basic run: local, one context/keys. 
+// Basic run: local, one context/keys
 void runLocal(size_t N) {
 
   // int64_t plaintextModulus = 65537;
@@ -138,12 +138,12 @@ void runLocal(size_t N) {
   std::cout << "d : " << d << std::endl;
   std::cout << "d2: " << d2 << std::endl;
 
-  std::cout << std::endl;  
+  std::cout << std::endl;
 
   std::cout << "e : " << e << std::endl;
   std::cout << "e2: " << e2 << std::endl;
 
-  fmpz_t c_val; fmpz_init(c_val); 
+  fmpz_t c_val; fmpz_init(c_val);
   fmpz_t c2_val; fmpz_init(c2_val);
   fmpz_t fmod; fmpz_init_set_si(fmod, plaintextModulus);
   fmpz_t tmp; fmpz_init(tmp);

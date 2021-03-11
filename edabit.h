@@ -48,7 +48,7 @@ public:
   CorrelatedStore(const int serverfd, const int idx,
                   const char* const server0_ip, const char* const server1_ip,
                   const size_t nbits, const size_t batch_size = 64,
-                  const bool lazy = false, const bool do_fork = true) 
+                  const bool lazy = false, const bool do_fork = true)
   : batch_size(batch_size)
   , server_num(idx)
   , serverfd(serverfd)
@@ -64,7 +64,7 @@ public:
       triple_gen = new ArithTripleGenerator(serverfd, server_num);
     } else {
       std::cout << "Mod big, using slower arith triples" << std::endl;
-    } 
+    }
     io0 = new NetIO(server_num == 0 ? nullptr : server0_ip, 60052, true);
     io1 = new NetIO(server_num == 1 ? nullptr : server1_ip, 60053, true);
   }
@@ -96,7 +96,7 @@ public:
 
   // x, y, ret are [N]
   // does ret[i] = x[i] * y[i], as shares
-  bool* multiplyBoolShares(const size_t N, 
+  bool* multiplyBoolShares(const size_t N,
                            const bool* const x, const bool* const y);
   fmpz_t* multiplyArithmeticShares(const size_t N,
                                    const fmpz_t* const x, const fmpz_t* const y);

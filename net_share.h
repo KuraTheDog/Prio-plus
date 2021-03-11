@@ -37,7 +37,7 @@ string: best it can do is base 62, so 62/256 ~ 25% space efficiency. So needs ~4
 
 /* Core functions */
 
-// Send trivial. 
+// Send trivial
 int recv_in(const int sockfd, void* const buf, const size_t len);
 
 int send_bool(const int sockfd, const bool x);

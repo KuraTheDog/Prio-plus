@@ -35,7 +35,7 @@ void CorrelatedStore::addTriples(const size_t n) {
     for (unsigned int i = 0; i < num_to_make; i++)
       atriple_store.push(new_triples[i]);
   } else {
-    std::cout << "Using lazy beaver triples" << std::endl;  
+    std::cout << "Using lazy beaver triples" << std::endl;
     // std::cout << "Using OT beaver triples" << std::endl;
     for (unsigned int i = 0; i < num_to_make; i++) {
       BeaverTriple* triple = generate_beaver_triple_lazy(serverfd, server_num);
@@ -143,7 +143,7 @@ EdaBit* CorrelatedStore::getEdaBit(const size_t num_bits) {
     std::cerr << "Only " << nbits << " or " << 2 * nbits << " is supported" << std::endl;
     exit(EXIT_FAILURE);
   }
-  
+
   return ans;
 }
 
@@ -384,7 +384,7 @@ fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
   for (unsigned int i = 0; i < N; i++) {
     DaBit* dabit = getDaBit();
     v_this[i] = x[i] ^ dabit->b2;
-    
+
     fmpz_set(xp[i], dabit->bp);
     // consume the daBit
     delete dabit;
@@ -446,7 +446,7 @@ fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
     // consume edabit
     delete edabit;
   }
-  
+
   // [x + r]_2 = [x]_2 + [r]_2 via circuit
   bool* carry = addBinaryShares(N, num_bits, x2, b, xr);
 
@@ -496,7 +496,7 @@ fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
   return xp;
 }
 
-/* 
+/*
 //Unused
 bool* CorrelatedStore::validateSharesMatch(const size_t N,
                                            const size_t* const num_bits,

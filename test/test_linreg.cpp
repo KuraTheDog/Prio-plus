@@ -131,7 +131,7 @@ void test_CheckLinReg() {
   for (unsigned int i = 0; i < 4; i++) {
     fmpz_clear(inp[i]);
     fmpz_clear(inp0[i]);
-    fmpz_clear(inp1[i]);  
+    fmpz_clear(inp1[i]);
   }
 }
 

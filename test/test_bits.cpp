@@ -197,7 +197,7 @@ void test_b2a_daBit(const size_t N, const int server_num, const int serverfd, Co
   delete[] x;
 
   clear_fmpz_array(xp, N);
-} 
+}
 
 void test_b2a_edaBit(const size_t N, const size_t* const nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
   fmpz_t* x; new_fmpz_array(&x, N);

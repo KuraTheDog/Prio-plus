@@ -179,9 +179,9 @@ struct DaBit {
 };
 
 struct EdaBit {
-    fmpz_t r;  // [r]_p 
-    const size_t n;
-    bool* b;   // {[b]_2}
+    fmpz_t r;        // [r]_p
+    const size_t n;  // number of bits, length of b
+    bool* b;         // {[b]_2}
 
     EdaBit(const size_t n) : n(n) {
         fmpz_init(r);
