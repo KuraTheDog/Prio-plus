@@ -174,9 +174,9 @@ struct Checker {
     , n(c->NumMulGates())
     , N(NextPowerOfTwo(n))
     {
-        new_fmpz_array(&pointsF, N);
-        new_fmpz_array(&pointsG, N);
-        new_fmpz_array(&pointsH, 2 * N);
+        new_fmpz_array(&pointsF, N + 1);
+        new_fmpz_array(&pointsG, N + 1);
+        new_fmpz_array(&pointsH, 2 * (N + 1));
 
         fmpz_init(evalF);
         fmpz_init(evalG);
@@ -187,9 +187,9 @@ struct Checker {
     }
 
     ~Checker() {
-        clear_fmpz_array(pointsF, N);
-        clear_fmpz_array(pointsG, N);
-        clear_fmpz_array(pointsH, 2 * N);
+        clear_fmpz_array(pointsF, N + 1);
+        clear_fmpz_array(pointsG, N + 1);
+        clear_fmpz_array(pointsH, 2 * (N + 1));
         fmpz_clear(evalF);
         fmpz_clear(evalG);
         fmpz_clear(evalH);

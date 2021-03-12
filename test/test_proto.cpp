@@ -22,7 +22,7 @@ int main(int argc, char** argv){
   std::cout << "Making io objects" << std::endl;
 
   NetIO* io0 = new NetIO(server_num == 0 ? nullptr : SERVER0_IP, 60051, true);
-  NetIO* io1 = new NetIO(server_num == 1 ? nullptr : SERVER1_IP, 60052, true); 
+  NetIO* io1 = new NetIO(server_num == 1 ? nullptr : SERVER1_IP, 60052, true);
 
   std::cout << "Making bool triples" << std::endl;
 
@@ -70,7 +70,7 @@ int main(int argc, char** argv){
     fmpz_mod(tmp, tmp, Int_Modulus);
     fmpz_print(btriple->C); std::cout << " + "; fmpz_print(other_btriple->C);
     std::cout << " = "; fmpz_print(tmp); std::cout << std::endl;
-    
+
     delete other_btriple;
     delete btriple;
 

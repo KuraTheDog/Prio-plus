@@ -3,9 +3,6 @@ Based on ia.cr/2020/338
 
 Due to send buffers potentially filling up, it forks out a child to do sending, while parent receives.
 It also waits for the child to finish before exiting or moving to a substep that will send, to stay synced.
-
-TODO: Add check at start of functions to make enough if needed. 
-For when request size >> buffer size
 */
 #include "edabit.h"
 
@@ -26,20 +23,25 @@ void CorrelatedStore::addBoolTriples(const size_t n) {
     btriple_store.push(new_triples.front());
     new_triples.pop();
   }
-  long long t = time_from(start);
-  std::cout << "addBoolTriples timing : " << (((float)t)/CLOCKS_PER_SEC) << std::endl;
+  std::cout << "addBoolTriples timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }
 
 void CorrelatedStore::addTriples(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > batch_size ? n : batch_size);
   std::cout << "adding triples: " << num_to_make << std::endl;
-  std::cout << "Using lazy beaver triples" << std::endl;
-  // std::cout << "Using OT beaver triples" << std::endl;
-  for (unsigned int i = 0; i < num_to_make; i++) {
-    BeaverTriple* triple = generate_beaver_triple_lazy(serverfd, server_num);
-    // BeaverTriple* triple = generate_beaver_triple(serverfd, server_num, io0, io1);
-    atriple_store.push(triple);
+  if (triple_gen) {  // not null pointer
+    std::vector<BeaverTriple*> new_triples = triple_gen->generateTriples(num_to_make);
+    for (unsigned int i = 0; i < num_to_make; i++)
+      atriple_store.push(new_triples[i]);
+  } else {
+    std::cout << "Using lazy beaver triples" << std::endl;
+    // std::cout << "Using OT beaver triples" << std::endl;
+    for (unsigned int i = 0; i < num_to_make; i++) {
+      BeaverTriple* triple = generate_beaver_triple_lazy(serverfd, server_num);
+      // BeaverTriple* triple = generate_beaver_triple(serverfd, server_num, io0, io1);
+      atriple_store.push(triple);
+    }
   }
   std::cout << "addTriples timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
 }
@@ -141,7 +143,7 @@ EdaBit* CorrelatedStore::getEdaBit(const size_t num_bits) {
     std::cerr << "Only " << nbits << " or " << 2 * nbits << " is supported" << std::endl;
     exit(EXIT_FAILURE);
   }
-  
+
   return ans;
 }
 
@@ -214,6 +216,8 @@ CorrelatedStore::~CorrelatedStore() {
   }
   delete io0;
   delete io1;
+  if (triple_gen)
+    delete triple_gen;
 }
 
 bool* CorrelatedStore::multiplyBoolShares(const size_t N,
@@ -230,7 +234,8 @@ bool* CorrelatedStore::multiplyBoolShares(const size_t N,
     z[i] = triple->c;
     delete triple;
   }
-  pid_t pid = 0, status = 0;
+  pid_t pid = 0;
+  int status = 0;
   if (do_fork) pid = fork();
   if (pid == 0) {
     send_bool_batch(serverfd, d_this, N);
@@ -286,7 +291,8 @@ fmpz_t* CorrelatedStore::multiplyArithmeticShares(const size_t N,
   }
 
   // Spawn a child to do the sending, so that can recieve at the same time
-  pid_t pid = 0, status = 0;
+  pid_t pid = 0;
+  int status = 0;
   if (do_fork) pid = fork();
   if (pid == 0) {
     for (unsigned int i = 0; i < N; i++) {
@@ -378,12 +384,13 @@ fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
   for (unsigned int i = 0; i < N; i++) {
     DaBit* dabit = getDaBit();
     v_this[i] = x[i] ^ dabit->b2;
-    
+
     fmpz_set(xp[i], dabit->bp);
     // consume the daBit
     delete dabit;
   }
-  pid_t pid = 0, status = 0;
+  pid_t pid = 0;
+  int status = 0;
   if (do_fork) pid = fork();
   if (pid == 0) {
     send_bool_batch(serverfd, v_this, N);
@@ -439,7 +446,7 @@ fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
     // consume edabit
     delete edabit;
   }
-  
+
   // [x + r]_2 = [x]_2 + [r]_2 via circuit
   bool* carry = addBinaryShares(N, num_bits, x2, b, xr);
 
@@ -489,7 +496,7 @@ fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
   return xp;
 }
 
-/* 
+/*
 //Unused
 bool* CorrelatedStore::validateSharesMatch(const size_t N,
                                            const size_t* const num_bits,
@@ -548,7 +555,8 @@ DaBit** CorrelatedStore::generateDaBit(const size_t N) {
     makeLocalDaBit(dabit0[i], dabit1[i]);
   }
   // Exchange
-  pid_t pid = 0, status = 0;
+  pid_t pid = 0;
+  int status = 0;
   if (do_fork) pid = fork();
   if (pid == 0) {
     for (unsigned int i = 0; i < N; i++) {
@@ -617,7 +625,8 @@ EdaBit** CorrelatedStore::generateEdaBit(const size_t N, const size_t num_bits) 
     makeLocalEdaBit(edabit0[i], edabit1[i], num_bits);
   }
   // Exchange
-  pid_t pid = 0, status = 0;
+  pid_t pid = 0;
+  int status = 0;
   if (do_fork) pid = fork();
   if (pid == 0) {
     for (unsigned int i = 0; i < N; i++) {

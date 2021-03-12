@@ -160,7 +160,7 @@ int send_fmpz(const int sockfd, const fmpz_t x) {
         ret = send_size(sockfd, len);
         if (ret <= 0) return ret; else total += ret;
     }
-    
+
     ulong arr[len];
     fmpz_get_ui_array(arr, len, x);
 

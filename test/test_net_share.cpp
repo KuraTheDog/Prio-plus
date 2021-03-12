@@ -2,8 +2,6 @@
 Tests out net_share.cpp
 
 Creates "sender" and "receiver", and sends a bunch of struct.h objects from sender to receiver.
-
-g++ -std=c++11 -o test_net_share test_net_share.cpp ../fmpz_utils.cpp ../share.cpp -lgmp -lflint -g && ./test_net_share
 */
 
 #include <iostream>
