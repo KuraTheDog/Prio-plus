@@ -936,7 +936,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         if (i == 3 or i == 4)  // x^2 != x * x
             squared = (squared + 10) % (max_int * max_int);
         if (i != 2)  // x^2 not capped
-            shares0_squared[i] = shares0_squared[i] % max_int;
+            shares0_squared[i] = shares0_squared[i] % (max_int * max_int);
         shares1_squared[i] = squared ^ shares0_squared[i];
 
         std::cout << i << ": " << real_vals[i] << " = " << shares0[i] << "^" << shares1[i];
@@ -1224,6 +1224,195 @@ void lin_reg(const std::string protocol, const size_t numreqs) {
     std::cout << "Total sent bytes: " << num_bytes << std::endl;
 }
 
+/* 0: x > max
+   1: y shares > max
+   2: xy shares > max
+   3: x^2 = x * x + junk, run through snip
+   4: xy = x * y + junk, run snip with correct val
+   5: p0 h points corruption
+   6: p1 const value corruption
+   7: p0 mul share corruption
+   8: p1 triple corruption
+   9: pk mismatch
+   11: share0 has same pk as 10
+   13: share1 has same pk as 12
+*/
+void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
+    const size_t degree = 2;
+
+    const size_t num_x = degree - 1;
+    const size_t num_quad = num_x * (num_x + 1) / 2;
+
+    uint64_t* const x_accum = new uint64_t[num_x + num_quad + 1];
+    uint64_t* const y_accum = new uint64_t[num_x + 1];
+    memset(x_accum, 0, (num_x + num_quad + 1) * sizeof(uint64_t));
+    memset(y_accum, 0, (num_x + 1) * sizeof(uint64_t));
+    size_t numvalid = 0;
+
+    uint64_t x_real, x_share0, x_share1;
+    uint64_t y_real, y_share0, y_share1;
+    uint64_t x2_real, x2_share0, x2_share1;
+    uint64_t xy_real, xy_share0, xy_share1;
+
+    emp::PRG prg;
+
+    LinRegShare* const linshare0 = new LinRegShare[numreqs];
+    LinRegShare* const linshare1 = new LinRegShare[numreqs];
+    ClientPacket** const packet0 = new ClientPacket*[numreqs];
+    ClientPacket** const packet1 = new ClientPacket*[numreqs];
+
+    fmpz_t* inp; new_fmpz_array(&inp, 4);
+
+    Circuit* const mock_circuit = CheckLinReg(degree);
+    const size_t NMul = mock_circuit->NumMulGates();
+    delete mock_circuit;
+
+    std::string pk_s;
+
+    for (unsigned int i = 0; i < numreqs; i++) {
+        prg.random_data(&x_real, sizeof(uint64_t));
+        prg.random_data(&x_share0, sizeof(uint64_t));
+        prg.random_data(&y_real, sizeof(uint64_t));
+        prg.random_data(&y_share0, sizeof(uint64_t));
+        prg.random_data(&x2_share0, sizeof(uint64_t));
+        prg.random_data(&xy_share0, sizeof(uint64_t));
+
+        x_real = x_real % max_int;
+        if (i == 0)  // x over cap
+            x_real += max_int;
+        x_share0 = x_share0 % max_int;
+        x_share1 = x_share0 ^ x_real;
+
+        y_real = y_real % max_int;
+        if (i != 1)  // y share over cap
+            y_share0 = y_share0 % max_int;
+        y_share1 = y_share0 ^ y_real;
+
+        x2_real = x_real * x_real;
+        if (i == 3)
+            x2_real = (x2_real + 10) % (max_int * max_int);
+        if (i != 2)
+            x2_share0 = x2_share0 % (max_int * max_int);
+        x2_share1 = x2_share0 ^ x2_real;
+
+        xy_real = x_real * y_real;
+        if (i == 4)
+            xy_real = (xy_real + 10) % (max_int * max_int);
+        xy_share0 = xy_share0 % (max_int * max_int);
+        xy_share1 = xy_share0 ^ xy_real;
+
+        const char* prev_pk = pk_s.c_str();
+        pk_s = make_pk(prg);
+        const char* pk = pk_s.c_str();
+
+        memcpy(linshare0[i].pk, &pk[0], PK_LENGTH);
+        if (i == 9)
+            linshare0[i].pk[0] = 'q';
+        if (i == 11)
+            memcpy(linshare0[i].pk, &prev_pk[0], PK_LENGTH);
+        linshare0[i].y = y_share0;
+        linshare0[i].x_vals = new uint64_t[1];
+        linshare0[i].x2_vals = new uint64_t[1];
+        linshare0[i].xy_vals = new uint64_t[1];
+        linshare0[i].x_vals[0] = x_share0;
+        linshare0[i].x2_vals[0] = x2_share0;
+        linshare0[i].xy_vals[0] = xy_share0;
+
+        memcpy(linshare1[i].pk, &pk[0], PK_LENGTH);
+        if (i == 13)
+            memcpy(linshare1[i].pk, &prev_pk[0], PK_LENGTH);
+        linshare1[i].y = y_share1;
+        linshare1[i].x_vals = new uint64_t[1];
+        linshare1[i].x2_vals = new uint64_t[1];
+        linshare1[i].xy_vals = new uint64_t[1];
+        linshare1[i].x_vals[0] = x_share1;
+        linshare1[i].x2_vals[0] = x2_share1;
+        linshare1[i].xy_vals[0] = xy_share1;
+
+        fmpz_set_si(inp[0], x_real);
+        fmpz_set_si(inp[1], y_real);
+        fmpz_set_si(inp[2], x2_real);
+        fmpz_set_si(inp[3], xy_real);
+        if (i == 4)
+            fmpz_set_si(inp[3], x_real * y_real);
+
+        Circuit* const circuit = CheckLinReg(degree);
+        circuit->Eval(inp);
+        packet0[i] = new ClientPacket(NMul);
+        packet1[i] = new ClientPacket(NMul);
+        share_polynomials(circuit, packet0[i], packet1[i]);
+        delete circuit;
+        if (i == 5)
+            fmpz_add_si(packet0[i]->h_points[0], packet0[i]->h_points[0], 1);
+        if (i == 6)
+            fmpz_add_si(packet1[i]->f0_s, packet1[i]->f0_s, 1);
+        if (i == 7)
+            fmpz_add_si(packet0[i]->MulShares[0], packet0[i]->MulShares[0], 1);
+        if (i == 8)
+            fmpz_add_si(packet1[i]->triple_share->shareA, packet1[i]->triple_share->shareA, 1);
+
+        // 10 vs 11, 12 vs 13 can be non-deterministic which ends up being right. 
+        if (i <= 9 or i == 11 or i == 13) {
+            // std::cout << " (invalid)" << std::endl;
+        } else {
+            x_accum[0] += 1;
+            x_accum[1] += x_real;
+            x_accum[2] += x2_real;
+            y_accum[0] += y_real;
+            y_accum[1] += xy_real;
+
+            numvalid++;
+        }
+    }
+
+    initMsg msg;
+    msg.num_of_inputs = numreqs;
+    msg.type = LINREG_OP;
+
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
+
+    send_size(sockfd0, degree);
+    send_size(sockfd1, degree);
+    for (unsigned int i = 0; i < numreqs; i++) {
+        send_linregshare(0, linshare0[i], degree);
+        send_linregshare(1, linshare1[i], degree);
+
+        send_ClientPacket(sockfd0, packet0[i], NMul);
+        send_ClientPacket(sockfd1, packet1[i], NMul);
+
+        delete[] linshare0[i].x_vals;
+        delete[] linshare0[i].x2_vals;
+        delete[] linshare0[i].xy_vals;
+        delete[] linshare1[i].x_vals;
+        delete[] linshare1[i].x2_vals;
+        delete[] linshare1[i].xy_vals;
+        delete packet0[i];
+        delete packet1[i];
+    }
+
+    delete[] linshare0;
+    delete[] linshare1;
+    delete[] packet0;
+    delete[] packet1;
+    clear_fmpz_array(inp, 4);
+
+    std::cout << "Sent " << numvalid << " / " << numreqs << " valid requests" << std::endl;
+
+    double* c = SolveLinReg(degree, x_accum, y_accum);
+    delete[] x_accum;
+    delete[] y_accum;
+    std::cout << "Estimate: y = ";
+    for (unsigned int i = 0; i < degree; i++) {
+        if (i > 0) std::cout << " + ";
+        std::cout << c[i];
+        if (i > 0) std::cout << " * x_" << (i-1);
+    }
+    std::cout << std::endl;
+
+    delete[] c;
+}
+
 int main(int argc, char** argv) {
     if (argc < 4) {
         std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits linreg_degree" << endl;
@@ -1364,7 +1553,10 @@ int main(int argc, char** argv) {
     else if(protocol == "LINREGOP") {
         std::cout << "Uploading all LINREG shares: " << numreqs << std::endl;
 
-        lin_reg(protocol, numreqs);
+        if (DEBUG_INVALID)
+            lin_reg_invalid(protocol, numreqs);
+        else
+            lin_reg(protocol, numreqs);
         std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
     }
 
