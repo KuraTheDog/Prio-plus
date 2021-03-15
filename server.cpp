@@ -553,7 +553,6 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 }
 
 // For MAX and MIN
-// TODO: does this need htonl/ntohl wrappers for int arrays?
 returnType max_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint64_t& ans) {
     std::unordered_map<std::string, uint64_t*> share_map;
     auto start = clock_start();
