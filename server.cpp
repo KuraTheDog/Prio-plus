@@ -1206,6 +1206,8 @@ int main(int argc, char** argv) {
     fmpz_init(randomX);
     sync_randomX(serverfd, server_num, randomX);
 
+    syncSnipSeeds(serverfd, server_num);
+
     correlated_store = new CorrelatedStore(serverfd, server_num, SERVER0_IP, SERVER1_IP, num_bits, CACHE_SIZE, LAZY_PRECOMPUTE);
 
     int sockfd, newsockfd;

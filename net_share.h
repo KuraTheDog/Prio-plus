@@ -73,6 +73,9 @@ int recv_string(const int sockfd, std::string& x);
 int send_fmpz(const int sockfd, const fmpz_t x);
 int recv_fmpz(const int sockfd, fmpz_t x);
 
+int send_seed(const int sockfd, const flint_rand_t x);
+int recv_seed(const int sockfd, flint_rand_t x);
+
 /* Share functions */
 
 // Unused

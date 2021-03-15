@@ -195,6 +195,15 @@ int recv_fmpz(const int sockfd, fmpz_t x) {
     return total;
 }
 
+int send_seed(const int sockfd, const flint_rand_t x) {
+    const char* data = (const char*) &x[0];
+    return send(sockfd, data, sizeof(x[0]), 0);
+}
+
+int recv_seed(const int sockfd, flint_rand_t x) {
+    return recv_in(sockfd, &x[0], sizeof(x[0]));   
+}
+
 /* Share functions */
 
 int send_Cor(const int sockfd, const Cor* const x) {

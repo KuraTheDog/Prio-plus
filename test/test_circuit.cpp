@@ -65,7 +65,7 @@ void test_CheckVar() {
   CheckerPreComp* pre0 = new CheckerPreComp(N);
   pre0->setCheckerPrecomp(randomX);
 
-  Checker* checker_0 = new Checker(var_circuit0, 0, p0, pre0, inp0);
+  Checker* checker_0 = new Checker(var_circuit0, 0, p0, pre0, inp0, true);
 
   std::cout << "-=-=-=-=-=-" << std::endl;
 
@@ -73,7 +73,7 @@ void test_CheckVar() {
   CheckerPreComp* pre1 = new CheckerPreComp(N);
   pre1->setCheckerPrecomp(randomX);
 
-  Checker* checker_1 = new Checker(var_circuit1, 1, p1, pre1, inp1);
+  Checker* checker_1 = new Checker(var_circuit1, 1, p1, pre1, inp1, true);
 
   std::cout << "checkers made" << std::endl;
 

@@ -4,6 +4,7 @@
 #include "circuit.h"
 #include "constants.h"
 #include "fmpz_utils.h"
+#include "net_share.h"
 
 extern "C" {
     #include "poly/poly_batch.h"
@@ -130,23 +131,22 @@ struct CheckerPreComp {
     }
 };
 
-// TODO: Fix Both servers need to use same random seed. Using constant 1 instead now.
-void randSum(fmpz_t out, const fmpz_t* const arr, const size_t len) {
-    fmpz_t tmp;
-    fmpz_init(tmp);
+// Common (synced) randomness between all checkers on both servers
+// Could also be static member, but then syncing is harder
+extern flint_rand_t snips_seed;
+flint_rand_t snips_seed;
+void syncSnipSeeds(const int serverfd, const int server_num) {
+    flint_randinit(snips_seed);
+    fmpz_t tmp; fmpz_init(tmp);
 
-    for (unsigned int i = 0; i < len; i++) {
-        // fmpz_randm(tmp, seed, Int_Modulus);
-        fmpz_set_ui(tmp, 1);
-        fmpz_mul(tmp, tmp, arr[i]);
-        fmpz_mod(tmp, tmp, Int_Modulus);
+    // fmpz_randm(tmp, snips_seed, Int_Modulus);
+    // std::cout << "server " << server_num << " snips sync: next rand: ";
+    // fmpz_print(tmp); std::cout << std::endl;
 
-        fmpz_add(out, out, tmp);
-    }
-
-    fmpz_mod(out, out, Int_Modulus);
-
-    fmpz_clear(tmp);
+    if (server_num == 0)
+        send_seed(serverfd, snips_seed);
+    else
+        recv_seed(serverfd, snips_seed);   
 }
 
 struct Checker {
@@ -166,14 +166,24 @@ struct Checker {
     fmpz_t evalG;  // [r * g(r)]
     fmpz_t evalH;  // [r * h(r)]
 
+    // if both servers on same runtime/execution (e.g. test files), use fixed randomness instead
+    const bool same_runtime = false;
+
     Checker(Circuit* const c, const int idx, const ClientPacket* const req,
-            const CheckerPreComp* const pre, const fmpz_t* const InputShares)
+            const CheckerPreComp* const pre, const fmpz_t* const InputShares,
+            const bool same_runtime = false)
     : server_num(idx)
     , req(req)
     , ckt(c)
     , n(c->NumMulGates())
     , N(NextPowerOfTwo(n))
+    , same_runtime(same_runtime)
     {
+        if (same_runtime) {
+            std::cout << "DEBUG: using fixed checker randomness since same runtime" << std::endl;
+            flint_randinit(snips_seed);
+        }
+
         new_fmpz_array(&pointsF, N + 1);
         new_fmpz_array(&pointsG, N + 1);
         new_fmpz_array(&pointsH, 2 * (N + 1));
@@ -187,6 +197,7 @@ struct Checker {
     }
 
     ~Checker() {
+        flint_randclear(seed);
         clear_fmpz_array(pointsF, N + 1);
         clear_fmpz_array(pointsG, N + 1);
         clear_fmpz_array(pointsH, 2 * (N + 1));
@@ -284,6 +295,24 @@ struct Checker {
         clear_fmpz_array(arr, num_zero_gates+1);
         fmpz_clear(mulCheck);
         fmpz_clear(term);
+    }
+
+    void randSum(fmpz_t out, const fmpz_t* const arr, const size_t len) const {
+        fmpz_t tmp; fmpz_init(tmp);
+
+        for (unsigned int i = 0; i < len; i++) {
+            fmpz_randm(tmp, snips_seed, Int_Modulus);
+            if (same_runtime)
+                fmpz_set_ui(tmp, 1);
+            fmpz_mul(tmp, tmp, arr[i]);
+            fmpz_mod(tmp, tmp, Int_Modulus);
+
+            fmpz_add(out, out, tmp);
+        }
+
+        fmpz_mod(out, out, Int_Modulus);
+
+        fmpz_clear(tmp);
     }
 };
 
