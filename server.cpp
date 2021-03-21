@@ -40,8 +40,6 @@ CorrelatedStore* correlated_store;
 // If set, does fast but insecure offline precompute.
 #define LAZY_PRECOMPUTE true
 
-#define OT_PORT 60051
-
 uint64_t int_sum_max;
 uint32_t num_bits;
 
@@ -308,9 +306,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
         std::cout << "pk time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
 
-        NetIO* const io = new NetIO(SERVER0_IP, OT_PORT, true);
-        const uint64_t b = bitsum_ot_receiver(io, shares, num_inputs);
-        delete io;
+        const uint64_t b = bitsum_ot_receiver(correlated_store->io0, shares, num_inputs);
         delete[] shares;
 
         send_uint64(serverfd, b);
@@ -337,9 +333,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
         std::cout << "pk time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
 
-        NetIO* const io = new NetIO(nullptr, OT_PORT, true);
-        const uint64_t a = bitsum_ot_sender(io, shares, valid, num_inputs);
-        delete io;
+        const uint64_t a = bitsum_ot_sender(correlated_store->io0, shares, valid, num_inputs);
         delete[] shares;
         delete[] valid;
 
@@ -401,9 +395,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         }
         std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
-        NetIO* const io = new NetIO(SERVER0_IP, OT_PORT, true);
-        const uint64_t* const b = intsum_ot_receiver(io, shares, nbits, num_inputs, 1);
-        delete io;
+        const uint64_t* const b = intsum_ot_receiver(correlated_store->io0, shares, nbits, num_inputs, 1);
         delete[] shares;
 
         send_uint64(serverfd, b[0]);
@@ -430,9 +422,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         }
         std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
-        NetIO* const io = new NetIO(nullptr, OT_PORT, true);
-        const uint64_t* const a = intsum_ot_sender(io, shares, valid, nbits, num_inputs, 1);
-        delete io;
+        const uint64_t* const a = intsum_ot_sender(correlated_store->io0, shares, valid, nbits, num_inputs, 1);
         delete[] shares;
         delete[] valid;
 
