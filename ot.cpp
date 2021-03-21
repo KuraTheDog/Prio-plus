@@ -3,7 +3,7 @@
 #include "constants.h"
 #include "net_share.h"
 
-uint64_t bitsum_ot_sender(NetIO* const io, const bool* const shares, const bool* const valid, const size_t n){
+uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const bool* const valid, const size_t n){
     PRG prg(fix_key);
 
     uint64_t b0, b1;
@@ -28,71 +28,18 @@ uint64_t bitsum_ot_sender(NetIO* const io, const bool* const shares, const bool*
         q[1] = b1; // b1
     }
 
-    io->sync();
-    IKNP<NetIO>* const ot = new IKNP<NetIO>(io);
     ot->send(b0_ot, b1_ot, n);
-    io->flush();
 
     delete[] b1_ot;
     delete[] b0_ot;
-    delete ot;
-
     return sum;
 }
 
-/*
-uint64_t intsum_ot_sender(NetIO* const io, const uint64_t* const shares, const bool* const valid, const size_t n, const size_t num_bits){
-    PRG prg(fix_key);
-
-    uint64_t bool_share, r;
-    uint64_t sum = 0;
-
-    block* const b0_ot = new block[n*num_bits];
-    block* const b1_ot = new block[n*num_bits];
-
-    for (unsigned int i = 0; i < n; i++){
-        uint64_t num = shares[i];
-        for (unsigned int j = 0; j < num_bits; j++){
-            size_t idx = i * num_bits + j;
-
-            bool_share = num%2;
-            num = num >> 1;
-
-            prg.random_data(&r, sizeof(uint64_t));
-
-            if (valid[i])
-                sum += r;
-
-            uint64_t* const p = (uint64_t*)&b0_ot[idx];
-            p[0] = valid[i];
-            p[1] = (bool_share)*(1ULL << j) - r;
-            uint64_t* const q = (uint64_t*)&b1_ot[idx];
-            q[0] = valid[i];
-            q[1] = (1 - bool_share)*(1ULL << j) - r;
-        }
-    }
-
-    io->sync();
-    IKNP<NetIO>* const ot = new IKNP<NetIO>(io);
-    ot->send(b0_ot, b1_ot, n*num_bits);
-    io->flush();
-
-    delete[] b1_ot;
-    delete[] b0_ot;
-    delete ot;
-
-    return sum;
-}
-*/
-
-uint64_t bitsum_ot_receiver(NetIO* const io, const bool* const shares, const size_t n){
+uint64_t bitsum_ot_receiver(OT_Wrapper* const ot, const bool* const shares, const size_t n){
     block* const r = new block[n];
     uint64_t sum = 0;
 
-    io->sync();
-    IKNP<NetIO>* const ot = new IKNP<NetIO>(io);
     ot->recv(r, shares, n);
-    io->flush();
 
     for (unsigned int i = 0; i < n; i++){
         uint64_t* const p = (uint64_t*)&r[i];
@@ -100,56 +47,11 @@ uint64_t bitsum_ot_receiver(NetIO* const io, const bool* const shares, const siz
     }
 
     delete[] r;
-    delete ot;
 
     return sum;
 }
 
-/*
-uint64_t intsum_ot_receiver(NetIO* const io, const uint64_t* const shares, const size_t n, const size_t num_bits){
-
-    block* const r = new block[n*num_bits];
-    bool* bool_shares = new bool[n*num_bits];
-
-    for (unsigned int i = 0; i < n; i++){
-        uint64_t num = shares[i];
-        // std::cout << "Share[" << i << "] = " << num << " num bits " << num_bits << std::endl;
-        for (unsigned int j = 0; j < num_bits; j++){
-            // std::cout << num%2;
-            bool_shares[i*num_bits + j] = num%2;
-            num = num >> 1;
-        }
-        // std::cout << std::endl;
-    }
-
-    uint64_t sum = 0;
-    io->sync();
-    IKNP<NetIO>* const ot = new IKNP<NetIO>(io);
-    ot->recv(r, bool_shares, n*num_bits);
-    io->flush();
-
-    delete[] bool_shares;
-
-    for (unsigned int i = 0; i < n; i++){
-        uint64_t valid = ((uint64_t*) &r[i*num_bits])[0];
-        if(valid) {
-            for (unsigned int j = 0; j < num_bits; j++){
-                uint64_t* const p = (uint64_t*)&r[i*num_bits+j];
-                // std::cout << "sum += p[1] at " << j << " = " << p[1] << std::endl;
-                sum += p[1];
-            }
-        }
-    }
-
-    delete[] r;
-    delete ot;
-
-    return sum;
-}
-*/
-
-
-uint64_t* intsum_ot_sender(NetIO* const io,  const uint64_t* const shares,
+uint64_t* intsum_ot_sender(OT_Wrapper* const ot,  const uint64_t* const shares,
                            const bool* const valid, const size_t* const num_bits,
                            const size_t num_shares, const size_t num_values) {
     PRG prg;
@@ -194,19 +96,15 @@ uint64_t* intsum_ot_sender(NetIO* const io,  const uint64_t* const shares,
         }
     }
 
-    io->sync();
-    IKNP<NetIO>* const ot = new IKNP<NetIO>(io);
     ot->send(b0_ot, b1_ot, num_shares * total_bits);
-    io->flush();
 
-    delete ot;
     delete[] b0_ot;
     delete[] b1_ot;
 
     return sum;
 }
 
-uint64_t* intsum_ot_receiver(NetIO* const io, const uint64_t* const shares,
+uint64_t* intsum_ot_receiver(OT_Wrapper* const ot, const uint64_t* const shares,
                              const size_t* const num_bits,
                              const size_t num_shares, const size_t num_values) {
     size_t total_bits = 0;
@@ -231,12 +129,8 @@ uint64_t* intsum_ot_receiver(NetIO* const io, const uint64_t* const shares,
         }
     }
 
-    io->sync();
-    IKNP<NetIO>* const ot = new IKNP<NetIO>(io);
     ot->recv(r, bool_shares, num_shares * total_bits);
-    io->flush();
 
-    delete ot;
     delete[] bool_shares;
 
     idx = 0;
@@ -256,100 +150,6 @@ uint64_t* intsum_ot_receiver(NetIO* const io, const uint64_t* const shares,
         }
     }
     delete[] r;
-    return sum;
-}
-
-
-// Unused
-uint64_t xor_to_sum_share_sender(NetIO* const io, const uint64_t share, const size_t num_bits){
-    PRG prg(fix_key);
-
-    uint64_t* bool_shares = new uint64_t[num_bits];
-    uint64_t* b0 = new uint64_t[num_bits];
-    uint64_t* b1 = new uint64_t[num_bits];
-    uint64_t* r = new uint64_t[num_bits];
-    uint64_t sum = 0;
-    prg.random_data(r,num_bits*sizeof(uint64_t));
-
-
-    uint64_t num = share;
-    // std::cout << "Share : " << num << "  valid " << valid[i] << std::endl;
-    // std::cout << "Valid : " << valid[i] << " num bits " << num_bits << std::endl;
-    for (unsigned int j = 0; j < num_bits; j++){
-        // std::cout << num%2 << std::endl;
-        bool_shares[j] = num%2;
-
-        // std::cout << "r[" << j << "] : " << r[j] << std::endl;
-        num = num >> 1;
-    }
-
-    for (unsigned int j = 0; j < num_bits; j++){
-        b0[j] = ((bool_shares[j])*(1ULL << j) - r[j]);
-        b1[j] = ((1 - bool_shares[j])*(1ULL << j) - r[j]);
-    }
-
-    delete[] bool_shares;
-
-    block* const b0_ot = new block[num_bits];
-    block* const b1_ot = new block[num_bits];
-
-    for (unsigned int i = 0; i < num_bits; i++){
-        uint64_t* const p = (uint64_t*)&b0_ot[i];
-        p[0] = 0;
-        p[1] = b0[i];
-        uint64_t* const q = (uint64_t*)&b1_ot[i];
-        q[0] = p[0];
-        q[1] = b1[i];
-    }
-
-    delete[] b0;
-    delete[] b1;
-
-    io->sync();
-    IKNP<NetIO>* const ot = new IKNP<NetIO>(io);
-    ot->send(b0_ot, b1_ot, num_bits);
-    io->flush();
-
-    delete[] b1_ot;
-    delete[] b0_ot;
-    delete ot;
-
-    for (unsigned int j = 0; j < num_bits; j++)
-        sum += r[j];
-
-    delete[] r;
-
-    return sum;
-}
-
-// Unused
-uint64_t xor_to_sum_share_receiver(NetIO* const io, const uint64_t share, const size_t num_bits){
-    block* const r = new block[num_bits];
-    bool* bool_shares = new bool[num_bits];
-
-    uint64_t num = share;
-    // std::cout << "Share : " << num << " num bits " << num_bits << std::endl;
-    for (unsigned int j = 0; j < num_bits; j++){
-        bool_shares[j] = num%2;
-        num = num >> 1;
-    }
-
-    uint64_t sum = 0;
-    io->sync();
-    IKNP<NetIO>* const ot = new IKNP<NetIO>(io);
-    ot->recv(r, bool_shares, num_bits);
-    io->flush();
-
-    delete[] bool_shares;
-    delete ot;
-
-    for (unsigned int j = 0; j < num_bits; j++){
-        uint64_t* const p = (uint64_t*)&r[j];
-        sum += p[1];
-    }
-
-    delete[] r;
-
     return sum;
 }
 
@@ -373,7 +173,7 @@ void print_block(const block var) {
 }
 
 // Ref : https://crypto.stackexchange.com/questions/41651/what-are-the-ways-to-generate-beaver-triples-for-multiplication-gate
-std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num, const unsigned int m, NetIO* const io0, NetIO* const io1){
+std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num, const unsigned int m, OT_Wrapper* const ot0, OT_Wrapper* const ot1){
     PRG prg;
     std::queue<BooleanBeaverTriple*> ans;
     bool* x = new bool[m];
@@ -395,26 +195,12 @@ std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num
     }
 
     if(server_num == 0){
-        io0->sync();
-        IKNP<NetIO> ot0(io0);
-        ot0.send(b0, b1, m);
-        io0->flush();
-
-        io1->sync();
-        IKNP<NetIO> ot1(io1);
-        ot1.recv(B, y, m);
-        io1->flush();
+        ot0->send(b0, b1, m);
+        ot1->recv(B, y, m);
     }
     else if(server_num == 1){
-        io0->sync();
-        IKNP<NetIO> ot0(io0);
-        ot0.recv(B, y, m);
-        io0->flush();
-
-        io1->sync();
-        IKNP<NetIO> ot1(io1);
-        ot1.send(b0, b1, m);
-        io1->flush();
+        ot0->recv(B, y, m);
+        ot1->send(b0, b1, m);
     }
 
     block_to_boolean(B, b, m);
@@ -443,7 +229,7 @@ std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num
 
 // Slow. OT per bit
 // Not batched, but we also don't really want to do this
-BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, NetIO* const io0, NetIO* const io1) {
+BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, OT_Wrapper* const ot0, OT_Wrapper* const ot1) {
 
     // auto start = clock_start();
 
@@ -487,25 +273,11 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, N
 
 
     if (server_num == 0) {
-        io0->sync();
-        IKNP<NetIO> ot0(io0);
-        ot0.recv(s_block, a_arr, n);
-        io0->flush();
-
-        io1->sync();
-        IKNP<NetIO> ot1(io1);
-        ot1.send(r0_block, r1_block, n);
-        io1->flush();
+        ot0->recv(s_block, a_arr, n);
+        ot1->send(r0_block, r1_block, n);
     } else {
-        io0->sync();
-        IKNP<NetIO> ot0(io0);
-        ot0.send(r0_block, r1_block, n);
-        io0->flush();
-
-        io1->sync();
-        IKNP<NetIO> ot1(io1);
-        ot1.recv(s_block, a_arr, n);
-        io1->flush();
+        ot0->send(r0_block, r1_block, n);
+        ot1->recv(s_block, a_arr, n);
     }
 
     // std::cout << "OT timing: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;

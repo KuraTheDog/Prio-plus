@@ -265,7 +265,9 @@ void test_validateSharesMatch(const size_t N, const size_t* const nbits, const i
 
 void runServerTest(const int server_num, const int serverfd) {
   const bool lazy = false;
-  CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, "127.0.0.1", "127.0.0.1", num_bits, batch_size, lazy, do_fork);
+  OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : "127.0.0.1", 60051);
+  OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : "127.0.0.1", 60052);
+  CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, batch_size, lazy, do_fork);
 
   store->maybeUpdate();
 
@@ -292,6 +294,8 @@ void runServerTest(const int server_num, const int serverfd) {
     // test_validateSharesMatch(N, bits_arr, server_num, serverfd, store);
   }
 
+  delete ot0;
+  delete ot1;
   delete[] bits_arr;
   delete store;
 }

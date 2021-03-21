@@ -21,12 +21,12 @@ int main(int argc, char** argv){
 
   std::cout << "Making io objects" << std::endl;
 
-  NetIO* io0 = new NetIO(server_num == 0 ? nullptr : SERVER0_IP, 60051, true);
-  NetIO* io1 = new NetIO(server_num == 1 ? nullptr : SERVER1_IP, 60052, true);
+  OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : SERVER0_IP, 60051);
+  OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
 
   std::cout << "Making bool triples" << std::endl;
 
-  auto triples = gen_boolean_beaver_triples(server_num, m, io0, io1);
+  auto triples = gen_boolean_beaver_triples(server_num, m, ot0, ot1);
 
   if (pid == 0) {
     sleep(1);
@@ -46,7 +46,6 @@ int main(int argc, char** argv){
     delete other_triple;
 
     std::cout << "Making arith triple" << std::endl;
-    // BeaverTriple* btriple = generate_beaver_triple(cli_sockfd, server_num, io0, io1);
     BeaverTriple* btriple = generate_beaver_triple_lazy(cli_sockfd, server_num);
     std::cout << "Validating arith triple" << std::endl;
     BeaverTriple* other_btriple = new BeaverTriple();
@@ -86,7 +85,6 @@ int main(int argc, char** argv){
       delete triple;
     }
 
-    // BeaverTriple* btriple = generate_beaver_triple(newsockfd, server_num, io0, io1);
     BeaverTriple* btriple = generate_beaver_triple_lazy(newsockfd, server_num);
 
     send_BeaverTriple(newsockfd, btriple);
@@ -97,8 +95,8 @@ int main(int argc, char** argv){
     close(newsockfd);
   }
 
-  delete io0;
-  delete io1;
+  delete ot0;
+  delete ot1;
 
   clear_constants();
 

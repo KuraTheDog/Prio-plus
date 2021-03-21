@@ -31,6 +31,9 @@ fmpz_t randomX;
 // Precomputes for the current random X
 std::unordered_map<size_t, CheckerPreComp*> precomp_store;
 
+OT_Wrapper* ot0;
+OT_Wrapper* ot1;
+
 // Precompute cache of edabits and beaver triples
 CorrelatedStore* correlated_store;
 // #define CACHE_SIZE 8192
@@ -306,7 +309,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
         std::cout << "pk time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
 
-        const uint64_t b = bitsum_ot_receiver(correlated_store->io0, shares, num_inputs);
+        const uint64_t b = bitsum_ot_receiver(ot0, shares, num_inputs);
         delete[] shares;
 
         send_uint64(serverfd, b);
@@ -333,7 +336,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
         std::cout << "pk time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
 
-        const uint64_t a = bitsum_ot_sender(correlated_store->io0, shares, valid, num_inputs);
+        const uint64_t a = bitsum_ot_sender(ot0, shares, valid, num_inputs);
         delete[] shares;
         delete[] valid;
 
@@ -395,7 +398,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         }
         std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
-        const uint64_t* const b = intsum_ot_receiver(correlated_store->io0, shares, nbits, num_inputs, 1);
+        const uint64_t* const b = intsum_ot_receiver(ot0, shares, nbits, num_inputs, 1);
         delete[] shares;
 
         send_uint64(serverfd, b[0]);
@@ -422,7 +425,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         }
         std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
         start2 = clock_start();
-        const uint64_t* const a = intsum_ot_sender(correlated_store->io0, shares, valid, nbits, num_inputs, 1);
+        const uint64_t* const a = intsum_ot_sender(ot0, shares, valid, nbits, num_inputs, 1);
         delete[] shares;
         delete[] valid;
 
@@ -1198,7 +1201,10 @@ int main(int argc, char** argv) {
 
     syncSnipSeeds(serverfd, server_num);
 
-    correlated_store = new CorrelatedStore(serverfd, server_num, SERVER0_IP, SERVER1_IP, num_bits, CACHE_SIZE, LAZY_PRECOMPUTE);
+    ot0 = new OT_Wrapper(server_num == 0 ? nullptr : SERVER0_IP, 60051);
+    ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
+
+    correlated_store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, CACHE_SIZE, LAZY_PRECOMPUTE);
 
     int sockfd, newsockfd;
     sockaddr_in addr;
@@ -1329,5 +1335,8 @@ int main(int argc, char** argv) {
     delete correlated_store;
     for (const auto& precomp : precomp_store)
         delete precomp.second;
+
+    delete ot0;
+    delete ot1;
     return 0;
 }

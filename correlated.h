@@ -22,6 +22,7 @@ It also waits for the child to finish before exiting or moving to a substep that
 
 #include "constants.h"
 #include "he_triples.h"
+#include "ot.h"
 #include "share.h"
 
 // A Cache of correlated bits of different types
@@ -60,19 +61,18 @@ class CorrelatedStore {
   void addDaBits(const size_t n = 0);
   void addEdaBits(const size_t num_bits, const size_t n = 0);
 
-public:
+  OT_Wrapper* const ot0;
+  OT_Wrapper* const ot1;
 
-  // for OTs between servers
-  NetIO* io0;
-  NetIO* io1;
+public:
 
   // True to work correctly on large batches, and faster
   // False to do debugging
   const bool do_fork;
 
   CorrelatedStore(const int serverfd, const int idx,
-                  const char* const server0_ip, const char* const server1_ip,
-                  const size_t nbits, const size_t batch_size = 64,
+                  OT_Wrapper* const ot0, OT_Wrapper* const ot1,
+                  const size_t nbits, const size_t batch_size,
                   const bool lazy = false, const bool do_fork = true)
   : batch_size(batch_size)
   , server_num(idx)
@@ -80,6 +80,8 @@ public:
   , nbits(nbits)
   , lazy(lazy)
   , bool_batch_size(batch_size * nbits)
+  , ot0(ot0)
+  , ot1(ot1)
   , do_fork(do_fork)
   {
     if (lazy) {
@@ -90,8 +92,6 @@ public:
     } else {
       std::cout << "Mod big, using slower arith triples" << std::endl;
     }
-    io0 = new NetIO(server_num == 0 ? nullptr : server0_ip, 60052, true);
-    io1 = new NetIO(server_num == 1 ? nullptr : server1_ip, 60053, true);
   }
 
   ~CorrelatedStore();
