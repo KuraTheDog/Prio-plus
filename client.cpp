@@ -24,7 +24,7 @@ x_op_invalid: For testing/debugging, does a basic run with intentionally invalid
 
 #include "circuit.h"
 #include "net_share.h"
-#include "proto.h"
+#include "ot.h"
 #include "types.h"
 
 // #define SERVER0_IP "52.87.230.64"

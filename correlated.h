@@ -22,7 +22,6 @@ It also waits for the child to finish before exiting or moving to a substep that
 
 #include "constants.h"
 #include "he_triples.h"
-#include "proto.h"
 #include "share.h"
 
 // A Cache of correlated bits of different types
@@ -48,6 +47,18 @@ class CorrelatedStore {
   std::queue<DaBit*> dabit_store;
   std::queue<BooleanBeaverTriple*> btriple_store;
   std::queue<BeaverTriple*> atriple_store;
+
+  // return N new daBits
+  DaBit** generateDaBit(const size_t N);
+  // return N new edaBits
+  EdaBit** generateEdaBit(const size_t N, const size_t num_bits);
+
+  // add to the store.
+  // Adds at least batch_size (or bool_batch_size), or n if bigger
+  void addBoolTriples(const size_t n = 0);
+  void addTriples(const size_t n = 0);
+  void addDaBits(const size_t n = 0);
+  void addEdaBits(const size_t num_bits, const size_t n = 0);
 
 public:
 
@@ -84,18 +95,6 @@ public:
   }
 
   ~CorrelatedStore();
-
-  // return N new daBits
-  DaBit** generateDaBit(const size_t N);
-  // return N new edaBits
-  EdaBit** generateEdaBit(const size_t N, const size_t num_bits);
-
-  // add to the store.
-  // Adds at least batch_size (or bool_batch_size), or n if bigger
-  void addBoolTriples(const size_t n = 0);
-  void addTriples(const size_t n = 0);
-  void addDaBits(const size_t n = 0);
-  void addEdaBits(const size_t num_bits, const size_t n = 0);
 
   // get from store, and maybe add if necessary
   BooleanBeaverTriple* getBoolTriple();

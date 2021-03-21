@@ -1,5 +1,5 @@
-/**
-Oblivious Transfer code.
+/*
+Oblivious Transfer code
 For share conversion
 */
 
@@ -18,7 +18,7 @@ using namespace emp;
 uint64_t bitsum_ot_sender(NetIO* const io, const bool* const shares, const bool* const valid, const size_t n);
 uint64_t bitsum_ot_receiver(NetIO* const io, const bool* const shares, const size_t n);
 
-// Non-batched versions. Nwo unused
+// Non-batched versions. unused
 // uint64_t intsum_ot_sender(NetIO* const io, const uint64_t* const shares,
 //                           const bool* const valid,
 //                           const size_t n, const size_t num_bits);

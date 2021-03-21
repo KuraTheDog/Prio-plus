@@ -12,7 +12,7 @@
 
 #include "correlated.h"
 #include "net_share.h"
-#include "proto.h"
+#include "ot.h"
 #include "types.h"
 
 #define SERVER0_IP "127.0.0.1"

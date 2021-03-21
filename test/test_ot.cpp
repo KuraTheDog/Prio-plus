@@ -3,7 +3,7 @@
 #include "utils_test_connect.h"
 #include "../constants.h"
 #include "../net_share.h"
-#include "../proto.h"
+#include "../ot.h"
 
 #define SERVER0_IP "127.0.0.1"
 #define SERVER1_IP "127.0.0.1"

@@ -43,7 +43,7 @@ foreach(_target
   server client
 )
   add_executable(${_target} "${_target}.cpp" 
-                 "constants.cpp" "proto.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp" "correlated.cpp" "he_triples.cpp"
+                 "constants.cpp" "ot.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp" "correlated.cpp" "he_triples.cpp"
                  "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c"
                  )
   target_link_libraries(${_target}
@@ -60,12 +60,12 @@ foreach(_target
   test_net_share
   test_circuit
   test_linreg
-  test_proto
+  test_ot
   test_bits
   test_he_triples
 )
   add_executable(${_target} "test/${_target}.cpp" 
-                 "constants.cpp" "proto.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp" "correlated.cpp" "he_triples.cpp"
+                 "constants.cpp" "ot.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp" "correlated.cpp" "he_triples.cpp"
                  "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c"
                  )
   target_link_libraries(${_target}

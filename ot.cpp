@@ -1,4 +1,4 @@
-#include "proto.h"
+#include "ot.h"
 
 #include "constants.h"
 #include "net_share.h"
