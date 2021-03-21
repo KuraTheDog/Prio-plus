@@ -2,7 +2,7 @@
 
 #include "utils_test_connect.h"
 #include "../constants.h"
-#include "../edabit.h"
+#include "../correlated.h"
 #include "../fmpz_utils.h"
 #include "../net_share.h"
 

@@ -1,5 +1,20 @@
-#ifndef EDABIT_H
-#define EDABIT_H
+#ifndef CORRELATED_H
+#define CORRELATED_H
+
+/* 
+Correlated precomputes
+
+CorrelatedStore object, which has synced correlated precomputes between servers
+Also includes io objects for OT, which have their own precomputes
+
+CorrelatedStore maintains a cache of precomputes, made in batch_size chunks at a time to reduce rounds
+New batches are build either as it runs out, or by calling maybeUpdate
+
+edaBit related logic for share conversion based on ia.cr/2020/338
+
+Due to send buffers potentially filling up, it forks out a child to do sending, while parent receives
+It also waits for the child to finish before exiting or moving to a substep that will send, to stay synced
+*/
 
 #include <emp-ot/emp-ot.h>
 #include <emp-tool/emp-tool.h>
@@ -13,7 +28,6 @@
 // A Cache of correlated bits of different types
 // Makes batch_size at once, when running low
 class CorrelatedStore {
-// public:
   const size_t batch_size;  // How many to make at once
   const int server_num;
   const int serverfd;
@@ -35,11 +49,11 @@ class CorrelatedStore {
   std::queue<BooleanBeaverTriple*> btriple_store;
   std::queue<BeaverTriple*> atriple_store;
 
+public:
+
   // for OTs between servers
   NetIO* io0;
   NetIO* io1;
-
-public:
 
   // True to work correctly on large batches, and faster
   // False to do debugging

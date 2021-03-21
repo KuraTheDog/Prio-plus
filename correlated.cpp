@@ -1,10 +1,4 @@
-/* edaBit related logic, for share conversion.
-Based on ia.cr/2020/338
-
-Due to send buffers potentially filling up, it forks out a child to do sending, while parent receives.
-It also waits for the child to finish before exiting or moving to a substep that will send, to stay synced.
-*/
-#include "edabit.h"
+#include "correlated.h"
 
 #include <sys/wait.h>
 
