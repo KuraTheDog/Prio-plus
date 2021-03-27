@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.5.1)
 
 project(AggrProject C CXX)
 
-if(NOT MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-else()
-  add_definitions(-D_WIN32_WINNT=0x600)
-endif()
+# 11 normally
+# 14 for libOTe
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Find flint
 if(FLINT_INCLUDE_DIR AND FLINT_LIBRARIES)
@@ -39,6 +39,18 @@ include(cmake/common.cmake)
 find_package(EMP-TOOL REQUIRED)
 include_directories(${EMP-TOOL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
+# cmake . -DENABLE_RELIC=ON -DENABLE_NP=ON -DENABLE_IKNP=ON -DENABLE_SILENTOT=ON
+# TODO: better path stuff
+# based on https://github.com/osu-crypto/libPSI/blob/master/CMakeLists.txt#L123
+set(libOTe_Dirs "~/libs/libOTe/")
+include_directories("${libOTe_Dirs}/")
+include_directories("${libOTe_Dirs}/cryptoTools")
+
+message(STATUS "libOTe_Dirs: \"${libOTe_Dirs}\"")
+
+include("${libOTe_Dirs}/cmake/loadCacheVar.cmake")
+include("${libOTe_Dirs}/cmake/libOTeHelper.cmake")
+
 foreach(_target
   server client
 )
@@ -52,6 +64,7 @@ foreach(_target
     ${GMP_LIBRARIES}
     ${EMP-TOOL_LIBRARIES}
     ${FLINT_LIBRARIES}
+    ${libOTe_LIB}
     OpenMP::OpenMP_CXX
   )
 endforeach()
@@ -63,6 +76,7 @@ foreach(_target
   test_ot
   test_bits
   test_he_triples
+  test_libote
 )
   add_executable(${_target} "test/${_target}.cpp" 
                  "constants.cpp" "ot.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp" "correlated.cpp" "he_triples.cpp"
@@ -74,6 +88,7 @@ foreach(_target
     ${GMP_LIBRARIES}
     ${EMP-TOOL_LIBRARIES}
     ${FLINT_LIBRARIES}
+    ${libOTe_LIB}
     OpenMP::OpenMP_CXX
   )
 endforeach()
