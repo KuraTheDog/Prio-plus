@@ -13,34 +13,20 @@ For share conversion
 
 #include "share.h"
 
-using namespace emp;
+#define EMP_IKNP 1
 
-// Persistent OT with wrapper
+#define OT_TYPE EMP_IKNP
+
 struct OT_Wrapper {
-  NetIO* const io;
-  IKNP<NetIO>* const ot;
+  emp::NetIO* const io;
+  emp::IKNP<emp::NetIO>* const ot;
 
-  OT_Wrapper(const char* address, const int port)
-  : io(new NetIO(address, port, true))
-  , ot(new IKNP<NetIO>(io))
-  {}
+  OT_Wrapper(const char* address, const int port);
+  ~OT_Wrapper();
 
-  ~OT_Wrapper() {
-    delete ot;
-    delete io;
-  }
-
-  void send(const block* data0, const block* data1, const size_t length) {
-    io->sync();
-    ot->send(data0, data1, length);
-    io->flush();
-  }
-
-  void recv(block* data, const bool* b, const size_t length) {
-    io->sync();
-    ot->recv(data, b, length);
-    io->flush();
-  }
+  void send(const uint64_t* const data0, const uint64_t* const data1,
+            const size_t length);
+  void recv(uint64_t* const data, const bool* b, const size_t length);
 };
 
 uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const bool* const valid, const size_t n);

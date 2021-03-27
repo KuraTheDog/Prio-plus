@@ -3,48 +3,90 @@
 #include "constants.h"
 #include "net_share.h"
 
-uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const bool* const valid, const size_t n){
-    PRG prg(fix_key);
+#if OT_TYPE == EMP_IKNP
 
-    uint64_t b0, b1;
-    uint64_t sum = 0;
+OT_Wrapper::OT_Wrapper(const char* address, const int port)
+: io(new emp::NetIO(address, port, true))
+, ot(new emp::IKNP<emp::NetIO>(io))
+{}
 
-    block* const b0_ot = new block[n];
-    block* const b1_ot = new block[n];
+OT_Wrapper::~OT_Wrapper() {
+    delete ot;
+    delete io;
+}
 
-    for (unsigned int i = 0; i < n; i++){
-        prg.random_data(&b0, sizeof(uint64_t));
+void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
+        const size_t length) {
+    emp::block* const block0 = new emp::block[length];
+    emp::block* const block1 = new emp::block[length];
 
-        b1 = b0 + 1 - 2 * shares[i];
-
-        if (valid[i])
-            sum += (UINT64_MAX - b0) + 1 + shares[i];
-
-        uint64_t* const p = (uint64_t*)&b0_ot[i];
-        p[0] = valid[i];
-        p[1] = b0;
-        uint64_t* const q = (uint64_t*)&b1_ot[i];
-        q[0] = valid[i];
-        q[1] = b1; // b1
+    for (unsigned int i = 0; i < length; i++) {
+        block0[i] = emp::makeBlock(0, data0[i]);
+        block1[i] = emp::makeBlock(0, data1[i]);
+        // std::cout << "Send[" << i << "] = (" << data0[i] << ", " << data1[i] << ")\n";
     }
 
-    ot->send(b0_ot, b1_ot, n);
+    io->sync();
+    ot->send(block0, block1, length);
+    io->flush();
 
-    delete[] b1_ot;
-    delete[] b0_ot;
+    delete[] block0;
+    delete[] block1;
+}
+
+void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) {
+    emp::block* const block = new emp::block[length];
+    io->sync();
+    ot->recv(block, b, length);
+    io->flush();
+
+    for (unsigned int i = 0; i < length; i++) {
+        data[i] = *(uint64_t*)&block[i];
+        // std::cout << "Recv[" << i << "][" << b[i] << "] = " << data[i] << std::endl;
+    }
+
+    delete[] block;
+}
+
+#else
+#error Not valid or defined OT type
+#endif
+
+uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const bool* const valid, const size_t n){
+    emp::PRG prg(emp::fix_key);
+
+    uint64_t sum = 0;
+
+    uint64_t* const b0 = new uint64_t[n];
+    uint64_t* const b1 = new uint64_t[n];
+
+    for (unsigned int i = 0; i < n; i++){
+
+        if (valid[i]) {
+            prg.random_data(&b0[i], sizeof(uint64_t));
+            b1[i] = b0[i] + 1 - 2 * shares[i];
+            sum += (UINT64_MAX - b0[i]) + 1 + shares[i];
+        } else {
+            b0[i] = 0;
+            b1[i] = 0;
+        }
+    }
+
+    ot->send(b0, b1, n);
+
+    delete[] b1;
+    delete[] b0;
     return sum;
 }
 
 uint64_t bitsum_ot_receiver(OT_Wrapper* const ot, const bool* const shares, const size_t n){
-    block* const r = new block[n];
+    uint64_t* const r = new uint64_t[n];
     uint64_t sum = 0;
 
     ot->recv(r, shares, n);
 
-    for (unsigned int i = 0; i < n; i++){
-        uint64_t* const p = (uint64_t*)&r[i];
-        sum += p[0] * p[1];
-    }
+    for (unsigned int i = 0; i < n; i++)
+        sum += r[i];
 
     delete[] r;
 
@@ -54,7 +96,7 @@ uint64_t bitsum_ot_receiver(OT_Wrapper* const ot, const bool* const shares, cons
 uint64_t* intsum_ot_sender(OT_Wrapper* const ot,  const uint64_t* const shares,
                            const bool* const valid, const size_t* const num_bits,
                            const size_t num_shares, const size_t num_values) {
-    PRG prg;
+    emp::PRG prg;
 
     size_t total_bits = 0;
     for (unsigned int j = 0; j < num_values; j++)
@@ -64,8 +106,8 @@ uint64_t* intsum_ot_sender(OT_Wrapper* const ot,  const uint64_t* const shares,
     uint64_t* sum = new uint64_t[num_values];
     memset(sum, 0, num_values * sizeof(uint64_t));
 
-    block* const b0_ot = new block[num_shares * total_bits];
-    block* const b1_ot = new block[num_shares * total_bits];
+    uint64_t* const b0 = new uint64_t[num_shares * total_bits];
+    uint64_t* const b1 = new uint64_t[num_shares * total_bits];
 
     size_t idx = 0;
     for (unsigned int i = 0; i < num_shares; i++) {
@@ -79,27 +121,25 @@ uint64_t* intsum_ot_sender(OT_Wrapper* const ot,  const uint64_t* const shares,
 
                 prg.random_data(&r, sizeof(uint64_t));
 
-                if (valid[i])
+                if (valid[i]) {
+                    b0[idx] = bool_share * (1ULL << k) - r;
+                    b1[idx] = (1 - bool_share) * (1ULL << k) - r;
+
                     sum[j] += r;
-
-                // std::cout << idx << "(" << bool_share << "): " << bool_share * (1ULL << k) - r << ", " << (1 - bool_share) * (1ULL << k) - r << std::endl;
-
-                uint64_t* const p = (uint64_t*)&b0_ot[idx];
-                p[0] = valid[i];
-                p[1] = bool_share * (1ULL << k) - r;
-                uint64_t* const q = (uint64_t*)&b1_ot[idx];
-                q[0] = valid[i];
-                q[1] = (1 - bool_share) * (1ULL << k) - r;
+                } else {
+                    b0[idx] = 0;
+                    b1[idx] = 0;
+                }
 
                 idx++;
             }
         }
     }
 
-    ot->send(b0_ot, b1_ot, num_shares * total_bits);
+    ot->send(b0, b1, num_shares * total_bits);
 
-    delete[] b0_ot;
-    delete[] b1_ot;
+    delete[] b0;
+    delete[] b1;
 
     return sum;
 }
@@ -111,7 +151,7 @@ uint64_t* intsum_ot_receiver(OT_Wrapper* const ot, const uint64_t* const shares,
     for (unsigned int j = 0; j < num_values; j++)
         total_bits += num_bits[j];
 
-    block* const r = new block[num_shares * total_bits];
+    uint64_t* const r = new uint64_t[num_shares * total_bits];
     bool* const bool_shares = new bool[num_shares * total_bits];
     uint64_t* sum = new uint64_t[num_values];
     memset(sum, 0, num_values * sizeof(uint64_t));
@@ -135,16 +175,9 @@ uint64_t* intsum_ot_receiver(OT_Wrapper* const ot, const uint64_t* const shares,
 
     idx = 0;
     for (unsigned int i = 0; i < num_shares; i++) {
-        uint64_t valid = ((uint64_t*) &r[idx])[0];
-        // std::cout << "valid[" << i << "] = " << valid << std::endl;
-        if (!valid) {
-            idx += total_bits;
-            continue;
-        }
         for (unsigned int j = 0; j < num_values; j++) {
             for (unsigned int k = 0; k < num_bits[j]; k++) {
-                // std::cout << idx << "(" << bool_shares[idx] << ") = " << ((uint64_t*)&r[idx])[1] << std::endl;
-                sum[j] += ((uint64_t*)&r[idx])[1];
+                sum[j] += r[idx];
                 idx++;
             }
         }
@@ -153,57 +186,35 @@ uint64_t* intsum_ot_receiver(OT_Wrapper* const ot, const uint64_t* const shares,
     return sum;
 }
 
-void set_block(block &b, const bool f) {
-    uint64_t* const p = (uint64_t*) &b;
-    p[0] = 0;
-    p[1] = (f ? 1 : 0);
-}
-
-void block_to_boolean(const block* const B, bool* const b, const unsigned int len){
-    for (unsigned int i = 0; i < len; i++){
-        uint64_t* p = (uint64_t*) &(B[i]);
-        b[i] = (p[1] == 1) ? true : false;
-    }
-}
-
-void print_block(const block var) {
-    uint64_t v64val[2];
-    memcpy(v64val, &var, sizeof(v64val));
-    printf("%.16llux %.16llux\n", (unsigned long long) v64val[1], (unsigned long long) v64val[0]);
-}
-
 // Ref : https://crypto.stackexchange.com/questions/41651/what-are-the-ways-to-generate-beaver-triples-for-multiplication-gate
 std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num, const unsigned int m, OT_Wrapper* const ot0, OT_Wrapper* const ot1){
-    PRG prg;
+    emp::PRG prg;
     std::queue<BooleanBeaverTriple*> ans;
     bool* x = new bool[m];
     bool* y = new bool[m];
     bool* z = new bool[m];
     bool* r = new bool[m];
-    bool* b = new bool[m];
     prg.random_bool(x, m);
     prg.random_bool(y, m);
     prg.random_bool(r, m);
 
-    block* b0 = new block[m];
-    block* b1 = new block[m];
-    block* B = new block[m];
+    uint64_t* b0 = new uint64_t[m];
+    uint64_t* b1 = new uint64_t[m];
+    uint64_t* b = new uint64_t[m];
 
     for (unsigned int i = 0; i < m; i++){
-        set_block(b0[i], r[i]);
-        set_block(b1[i], (x[i] != r[i])); // r[i] XOR x[i]
+        b0[i] = r[i];
+        b1[i] = (x[i] != r[i]); // r[i] XOR x[i]
     }
 
     if(server_num == 0){
         ot0->send(b0, b1, m);
-        ot1->recv(B, y, m);
+        ot1->recv(b, y, m);
     }
     else if(server_num == 1){
-        ot0->recv(B, y, m);
+        ot0->recv(b, y, m);
         ot1->send(b0, b1, m);
     }
-
-    block_to_boolean(B, b, m);
 
     for (unsigned int i = 0; i < m ; i++){
         // b = r' ^ x'y
@@ -217,18 +228,18 @@ std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num
 
     delete[] b0;
     delete[] b1;
-    delete[] B;
+    delete[] b;
     delete[] x;
     delete[] y;
     delete[] z;
     delete[] r;
-    delete[] b;
 
     return ans;
 }
 
 // Slow. OT per bit
 // Not batched, but we also don't really want to do this
+/*
 BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, OT_Wrapper* const ot0, OT_Wrapper* const ot1) {
 
     // auto start = clock_start();
@@ -242,22 +253,15 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, O
         return triple;
     }
 
-    PRG prg(fix_key);
+    emp::PRG prg(fix_key);
 
-    // Random offset, for debug
-    if (server_num == 0) {
-        block junk[10];
-        prg.random_block(junk, 10);
-        fmpz_randm(triple->A, seed, Int_Modulus);
-    }
-
-    block r0_block[n], r1_block[n], s_block[n];
+    uint64_t r0_block[n], r1_block[n], s_block[n];
     // TODO: replace this with Random OT instead.
     // Note: Random OT seems to break. Running 20 varop 8 twice has the second run make bad triples. Future runs line up again. Desync issues?
     prg.random_block(r0_block, n);
     prg.random_block(r1_block, n);
 
-    // Use prg random for this instead?
+    // Use emp::PRG random for this instead?
     fmpz_randm(triple->A, seed, Int_Modulus);
     fmpz_randm(triple->B, seed, Int_Modulus);
 
@@ -341,6 +345,7 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, O
 
     return triple;
 }
+*/
 
 // Simple beaver triple generation. Fast but unsafe.
 BeaverTriple* generate_beaver_triple_lazy(const int serverfd, const int server_num) {
