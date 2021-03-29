@@ -184,12 +184,12 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
-    emp::block* const b = new block[numreqs];
+    emp::block* const b = new emp::block[numreqs];
     bool real_vals[numreqs];
     bool shares0[numreqs];
     bool shares1[numreqs];
 
-    emp::PRG prg(fix_key);
+    emp::PRG prg(emp::fix_key);
     prg.random_block(b, numreqs);
     prg.random_bool(real_vals, numreqs);
     prg.random_bool(shares0, numreqs);
@@ -314,13 +314,13 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
-    emp::block* const b = new block[numreqs];
+    emp::block* const b = new emp::block[numreqs];
     uint64_t real_vals[numreqs];
     uint64_t shares0[numreqs];
     uint64_t shares1[numreqs];
     uint64_t ans = 0;
 
-    emp::PRG prg(fix_key);
+    emp::PRG prg(emp::fix_key);
     prg.random_block(b, numreqs);
     prg.random_data(real_vals, numreqs * sizeof(uint64_t));
     prg.random_data(shares0, numreqs * sizeof(uint64_t));
@@ -475,13 +475,13 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
-    emp::block* const b = new block[numreqs];
+    emp::block* const b = new emp::block[numreqs];
     bool values[numreqs];
     uint64_t encoded_values[numreqs];
     uint64_t shares0[numreqs];
     uint64_t shares1[numreqs];
 
-    emp::PRG prg(fix_key);
+    emp::PRG prg(emp::fix_key);
 
     prg.random_block(b, numreqs);
     prg.random_bool(values, numreqs);
@@ -663,7 +663,7 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
     initMsg msg;
     msg.num_of_inputs = numreqs;
     msg.max_inp = B;
-    emp::PRG prg(fix_key);
+    emp::PRG prg(emp::fix_key);
     uint64_t ans;
     if (protocol == "MAXOP") {
         msg.type = MAX_OP;
@@ -675,7 +675,7 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
         return;
     }
 
-    emp::block* const b = new block[numreqs];
+    emp::block* const b = new emp::block[numreqs];
     prg.random_block(b, numreqs);
 
     uint64_t values[numreqs];
@@ -898,7 +898,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
     const size_t NMul = mock_circuit->NumMulGates();
     delete mock_circuit;
 
-    emp::block* const b = new block[numreqs];
+    emp::block* const b = new emp::block[numreqs];
     uint64_t real_vals[numreqs];
     // shares of x
     uint64_t shares0[numreqs];
@@ -908,7 +908,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
     uint64_t shares1_squared[numreqs];
     uint64_t sum = 0, sumsquared = 0, numvalid = 0;
 
-    emp::PRG prg(fix_key);
+    emp::PRG prg(emp::fix_key);
     prg.random_block(b, numreqs);
     prg.random_data(real_vals, numreqs * sizeof(uint64_t));
     prg.random_data(shares0, numreqs * sizeof(uint64_t));

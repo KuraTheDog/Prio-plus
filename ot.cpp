@@ -253,7 +253,7 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, O
         return triple;
     }
 
-    emp::PRG prg(fix_key);
+    emp::PRG prg(emp::fix_key);
 
     uint64_t r0_block[n], r1_block[n], s_block[n];
     // TODO: replace this with Random OT instead.
