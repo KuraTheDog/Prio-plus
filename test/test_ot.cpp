@@ -21,8 +21,20 @@ int main(int argc, char** argv){
 
   std::cout << "Making io objects" << std::endl;
 
-  OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : SERVER0_IP, 60051);
-  OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
+  OT_Wrapper* ot0 = new OT_Wrapper(SERVER0_IP, SERVER0_OT_PORT, server_num == 0);
+  OT_Wrapper* ot1 = new OT_Wrapper(SERVER1_IP, SERVER1_OT_PORT, server_num == 1);
+
+  std::cout << "Simple ot test" << std::endl;
+
+  if (server_num == 0) {
+    uint64_t a[1] = {10};
+    uint64_t b[1] = {20};
+    ot0->send(a, b, 1);
+  } else {
+    uint64_t* d = new uint64_t[1];
+    bool c[1] = {1};
+    ot0->recv(d, c, 1);
+  }
 
   std::cout << "Making bool triples" << std::endl;
 

@@ -4,10 +4,17 @@
 #include "net_share.h"
 #include "utils.h"
 
+// TODO: common code? New utils.h, similar to constants.h?
+void error_exit2(const char* const msg) {
+    perror(msg);
+    exit(EXIT_FAILURE);
+}
+
 #if OT_TYPE == EMP_IKNP
 
-OT_Wrapper::OT_Wrapper(const char* address, const int port)
-: io(new emp::NetIO(address, port, true))
+OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender)
+: is_sender(is_sender)
+, io(new emp::NetIO(is_sender ? address : nullptr, port, true))
 , ot(new emp::IKNP<emp::NetIO>(io))
 {}
 
@@ -18,6 +25,8 @@ OT_Wrapper::~OT_Wrapper() {
 
 void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
         const size_t length) {
+    if (!is_sender) error_exit2("Error: Calling send on non-sender OT Wrapper");
+
     emp::block* const block0 = new emp::block[length];
     emp::block* const block1 = new emp::block[length];
 
@@ -37,6 +46,8 @@ void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
 
 void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) {
     emp::block* const block = new emp::block[length];
+    if (is_sender) error_exit2("Error: Calling recv on sender OT Wrapper");
+
     io->sync();
     ot->recv(block, b, length);
     io->flush();
@@ -47,6 +58,52 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
     }
 
     delete[] block;
+}
+
+#elif OT_TYPE == LIBOTE_IKNP
+
+OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender)
+: is_sender(is_sender)
+{
+    channel = osuCrypto::Session(
+        ios, address, port, 
+        is_sender ? osuCrypto::SessionMode::Server : osuCrypto::SessionMode::Client
+    ).addChannel();
+
+    prng = osuCrypto::PRNG(osuCrypto::sysRandomSeed());
+}
+
+OT_Wrapper::~OT_Wrapper() {
+}
+
+void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
+        const size_t length) {
+    if (!is_sender) error_exit2("Error: Calling send on non-sender OT Wrapper");
+
+    osuCrypto::IknpOtExtSender sender;
+    std::vector<std::array<osuCrypto::block, 2>> messages(length);
+    for (unsigned int i = 0; i < length; i++) {
+        messages[i] = { osuCrypto::toBlock(data0[i]), 
+                        osuCrypto::toBlock(data1[i]) };
+        // std::cout << "Send[" << i << "] = (" << data0[i] << ", " << data1[i] << ")\n";
+    }
+    sender.sendChosen(messages, prng, channel);
+}
+
+void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) {
+    if (is_sender) error_exit2("Error: Calling send on sender OT Wrapper");
+
+    osuCrypto::IknpOtExtReceiver recver;
+    osuCrypto::BitVector choices(length);
+    for (unsigned int i = 0; i < length; i++)
+        choices[i] = b[i];
+    std::vector<osuCrypto::block> messages(length);
+    recver.receiveChosen(choices, messages, prng, channel);
+
+    for (unsigned int i = 0; i < length; i++) {
+        data[i] = *(uint64_t*)&messages[i];
+        // std::cout << "Recv[" << i << "][" << b[i] << "] = " << data[i] << std::endl;
+    }
 }
 
 #endif
