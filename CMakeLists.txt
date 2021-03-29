@@ -69,6 +69,13 @@ foreach(_target
   )
 endforeach()
 
+set(test_poly "test_circuit" "test_linreg")
+set(test_correlated "test_ot" "test_bits")
+# store has triples
+set(test_he_triples "test_he_triples" ${test_correlated})
+# stuff that sends shares
+set(test_net_share "test_net_share" ${test_poly} ${test_correlated} ${test_he_triples})
+set(test_share "test_share" ${test_net_share})
 foreach(_target
   test_net_share
   test_circuit
@@ -78,10 +85,27 @@ foreach(_target
   test_he_triples
   test_libote
 )
-  add_executable(${_target} "test/${_target}.cpp" 
-                 "constants.cpp" "ot.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp" "correlated.cpp" "he_triples.cpp"
-                 "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c"
-                 )
+  set (test_SOURCE_FILES "test/${_target}.cpp")
+  set (test_SOURCE_FILES ${test_SOURCE_FILES} "constants.cpp" "fmpz_utils.cpp")
+  if (_target IN_LIST test_poly)
+    set (test_SOURCE_FILES ${test_SOURCE_FILES} 
+         "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c")
+  endif()
+  if (_target IN_LIST test_share)
+    set (test_SOURCE_FILES ${test_SOURCE_FILES} "share.cpp")
+  endif()
+  if (_target IN_LIST test_net_share)
+    set (test_SOURCE_FILES ${test_SOURCE_FILES} "net_share.cpp")
+  endif()
+  if (_target IN_LIST test_correlated)
+    set (test_SOURCE_FILES ${test_SOURCE_FILES} "correlated.cpp" "ot.cpp")
+  endif()
+  if (_target IN_LIST test_he_triples)
+    set (test_SOURCE_FILES ${test_SOURCE_FILES} "he_triples.cpp")
+  endif()
+  list(REMOVE_DUPLICATES test_SOURCE_FILES)
+  # message(STATUS "${_target}: ${test_SOURCE_FILES}")
+  add_executable(${_target} ${test_SOURCE_FILES})
   target_link_libraries(${_target}
     ${OPENSSL_LIBRARIES}
     ${Boost_LIBRARIES}
