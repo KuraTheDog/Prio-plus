@@ -168,7 +168,7 @@ fmpz_t* share_convert(const size_t N,
     delete[] bits_arr;
     clear_fmpz_array(f_shares2, N * num_inputs);
 
-    std::cout << "Share convert time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    std::cout << "Share convert time: " << sec_from(start) << std::endl;
 
     return shares_p;
 }
@@ -246,7 +246,7 @@ bool* validate_snips(const size_t N,
     fmpz_clear(valid_share_other);
     if (correlated_store->do_fork) waitpid(pid, &status, 0);
 
-    std::cout << "snip circuit time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    std::cout << "snip circuit time: " << sec_from(start) << std::endl;
     return ans;
 }
 
@@ -290,7 +290,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << num_bytes << std::endl;
-    std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    std::cout << "receive time: " << sec_from(start) << std::endl;
     start = clock_start();
     auto start2 = clock_start();
 
@@ -306,15 +306,15 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
             shares[i] = share.second;
             i++;
         }
-        std::cout << "pk time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "pk time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         const uint64_t b = bitsum_ot_receiver(ot0, shares, num_inputs);
         delete[] shares;
 
         send_uint64(serverfd, b);
-        std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
     } else {
@@ -333,7 +333,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
             num_valid++;
             shares[i] = share_map[pk];
         }
-        std::cout << "pk time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "pk time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         const uint64_t a = bitsum_ot_sender(ot0, shares, valid, num_inputs);
@@ -344,8 +344,8 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
         recv_uint64(serverfd, b);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             return RET_INVALID;
@@ -380,7 +380,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << num_bytes << std::endl;
-    std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    std::cout << "receive time: " << sec_from(start) << std::endl;
     start = clock_start();
     auto start2 = clock_start();
 
@@ -396,15 +396,15 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
             shares[i] = share.second;
             i++;
         }
-        std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
         const uint64_t* const b = intsum_ot_receiver(ot0, shares, nbits, num_inputs, 1);
         delete[] shares;
 
         send_uint64(serverfd, b[0]);
         delete[] b;
-        std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
     } else {
@@ -423,7 +423,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
             num_valid++;
             shares[i] = share_map[pk];
         }
-        std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
         const uint64_t* const a = intsum_ot_sender(ot0, shares, valid, nbits, num_inputs, 1);
         delete[] shares;
@@ -432,8 +432,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         uint64_t b;
         recv_uint64(serverfd, b);
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             return RET_INVALID;
@@ -465,7 +465,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << num_bytes << std::endl;
-    std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    std::cout << "receive time: " << sec_from(start) << std::endl;
     start = clock_start();
     auto start2 = clock_start();
 
@@ -482,7 +482,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
             pk_list[idx] = share.first;
             idx++;
         }
-        std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         bool* const other_valid = new bool[num_inputs];
@@ -496,8 +496,8 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 
         send_uint64(serverfd, b);
         delete[] pk_list;
-        std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
     } else {
@@ -515,7 +515,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
             a ^= share_map[pk];
         }
 
-        std::cout << "PK + convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "PK + convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         server_bytes += send_bool_batch(serverfd, valid, num_inputs);
@@ -527,7 +527,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
         const uint64_t aggr = a ^ b;
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
@@ -571,7 +571,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << num_bytes << std::endl;
-    std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    std::cout << "receive time: " << sec_from(start) << std::endl;
     start = clock_start();
     auto start2 = clock_start();
 
@@ -589,7 +589,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
             pk_list[idx] = share.first;
             idx++;
         }
-        std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
         bool* const other_valid = new bool[num_inputs];
         recv_bool_batch(serverfd, other_valid, num_inputs);
@@ -604,8 +604,8 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         delete[] shares;
         delete[] pk_list;
 
-        std::cout << "convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
     } else {
@@ -625,7 +625,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
                 a[j] ^= share_map[pk][j];
         }
 
-        std::cout << "PK+convert time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "PK+convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         server_bytes += send_bool_batch(serverfd, valid, num_inputs);
@@ -636,7 +636,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         recv_in(serverfd, &b[0], share_sz);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
@@ -704,7 +704,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << num_bytes << std::endl;
-    std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    std::cout << "receive time: " << sec_from(start) << std::endl;
     start = clock_start();
     auto start2 = clock_start();
 
@@ -726,7 +726,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             pk_list[idx] = share.first;
             idx++;
         }
-        std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "PK time: " << sec_from(start2) << std::endl;
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             uint64_t val = 0, val2 = 0;
@@ -754,13 +754,13 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         delete[] circuit;
         delete[] packet;
         delete[] shares;
-        // std::cout << "snip time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        // std::cout << "snip time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         // Convert
         fmpz_t* b = accumulate(num_inputs, 2, shares_p, valid);
 
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
 
         send_fmpz(serverfd, b[0]);
         send_fmpz(serverfd, b[1]);
@@ -787,7 +787,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             pk_list[i] = pk;
             valid[i] = (share_map.find(pk) != share_map.end());
         }
-        std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
         for (unsigned int i = 0; i < num_inputs; i++) {
             uint64_t val = 0, val2 = 0;
@@ -820,12 +820,12 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         delete[] circuit;
         delete[] packet;
         delete[] shares;
-        std::cout << "snip time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "snip time: " << sec_from(start2) << std::endl;
 
         // Convert
         fmpz_t* a = accumulate(num_inputs, 2, shares_p, valid);
 
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
 
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * 2);
@@ -944,7 +944,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << num_bytes << std::endl;
-    std::cout << "receive time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    std::cout << "receive time: " << sec_from(start) << std::endl;
     start = clock_start();
     auto start2 = clock_start();
 
@@ -966,7 +966,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             pk_list[idx] = share.first;
             idx++;
         }
-        std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -1010,12 +1010,12 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         delete[] circuit;
         delete[] packet;
         delete[] shares;
-        std::cout << "snip time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "snip time: " << sec_from(start2) << std::endl;
 
         // Convert
         fmpz_t* b = accumulate(num_inputs, num_fields, shares_p, valid);
 
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
 
         for (unsigned int j = 0; j < num_fields; j++)
             send_fmpz(serverfd, b[j]);
@@ -1043,7 +1043,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             pk_list[i] = pk;
             valid[i] = (share_map.find(pk) != share_map.end());
         }
-        std::cout << "PK time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -1093,13 +1093,13 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         delete[] circuit;
         delete[] packet;
         delete[] shares;
-        std::cout << "snip time: " << (((float)time_from(start2))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "snip time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         // Convert
         fmpz_t* a = accumulate(num_inputs, num_fields, shares_p, valid);
 
-        std::cout << "compute time: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
 
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * num_fields);
@@ -1243,7 +1243,7 @@ int main(int argc, char** argv) {
             if (ret == RET_ANS)
                 std::cout << "Ans: " << ans << std::endl;
 
-            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << sec_from(start) << std::endl;
         } else if (msg.type == INT_SUM) {
             std::cout << "INT_SUM" << std::endl;
             auto start = clock_start();
@@ -1253,7 +1253,7 @@ int main(int argc, char** argv) {
             if (ret == RET_ANS)
                 std::cout << "Ans: " << ans << std::endl;
 
-            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << sec_from(start) << std::endl;
         } else if (msg.type == AND_OP) {
             std::cout << "AND_OP" << std::endl;
             auto start = clock_start();
@@ -1263,7 +1263,7 @@ int main(int argc, char** argv) {
             if (ret == RET_ANS)
                 std::cout << "Ans: " << std::boolalpha << ans << std::endl;
 
-            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << sec_from(start) << std::endl;
         } else if (msg.type == OR_OP) {
             std::cout << "OR_OP" << std::endl;
             auto start = clock_start();
@@ -1273,7 +1273,7 @@ int main(int argc, char** argv) {
             if (ret == RET_ANS)
                 std::cout << "Ans: " << std::boolalpha << ans << std::endl;
 
-            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << sec_from(start) << std::endl;
         } else if (msg.type == MAX_OP) {
             std::cout << "MAX_OP" << std::endl;
             auto start = clock_start();
@@ -1283,7 +1283,7 @@ int main(int argc, char** argv) {
             if (ret == RET_ANS)
                 std::cout << "Ans: " << ans << std::endl;
 
-            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << sec_from(start) << std::endl;
         } else if (msg.type == MIN_OP) {
             std::cout << "MIN_OP" << std::endl;
             auto start = clock_start();
@@ -1293,7 +1293,7 @@ int main(int argc, char** argv) {
             if (ret == RET_ANS)
                 std::cout << "Ans: " << ans << std::endl;
 
-            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << sec_from(start) << std::endl;
         } else if (msg.type == VAR_OP) {
             std::cout << "VAR_OP" << std::endl;
             auto start = clock_start();
@@ -1303,7 +1303,7 @@ int main(int argc, char** argv) {
             if (ret == RET_ANS)
                 std::cout << "Ans: " << ans << std::endl;
 
-            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << sec_from(start) << std::endl;
         } else if (msg.type == STDDEV_OP) {
             std::cout << "STDDEV_OP" << std::endl;
             auto start = clock_start();
@@ -1313,7 +1313,7 @@ int main(int argc, char** argv) {
             if (ret == RET_ANS)
                 std::cout << "Ans: " << ans << std::endl;
 
-            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << sec_from(start) << std::endl;
         } else if (msg.type == LINREG_OP) {
             std::cout << "LINREG_OP" << std::endl;
             auto start = clock_start();
@@ -1323,7 +1323,7 @@ int main(int argc, char** argv) {
                 ;
             }
 
-            std::cout << "Total time  : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+            std::cout << "Total time  : " << sec_from(start) << std::endl;
         } else if (msg.type == NONE_OP) {
             std::cout << "Empty client message" << std::endl;
         } else {

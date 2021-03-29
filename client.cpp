@@ -132,7 +132,7 @@ int bit_sum_helper(const std::string protocol, const size_t numreqs,
         bitshare1[i].val = share1;
     }
     if (numreqs > 1)
-        std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
     start = clock_start();
     if (msg_ptr != nullptr) {
@@ -148,7 +148,7 @@ int bit_sum_helper(const std::string protocol, const size_t numreqs,
     delete[] bitshare1;
 
     if (numreqs > 1)
-        std::cout << "batch send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "batch send:\t" << sec_from(start) << std::endl;
 
     return num_bytes;
 }
@@ -166,7 +166,7 @@ void bit_sum(const std::string protocol, const size_t numreqs) {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
             num_bytes += bit_sum_helper(protocol, 1, ans, i == 0 ? &msg : nullptr);
-        std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
     std::cout << "Ans : " << ans << std::endl;
@@ -261,7 +261,7 @@ int int_sum_helper(const std::string protocol, const size_t numreqs,
         intshare1[i].val = share1;
     }
     if (numreqs > 1)
-        std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
     start = clock_start();
     if (msg_ptr != nullptr) {
@@ -276,7 +276,7 @@ int int_sum_helper(const std::string protocol, const size_t numreqs,
     delete[] intshare1;
 
     if (numreqs > 1)
-        std::cout << "batch send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "batch send:\t" << sec_from(start) << std::endl;
 
     return num_bytes;
 }
@@ -294,7 +294,7 @@ void int_sum(const std::string protocol, const size_t numreqs) {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
             num_bytes += int_sum_helper(protocol, 1, ans, i == 0 ? &msg : nullptr);
-        std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
     std::cout << "Ans : " << ans << std::endl;
@@ -407,7 +407,7 @@ int xor_op_helper(const std::string protocol, const size_t numreqs,
         intshare1[i].val = share1;
     }
     if (numreqs > 1)
-        std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "batch make:\t" << sec_from(start) << std::endl;
     start = clock_start();
     if (msg_ptr != nullptr) {
         num_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
@@ -422,7 +422,7 @@ int xor_op_helper(const std::string protocol, const size_t numreqs,
     delete[] intshare1;
 
     if (numreqs > 1)
-        std::cout << "batch send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "batch send:\t" << sec_from(start) << std::endl;
 
     return num_bytes;
 }
@@ -448,7 +448,7 @@ void xor_op(const std::string protocol, const size_t numreqs) {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
             num_bytes += xor_op_helper(protocol, 1, ans, i == 0 ? &msg : nullptr);
-        std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
     std::cout << "Ans : " << std::boolalpha << ans << std::endl;
@@ -599,7 +599,7 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
     delete[] share0;
     delete[] share1;
     if (numreqs > 1)
-        std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
     start = clock_start();
     if (msg_ptr != nullptr) {
@@ -618,7 +618,7 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
     delete[] maxshare1;
 
     if (numreqs > 1)
-        std::cout << "batch send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "batch send:\t" << sec_from(start) << std::endl;
 
     return num_bytes;
 }
@@ -647,7 +647,7 @@ void max_op(const std::string protocol, const size_t numreqs) {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
             num_bytes += max_op_helper(protocol, 1, B, ans, i == 0 ? &msg : nullptr);
-        std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
     std::cout << "Ans : " << ans << std::endl;
@@ -802,7 +802,7 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
         delete circuit;
     }
     if (numreqs > 1)
-        std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
     start = clock_start();
     if (msg_ptr != nullptr) {
@@ -828,7 +828,7 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
     fmpz_clear(inp[1]);
 
     if (numreqs > 1)
-        std::cout << "batch send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "batch send:\t" << sec_from(start) << std::endl;
 
     return num_bytes;
 }
@@ -855,7 +855,7 @@ void var_op(const std::string protocol, const size_t numreqs) {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
             num_bytes += var_op_helper(protocol, 1, sum, sumsquared, i == 0 ? &msg : nullptr);
-        std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
     const double ex = 1. * sum / numreqs;
@@ -1133,7 +1133,7 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
     delete[] xy_share0;
     delete[] xy_share1;
     if (numreqs > 1)
-        std::cout << "batch make:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
     start = clock_start();
     if (msg_ptr != nullptr) {
@@ -1167,7 +1167,7 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
     clear_fmpz_array(inp, num_fields);
 
     if (numreqs > 1)
-        std::cout << "batch send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "batch send:\t" << sec_from(start) << std::endl;
 
     return num_bytes;
 }
@@ -1200,7 +1200,7 @@ void lin_reg(const std::string protocol, const size_t numreqs) {
         for (unsigned int i = 0; i < numreqs; i++)
             num_bytes += lin_reg_helper(protocol, 1, degree, x_accum, y_accum,
                                         i == 0 ? &msg : nullptr);
-        std::cout << "make+send:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
     // compute answer
@@ -1480,7 +1480,7 @@ int main(int argc, char** argv) {
             bit_sum_invalid(protocol, numreqs);
         else
             bit_sum(protocol, numreqs);
-        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
     else if (protocol == "INTSUM") {
@@ -1489,7 +1489,7 @@ int main(int argc, char** argv) {
             int_sum_invalid(protocol, numreqs);
         else
             int_sum(protocol, numreqs);
-        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
     else if (protocol == "ANDOP") {
@@ -1498,7 +1498,7 @@ int main(int argc, char** argv) {
             xor_op_invalid(protocol, numreqs);
         else
             xor_op(protocol, numreqs);
-        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
     else if (protocol == "OROP") {
@@ -1507,7 +1507,7 @@ int main(int argc, char** argv) {
             xor_op_invalid(protocol, numreqs);
         else
             xor_op(protocol, numreqs);
-        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
     else if (protocol == "MAXOP") {
@@ -1516,7 +1516,7 @@ int main(int argc, char** argv) {
             max_op_invalid(protocol, numreqs);
         else
             max_op(protocol, numreqs);
-        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
     else if (protocol == "MINOP") {
@@ -1526,7 +1526,7 @@ int main(int argc, char** argv) {
             max_op_invalid(protocol, numreqs);
         else
             max_op(protocol, numreqs);
-        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
     else if (protocol == "VAROP") {
@@ -1535,7 +1535,7 @@ int main(int argc, char** argv) {
             var_op_invalid(protocol, numreqs);
         else
             var_op(protocol, numreqs);
-        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
     else if (protocol == "STDDEVOP") {
@@ -1545,7 +1545,7 @@ int main(int argc, char** argv) {
             var_op_invalid(protocol, numreqs);
         else
             var_op(protocol, numreqs);
-        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
     else if(protocol == "LINREGOP") {
@@ -1555,7 +1555,7 @@ int main(int argc, char** argv) {
             lin_reg_invalid(protocol, numreqs);
         else
             lin_reg(protocol, numreqs);
-        std::cout << "Total time:\t" << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
     else {

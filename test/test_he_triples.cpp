@@ -173,7 +173,7 @@ void runLocal(size_t N) {
 }
 
 void runServerTest(const int server_num, const int serverfd, const size_t N) {
-  auto start = emp::clock_start();
+  auto start = clock_start();
 
   // int64_t modulus = 0x8008001;           // 26 bit
   // int64_t modulus = 0x800008001L;           // 36 bit, works up to 1<<32
@@ -183,12 +183,12 @@ void runServerTest(const int server_num, const int serverfd, const size_t N) {
   // std::cout << "modulus:    " << modulus << std::endl;
 
   ArithTripleGenerator gen(serverfd, server_num);
-  std::cout << server_num << " initialized gen in: " << (((float) emp::time_from(start)) / CLOCKS_PER_SEC) << "s" << std::endl; start = emp::clock_start();
+  std::cout << server_num << " initialized gen in: " << sec_from(start) << "s" << std::endl; start = clock_start();
 
   std::vector<BeaverTriple*> triples = gen.generateTriples(N);
 
   std::cout << server_num << " generated " << triples.size() << " triples in: ";
-  std::cout << (((float) emp::time_from(start)) / CLOCKS_PER_SEC) << "s" << std::endl; start = emp::clock_start();
+  std::cout << sec_from(start) << "s" << std::endl; start = clock_start();
 
   std::cout << server_num << "'s triple 0: ";
   fmpz_print(triples[0]->A); std::cout << ", ";
@@ -248,7 +248,7 @@ void runServerTest(const int server_num, const int serverfd, const size_t N) {
     }
   }
 
-  std::cout << server_num << " ran all validation in: " << (((float) emp::time_from(start)) / CLOCKS_PER_SEC) << "s" << std::endl;
+  std::cout << server_num << " ran all validation in: " << sec_from(start) << "s" << std::endl;
 }
 
 void serverTest(const size_t N) {

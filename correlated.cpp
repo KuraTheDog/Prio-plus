@@ -17,7 +17,7 @@ void CorrelatedStore::addBoolTriples(const size_t n) {
     btriple_store.push(new_triples.front());
     new_triples.pop();
   }
-  std::cout << "addBoolTriples timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+  std::cout << "addBoolTriples timing : " << sec_from(start) << std::endl;
 }
 
 void CorrelatedStore::addTriples(const size_t n) {
@@ -37,7 +37,7 @@ void CorrelatedStore::addTriples(const size_t n) {
       atriple_store.push(triple);
     }
   }
-  std::cout << "addTriples timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+  std::cout << "addTriples timing : " << sec_from(start) << std::endl;
 }
 
 void CorrelatedStore::addDaBits(const size_t n) {
@@ -48,7 +48,7 @@ void CorrelatedStore::addDaBits(const size_t n) {
   for (unsigned int i = 0; i < num_to_make; i++)
     dabit_store.push(dabit[i]);
   delete[] dabit;
-  std::cout << "addDaBits timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+  std::cout << "addDaBits timing : " << sec_from(start) << std::endl;
 }
 
 void CorrelatedStore::addEdaBits(const size_t num_bits, const size_t n) {
@@ -79,7 +79,7 @@ void CorrelatedStore::addEdaBits(const size_t num_bits, const size_t n) {
           edabit_store_2.push(edabit);
       }
     }
-    std::cout << "lazy addEdaBits timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    std::cout << "lazy addEdaBits timing : " << sec_from(start) << std::endl;
     return;
   }
 
@@ -92,7 +92,7 @@ void CorrelatedStore::addEdaBits(const size_t num_bits, const size_t n) {
   }
   delete[] edabit;
 
-  std::cout << "addEdaBits timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+  std::cout << "addEdaBits timing : " << sec_from(start) << std::endl;
 }
 
 BooleanBeaverTriple* CorrelatedStore::getBoolTriple() {
@@ -179,7 +179,7 @@ void CorrelatedStore::maybeUpdate() {
   std::cout << "        Dabits: " << dabit_store.size() << std::endl;
   std::cout << " Arith Triples: " << atriple_store.size() << std::endl;
   std::cout << " Bool  Triples: " << btriple_store.size() << std::endl;
-  std::cout << "precompute timing : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+  std::cout << "precompute timing : " << sec_from(start) << std::endl;
 }
 
 CorrelatedStore::~CorrelatedStore() {
