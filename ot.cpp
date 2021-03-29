@@ -49,8 +49,6 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
     delete[] block;
 }
 
-#else
-#error Not valid or defined OT type
 #endif
 
 uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const bool* const valid, const size_t n){

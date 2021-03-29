@@ -6,20 +6,29 @@ For share conversion
 #ifndef PROTO_H
 #define PROTO_H
 
-#include <emp-ot/emp-ot.h>
-#include <emp-tool/emp-tool.h>
+#define EMP_IKNP 1
+#define LIBOTE_IKNP 2
+
+#define OT_TYPE EMP_IKNP
+
 #include <iostream>
 #include <queue>
 
 #include "share.h"
 
-#define EMP_IKNP 1
+#if OT_TYPE == EMP_IKNP
+#include <emp-ot/emp-ot.h>
+#include <emp-tool/emp-tool.h>
 
-#define OT_TYPE EMP_IKNP
+#else
+#error Not valid or defined OT type
+#endif
 
 struct OT_Wrapper {
+#if OT_TYPE == EMP_IKNP
   emp::NetIO* const io;
   emp::IKNP<emp::NetIO>* const ot;
+#endif
 
   OT_Wrapper(const char* address, const int port);
   ~OT_Wrapper();
