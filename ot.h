@@ -6,10 +6,15 @@ For share conversion
 #ifndef PROTO_H
 #define PROTO_H
 
+/* ******** */
+
 #define EMP_IKNP 1
 #define LIBOTE_IKNP 2
 
-#define OT_TYPE EMP_IKNP
+// #define OT_TYPE EMP_IKNP
+#define OT_TYPE LIBOTE_IKNP
+
+/* ******** */
 
 #include <iostream>
 #include <queue>
@@ -20,17 +25,32 @@ For share conversion
 #include <emp-ot/emp-ot.h>
 #include <emp-tool/emp-tool.h>
 
+#elif OT_TYPE == LIBOTE_IKNP
+#include "cryptoTools/Common/Defines.h"   // block
+#include "cryptoTools/Network/IOService.h"  // IOService
+#include "libOTe/TwoChooseOne/IknpOtExtReceiver.h"
+#include "libOTe/TwoChooseOne/IknpOtExtSender.h"
+
 #else
 #error Not valid or defined OT type
 #endif
 
+#define SERVER0_OT_PORT 60050
+#define SERVER1_OT_PORT 60051
+
 struct OT_Wrapper {
+  const bool is_sender;
 #if OT_TYPE == EMP_IKNP
   emp::NetIO* const io;
   emp::IKNP<emp::NetIO>* const ot;
+#elif OT_TYPE == LIBOTE_IKNP
+  osuCrypto::IOService ios;
+  osuCrypto::Channel channel;
+
+  osuCrypto::PRNG prng;
 #endif
 
-  OT_Wrapper(const char* address, const int port);
+  OT_Wrapper(const char* address, const int port, const bool is_sender);
   ~OT_Wrapper();
 
   void send(const uint64_t* const data0, const uint64_t* const data1,
