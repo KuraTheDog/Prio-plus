@@ -2,6 +2,7 @@
 
 #include "constants.h"
 #include "net_share.h"
+#include "utils.h"
 
 #if OT_TYPE == EMP_IKNP
 

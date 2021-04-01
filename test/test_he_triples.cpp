@@ -9,6 +9,7 @@
 #include "../constants.h"
 #include "../net_share.h"
 #include "../share.h"
+#include "../utils.h"
 
 using namespace lbcrypto;
 

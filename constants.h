@@ -10,15 +10,6 @@ extern "C" {
   #include "flint/fmpz.h"
 };
 
-#include <emp-tool/emp-tool.h>  // for timing
-
-// convenience
-#define clock_start emp::clock_start
-inline float sec_from(time_point<high_resolution_clock> start) {
-  return (((float)emp::time_from(start)) / CLOCKS_PER_SEC);
-}
-
-
 /*
 Int_Gen ^ (2 ^ twoOrder) = 1 mod IntModulus.
 This is for FFT.

@@ -14,6 +14,7 @@
 #include "net_share.h"
 #include "ot.h"
 #include "types.h"
+#include "utils.h"
 
 #define SERVER0_IP "127.0.0.1"
 #define SERVER1_IP "127.0.0.1"
@@ -45,11 +46,6 @@ CorrelatedStore* correlated_store;
 
 uint64_t int_sum_max;
 uint32_t num_bits;
-
-void error_exit(const char* const msg) {
-    perror(msg);
-    exit(EXIT_FAILURE);
-}
 
 size_t send_out(const int sockfd, const void* const buf, const size_t len) {
     size_t ret = send(sockfd, buf, len, 0);
