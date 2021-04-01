@@ -2,12 +2,8 @@
 
 #include "constants.h"
 #include "net_share.h"
+#include "utils.h"
 
-// TODO: common code? New utils.h, similar to constants.h?
-void error_exit2(const char* const msg) {
-    perror(msg);
-    exit(EXIT_FAILURE);
-}
 
 #if OT_TYPE == EMP_IKNP
 
@@ -24,7 +20,7 @@ OT_Wrapper::~OT_Wrapper() {
 
 void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
         const size_t length) {
-    if (!is_sender) error_exit2("Error: Calling send on non-sender OT Wrapper");
+    if (!is_sender) error_exit("Error: Calling send on non-sender OT Wrapper");
 
     emp::block* const block0 = new emp::block[length];
     emp::block* const block1 = new emp::block[length];
@@ -45,7 +41,7 @@ void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
 
 void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) {
     emp::block* const block = new emp::block[length];
-    if (is_sender) error_exit2("Error: Calling recv on sender OT Wrapper");
+    if (is_sender) error_exit("Error: Calling recv on sender OT Wrapper");
 
     io->sync();
     ot->recv(block, b, length);
@@ -77,7 +73,7 @@ OT_Wrapper::~OT_Wrapper() {
 
 void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
         const size_t length) {
-    if (!is_sender) error_exit2("Error: Calling send on non-sender OT Wrapper");
+    if (!is_sender) error_exit("Error: Calling send on non-sender OT Wrapper");
 
     osuCrypto::IknpOtExtSender sender;
     std::vector<std::array<osuCrypto::block, 2>> messages(length);
@@ -90,7 +86,7 @@ void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
 }
 
 void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) {
-    if (is_sender) error_exit2("Error: Calling send on sender OT Wrapper");
+    if (is_sender) error_exit("Error: Calling send on sender OT Wrapper");
 
     osuCrypto::IknpOtExtReceiver recver;
     osuCrypto::BitVector choices(length);

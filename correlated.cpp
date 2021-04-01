@@ -7,6 +7,7 @@
 #include "constants.h"
 #include "net_share.h"
 #include "ot.h"
+#include "utils.h"
 
 void CorrelatedStore::addBoolTriples(const size_t n) {
   auto start = clock_start();

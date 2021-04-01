@@ -1,3 +1,6 @@
+#ifndef UTILSTESTCONNECT_H
+#define UTILSTESTCONNECT_H
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -6,12 +9,9 @@
 #include <cstring>
 #include <iostream>
 
-int PORT = 8887;
+#include "utils.h"
 
-void error_exit(const char *msg){
-  perror(msg);
-  exit(EXIT_FAILURE);
-}
+int PORT = 8887;
 
 int init_sender() {
   std::cout << "send: start" << std::endl;
@@ -78,3 +78,5 @@ int accept_receiver(int sockfd) {
          inet_ntoa(snd_addr.sin_addr), ntohs(snd_addr.sin_port));
   return newsockfd;
 }
+
+#endif

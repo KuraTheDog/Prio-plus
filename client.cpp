@@ -26,6 +26,7 @@ x_op_invalid: For testing/debugging, does a basic run with intentionally invalid
 #include "net_share.h"
 #include "ot.h"
 #include "types.h"
+#include "utils.h"
 
 // #define SERVER0_IP "52.87.230.64"
 // #define SERVER1_IP "54.213.189.18"
@@ -43,11 +44,6 @@ uint64_t max_int;
 uint32_t linreg_degree = 2;
 
 int sockfd0, sockfd1;
-
-void error_exit(const char* const msg) {
-    perror(msg);
-    exit(EXIT_FAILURE);
-}
 
 std::string pub_key_to_hex(const uint64_t* const key) {
     std::stringstream ss;
