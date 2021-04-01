@@ -53,19 +53,20 @@ struct OT_Wrapper {
 #if OT_TYPE == EMP_IKNP
   emp::NetIO* const io;
   emp::IKNP<emp::NetIO>* const ot;
-#elif OT_TYPE == LIBOTE_IKNP || OT_TYPE == LIBOTE_SILENT
+#elif OT_TYPE == LIBOTE_IKNP
   osuCrypto::IOService ios;
   osuCrypto::Channel channel;
 
   osuCrypto::PRNG prng;
-#if OT_TYPE == LIBOTE_SILENT
+#elif OT_TYPE == LIBOTE_SILENT
+  osuCrypto::IOService ios;
+  osuCrypto::PRNG prng;
+
   const size_t batch_size = 2048;  // at least 888 ?????
   const char* const address;
   const int port;
-  const int second_port;
-  
-  int sockfd;
-  int new_sockfd;
+
+  int sockfd;  // for online
 
   std::queue<std::tuple<uint64_t, uint64_t>> message_cache;
   std::queue<std::tuple<bool, uint64_t>> choice_cache;
@@ -73,9 +74,8 @@ struct OT_Wrapper {
   void maybeUpdate();
   void addPrecompute(const size_t n = 0);
 #endif
-#endif
 
-  OT_Wrapper(const char* address, const int port, const bool is_sender);
+  OT_Wrapper(const char* address, const int port, const bool is_sender, const int sockfd = -1);
   ~OT_Wrapper();
 
   void send(const uint64_t* const data0, const uint64_t* const data1,

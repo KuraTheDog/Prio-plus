@@ -6,7 +6,7 @@
 
 #if OT_TYPE == EMP_IKNP
 
-OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender)
+OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender, const int sockfd)
 : is_sender(is_sender)
 , io(new emp::NetIO(is_sender ? address : nullptr, port, true))
 , ot(new emp::IKNP<emp::NetIO>(io))
@@ -56,7 +56,7 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
 
 #elif OT_TYPE == LIBOTE_IKNP
 
-OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender)
+OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender, const int sockfd)
 : is_sender(is_sender)
 {
     channel = osuCrypto::Session(
@@ -102,67 +102,19 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
 
 #elif OT_TYPE == LIBOTE_SILENT
 
-OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender)
+OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender, const int sockfd)
 : is_sender(is_sender)
 , address(address)
 , port(port)
-, second_port(port + 100)
+, sockfd(sockfd)
 {
-    std::cout << "Making a " << (is_sender ? "sender" : "receiver") << " on port " << port << " and second port " << second_port << std::endl;
-    channel = osuCrypto::Session(
-        ios, address, port, 
-        is_sender ? osuCrypto::SessionMode::Server : osuCrypto::SessionMode::Client
-    ).addChannel();
+    std::cout << "Making a " << (is_sender ? "sender" : "receiver") << " on port " << port << std::endl;
     prng = osuCrypto::PRNG(osuCrypto::sysRandomSeed());
-
-    // Set up sockets for normal send/recv online
-    if (is_sender) {
-        // bind and listen
-        int reuse = 1;
-        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        if (sockfd < 0) error_exit("Socket creation failed");
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)))
-            error_exit("Sockopt failed");
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)))
-            error_exit("Sockopt failed");
-        sockaddr_in addr;
-        bzero((char *) &addr, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_addr.s_addr = INADDR_ANY;
-        addr.sin_port = htons(second_port);
-        if (bind(sockfd, (sockaddr*)&addr, sizeof(addr)) < 0)
-            error_exit("Bind to port failed");
-        if (listen(sockfd, 2) < 0) error_exit("Listen failed");
-        socklen_t addrlen = sizeof(addr);
-        new_sockfd = accept(sockfd, (sockaddr*)&addr, &addrlen);
-        if (new_sockfd < 0) error_exit("Accept Failure");
-    } else {
-        // connect
-        sleep(1);
-        int reuse = 1;
-        sockfd = socket(AF_INET, SOCK_STREAM, 0);
-        if (sockfd < 0) error_exit("Socket creation failed");
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)))
-            error_exit("Sockopt failed");
-        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)))
-            error_exit("Sockopt failed");
-        sockaddr_in addr;
-        bzero((char *) &addr, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_port = htons(second_port);
-        inet_pton(AF_INET, address, &addr.sin_addr);
-        if (connect(sockfd, (sockaddr*)&addr, sizeof(addr)) < 0)
-            error_exit("Can't connect to other server");
-    }
 
     addPrecompute();
 }
 
-OT_Wrapper::~OT_Wrapper() {
-    if (is_sender)
-        close(new_sockfd);
-    close(sockfd);
-}
+OT_Wrapper::~OT_Wrapper() {}
 
 void OT_Wrapper::addPrecompute(const size_t n) {
 
@@ -177,7 +129,7 @@ void OT_Wrapper::addPrecompute(const size_t n) {
         osuCrypto::SilentOtExtSender sender;
         sender.configure(num_to_make);  // more options? is this needed? todo
 
-        channel = osuCrypto::Session(
+        osuCrypto::Channel channel = osuCrypto::Session(
             ios, address, port, osuCrypto::SessionMode::Server
         ).addChannel();
 
@@ -195,7 +147,7 @@ void OT_Wrapper::addPrecompute(const size_t n) {
         osuCrypto::SilentOtExtReceiver recver;
         recver.configure(num_to_make);  // more options? is this needed? todo
 
-        channel = osuCrypto::Session(
+        osuCrypto::Channel channel = osuCrypto::Session(
             ios, address, port, osuCrypto::SessionMode::Client
         ).addChannel();
 
@@ -211,18 +163,21 @@ void OT_Wrapper::addPrecompute(const size_t n) {
             });
         }
     }
+    std::cout << "OT Precompute done" << std::endl;
 }
 
 void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
         const size_t length) {
     if (!is_sender) error_exit("Error: Calling send on non-sender OT Wrapper");
+    if (sockfd == -1)
+        error_exit("Silent OT Wrapper requires a valid sockfd for online");
 
     if (message_cache.size() < length)
         addPrecompute(message_cache.size());
 
     // work
     bool* const d = new bool[length];
-    recv_bool_batch(new_sockfd, d, length);
+    recv_bool_batch(sockfd, d, length);
 
     for (unsigned int i = 0; i < length; i++) {
         uint64_t r[2];
@@ -231,14 +186,17 @@ void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
 
         uint64_t s0 = data0[i] ^ r[d[i]];
         uint64_t s1 = data1[i] ^ r[d[i] ^ 1];
-        send_uint64(new_sockfd, s0);
-        send_uint64(new_sockfd, s1);
+        send_uint64(sockfd, s0);
+        send_uint64(sockfd, s1);
     }
     delete[] d;
 }
 
 void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) {
     if (is_sender) error_exit("Error: Calling send on sender OT Wrapper");
+
+    if (sockfd == -1)
+        error_exit("Silent OT Wrapper requires a valid sockfd for online");
 
     if (choice_cache.size() < length)
         addPrecompute(choice_cache.size());

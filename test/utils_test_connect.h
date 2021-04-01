@@ -40,7 +40,7 @@ int init_sender(const char* ip = "127.0.0.1") {
 }
 
 int init_receiver() {
-  std::cout << "recv: start" << std::endl;
+  std::cout << "recv: start on " << PORT << std::endl;
 
   int sockfd;
   struct sockaddr_in rec_addr;
