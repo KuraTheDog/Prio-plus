@@ -22,10 +22,29 @@ int main(int argc, char** argv){
   pid_t pid = fork();
   int server_num = (pid == 0 ? 0 : 1);
 
+
+  // TODO: serverfd stuff
+  int serverfd = -1;
+
+  #if OT_TYPE == LIBOTE_SILENT
+  std::cout << "setting up sockets" << std::endl;
+  if (server_num == 0) {
+    int sockfd = init_receiver();
+    int newsockfd = accept_receiver(sockfd);
+    serverfd = newsockfd;
+  } else if (server_num == 1) {
+    sleep(1);
+    int cli_sockfd = init_sender();
+    serverfd = cli_sockfd;
+  }
+  #endif
+
   std::cout << "Making io objects" << std::endl;
 
-  OT_Wrapper* ot0 = new OT_Wrapper(SERVER0_IP, SERVER0_OT_PORT, server_num == 0);
-  OT_Wrapper* ot1 = new OT_Wrapper(SERVER1_IP, SERVER1_OT_PORT, server_num == 1);
+  std::cout << "making ot0" << std::endl;
+  OT_Wrapper* ot0 = new OT_Wrapper(SERVER0_IP, SERVER0_OT_PORT, server_num == 0, serverfd);
+  std::cout << "making ot1" << std::endl;
+  OT_Wrapper* ot1 = new OT_Wrapper(SERVER1_IP, SERVER1_OT_PORT, server_num == 1, serverfd);
 
   std::cout << "Simple ot test, n = " << n << ", iterations: " << m << std::endl;
   for (int j = 0; j < m; j++) {
@@ -51,6 +70,8 @@ int main(int argc, char** argv){
       }
     }
   }
+
+  return 0;
 
   std::cout << "Making bool triples" << std::endl;
 

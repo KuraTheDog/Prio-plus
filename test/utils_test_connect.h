@@ -14,7 +14,7 @@
 int PORT = 8887;
 
 int init_sender() {
-  std::cout << "send: start" << std::endl;
+  std::cout << "send: start on " << PORT << std::endl;
 
   int sockfd;
   struct sockaddr_in addr;
@@ -40,7 +40,7 @@ int init_sender() {
 }
 
 int init_receiver() {
-  std::cout << "recv: start" << std::endl;
+  std::cout << "recv: start on " << PORT << std::endl;
 
   int sockfd;
   struct sockaddr_in rec_addr;
