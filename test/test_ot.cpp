@@ -9,10 +9,13 @@
 #define SERVER1_IP "127.0.0.1"
 
 int main(int argc, char** argv){
-  int m = 10;
+  int n = 10;
   if(argc >= 2){
-    m = atoi(argv[1]);
+    n = atoi(argv[1]);
   }
+  int m = 1;
+  if (argc >= 3)
+    m = atoi(argv[2]);
 
   init_constants();
 
@@ -24,21 +27,34 @@ int main(int argc, char** argv){
   OT_Wrapper* ot0 = new OT_Wrapper(SERVER0_IP, SERVER0_OT_PORT, server_num == 0);
   OT_Wrapper* ot1 = new OT_Wrapper(SERVER1_IP, SERVER1_OT_PORT, server_num == 1);
 
-  std::cout << "Simple ot test" << std::endl;
-
-  if (server_num == 0) {
-    uint64_t a[1] = {10};
-    uint64_t b[1] = {20};
-    ot0->send(a, b, 1);
-  } else {
-    uint64_t* d = new uint64_t[1];
-    bool c[1] = {1};
-    ot0->recv(d, c, 1);
+  std::cout << "Simple ot test, n = " << n << ", iterations: " << m << std::endl;
+  for (int j = 0; j < m; j++) {
+    if (server_num == 0) {
+      uint64_t a[n];
+      uint64_t b[n];
+      for (int i = 0; i < n; i++) {
+        a[i] = (1000 * j + 10 * i + 1);
+        b[i] = 10 * (1000 * j + 10 * i + 1);
+        if (i < 4 or i == n-1)
+          std::cout << j << ", " << i << " send " << a[i] << ", " << b[i] << std::endl;
+      }
+      ot0->send(a, b, n);
+    } else {
+      uint64_t* d = new uint64_t[n];
+      bool c[n];
+      for (int i = 0; i < n; i++)
+        c[i] = i % 2;
+      ot0->recv(d, c, n);
+      for (int i = 0; i < n; i++) {
+        if (i < 4 or i == n-1)
+          std::cout << j << ", " << i << " got " << c[i] << " = " << d[i] << std::endl;
+      }
+    }
   }
 
   std::cout << "Making bool triples" << std::endl;
 
-  auto triples = gen_boolean_beaver_triples(server_num, m, ot0, ot1);
+  auto triples = gen_boolean_beaver_triples(server_num, n, ot0, ot1);
 
   if (pid == 0) {
     sleep(1);
@@ -46,7 +62,7 @@ int main(int argc, char** argv){
 
     std::cout << "Validating bool triples" << std::endl;
     BooleanBeaverTriple* other_triple = new BooleanBeaverTriple();
-    for (int i = 0; i < m; i++) {
+    for (int i = 0; i < n; i++) {
       recv_BooleanBeaverTriple(cli_sockfd, other_triple);
       BooleanBeaverTriple* triple = triples.front();
       triples.pop();
@@ -90,7 +106,7 @@ int main(int argc, char** argv){
     int sockfd = init_receiver();
     int newsockfd = accept_receiver(sockfd);
 
-    for (int i = 0; i < m; i++) {
+    for (int i = 0; i < n; i++) {
       BooleanBeaverTriple* triple = triples.front();
       triples.pop();
       send_BooleanBeaverTriple(newsockfd, triple);

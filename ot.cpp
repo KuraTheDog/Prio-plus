@@ -1,9 +1,8 @@
 #include "ot.h"
 
 #include "constants.h"
-#include "net_share.h"
+#include "net_share.h"  // lazy or OT triple, silent 
 #include "utils.h"
-
 
 #if OT_TYPE == EMP_IKNP
 
@@ -98,6 +97,169 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
     for (unsigned int i = 0; i < length; i++) {
         data[i] = *(uint64_t*)&messages[i];
         // std::cout << "Recv[" << i << "][" << b[i] << "] = " << data[i] << std::endl;
+    }
+}
+
+#elif OT_TYPE == LIBOTE_SILENT
+
+OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender)
+: is_sender(is_sender)
+, address(address)
+, port(port)
+, second_port(port + 100)
+{
+    std::cout << "Making a " << (is_sender ? "sender" : "receiver") << " on port " << port << " and second port " << second_port << std::endl;
+    channel = osuCrypto::Session(
+        ios, address, port, 
+        is_sender ? osuCrypto::SessionMode::Server : osuCrypto::SessionMode::Client
+    ).addChannel();
+    prng = osuCrypto::PRNG(osuCrypto::sysRandomSeed());
+
+    // Set up sockets for normal send/recv online
+    if (is_sender) {
+        // bind and listen
+        int reuse = 1;
+        int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0) error_exit("Socket creation failed");
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)))
+            error_exit("Sockopt failed");
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)))
+            error_exit("Sockopt failed");
+        sockaddr_in addr;
+        bzero((char *) &addr, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_addr.s_addr = INADDR_ANY;
+        addr.sin_port = htons(second_port);
+        if (bind(sockfd, (sockaddr*)&addr, sizeof(addr)) < 0)
+            error_exit("Bind to port failed");
+        if (listen(sockfd, 2) < 0) error_exit("Listen failed");
+        socklen_t addrlen = sizeof(addr);
+        new_sockfd = accept(sockfd, (sockaddr*)&addr, &addrlen);
+        if (new_sockfd < 0) error_exit("Accept Failure");
+    } else {
+        // connect
+        sleep(1);
+        int reuse = 1;
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0) error_exit("Socket creation failed");
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)))
+            error_exit("Sockopt failed");
+        if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)))
+            error_exit("Sockopt failed");
+        sockaddr_in addr;
+        bzero((char *) &addr, sizeof(addr));
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(second_port);
+        inet_pton(AF_INET, address, &addr.sin_addr);
+        if (connect(sockfd, (sockaddr*)&addr, sizeof(addr)) < 0)
+            error_exit("Can't connect to other server");
+    }
+
+    addPrecompute();
+}
+
+OT_Wrapper::~OT_Wrapper() {
+    if (is_sender)
+        close(new_sockfd);
+    close(sockfd);
+}
+
+void OT_Wrapper::addPrecompute(const size_t n) {
+
+    osuCrypto::IOService ios;
+    osuCrypto::Channel channel;
+
+    const int num_to_make = (n > batch_size ? n : batch_size);
+
+    std::cout << "adding precompute of " << num_to_make << std::endl;
+
+    if (is_sender) {
+        osuCrypto::SilentOtExtSender sender;
+        sender.configure(num_to_make);  // more options? is this needed? todo
+
+        channel = osuCrypto::Session(
+            ios, address, port, osuCrypto::SessionMode::Server
+        ).addChannel();
+
+        // build
+        std::vector<std::array<osuCrypto::block, 2>> randMessages(num_to_make);
+        sender.silentSend(randMessages, prng, channel);
+
+        for (unsigned int i = 0; i < num_to_make; i++) {
+            message_cache.push({
+                *(uint64_t*)&randMessages[i][0],
+                *(uint64_t*)&randMessages[i][1]
+            });
+        }
+    } else {
+        osuCrypto::SilentOtExtReceiver recver;
+        recver.configure(num_to_make);  // more options? is this needed? todo
+
+        channel = osuCrypto::Session(
+            ios, address, port, osuCrypto::SessionMode::Client
+        ).addChannel();
+
+        // build
+        osuCrypto::BitVector randChoice(num_to_make);
+        std::vector<osuCrypto::block> gotMessages(num_to_make);
+        recver.silentReceive(randChoice, gotMessages, prng, channel);
+
+        for (unsigned int i = 0; i < num_to_make; i++) {
+            choice_cache.push({
+                randChoice[i],
+                *(uint64_t*)&gotMessages[i]
+            });
+        }
+    }
+}
+
+void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
+        const size_t length) {
+    if (!is_sender) error_exit("Error: Calling send on non-sender OT Wrapper");
+
+    if (message_cache.size() < length)
+        addPrecompute(message_cache.size());
+
+    // work
+    bool* const d = new bool[length];
+    recv_bool_batch(new_sockfd, d, length);
+
+    for (unsigned int i = 0; i < length; i++) {
+        uint64_t r[2];
+        std::tie(r[0], r[1]) = message_cache.front();
+        message_cache.pop();
+
+        uint64_t s0 = data0[i] ^ r[d[i]];
+        uint64_t s1 = data1[i] ^ r[d[i] ^ 1];
+        send_uint64(new_sockfd, s0);
+        send_uint64(new_sockfd, s1);
+    }
+    delete[] d;
+}
+
+void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) {
+    if (is_sender) error_exit("Error: Calling send on sender OT Wrapper");
+
+    if (choice_cache.size() < length)
+        addPrecompute(choice_cache.size());
+
+    // work
+    bool* const d = new bool[length];
+    uint64_t* const rc = new uint64_t[length];
+    for (unsigned int i = 0; i < length; i++) {
+        bool c;
+        std::tie(c, rc[i]) = choice_cache.front();
+        choice_cache.pop();
+
+        d[i] = b[i] ^ c;
+    }
+    send_bool_batch(sockfd, d, length);
+    for (unsigned int i = 0; i < length; i++) {
+        uint64_t s0, s1;
+        recv_uint64(sockfd, s0);
+        recv_uint64(sockfd, s1);
+        uint64_t mb = (b[i] == 0 ? s0 : s1) ^ rc[i];
+        data[i] = mb;
     }
 }
 

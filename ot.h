@@ -1,6 +1,5 @@
 /*
-Oblivious Transfer code
-For share conversion
+Oblivious Transfer code, for share conversion
 */
 
 #ifndef PROTO_H
@@ -10,9 +9,11 @@ For share conversion
 
 #define EMP_IKNP 1
 #define LIBOTE_IKNP 2
+#define LIBOTE_SILENT 3
 
 // #define OT_TYPE EMP_IKNP
-#define OT_TYPE LIBOTE_IKNP
+// #define OT_TYPE LIBOTE_IKNP
+#define OT_TYPE LIBOTE_SILENT
 
 /* ******** */
 
@@ -25,11 +26,20 @@ For share conversion
 #include <emp-ot/emp-ot.h>
 #include <emp-tool/emp-tool.h>
 
-#elif OT_TYPE == LIBOTE_IKNP
+#elif OT_TYPE == LIBOTE_IKNP || OT_TYPE == LIBOTE_SILENT
 #include "cryptoTools/Common/Defines.h"   // block
 #include "cryptoTools/Network/IOService.h"  // IOService
+#if OT_TYPE == LIBOTE_IKNP
 #include "libOTe/TwoChooseOne/IknpOtExtReceiver.h"
 #include "libOTe/TwoChooseOne/IknpOtExtSender.h"
+#elif OT_TYPE == LIBOTE_SILENT
+#include "libOTe/TwoChooseOne/SilentOtExtReceiver.h"
+#include "libOTe/TwoChooseOne/SilentOtExtSender.h"
+
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
 
 #else
 #error Not valid or defined OT type
@@ -43,11 +53,26 @@ struct OT_Wrapper {
 #if OT_TYPE == EMP_IKNP
   emp::NetIO* const io;
   emp::IKNP<emp::NetIO>* const ot;
-#elif OT_TYPE == LIBOTE_IKNP
+#elif OT_TYPE == LIBOTE_IKNP || OT_TYPE == LIBOTE_SILENT
   osuCrypto::IOService ios;
   osuCrypto::Channel channel;
 
   osuCrypto::PRNG prng;
+#if OT_TYPE == LIBOTE_SILENT
+  const size_t batch_size = 2048;  // at least 888 ?????
+  const char* const address;
+  const int port;
+  const int second_port;
+  
+  int sockfd;
+  int new_sockfd;
+
+  std::queue<std::tuple<uint64_t, uint64_t>> message_cache;
+  std::queue<std::tuple<bool, uint64_t>> choice_cache;
+
+  void maybeUpdate();
+  void addPrecompute(const size_t n = 0);
+#endif
 #endif
 
   OT_Wrapper(const char* address, const int port, const bool is_sender);
