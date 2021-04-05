@@ -229,6 +229,24 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
     delete[] rc;
 }
 
+void OT_Wrapper::send_rand(uint64_t* const data0, uint64_t* const data1, const size_t length) {
+    if (!is_sender) error_exit("Error: Calling send on non-sender OT Wrapper");
+    maybeUpdate(length);
+    for (unsigned int i = 0; i < length; i++) {
+        std::tie(data0[i], data1[i]) = message_cache.front();
+        message_cache.pop();
+    }
+
+}
+void OT_Wrapper::recv_rand(uint64_t* const data, bool* b, const size_t length) {
+    if (is_sender) error_exit("Error: Calling send on sender OT Wrapper");
+    maybeUpdate(length);
+    for (unsigned int i = 0; i < length; i++) {
+        std::tie(b[i], data[i]) = choice_cache.front();
+        choice_cache.pop();
+    }
+}
+
 #endif
 
 uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const bool* const valid, const size_t n){
@@ -366,53 +384,51 @@ uint64_t* intsum_ot_receiver(OT_Wrapper* const ot, const uint64_t* const shares,
 }
 
 // Ref : https://crypto.stackexchange.com/questions/41651/what-are-the-ways-to-generate-beaver-triples-for-multiplication-gate
-// TODO: integrate random OT
-std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num, const unsigned int m, OT_Wrapper* const ot0, OT_Wrapper* const ot1){
+// Uses random OT when available
+std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num, const unsigned int n, OT_Wrapper* const ot0, OT_Wrapper* const ot1){
     emp::PRG prg;
     std::queue<BooleanBeaverTriple*> ans;
-    bool* x = new bool[m];
-    bool* y = new bool[m];
-    bool* z = new bool[m];
-    bool* r = new bool[m];
-    prg.random_bool(x, m);
-    prg.random_bool(y, m);
-    prg.random_bool(r, m);
 
-    uint64_t* b0 = new uint64_t[m];
-    uint64_t* b1 = new uint64_t[m];
-    uint64_t* b = new uint64_t[m];
+    uint64_t* b0 = new uint64_t[n];
+    uint64_t* b1 = new uint64_t[n];
+    bool* y = new bool[n];
+    uint64_t* b = new uint64_t[n];
 
-    for (unsigned int i = 0; i < m; i++){
-        b0[i] = r[i];
-        b1[i] = (x[i] != r[i]); // r[i] XOR x[i]
+#if OT_TYPE == LIBOTE_SILENT
+    if (server_num == 0) {
+        ot0->send_rand(b0, b1, n);
+        ot1->recv_rand(b, y, n);
+    } else {
+        ot0->recv_rand(b, y, n);
+        ot1->send_rand(b0, b1, n);
     }
+#else
+    prg.random_bool(y, n);
+    prg.random_data(b0, n * sizeof(uint64_t));
+    prg.random_data(b1, n * sizeof(uint64_t));
 
     if(server_num == 0){
-        ot0->send(b0, b1, m);
-        ot1->recv(b, y, m);
+        ot0->send(b0, b1, n);
+        ot1->recv(b, y, n);
     }
     else if(server_num == 1){
-        ot0->recv(b, y, m);
-        ot1->send(b0, b1, m);
+        ot0->recv(b, y, n);
+        ot1->send(b0, b1, n);
     }
+#endif
 
-    for (unsigned int i = 0; i < m ; i++){
-        // b = r' ^ x'y
-        z[i] = b[i] != (r[i] != (x[i] and y[i])); // z[i] = r_A xor x_A.y_A xor r_B xor x_B.y_A
-        // std::cout << x[i] << " " << y[i] << " " <<  z[i] << std::endl;
-    }
-
-    for (unsigned int i = 0 ; i < m ; i++){
-        ans.push(new BooleanBeaverTriple(x[i], y[i], z[i]));
+    for (unsigned int i = 0; i < n ; i++){
+        bool x, z, r;
+        r = b0[i] % 2;
+        x = (b1[i] % 2) ^ r;
+        z = (b[i] % 2) != (r != (x and y[i])); // z[i] = r_A xor x_A.y_A xor r_B xor x_B.y_A
+        ans.push(new BooleanBeaverTriple(x, y[i], z));
     }
 
     delete[] b0;
     delete[] b1;
     delete[] b;
-    delete[] x;
     delete[] y;
-    delete[] z;
-    delete[] r;
 
     return ans;
 }

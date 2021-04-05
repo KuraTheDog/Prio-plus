@@ -77,6 +77,8 @@ public:
 public:
   void maybeUpdate(const size_t n = 0);
   size_t cache_size();
+  void send_rand(uint64_t* const data0, uint64_t* const data1, const size_t length);
+  void recv_rand(uint64_t* const data, bool* b, const size_t length);
 #endif
 
   OT_Wrapper(const char* address, const int port, const bool is_sender,
@@ -104,7 +106,7 @@ uint64_t* intsum_ot_receiver(OT_Wrapper* const ot, const uint64_t* const shares,
                              const size_t* const num_bits,
                              const size_t num_shares, const size_t num_values);
 
-std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num, const unsigned int m, OT_Wrapper* const ot0, OT_Wrapper* const ot1);
+std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num, const unsigned int n, OT_Wrapper* const ot0, OT_Wrapper* const ot1);
 
 BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, OT_Wrapper* const ot0, OT_Wrapper* const ot1);
 
