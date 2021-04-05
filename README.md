@@ -32,6 +32,8 @@ PALISADE encryption is used to generate beaver triples.
 
 ### libOTe Instructions
 
+First, relic (or miracle) needs to be installed for base ots.
+
 Build libOTe with `cmake . -DENABLE_RELIC=ON -DENABLE_NP=ON -DENABLE_IKNP=ON -DENABLE_SILENTOT=ON`.
 Becaue installing is not complete yet, it's currently hard coded into this `CMakeLists.txt`.
 Change `libOTe_Dirs` as needed based on where libOTe ended up.
