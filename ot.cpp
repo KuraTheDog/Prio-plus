@@ -6,7 +6,7 @@
 
 #if OT_TYPE == EMP_IKNP
 
-OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender, const int sockfd)
+OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender, const int sockfd, const int batch_size)
 : is_sender(is_sender)
 , io(new emp::NetIO(is_sender ? address : nullptr, port, true))
 , ot(new emp::IKNP<emp::NetIO>(io))
@@ -56,7 +56,7 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
 
 #elif OT_TYPE == LIBOTE_IKNP
 
-OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender, const int sockfd)
+OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender, const int sockfd, const int batch_size)
 : is_sender(is_sender)
 {
     channel = osuCrypto::Session(
@@ -102,13 +102,14 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
 
 #elif OT_TYPE == LIBOTE_SILENT
 
-OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender, const int sockfd)
+OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender, const int sockfd, const int batch_size)
 : is_sender(is_sender)
+, batch_size(batch_size)
 , address(address)
 , port(port)
 , sockfd(sockfd)
 {
-    std::cout << "Making a " << (is_sender ? "sender" : "receiver") << " on port " << port << std::endl;
+    std::cout << "Making a " << (is_sender ? "sender" : "receiver") << " on port " << port << " with batch size " << batch_size << std::endl;
     prng = osuCrypto::PRNG(osuCrypto::sysRandomSeed());
 
     addPrecompute();
@@ -173,7 +174,7 @@ void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
         error_exit("Silent OT Wrapper requires a valid sockfd for online");
 
     if (message_cache.size() < length)
-        addPrecompute(message_cache.size());
+        addPrecompute(length);
 
     // work
     bool* const d = new bool[length];
@@ -199,7 +200,7 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
         error_exit("Silent OT Wrapper requires a valid sockfd for online");
 
     if (choice_cache.size() < length)
-        addPrecompute(choice_cache.size());
+        addPrecompute(length);
 
     // work
     bool* const d = new bool[length];
@@ -212,13 +213,14 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
         d[i] = b[i] ^ c;
     }
     send_bool_batch(sockfd, d, length);
+    delete[] d;
     for (unsigned int i = 0; i < length; i++) {
         uint64_t s0, s1;
         recv_uint64(sockfd, s0);
         recv_uint64(sockfd, s1);
-        uint64_t mb = (b[i] == 0 ? s0 : s1) ^ rc[i];
-        data[i] = mb;
+        data[i] = (b[i] == 0 ? s0 : s1) ^ rc[i];
     }
+    delete[] rc;
 }
 
 #endif

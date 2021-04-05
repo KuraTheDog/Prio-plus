@@ -15,6 +15,7 @@ Some of this code, such as the fast polynomial operations, is directly based on 
 1. [Flint 2.7.0+](https://flintlib.org)
 2. [emp-ot](https://github.com/emp-toolkit/emp-ot)
 3. [PALISADE](https://gitlab.com/palisade/palisade-release)
+4. [libOTe](https://github.com/osu-crypto/libOTe/tree/master/libOTe/TwoChooseOne)
 
 # Getting Started
 
@@ -28,6 +29,16 @@ For full install instructions, see [here](https://gitlab.com/palisade/palisade-r
 Currently, Palisade is built with default args (`cmake ..`).
 
 PALISADE encryption is used to generate beaver triples.
+
+### libOTe Instructions
+
+Build libOTe with `cmake . -DENABLE_RELIC=ON -DENABLE_NP=ON -DENABLE_IKNP=ON -DENABLE_SILENTOT=ON`.
+Becaue installing is not complete yet, it's currently hard coded into this `CMakeLists.txt`.
+Change `libOTe_Dirs` as needed based on where libOTe ended up.
+
+Used for alternative IKNP OTs, and silent OTs
+
+Swapped between them based on OT_TYPE define in `ot.h`
 
 ## Build Prio+
 
