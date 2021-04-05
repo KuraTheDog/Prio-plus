@@ -8,34 +8,7 @@
 #define SERVER0_IP "127.0.0.1"
 #define SERVER1_IP "127.0.0.1"
 
-int main(int argc, char** argv){
-  int n = 10;
-  if(argc >= 2){
-    n = atoi(argv[1]);
-  }
-  int m = 1;
-  if (argc >= 3)
-    m = atoi(argv[2]);
-
-  init_constants();
-
-  int sockfd = init_receiver();
-
-  pid_t pid = fork();
-  int server_num = (pid == 0 ? 0 : 1);
-
-  // TODO: serverfd stuff
-  int serverfd = -1;
-
-  std::cout << "setting up sockets" << std::endl;
-  if (server_num == 0) {
-    int newsockfd = accept_receiver(sockfd);
-    serverfd = newsockfd;
-  } else if (server_num == 1) {
-    sleep(1);
-    int cli_sockfd = init_sender();
-    serverfd = cli_sockfd;
-  }
+void run(const int server_num, const int sockfd, const int n, const int m) {
 
   std::cout << "Making io objects" << std::endl;
 
@@ -43,18 +16,20 @@ int main(int argc, char** argv){
 
   size_t batch_size = 2048;
 
-  OT_Wrapper* ot0 = new OT_Wrapper(SERVER0_IP, SERVER0_OT_PORT, server_num == 0, serverfd, batch_size);
+  OT_Wrapper* ot0 = new OT_Wrapper(SERVER0_IP, SERVER0_OT_PORT, server_num == 0, sockfd, batch_size);
   std::cout << "Make ot0 time: " << sec_from(start) << std::endl;
   start = clock_start();
+  OT_Wrapper* ot1 = new OT_Wrapper(SERVER1_IP, SERVER1_OT_PORT, server_num == 1, sockfd, batch_size);
+  std::cout << "Make ot1 time: " << sec_from(start) << std::endl;
+  start = clock_start();
+  #if OT_TYPE == LIBOTE_SILENT
   ot0->maybeUpdate();
   std::cout << "ot0 precompute time: " << sec_from(start) << std::endl;
-  start = clock_start();
-  OT_Wrapper* ot1 = new OT_Wrapper(SERVER1_IP, SERVER1_OT_PORT, server_num == 1, serverfd, batch_size);
-  std::cout << "Make ot1 time: " << sec_from(start) << std::endl;
   start = clock_start();
   ot1->maybeUpdate();
   std::cout << "ot1 precompute time: " << sec_from(start) << std::endl;
   start = clock_start();
+  #endif
   std::cout << "Simple ot test, n = " << n << ", iterations: " << m << std::endl;
   for (int j = 0; j < m; j++) {
     if (server_num == 0) {
@@ -63,16 +38,22 @@ int main(int argc, char** argv){
       for (int i = 0; i < n; i++) {
         a[i] = (10000 * j + 100 * i + 1);
         b[i] = 10 * (10000 * j + 100 * i + 1);
+      }
+
+      ot0->send_rand(a, b, n);
+
+      for (int i = 0; i < n; i++) {
         if (i < 2 or i == n-1)
           std::cout << j << ", " << i << " send " << a[i] << ", " << b[i] << std::endl;
       }
-      ot0->send(a, b, n);
     } else {
       uint64_t* d = new uint64_t[n];
       bool c[n];
       for (int i = 0; i < n; i++)
         c[i] = i % 2;
-      ot0->recv(d, c, n);
+
+      ot0->recv_rand(d, c, n);
+
       for (int i = 0; i < n; i++) {
         if (i < 2 or i == n-1)
           std::cout << j << ", " << i << " got " << c[i] << " = " << d[i] << std::endl;
@@ -82,6 +63,9 @@ int main(int argc, char** argv){
 
   std::cout << "OT test time: " << sec_from(start) << std::endl;
 
+  sleep(100);
+  return;
+
   std::cout << "Making bool triples" << std::endl;
 
   auto triples = gen_boolean_beaver_triples(server_num, n, ot0, ot1);
@@ -90,7 +74,7 @@ int main(int argc, char** argv){
     std::cout << "Validating bool triples" << std::endl;
     BooleanBeaverTriple* other_triple = new BooleanBeaverTriple();
     for (int i = 0; i < n; i++) {
-      recv_BooleanBeaverTriple(serverfd, other_triple);
+      recv_BooleanBeaverTriple(sockfd, other_triple);
       BooleanBeaverTriple* triple = triples.front();
       triples.pop();
       std::cout << "ab = (" << triple->a << " ^ " << other_triple->a << ") * (";
@@ -101,10 +85,10 @@ int main(int argc, char** argv){
     delete other_triple;
 
     std::cout << "Making arith triple" << std::endl;
-    BeaverTriple* btriple = generate_beaver_triple_lazy(serverfd, server_num);
+    BeaverTriple* btriple = generate_beaver_triple_lazy(sockfd, server_num);
     std::cout << "Validating arith triple" << std::endl;
     BeaverTriple* other_btriple = new BeaverTriple();
-    recv_BeaverTriple(serverfd, other_btriple);
+    recv_BeaverTriple(sockfd, other_btriple);
 
     fmpz_t tmp; fmpz_init(tmp);
     fmpz_t tmp2; fmpz_init(tmp2);
@@ -131,23 +115,65 @@ int main(int argc, char** argv){
     for (int i = 0; i < n; i++) {
       BooleanBeaverTriple* triple = triples.front();
       triples.pop();
-      send_BooleanBeaverTriple(serverfd, triple);
+      send_BooleanBeaverTriple(sockfd, triple);
       delete triple;
     }
 
-    BeaverTriple* btriple = generate_beaver_triple_lazy(serverfd, server_num);
+    BeaverTriple* btriple = generate_beaver_triple_lazy(sockfd, server_num);
 
-    send_BeaverTriple(serverfd, btriple);
+    send_BeaverTriple(sockfd, btriple);
 
     delete btriple;
   }
-  close(serverfd);
-  close(sockfd);
 
   delete ot0;
   delete ot1;
+}
+
+
+int main(int argc, char** argv) {
+
+  int server_num = -1;
+  if(argc >= 2)
+    server_num = atoi(argv[1]);
+
+  if (server_num < -1 or server_num > 1) {
+    perror("Server num must be -1 (for fork), 0, or 1");
+    exit(1);
+  }
+
+  // batch size
+  int n = 10;
+  if(argc >= 3)
+    n = atoi(argv[2]);
+
+  // num batches
+  int m = 1;
+  if (argc >= 4)
+    m = atoi(argv[3]);
+
+  init_constants();
+
+  int sockfd;
+  if (server_num == -1 or server_num == 0) {
+    sockfd = init_receiver();
+  }
+
+  if (server_num == -1) {
+    pid_t pid = fork();
+    server_num = (pid == 0 ? 0 : 1);
+  }
+
+  if (server_num == 0) {
+    int newsockfd = accept_receiver(sockfd);
+    run(0, newsockfd, n, m);
+    close(newsockfd);
+    close(sockfd);
+  } else {
+    int cli_sockfd = init_sender();
+    run(1, cli_sockfd, n, m);
+    close(cli_sockfd);
+  }
 
   clear_constants();
-
-  return 0;
 }

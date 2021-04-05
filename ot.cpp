@@ -39,8 +39,8 @@ void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
 }
 
 void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) {
-    emp::block* const block = new emp::block[length];
     if (is_sender) error_exit("Error: Calling recv on sender OT Wrapper");
+    emp::block* const block = new emp::block[length];
 
     io->sync();
     ot->recv(block, b, length);
@@ -49,6 +49,45 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
     for (unsigned int i = 0; i < length; i++) {
         data[i] = *(uint64_t*)&block[i];
         // std::cout << "Recv[" << i << "][" << b[i] << "] = " << data[i] << std::endl;
+    }
+
+    delete[] block;
+}
+
+void OT_Wrapper::send_rand(uint64_t* const data0, uint64_t* const data1, const size_t length) {
+if (!is_sender) error_exit("Error: Calling send on non-sender OT Wrapper");
+
+    emp::block* const block0 = new emp::block[length];
+    emp::block* const block1 = new emp::block[length];
+
+    io->sync();
+    ot->send_rot(block0, block1, length);
+    io->flush();
+
+    for (unsigned int i = 0; i < length; i++) {
+        data0[i] = *(uint64_t*)&block0[i];
+        data1[i] = *(uint64_t*)&block1[i];
+    }
+
+    delete[] block0;
+    delete[] block1;
+}
+void OT_Wrapper::recv_rand(uint64_t* const data, bool* b, const size_t length) {
+    if (is_sender) error_exit("Error: Calling recv on sender OT Wrapper");
+
+    emp::block* const block = new emp::block[length];
+
+    // Ferret for random choice bits.
+    // Here we just use fixed random choice bits
+    emp::PRG prg;
+    prg.random_bool(b, length);
+
+    io->sync();
+    ot->recv_rot(block, b, length);
+    io->flush();
+
+    for (unsigned int i = 0; i < length; i++) {
+        data[i] = *(uint64_t*)&block[i];
     }
 
     delete[] block;
@@ -98,6 +137,13 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
         data[i] = *(uint64_t*)&messages[i];
         // std::cout << "Recv[" << i << "][" << b[i] << "] = " << data[i] << std::endl;
     }
+}
+
+void OT_Wrapper::send_rand(uint64_t* const data0, uint64_t* const data1, const size_t length) {
+    error_exit("Not implemented");
+}
+void OT_Wrapper::recv_rand(uint64_t* const data, bool* b, const size_t length) {
+    error_exit("Not implemented");
 }
 
 #elif OT_TYPE == LIBOTE_SILENT
@@ -394,7 +440,8 @@ std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num
     bool* y = new bool[n];
     uint64_t* b = new uint64_t[n];
 
-#if OT_TYPE == LIBOTE_SILENT
+// #if 0
+#if OT_TYPE == EMT_IKNP || OT_TYPE == LIBOTE_SILENT
     if (server_num == 0) {
         ot0->send_rand(b0, b1, n);
         ot1->recv_rand(b, y, n);

@@ -77,8 +77,6 @@ public:
 public:
   void maybeUpdate(const size_t n = 0);
   size_t cache_size();
-  void send_rand(uint64_t* const data0, uint64_t* const data1, const size_t length);
-  void recv_rand(uint64_t* const data, bool* b, const size_t length);
 #endif
 
   OT_Wrapper(const char* address, const int port, const bool is_sender,
@@ -90,6 +88,8 @@ public:
   void send(const uint64_t* const data0, const uint64_t* const data1,
             const size_t length);
   void recv(uint64_t* const data, const bool* b, const size_t length);
+  void send_rand(uint64_t* const data0, uint64_t* const data1, const size_t length);
+  void recv_rand(uint64_t* const data, bool* b, const size_t length);
 };
 
 uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const bool* const valid, const size_t n);
