@@ -49,20 +49,23 @@ Oblivious Transfer code, for share conversion
 #define SERVER1_OT_PORT 60051
 
 struct OT_Wrapper {
+private:
   const bool is_sender;
 #if OT_TYPE == EMP_IKNP
   emp::NetIO* const io;
   emp::IKNP<emp::NetIO>* const ot;
+public:
 #elif OT_TYPE == LIBOTE_IKNP
   osuCrypto::IOService ios;
   osuCrypto::Channel channel;
 
   osuCrypto::PRNG prng;
+public:
 #elif OT_TYPE == LIBOTE_SILENT
   osuCrypto::IOService ios;
   osuCrypto::PRNG prng;
 
-  const size_t batch_size;  // at least 888 ?????
+  const size_t batch_size;  // at least 888?
   const char* const address;
   const int port;
 
@@ -70,9 +73,10 @@ struct OT_Wrapper {
 
   std::queue<std::tuple<uint64_t, uint64_t>> message_cache;
   std::queue<std::tuple<bool, uint64_t>> choice_cache;
-
-  void maybeUpdate();
   void addPrecompute(const size_t n = 0);
+public:
+  void maybeUpdate(const size_t n = 0);
+  size_t cache_size();
 #endif
 
   OT_Wrapper(const char* address, const int port, const bool is_sender,

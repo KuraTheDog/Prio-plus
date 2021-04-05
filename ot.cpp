@@ -111,20 +111,19 @@ OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender
 {
     std::cout << "Making a " << (is_sender ? "sender" : "receiver") << " on port " << port << " with batch size " << batch_size << std::endl;
     prng = osuCrypto::PRNG(osuCrypto::sysRandomSeed());
-
-    addPrecompute();
 }
 
 OT_Wrapper::~OT_Wrapper() {}
 
 void OT_Wrapper::addPrecompute(const size_t n) {
+    auto start = clock_start();
 
     osuCrypto::IOService ios;
     osuCrypto::Channel channel;
 
     const int num_to_make = (n > batch_size ? n : batch_size);
 
-    std::cout << "adding precompute of " << num_to_make << std::endl;
+    std::cout << "adding ot " << (is_sender ? "sender" : "receiver") << " precompute of " << num_to_make << std::endl;
 
     if (is_sender) {
         osuCrypto::SilentOtExtSender sender;
@@ -164,7 +163,17 @@ void OT_Wrapper::addPrecompute(const size_t n) {
             });
         }
     }
-    std::cout << "OT Precompute done" << std::endl;
+    std::cout << "ot precompute time: " << sec_from(start) << std::endl;
+}
+
+size_t OT_Wrapper::cache_size() {
+    return (is_sender ? message_cache.size() : choice_cache.size());
+}
+
+void OT_Wrapper::maybeUpdate(const size_t n) {
+    const int num_to_make = (n > batch_size ? n : batch_size);
+    if (cache_size() < num_to_make / 2)
+        addPrecompute(num_to_make);
 }
 
 void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
@@ -173,8 +182,7 @@ void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
     if (sockfd == -1)
         error_exit("Silent OT Wrapper requires a valid sockfd for online");
 
-    if (message_cache.size() < length)
-        addPrecompute(length);
+    maybeUpdate(length);
 
     // work
     bool* const d = new bool[length];
@@ -195,12 +203,10 @@ void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
 
 void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) {
     if (is_sender) error_exit("Error: Calling send on sender OT Wrapper");
-
     if (sockfd == -1)
         error_exit("Silent OT Wrapper requires a valid sockfd for online");
 
-    if (choice_cache.size() < length)
-        addPrecompute(length);
+    maybeUpdate(length);
 
     // work
     bool* const d = new bool[length];
@@ -360,6 +366,7 @@ uint64_t* intsum_ot_receiver(OT_Wrapper* const ot, const uint64_t* const shares,
 }
 
 // Ref : https://crypto.stackexchange.com/questions/41651/what-are-the-ways-to-generate-beaver-triples-for-multiplication-gate
+// TODO: integrate random OT
 std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num, const unsigned int m, OT_Wrapper* const ot0, OT_Wrapper* const ot1){
     emp::PRG prg;
     std::queue<BooleanBeaverTriple*> ans;

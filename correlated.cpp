@@ -13,6 +13,10 @@ void CorrelatedStore::addBoolTriples(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > bool_batch_size ? n : bool_batch_size);
   std::cout << "adding booltriples: " << num_to_make << std::endl;
+#if OT_TYPE == LIBOTE_SILENT
+  ot0->maybeUpdate(num_to_make);
+  ot1->maybeUpdate(num_to_make);
+#endif
   std::queue<BooleanBeaverTriple*> new_triples = gen_boolean_beaver_triples(server_num, num_to_make, ot0, ot1);
   for (unsigned int i = 0; i < num_to_make; i++) {
     btriple_store.push(new_triples.front());
@@ -167,6 +171,10 @@ void CorrelatedStore::printSizes() {
   std::cout << "        Dabits: " << dabit_store.size() << std::endl;
   std::cout << " Arith Triples: " << atriple_store.size() << std::endl;
   std::cout << " Bool  Triples: " << btriple_store.size() << std::endl;
+  #if OT_TYPE == LIBOTE_SILENT
+  std::cout << "    ot 0 cache: " << ot0->cache_size() << std::endl;
+  std::cout << "    ot 1 cache: " << ot1->cache_size() << std::endl;
+  #endif
 }
 
 void CorrelatedStore::maybeUpdate() {
@@ -180,6 +188,12 @@ void CorrelatedStore::maybeUpdate() {
   const size_t atrip_target = da_target + extra;
   // Some for making edabits, some for b2a
   const size_t btrip_target = 2 * (make_eda + 2 * make_eda2) + extra;
+
+  #if OT_TYPE == LIBOTE_SILENT
+    // TODO: figure out balance for overprecompute
+    ot0->maybeUpdate((2 * btrip_target + 1) * bool_batch_size);
+    ot1->maybeUpdate((2 * btrip_target + 1) * bool_batch_size);
+  #endif
 
   if (btriple_store.size() < btrip_target * bool_batch_size)
       addBoolTriples(btrip_target * bool_batch_size);

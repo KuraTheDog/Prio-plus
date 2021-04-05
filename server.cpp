@@ -1199,8 +1199,8 @@ int main(int argc, char** argv) {
 
     syncSnipSeeds(serverfd, server_num);
 
-    ot0 = new OT_Wrapper(SERVER0_IP, SERVER0_OT_PORT, server_num == 0, serverfd);
-    ot1 = new OT_Wrapper(SERVER1_IP, SERVER1_OT_PORT, server_num == 1, serverfd);
+    ot0 = new OT_Wrapper(SERVER0_IP, SERVER0_OT_PORT, server_num == 0, serverfd, CACHE_SIZE * num_bits);
+    ot1 = new OT_Wrapper(SERVER1_IP, SERVER1_OT_PORT, server_num == 1, serverfd, CACHE_SIZE * num_bits);
 
     correlated_store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, CACHE_SIZE, LAZY_PRECOMPUTE, OVER_PRECOMPUTE);
 
@@ -1220,6 +1220,10 @@ int main(int argc, char** argv) {
         }
 
         correlated_store->maybeUpdate();
+#if OT_TYPE == LIBOTE_SILENT
+        ot0->maybeUpdate(1e5);
+        ot1->maybeUpdate(1e5);
+#endif
 
         socklen_t addrlen = sizeof(addr);
 

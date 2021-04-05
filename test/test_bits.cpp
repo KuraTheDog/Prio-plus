@@ -266,7 +266,6 @@ void test_validateSharesMatch(const size_t N, const size_t* const nbits, const i
 */
 
 void runServerTest(const int server_num, const int serverfd) {
-  const bool lazy = false;
   OT_Wrapper* ot0 = new OT_Wrapper("127.0.0.1", SERVER0_OT_PORT, server_num == 0
                                    , serverfd
                                    );
@@ -274,7 +273,6 @@ void runServerTest(const int server_num, const int serverfd) {
                                    , serverfd
                                    );
 
-  return;
   CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, batch_size, lazy, do_fork, over_precompute);
 
   store->maybeUpdate();
