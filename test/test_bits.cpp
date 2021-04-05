@@ -11,6 +11,7 @@ const size_t N = 10;           // Must be >= 2
 
 const size_t num_bits = 3;     // fixed
 const bool do_fork = true;     // false to do leaks testing
+const bool lazy = true;
 
 void test_multiplyBoolShares(const size_t N, const int server_num, const int serverfd, CorrelatedStore* store) {
   bool* x = new bool[N];
@@ -264,7 +265,6 @@ void test_validateSharesMatch(const size_t N, const size_t* const nbits, const i
 */
 
 void runServerTest(const int server_num, const int serverfd) {
-  const bool lazy = false;
   OT_Wrapper* ot0 = new OT_Wrapper("127.0.0.1", SERVER0_OT_PORT, server_num == 0
                                    , serverfd
                                    );
@@ -272,7 +272,6 @@ void runServerTest(const int server_num, const int serverfd) {
                                    , serverfd
                                    );
 
-  return;
   CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, batch_size, lazy, do_fork);
 
   store->maybeUpdate();
