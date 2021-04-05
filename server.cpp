@@ -56,8 +56,7 @@ size_t send_out(const int sockfd, const void* const buf, const size_t len) {
 void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port, const int reuse = 1) {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
-    if (sockfd == -1)
-        error_exit("Socket creation failed");
+    if (sockfd < 0) error_exit("Socket creation failed");
 
     if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)))
         error_exit("Sockopt failed");
@@ -92,7 +91,7 @@ void server0_listen(int& sockfd, int& newsockfd, const int port, const int reuse
 
 void server1_connect(int& sockfd, const int port, const int reuse = 0) {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd == -1) error_exit("Socket creation failed");
+    if (sockfd < 0) error_exit("Socket creation failed");
 
     if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)))
         error_exit("Sockopt failed");

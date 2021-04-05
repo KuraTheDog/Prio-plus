@@ -62,7 +62,7 @@ struct OT_Wrapper {
   osuCrypto::IOService ios;
   osuCrypto::PRNG prng;
 
-  const size_t batch_size = 2048;  // at least 888 ?????
+  const size_t batch_size;  // at least 888 ?????
   const char* const address;
   const int port;
 
@@ -75,7 +75,10 @@ struct OT_Wrapper {
   void addPrecompute(const size_t n = 0);
 #endif
 
-  OT_Wrapper(const char* address, const int port, const bool is_sender, const int sockfd = -1);
+  OT_Wrapper(const char* address, const int port, const bool is_sender,
+             const int sockfd = -1,       // only used by silent
+             const int batch_size = 2048  // only used by silent
+             );
   ~OT_Wrapper();
 
   void send(const uint64_t* const data0, const uint64_t* const data1,
