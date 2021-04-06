@@ -43,7 +43,7 @@ void run(const int server_num, const int sockfd, const int n, const int m) {
       ot0->send_rand(a, b, n);
 
       for (int i = 0; i < n; i++) {
-        if (i < 2 or i == n-1)
+        if (i < 5 or i == n-1)
           std::cout << j << ", " << i << " send " << a[i] << ", " << b[i] << std::endl;
       }
     } else {
@@ -55,7 +55,7 @@ void run(const int server_num, const int sockfd, const int n, const int m) {
       ot0->recv_rand(d, c, n);
 
       for (int i = 0; i < n; i++) {
-        if (i < 2 or i == n-1)
+        if (i < 5 or i == n-1)
           std::cout << j << ", " << i << " got " << c[i] << " = " << d[i] << std::endl;
       }
     }
@@ -154,7 +154,7 @@ int main(int argc, char** argv) {
 
   init_constants();
 
-  int sockfd;
+  int sockfd = -1;
   if (server_num == -1 or server_num == 0) {
     sockfd = init_receiver();
   }

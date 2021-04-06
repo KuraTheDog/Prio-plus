@@ -167,7 +167,7 @@ void OT_Wrapper::addPrecompute(const size_t n) {
     osuCrypto::IOService ios;
     osuCrypto::Channel channel;
 
-    const int num_to_make = (n > batch_size ? n : batch_size);
+    const size_t num_to_make = (n > batch_size ? n : batch_size);
 
     std::cout << "adding ot " << (is_sender ? "sender" : "receiver") << " precompute of " << num_to_make << std::endl;
 
@@ -217,7 +217,7 @@ size_t OT_Wrapper::cache_size() {
 }
 
 void OT_Wrapper::maybeUpdate(const size_t n) {
-    const int num_to_make = (n > batch_size ? n : batch_size);
+    const size_t num_to_make = (n > batch_size ? n : batch_size);
     if (cache_size() < num_to_make / 2)
         addPrecompute(num_to_make);
 }
