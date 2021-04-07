@@ -283,18 +283,26 @@ void runServerTest(const int server_num, const int serverfd) {
     bits_arr[i] = (i % 2 == 0 ? num_bits : 2 * num_bits);
   bits_arr[1] = num_bits * 2;
 
+  auto start = clock_start();
+
   for (int i = 0; i < 1; i++) {
     std::cout << "iteration: " << i << std::endl;
-    std::cout << "mul bool" << std::endl;
+    start = clock_start();
+    // std::cout << "mul bool" << std::endl;
     test_multiplyBoolShares(N, server_num, serverfd, store);
-    std::cout << "mul arith" << std::endl;
+    std::cout << "mul bool timing : " << sec_from(start) << std::endl; start = clock_start();
+    // std::cout << "mul arith" << std::endl;
     test_multiplyArithmeticShares(N, server_num, serverfd, store);
-    std::cout << "add bin" << std::endl;
+    std::cout << "mul arith timing : " << sec_from(start) << std::endl; start = clock_start();
+    // std::cout << "add bin" << std::endl;
     test_addBinaryShares(N, bits_arr, server_num, serverfd, store);
-    std::cout << "b2a da" << std::endl;
+    std::cout << "add bin timing : " << sec_from(start) << std::endl; start = clock_start();
+    // std::cout << "b2a da" << std::endl;
     test_b2a_daBit(N, server_num, serverfd, store);
-    std::cout << "b2a ed" << std::endl;
+    std::cout << "b2a da timing : " << sec_from(start) << std::endl; start = clock_start();
+    // std::cout << "b2a ed" << std::endl;
     test_b2a_edaBit(N, bits_arr, server_num, serverfd, store);
+    std::cout << "b2a eda timing : " << sec_from(start) << std::endl; start = clock_start();
     // std::cout << "validate" << std::endl;
     // test_validateSharesMatch(N, bits_arr, server_num, serverfd, store);
   }

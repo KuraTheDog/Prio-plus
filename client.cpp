@@ -76,16 +76,10 @@ int send_linregshare(const int server_num, const LinRegShare& share,  const size
 
     int ret = send(sock, (void*)&(share.pk[0]), PK_LENGTH, 0);
 
-    for (unsigned int i = 0; i < num_x; i++)
-        ret += send_uint64(sock, share.x_vals[i]);
-
+    ret += send_uint64_batch(sock, share.x_vals, num_x);
     ret += send_uint64(sock, share.y);
-
-    for (unsigned int i = 0; i < num_quad; i++)
-        ret += send_uint64(sock, share.x2_vals[i]);
-
-    for (unsigned int i = 0; i < num_x; i++)
-        ret += send_uint64(sock, share.xy_vals[i]);
+    ret += send_uint64_batch(sock, share.x2_vals, num_quad);
+    ret += send_uint64_batch(sock, share.xy_vals, num_x);
 
     return ret;
 }

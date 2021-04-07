@@ -115,6 +115,14 @@ int recv_uint64(const int sockfd, uint64_t& x) {
     return ret;
 }
 
+int send_uint64_batch(const int sockfd, const uint64_t* const x, const size_t n) {
+    return send(sockfd, x, n * sizeof(uint64_t), 0);
+}
+
+int recv_uint64_batch(const int sockfd, uint64_t* const x, const size_t n) {
+    return recv_in(sockfd, x, n * sizeof(uint64_t));
+}
+
 int send_ulong(const int sockfd, const ulong x) {
     ulong x_conv = htonll(x);
     const char* data = (const char*) &x_conv;
@@ -125,6 +133,14 @@ int recv_ulong(const int sockfd, ulong& x) {
     int ret = recv_in(sockfd, &x, sizeof(ulong));
     x = ntohll(x);
     return ret;
+}
+
+int send_ulong_batch(const int sockfd, const ulong* const x, const size_t n) {
+    return send(sockfd, x, n * sizeof(ulong), 0);
+}
+
+int recv_ulong_batch(const int sockfd, ulong* const x, const size_t n) {
+    return recv_in(sockfd, x, n * sizeof(ulong));
 }
 
 int send_string(const int sockfd, const std::string x) {
@@ -161,13 +177,11 @@ int send_fmpz(const int sockfd, const fmpz_t x) {
         if (ret <= 0) return ret; else total += ret;
     }
 
-    ulong arr[len];
-    fmpz_get_ui_array(arr, len, x);
+    ulong buf[len];
+    fmpz_get_ui_array(buf, len, x);
+    ret = send_ulong_batch(sockfd, buf, len);
+    if (ret <= 0) return ret; else total += ret;
 
-    for (unsigned int i = 0; i < len; i++) {
-        ret = send_ulong(sockfd, arr[i]);
-        if (ret <= 0) return ret; else total += ret;
-    }
     return total;
 }
 
@@ -187,11 +201,54 @@ int recv_fmpz(const int sockfd, fmpz_t x) {
         return total;
     }
     ulong buf[len];
-    for (unsigned int i = 0; i < len; i++) {
-        ret = recv_ulong(sockfd, buf[i]);
-        if (ret <= 0) return ret; else total += ret;
-    }
+    ret = recv_ulong_batch(sockfd, buf, len);
+    if (ret <= 0) return ret; else total += ret;
+
     fmpz_set_ui_array(x, buf, len);
+
+    return total;
+}
+
+int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n) {
+    int total = 0, ret;
+    if (!FIXED_FMPZ_SIZE) {
+        // Lazy version
+        for (unsigned int i = 0; i < n; i++) {
+            ret += send_fmpz(sockfd, x[i]);
+            if (ret <= 0) return ret; else total += ret;
+        }
+        return total;
+    }
+    size_t len = fmpz_size(Int_Modulus);
+
+    ulong buf[len * n];
+    for (unsigned int i = 0; i < n; i++)
+        fmpz_get_ui_array(&buf[i * len], len, x[i]);
+
+    ret = send_ulong_batch(sockfd, buf, len * n);
+    if (ret <= 0) return ret; else total += ret;
+    return total;
+}
+
+int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n) {
+    int total = 0, ret;
+
+    if (!FIXED_FMPZ_SIZE) {
+        // Lazy version
+        for (unsigned int i = 0; i < n; i++) {
+            ret += recv_fmpz(sockfd, x[i]);
+            if (ret <= 0) return ret; else total += ret;
+        }
+        return total;
+    }
+    size_t len = fmpz_size(Int_Modulus);
+
+    ulong buf[len * n];
+    ret = recv_ulong_batch(sockfd, buf, len * n);
+    if (ret <= 0) return ret; else total += ret;
+
+    for (unsigned int i = 0; i < n; i++)
+        fmpz_set_ui_array(x[i], &buf[i * len], len);
     return total;
 }
 
@@ -239,6 +296,42 @@ int recv_CorShare(const int sockfd, CorShare* const x) {
     if (ret <= 0) return ret; else total += ret;
     ret = recv_fmpz(sockfd, x->shareE);
     if (ret <= 0) return ret; else total += ret;
+    return total;
+}
+
+int send_CorShare_batch(const int sockfd, const CorShare* const * const x, const size_t n) {
+    int total = 0, ret;
+    fmpz_t* buf; new_fmpz_array(&buf, n);
+
+    for (unsigned int i = 0; i < n; i++)
+        fmpz_set(buf[i], x[i]->shareD);
+    ret = send_fmpz_batch(sockfd, buf, n);
+    if (ret <= 0) return ret; else total += ret;
+
+    for (unsigned int i = 0; i < n; i++)
+        fmpz_set(buf[i], x[i]->shareE);
+    ret = send_fmpz_batch(sockfd, buf, n);
+    if (ret <= 0) return ret; else total += ret;
+
+    clear_fmpz_array(buf, n);
+    return total;
+}
+
+int recv_CorShare_batch(const int sockfd, CorShare* const * const x, const size_t n) {
+    int total = 0, ret;
+    fmpz_t* buf; new_fmpz_array(&buf, n);
+
+    ret = recv_fmpz_batch(sockfd, buf, n);
+    if (ret <= 0) return ret; else total += ret;
+    for (unsigned int i = 0; i < n; i++)
+        fmpz_set(x[i]->shareD, buf[i]);
+
+    ret = recv_fmpz_batch(sockfd, buf, n);
+    if (ret <= 0) return ret; else total += ret;
+    for (unsigned int i = 0; i < n; i++)
+        fmpz_set(x[i]->shareE, buf[i]);
+
+    clear_fmpz_array(buf, n);
     return total;
 }
 
@@ -374,20 +467,104 @@ int recv_DaBit(const int sockfd, DaBit* const x) {
     return total;
 }
 
-int send_EdaBit(const int sockfd, const EdaBit* const x, const size_t n) {
+int send_DaBit_batch(const int sockfd, const DaBit* const * const x, const size_t n) {
+    int total = 0, ret;
+    fmpz_t* bp; new_fmpz_array(&bp, n);
+    bool* b2 = new bool[n];
+
+    for (unsigned int i = 0; i < n; i++) {
+        fmpz_set(bp[i], x[i]->bp);
+        b2[i] = x[i]->b2;
+    }
+
+    ret = send_fmpz_batch(sockfd, bp, n);
+    if (ret <= 0) return ret; else total += ret;
+    ret = send_bool_batch(sockfd, b2, n);
+    if (ret <= 0) return ret; else total += ret;
+
+    clear_fmpz_array(bp, n);
+    delete[] b2;
+
+    return total;
+}
+
+int recv_DaBit_batch(const int sockfd, DaBit* const * const x, const size_t n) {
+    int total = 0, ret;
+    fmpz_t* bp; new_fmpz_array(&bp, n);
+    bool* b2 = new bool[n];
+
+    ret = recv_fmpz_batch(sockfd, bp, n);
+    if (ret <= 0) return ret; else total += ret;
+    ret = recv_bool_batch(sockfd, b2, n);
+    if (ret <= 0) return ret; else total += ret;
+
+    for (unsigned int i = 0; i < n; i++) {
+        fmpz_set(x[i]->bp, bp[i]);
+        x[i]->b2 = b2[i];
+    }
+
+    clear_fmpz_array(bp, n);
+    delete[] b2;
+
+    return total;
+}
+
+int send_EdaBit(const int sockfd, const EdaBit* const x, const size_t nbits) {
     int total = 0, ret;
     ret = send_fmpz(sockfd, x->r);
     if (ret <= 0) return ret; else total += ret;
-    ret = send_bool_batch(sockfd, &x->b[0], n);
+    ret = send_bool_batch(sockfd, &x->b[0], nbits);
     if (ret <= 0) return ret; else total += ret;
     return total;
 }
 
-int recv_EdaBit(const int sockfd, EdaBit* const x, const size_t n) {
+int recv_EdaBit(const int sockfd, EdaBit* const x, const size_t nbits) {
     int total = 0, ret;
     ret = recv_fmpz(sockfd, x->r);
     if (ret <= 0) return ret; else total += ret;
-    ret = recv_bool_batch(sockfd, &x->b[0], n);
+    ret = recv_bool_batch(sockfd, &x->b[0], nbits);
     if (ret <= 0) return ret; else total += ret;
+    return total;
+}
+
+int send_EdaBit_batch(const int sockfd, const EdaBit* const * const x, const size_t nbits, const size_t n) {
+    int total = 0, ret;
+    fmpz_t* r; new_fmpz_array(&r, n);
+    bool* b = new bool[n * nbits];
+
+    for (unsigned int i = 0; i < n; i++) {
+        fmpz_set(r[i], x[i]->r);
+        memcpy(&b[i * nbits], x[i]->b, nbits * sizeof(bool));
+    }
+
+    ret = send_fmpz_batch(sockfd, r, n);
+    if (ret <= 0) return ret; else total += ret;
+    ret = send_bool_batch(sockfd, b, n * nbits);
+    if (ret <= 0) return ret; else total += ret;
+
+    clear_fmpz_array(r, n);
+    delete[] b;
+
+    return total;
+}
+
+int recv_EdaBit_batch(const int sockfd, EdaBit* const * const x, const size_t nbits, const size_t n) {
+    int total = 0, ret;
+    fmpz_t* r; new_fmpz_array(&r, n);
+    bool* b = new bool[n * nbits];
+
+    ret = recv_fmpz_batch(sockfd, r, n);
+    if (ret <= 0) return ret; else total += ret;
+    ret = recv_bool_batch(sockfd, b, n * nbits);
+    if (ret <= 0) return ret; else total += ret;
+
+    for (unsigned int i = 0; i < n; i++) {
+        fmpz_set(x[i]->r, r[i]);
+        memcpy(x[i]->b, &b[i * nbits], nbits * sizeof(bool));
+    }
+
+    clear_fmpz_array(r, n);
+    delete[] b;
+
     return total;
 }

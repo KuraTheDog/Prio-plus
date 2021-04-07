@@ -122,6 +122,7 @@ void sync_randomX(const int serverfd, const int server_num, fmpz_t randomX) {
     }
 }
 
+// TODO: can maybe batch this? Seems to help in other places. Not a big timesink though, so should be fine for now
 std::string get_pk(const int serverfd) {
     char pk_buf[PK_LENGTH];
     recv_in(serverfd, &pk_buf[0], PK_LENGTH);
@@ -201,44 +202,46 @@ bool* validate_snips(const size_t N,
 
     if (correlated_store->do_fork) pid = fork();
     if (pid == 0) {
-        for (unsigned int i = 0; i < N; i++)
-            send_CorShare(serverfd, cor_share[i]);
+        send_CorShare_batch(serverfd, cor_share, N);
         if (correlated_store->do_fork) exit(EXIT_SUCCESS);
     }
+    CorShare** const cor_share_other = new CorShare*[N];
+    for (unsigned int i = 0; i < N; i++)
+        cor_share_other[i] = new CorShare();
+    recv_CorShare_batch(serverfd, cor_share_other, N);
 
     fmpz_t* valid_share; new_fmpz_array(&valid_share, N);
-    CorShare* const cor_share_other = new CorShare();
     for (unsigned int i = 0; i < N; i++) {
-        recv_CorShare(serverfd, cor_share_other);
-
-        const Cor* const cor = new Cor(cor_share[i], cor_share_other);
+        const Cor* const cor = new Cor(cor_share[i], cor_share_other[i]);
         checker[i]->OutShare(valid_share[i], cor);
         delete cor;
     }
-    delete cor_share_other;
     if (correlated_store->do_fork) waitpid(pid, &status, 0);
 
     // TODO: Can be simplified: one sends share, other sends if valid
     if (correlated_store->do_fork) pid = fork();
     if (pid == 0) {
-        for (unsigned int i = 0; i < N; i++)
-            send_fmpz(serverfd, valid_share[i]);
+        send_fmpz_batch(serverfd, valid_share, N);
         if (correlated_store->do_fork) exit(EXIT_SUCCESS);
     }
-    fmpz_t valid_share_other; fmpz_init(valid_share_other);
+    fmpz_t* valid_share_other; new_fmpz_array(&valid_share_other, N);
+    recv_fmpz_batch(serverfd, valid_share_other, N);
+
     for (unsigned int i = 0; i < N; i++) {
-        recv_fmpz(serverfd, valid_share_other);
-        ans[i] = AddToZero(valid_share[i], valid_share_other);
+        ans[i] = AddToZero(valid_share[i], valid_share_other[i]);
     }
+    clear_fmpz_array(valid_share, N);
+    clear_fmpz_array(valid_share_other, N);
 
     for (unsigned int i = 0; i < N; i++) {
         delete cor_share[i];
+        delete cor_share_other[i];
         delete checker[i];
     }
     delete[] cor_share;
+    delete[] cor_share_other;
     delete[] checker;
-    clear_fmpz_array(valid_share, N);
-    fmpz_clear(valid_share_other);
+
     if (correlated_store->do_fork) waitpid(pid, &status, 0);
 
     std::cout << "snip circuit time: " << sec_from(start) << std::endl;
@@ -898,27 +901,22 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         const std::string pk(share.pk, share.pk + PK_LENGTH);
 
         share.x_vals = new uint64_t[num_x];
+        num_bytes += recv_uint64_batch(clientfd, share.x_vals, num_x);
+        num_bytes += recv_uint64(clientfd, share.y);
+        num_bytes += recv_uint64_batch(clientfd, share.x2_vals, num_quad);
+        num_bytes += recv_uint64_batch(clientfd, share.x_vals, num_x);
         for (unsigned int j = 0; j < num_x; j++) {
-            num_bytes += recv_uint64(clientfd, share.x_vals[j]);
             if (share.x_vals[j] >= max_val)
+                sizes_valid = false;
+            if (share.xy_vals[j] >= max_val * max_val)
                 sizes_valid = false;
         }
 
-        num_bytes += recv_uint64(clientfd, share.y);
         if (share.y >= max_val)
             sizes_valid = false;
 
-        share.x2_vals = new uint64_t[num_quad];
         for (unsigned int j = 0; j < num_quad; j++) {
-            num_bytes += recv_uint64(clientfd, share.x2_vals[j]);
             if (share.x2_vals[j] >= max_val * max_val)
-                sizes_valid = false;
-        }
-
-        share.xy_vals = new uint64_t[num_x];
-        for (unsigned int j = 0; j < num_x; j++) {
-            num_bytes += recv_uint64(clientfd, share.xy_vals[j]);
-            if (share.xy_vals[j] >= max_val * max_val)
                 sizes_valid = false;
         }
 

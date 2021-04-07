@@ -47,6 +47,10 @@ void run_sender(int sockfd) {
     n = send_uint64(sockfd, j);
     std::cout << "send uint64_t \tsize: " << n << " \tval: " << j << std::endl;
 
+    uint64_t batch64[2] = {123, 345};
+    n = send_uint64_batch(sockfd, batch64, 2);
+    std::cout << "send uint64[] \tsize: " << n << " \tval: " << batch64[0] << ", " << batch64[1] << std::endl;
+
     std::string s = "Hello World!";
     n = send_string(sockfd, s);
     std::cout << "send string \tsize: " << n << " \tval: " << s << std::endl;
@@ -57,6 +61,15 @@ void run_sender(int sockfd) {
     std::cout << "send fmpz \tsize: " << n << " \tval: ";
     fmpz_print(number); std::cout << std::endl;
 
+    fmpz_t* arr; new_fmpz_array(&arr, 2);
+    fmpz_set_ui(arr[0], 123454321);
+    fmpz_set_ui(arr[1], 987000789);
+    n = send_fmpz_batch(sockfd, arr, 2);
+    std::cout << "send fmpz[] \tsize: " << n << " \tval: "; fmpz_print(arr[0]);
+    std::cout << ", "; fmpz_print(arr[1]); std::cout << std::endl;
+    clear_fmpz_array(arr, 2);
+
+    /*  Does not work, currently using fixed fmpz size
     // Large unsigned long
     fmpz_set_ui(number, 12345678900987654321ul);
     n = send_fmpz(sockfd, number);
@@ -68,6 +81,7 @@ void run_sender(int sockfd) {
     n = send_fmpz(sockfd, number);
     std::cout << "send fmpz \tsize: " << n << " \tval: ";
     fmpz_print(number); std::cout << std::endl;
+    */
 
     BooleanBeaverTriple* btrip = new BooleanBeaverTriple(true, false, true);
     n = send_BooleanBeaverTriple(sockfd, btrip);
@@ -163,6 +177,10 @@ void run_receiver(int sockfd) {
     n = recv_uint64(sockfd, j);
     std::cout << "recv uint64_t \tsize: " << n << " \tval: " << j << std::endl;
 
+    uint64_t batch64[2];
+    n = recv_uint64_batch(sockfd, batch64, 2);
+    std::cout << "recv uint64[] \tsize: " << n << " \tval: " << batch64[0] << ", " << batch64[1] << std::endl;
+
     std::string s;
     n = recv_string(sockfd, s);
     std::cout << "recv string \tsize: " << n << " \tval: " << s << std::endl;
@@ -171,6 +189,13 @@ void run_receiver(int sockfd) {
     std::cout << "recv fmpz \tsize: " << n << " \tval: ";
     fmpz_print(number); std::cout << std::endl;
 
+    fmpz_t* arr; new_fmpz_array(&arr, 2);
+    n = recv_fmpz_batch(sockfd, arr, 2);
+    std::cout << "recv fmpz[] \tsize: " << n << " \tval: "; fmpz_print(arr[0]);
+    std::cout << ", "; fmpz_print(arr[1]); std::cout << std::endl;
+    clear_fmpz_array(arr, 2);
+
+    /*
     n = recv_fmpz(sockfd, number);
     std::cout << "recv fmpz \tsize: " << n << " \tval: ";
     fmpz_print(number); std::cout << std::endl;
@@ -178,6 +203,7 @@ void run_receiver(int sockfd) {
     n = recv_fmpz(sockfd, number);
     std::cout << "recv fmpz \tsize: " << n << " \tval: ";
     fmpz_print(number); std::cout << std::endl;
+    */
 
     BooleanBeaverTriple* btrip = new BooleanBeaverTriple();
     n = recv_BooleanBeaverTriple(sockfd, btrip);

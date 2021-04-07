@@ -62,16 +62,24 @@ int recv_uint32(const int sockfd, uint32_t& x);
 int send_uint64(const int sockfd, const uint64_t x);
 int recv_uint64(const int sockfd, uint64_t& x);
 
+int send_uint64_batch(const int sockfd, const uint64_t* const x, const size_t n);
+int recv_uint64_batch(const int sockfd, uint64_t* const x, const size_t n);
+
 int send_ulong(const int sockfd, const ulong x);
 int recv_ulong(const int sockfd, ulong& x);
+
+int send_ulong_batch(const int sockfd, const ulong* const x, const size_t n);
+int recv_ulong_batch(const int sockfd, ulong* const x, const size_t n);
 
 int send_string(const int sockfd, const std::string x);
 int recv_string(const int sockfd, std::string& x);
 
-// Can "size" be implicit in this? Since it's fixed based on max int
-// I.e. when int modulus < 2^64, this can always be jsut a uint64
+// If FIXED_FMPZ_SIZE then uses less bytes
 int send_fmpz(const int sockfd, const fmpz_t x);
 int recv_fmpz(const int sockfd, fmpz_t x);
+
+int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n);
+int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n);
 
 int send_seed(const int sockfd, const flint_rand_t x);
 int recv_seed(const int sockfd, flint_rand_t x);
@@ -84,6 +92,9 @@ int recv_Cor(const int sockfd, Cor* const x);
 
 int send_CorShare(const int sockfd, const CorShare* const x);
 int recv_CorShare(const int sockfd, CorShare* const x);
+
+int send_CorShare_batch(const int sockfd, const CorShare* const * const x, const size_t n);
+int recv_CorShare_batch(const int sockfd, CorShare* const * const x, const size_t n);
 
 int send_ClientPacket(const int sockfd, const ClientPacket* const x,
                       const size_t NMul);
@@ -105,8 +116,14 @@ int recv_BooleanBeaverTriple(const int sockfd, BooleanBeaverTriple* const x);
 int send_DaBit(const int sockfd, const DaBit* const x);
 int recv_DaBit(const int sockfd, DaBit* const x);
 
+int send_DaBit_batch(const int sockfd, const DaBit* const * const x, const size_t n);
+int recv_DaBit_batch(const int sockfd, DaBit* const * const x, const size_t n);
+
 // Assumes n is already known.
-int send_EdaBit(const int sockfd, const EdaBit* const x, const size_t n);
-int recv_EdaBit(const int sockfd, EdaBit* const x, const size_t n);
+int send_EdaBit(const int sockfd, const EdaBit* const x, const size_t nbits);
+int recv_EdaBit(const int sockfd, EdaBit* const x, const size_t nbits);
+
+int send_EdaBit_batch(const int sockfd, const EdaBit* const * const x, const size_t nbits, const size_t n);
+int recv_EdaBit_batch(const int sockfd, EdaBit* const * const x, const size_t nbits, const size_t n);
 
 #endif

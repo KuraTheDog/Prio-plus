@@ -279,8 +279,8 @@ fmpz_t* CorrelatedStore::multiplyArithmeticShares(const size_t N,
 
   fmpz_t* d; new_fmpz_array(&d, N);
   fmpz_t* e; new_fmpz_array(&e, N);
-  fmpz_t d_other; fmpz_init(d_other);
-  fmpz_t e_other; fmpz_init(e_other);
+  fmpz_t* d_other; new_fmpz_array(&d_other, N);
+  fmpz_t* e_other; new_fmpz_array(&e_other, N);
 
   for (unsigned int i = 0; i < N; i++) {
     BeaverTriple* triple = getTriple();
@@ -301,20 +301,17 @@ fmpz_t* CorrelatedStore::multiplyArithmeticShares(const size_t N,
   int status = 0;
   if (do_fork) pid = fork();
   if (pid == 0) {
-    for (unsigned int i = 0; i < N; i++) {
-      send_fmpz(serverfd, d[i]);
-      send_fmpz(serverfd, e[i]);
-    }
+    send_fmpz_batch(serverfd, d, N);
+    send_fmpz_batch(serverfd, e, N);
     if (do_fork) exit(EXIT_SUCCESS);
   }
+  recv_fmpz_batch(serverfd, d_other, N);
+  recv_fmpz_batch(serverfd, e_other, N);
 
   for (unsigned int i = 0; i < N; i++) {
-    recv_fmpz(serverfd, d_other);
-    recv_fmpz(serverfd, e_other);
-
-    fmpz_add(d[i], d[i], d_other);  // x - a
+    fmpz_add(d[i], d[i], d_other[i]);  // x - a
     fmpz_mod(d[i], d[i], Int_Modulus);
-    fmpz_add(e[i], e[i], e_other);  // y - b
+    fmpz_add(e[i], e[i], e_other[i]);  // y - b
     fmpz_mod(e[i], e[i], Int_Modulus);
 
     // [xy] = [c] + [x] e + [y] d - de
@@ -326,8 +323,8 @@ fmpz_t* CorrelatedStore::multiplyArithmeticShares(const size_t N,
     fmpz_mod(z[i], z[i], Int_Modulus);
   }
 
-  fmpz_clear(d_other);
-  fmpz_clear(e_other);
+  clear_fmpz_array(d_other, N);
+  clear_fmpz_array(e_other, N);
   clear_fmpz_array(d, N);
   clear_fmpz_array(e, N);
 
@@ -472,23 +469,20 @@ fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
 
   // reveal x + r, convert to mod p shares
   if (server_num == 0) {
-    fmpz_t xr_other; fmpz_init(xr_other);
+    fmpz_t* xr_other; new_fmpz_array(&xr_other, N);
+    recv_fmpz_batch(serverfd, xr_other, N);  // get other [x + r]_2
+    for (unsigned int i = 0; i < N; i++)
+      fmpz_xor(xp[i], xp[i], xr_other[i]);  // real x + r
     for (unsigned int i = 0; i < N; i++) {
-      recv_fmpz(serverfd, xr_other);     // get other [x + r]_2
-      fmpz_xor(xp[i], xp[i], xr_other);  // real x + r
-    }
-    for (unsigned int i = 0; i < N; i++) {
-      fmpz_randm(xr_other, seed, Int_Modulus);  // other [x + r]_p
-      fmpz_sub(xp[i], xp[i], xr_other);
+      fmpz_randm(xr_other[i], seed, Int_Modulus);  // other [x + r]_p
+      fmpz_sub(xp[i], xp[i], xr_other[i]);
       fmpz_mod(xp[i], xp[i], Int_Modulus);  // This [x + r]_p
-      send_fmpz(serverfd, xr_other);
     }
-    fmpz_clear(xr_other);
+    send_fmpz_batch(serverfd, xr_other, N);
+    clear_fmpz_array(xr_other, N);
   } else {
-    for (unsigned int i = 0; i < N; i++)
-      send_fmpz(serverfd, xp[i]);
-    for (unsigned int i = 0; i < N; i++)
-      recv_fmpz(serverfd, xp[i]);
+    send_fmpz_batch(serverfd, xp, N);
+    recv_fmpz_batch(serverfd, xp, N);
   }
 
   // [x]_p = [x+r]_p - [r]_p
@@ -565,24 +559,12 @@ DaBit** CorrelatedStore::generateDaBit(const size_t N) {
   int status = 0;
   if (do_fork) pid = fork();
   if (pid == 0) {
-    for (unsigned int i = 0; i < N; i++) {
-      if (server_num == 0) {
-        send_DaBit(serverfd, dabit1[i]);
-      } else {
-        send_DaBit(serverfd, dabit0[i]);
-      }
-    }
+    send_DaBit_batch(serverfd, server_num == 0 ? dabit1 : dabit0, N);
     if (do_fork) exit(EXIT_SUCCESS);
   }
 
+  recv_DaBit_batch(serverfd, server_num == 0 ? dabit1 : dabit0, N);
   for (unsigned int i = 0; i < N; i++) {
-    // Exchange
-    if (server_num == 0) {
-      recv_DaBit(serverfd, dabit1[i]);
-    } else {
-      recv_DaBit(serverfd, dabit0[i]);
-    }
-
     // Xor boolean shares
     dabit[i]->b2 = dabit0[i]->b2 ^ dabit1[i]->b2;
 
@@ -635,24 +617,12 @@ EdaBit** CorrelatedStore::generateEdaBit(const size_t N, const size_t num_bits) 
   int status = 0;
   if (do_fork) pid = fork();
   if (pid == 0) {
-    for (unsigned int i = 0; i < N; i++) {
-      if (server_num == 0) {
-        send_EdaBit(serverfd, edabit1[i], num_bits);
-      } else {
-        send_EdaBit(serverfd, edabit0[i], num_bits);
-      }
-    }
+    send_EdaBit_batch(serverfd, server_num == 0 ? edabit1 : edabit0, num_bits, N);
     if (do_fork) exit(EXIT_SUCCESS);
   }
 
+  recv_EdaBit_batch(serverfd, server_num == 0 ? edabit1 : edabit0, num_bits, N);
   for (unsigned int i = 0; i < N; i++) {
-    // Exchange
-    if (server_num == 0) {
-      recv_EdaBit(serverfd, edabit1[i], num_bits);
-    } else {
-      recv_EdaBit(serverfd, edabit0[i], num_bits);
-    }
-
     // Add arithmetic shares
     fmpz_add(edabit[i]->r, edabit0[i]->r, edabit1[i]->r);
     fmpz_mod(edabit[i]->r, edabit[i]->r, Int_Modulus);
