@@ -8,7 +8,7 @@
 
 OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender, const int sockfd, const int batch_size)
 : is_sender(is_sender)
-, io(new emp::NetIO(is_sender ? address : nullptr, port, true))
+, io(new emp::NetIO(is_sender ? nullptr : address, port, true))
 , ot(new emp::IKNP<emp::NetIO>(io))
 {}
 

@@ -8,20 +8,23 @@
 #define SERVER0_IP "127.0.0.1"
 #define SERVER1_IP "127.0.0.1"
 
-void run(const int server_num, const int sockfd, const int n, const int m) {
+void run(const int server_num, const int sockfd, const int n, const int m, const char* addr0, const char* addr1) {
 
   std::cout << "Making io objects" << std::endl;
 
   auto start = clock_start();
 
-  size_t batch_size = 2048;
+  size_t batch_size = 1024;
+  while((unsigned) n > batch_size)
+    batch_size *= 2;
 
-  OT_Wrapper* ot0 = new OT_Wrapper(SERVER0_IP, SERVER0_OT_PORT, server_num == 0, sockfd, batch_size);
+  OT_Wrapper* ot0 = new OT_Wrapper(addr0, SERVER0_OT_PORT, server_num == 0, sockfd, batch_size);
   std::cout << "Make ot0 time: " << sec_from(start) << std::endl;
   start = clock_start();
-  OT_Wrapper* ot1 = new OT_Wrapper(SERVER1_IP, SERVER1_OT_PORT, server_num == 1, sockfd, batch_size);
+  OT_Wrapper* ot1 = new OT_Wrapper(addr1, SERVER1_OT_PORT, server_num == 1, sockfd, batch_size);
   std::cout << "Make ot1 time: " << sec_from(start) << std::endl;
   start = clock_start();
+
   #if OT_TYPE == LIBOTE_SILENT
   ot0->maybeUpdate();
   std::cout << "ot0 precompute time: " << sec_from(start) << std::endl;
@@ -30,6 +33,7 @@ void run(const int server_num, const int sockfd, const int n, const int m) {
   std::cout << "ot1 precompute time: " << sec_from(start) << std::endl;
   start = clock_start();
   #endif
+
   std::cout << "Simple ot test, n = " << n << ", iterations: " << m << std::endl;
   for (int j = 0; j < m; j++) {
     if (server_num == 0) {
@@ -40,7 +44,7 @@ void run(const int server_num, const int sockfd, const int n, const int m) {
         b[i] = 10 * (10000 * j + 100 * i + 1);
       }
 
-      ot0->send_rand(a, b, n);
+      ot0->send(a, b, n);
 
       for (int i = 0; i < n; i++) {
         if (i < 5 or i == n-1)
@@ -52,7 +56,7 @@ void run(const int server_num, const int sockfd, const int n, const int m) {
       for (int i = 0; i < n; i++)
         c[i] = i % 2;
 
-      ot0->recv_rand(d, c, n);
+      ot0->recv(d, c, n);
 
       for (int i = 0; i < n; i++) {
         if (i < 5 or i == n-1)
@@ -63,7 +67,7 @@ void run(const int server_num, const int sockfd, const int n, const int m) {
 
   std::cout << "OT test time: " << sec_from(start) << std::endl;
 
-  sleep(100);
+  // sleep(100);
   return;
 
   std::cout << "Making bool triples" << std::endl;
@@ -159,19 +163,26 @@ int main(int argc, char** argv) {
     sockfd = init_receiver();
   }
 
+  const char* addr0 = SERVER0_IP;
+  const char* addr1 = SERVER1_IP;
+
   if (server_num == -1) {
+    addr0 = "127.0.0.1";
+    addr1 = "127.0.0.1";
     pid_t pid = fork();
     server_num = (pid == 0 ? 0 : 1);
+    if (server_num == 1)
+      sleep(1);
   }
 
   if (server_num == 0) {
     int newsockfd = accept_receiver(sockfd);
-    run(0, newsockfd, n, m);
+    run(0, newsockfd, n, m, addr0, addr1);
     close(newsockfd);
     close(sockfd);
   } else {
-    int cli_sockfd = init_sender();
-    run(1, cli_sockfd, n, m);
+    int cli_sockfd = init_sender(addr0);
+    run(1, cli_sockfd, n, m, addr0, addr1);
     close(cli_sockfd);
   }
 

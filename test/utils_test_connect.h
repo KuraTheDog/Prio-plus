@@ -13,7 +13,7 @@
 
 int PORT = 8887;
 
-int init_sender() {
+int init_sender(const char* ip = "127.0.0.1") {
   std::cout << "send: start on " << PORT << std::endl;
 
   int sockfd;
@@ -31,7 +31,7 @@ int init_sender() {
   bzero((char *) &addr, sizeof(addr));
   addr.sin_port = htons(PORT);
   addr.sin_family = AF_INET;
-  inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+  inet_pton(AF_INET, ip, &addr.sin_addr);
 
   if (connect(sockfd, (sockaddr*) &addr, sizeof(addr)) < 0)
       error_exit("ERROR on connect");
