@@ -14,7 +14,7 @@
 int PORT = 8887;
 
 int init_sender(const char* ip = "127.0.0.1") {
-  std::cout << "send: start" << std::endl;
+  std::cout << "send: start on " << PORT << std::endl;
 
   int sockfd;
   struct sockaddr_in addr;
