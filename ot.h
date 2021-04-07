@@ -69,6 +69,10 @@ public:
   const char* const address;
   const int port;
 
+  const uint64_t scalar = 2;      // default 1. Unsure of purpose
+  const uint64_t secParam = 64;   // default 128. 64 bit ints, so 64 fine
+  const uint64_t numThreads = 1;  // default 1
+
   int sockfd;  // for online
 
   std::queue<std::tuple<uint64_t, uint64_t>> message_cache;

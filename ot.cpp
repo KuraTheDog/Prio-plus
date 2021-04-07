@@ -173,7 +173,7 @@ void OT_Wrapper::addPrecompute(const size_t n) {
 
     if (is_sender) {
         osuCrypto::SilentOtExtSender sender;
-        sender.configure(num_to_make);  // more options? is this needed? todo
+        sender.configure(num_to_make, scalar, secParam, numThreads);
 
         osuCrypto::Channel channel = osuCrypto::Session(
             ios, address, port, osuCrypto::SessionMode::Server
@@ -191,7 +191,7 @@ void OT_Wrapper::addPrecompute(const size_t n) {
         }
     } else {
         osuCrypto::SilentOtExtReceiver recver;
-        recver.configure(num_to_make);  // more options? is this needed? todo
+        recver.configure(num_to_make, scalar, secParam, numThreads);
 
         osuCrypto::Channel channel = osuCrypto::Session(
             ios, address, port, osuCrypto::SessionMode::Client
