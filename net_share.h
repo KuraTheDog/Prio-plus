@@ -35,6 +35,10 @@ string: best it can do is base 62, so 62/256 ~ 25% space efficiency. So needs ~4
 // Reduces number of bits to send fmpz
 #define FIXED_FMPZ_SIZE true
 
+// We batch things together into single send/recieves, to reduce overhead (mainly recv wrapper I think). However, it segfaults if given too large batches. So this makes sure batches are capped
+#define MAX_FMPZ_BATCH  1000000
+#define MAX_DABIT_BATCH 320000
+
 /* Core functions */
 
 // Send trivial
@@ -101,7 +105,7 @@ int send_ClientPacket(const int sockfd, const ClientPacket* const x,
 int recv_ClientPacket(const int sockfd, ClientPacket* const x,
                       const size_t NMul);
 
-// Only used in making lazy triples
+// Only used in making lazy triples. Also batch?
 int send_BeaverTriple(const int sockfd, const BeaverTriple* const x);
 int recv_BeaverTriple(const int sockfd, BeaverTriple* const x);
 
