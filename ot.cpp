@@ -230,12 +230,8 @@ void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
 
     maybeUpdate(length);
 
-    // work
-    auto start = clock_start();
     bool* const d = new bool[length];
     recv_bool_batch(sockfd, d, length);
-    std::cout << "send: get d: " << sec_from(start) << std::endl;
-    start = clock_start();
 
     uint64_t* s0 = new uint64_t[length];
     uint64_t* s1 = new uint64_t[length];
@@ -248,11 +244,10 @@ void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
         s0[i] = data0[i] ^ r[d[i]];
         s1[i] = data1[i] ^ r[d[i] ^ 1];
     }
-    std::cout << "send: make s: " << sec_from(start) << std::endl;
-    start = clock_start();
+
     send_uint64_batch(sockfd, s0, length);
     send_uint64_batch(sockfd, s1, length);
-    std::cout << "send: send s: " << sec_from(start) << std::endl;
+
     delete[] s0;
     delete[] s1;
     delete[] d;
@@ -265,8 +260,6 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
 
     maybeUpdate(length);
 
-    // work
-    auto start = clock_start();
     bool* const d = new bool[length];
     uint64_t* const rc = new uint64_t[length];
     for (unsigned int i = 0; i < length; i++) {
@@ -276,22 +269,20 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
 
         d[i] = b[i] ^ c;
     }
-    std::cout << "recv: setup: " << sec_from(start) << std::endl;
-    start = clock_start();
+
     send_bool_batch(sockfd, d, length);
-    std::cout << "recv: send d: " << sec_from(start) << std::endl;
-    start = clock_start();
     delete[] d;
+
     uint64_t* s0 = new uint64_t[length];
     uint64_t* s1 = new uint64_t[length];
+
     recv_uint64_batch(sockfd, s0, length);
     recv_uint64_batch(sockfd, s1, length);
-    std::cout << "recv: get s: " << sec_from(start) << std::endl;
-    start = clock_start();
+
     for (unsigned int i = 0; i < length; i++) {
         data[i] = (b[i] == 0 ? s0[i] : s1[i]) ^ rc[i];
     }
-    std::cout << "recv: solve: " << sec_from(start) << std::endl;
+
     delete[] rc;
 }
 

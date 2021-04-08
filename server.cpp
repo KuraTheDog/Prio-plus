@@ -1194,8 +1194,9 @@ int main(int argc, char** argv) {
 
     syncSnipSeeds(serverfd, server_num);
 
-    ot0 = new OT_Wrapper(SERVER0_IP, SERVER0_OT_PORT, server_num == 0, serverfd, CACHE_SIZE * num_bits);
-    ot1 = new OT_Wrapper(SERVER1_IP, SERVER1_OT_PORT, server_num == 1, serverfd, CACHE_SIZE * num_bits);
+    const size_t ot_cache_size = CACHE_SIZE * num_bits;
+    ot0 = new OT_Wrapper(SERVER0_IP, SERVER0_OT_PORT, server_num == 0, serverfd, ot_cache_size);
+    ot1 = new OT_Wrapper(SERVER1_IP, SERVER1_OT_PORT, server_num == 1, serverfd, ot_cache_size);
 
     correlated_store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, CACHE_SIZE, LAZY_PRECOMPUTE);
 
