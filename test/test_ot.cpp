@@ -47,7 +47,7 @@ void run(const int server_num, const int sockfd, const int n, const int m, const
       ot0->send(a, b, n);
 
       for (int i = 0; i < n; i++) {
-        if (i < 5 or i == n-1)
+        if (i < 3 or i == n-1)
           std::cout << j << ", " << i << " send " << a[i] << ", " << b[i] << std::endl;
       }
     } else {
@@ -59,7 +59,7 @@ void run(const int server_num, const int sockfd, const int n, const int m, const
       ot0->recv(d, c, n);
 
       for (int i = 0; i < n; i++) {
-        if (i < 5 or i == n-1)
+        if (i < 3 or i == n-1)
           std::cout << j << ", " << i << " got " << c[i] << " = " << d[i] << std::endl;
       }
     }

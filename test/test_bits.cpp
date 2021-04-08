@@ -6,10 +6,10 @@
 #include "../fmpz_utils.h"
 #include "../net_share.h"
 
-const size_t batch_size = 100; // flexible
-const size_t N = 20;           // Must be >= 2
+#define SERVER0_IP "127.0.0.1"
+#define SERVER1_IP "127.0.0.1"
 
-const size_t num_bits = 3;     // fixed
+const size_t num_bits = 8;     // Must be 3 for tests to work
 const bool do_fork = true;     // false to do leaks testing
 const bool lazy = false;
 const bool over_precompute = false;
@@ -237,45 +237,25 @@ void test_b2a_edaBit(const size_t N, const size_t* const nbits, const int server
   clear_fmpz_array(xp, N);
 }
 
-/*
-void test_validateSharesMatch(const size_t N, const size_t* const nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
-  fmpz_t* x2; new_fmpz_array(&x2, N);
-  fmpz_t* xp; new_fmpz_array(&xp, N);
+void runServerTest(const int server_num, const int serverfd, const char* addr0,
+                   const char* addr1, const size_t batch_size, const size_t N) {
+  const size_t ot_cache_size = batch_size * num_bits;
 
-  if (server_num == 0) {
-    fmpz_set_ui(x2[0], 3);
-    fmpz_set_ui(x2[1], 5);
-    fmpz_set_ui(xp[0], 42);
-    fmpz_set_si(xp[1], -68); fmpz_mod(xp[1], xp[1], Int_Modulus);
-  } else {
-    fmpz_set_ui(x2[0], 6);
-    fmpz_set_ui(x2[1], 4);
-    fmpz_set_si(xp[0], -37); fmpz_mod(xp[0], xp[0], Int_Modulus);
-    fmpz_set_ui(xp[1], 69);
-  }
-
-  bool* ret = store->validateSharesMatch(N, nbits, x2, xp);
-
-  assert(ret[0]);
-  assert(ret[1]);
-
-  delete[] ret;
-  clear_fmpz_array(x2, N);
-  clear_fmpz_array(xp, N);
-}
-*/
-
-void runServerTest(const int server_num, const int serverfd) {
-  OT_Wrapper* ot0 = new OT_Wrapper("127.0.0.1", SERVER0_OT_PORT, server_num == 0
-                                   , serverfd
-                                   );
-  OT_Wrapper* ot1 = new OT_Wrapper("127.0.0.1", SERVER1_OT_PORT, server_num == 1
-                                   , serverfd
-                                   );
+  OT_Wrapper* ot0 = new OT_Wrapper(addr0, SERVER0_OT_PORT, server_num == 0,
+                                   serverfd, ot_cache_size);
+  OT_Wrapper* ot1 = new OT_Wrapper(addr1, SERVER1_OT_PORT, server_num == 1,
+                                   serverfd, ot_cache_size);
 
   CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, batch_size, lazy, do_fork, over_precompute);
 
   store->maybeUpdate();
+
+  if (N == 0) {
+    delete ot0;
+    delete ot1;
+    delete store;
+    return;
+  }
 
   std::cout << std::endl;
 
@@ -304,8 +284,6 @@ void runServerTest(const int server_num, const int serverfd) {
     // std::cout << "b2a ed" << std::endl;
     test_b2a_edaBit(N, bits_arr, server_num, serverfd, store);
     std::cout << "b2a eda timing : " << sec_from(start) << std::endl; start = clock_start();
-    // std::cout << "validate" << std::endl;
-    // test_validateSharesMatch(N, bits_arr, server_num, serverfd, store);
   }
 
   store->printSizes();
@@ -316,42 +294,22 @@ void runServerTest(const int server_num, const int serverfd) {
   delete store;
 }
 
-void serverTest() {
-  std::cout << "Running server test" << std::endl;
-  int sockfd = init_receiver();
-
-  pid_t pid = fork();
-  if (pid == 0) {
-    int cli_sockfd = init_sender();
-
-    runServerTest(0, cli_sockfd);
-    close(cli_sockfd);
-  } else {
-    int newsockfd = accept_receiver(sockfd);
-
-    // alter randomness to be different from the sender
-    fmpz_t tmp;
-    fmpz_init(tmp);
-    size_t rand_adjust = 4;
-    for (unsigned int i = 0; i < rand_adjust; i++)
-      fmpz_randm(tmp, seed, Int_Modulus);
-    fmpz_clear(tmp);
-
-    runServerTest(1, newsockfd);
-
-    close(newsockfd);
-  }
-
-  close(sockfd);
-}
-
 int main(int argc, char* argv[]) {
   init_constants();
 
   int server_num = -1;
-  if(argc >= 2){
-    server_num = atoi(argv[1]);
+  if(argc >= 2) server_num = atoi(argv[1]);
+
+  if (server_num < -1 or server_num > 1) {
+    perror("Server num must be -1 (for fork), 0, or 1");
+    exit(1);
   }
+
+  int batch_size = 100;
+  if(argc >= 3) batch_size = atoi(argv[2]);
+
+  int N = 10;
+  if(argc >= 4) N = atoi(argv[3]);
 
   // random adjusting. different numbers adjust seed.
   fmpz_t tmp;
@@ -361,17 +319,30 @@ int main(int argc, char* argv[]) {
     fmpz_randm(tmp, seed, Int_Modulus);
   fmpz_clear(tmp);
 
+  int sockfd = -1;
+  if (server_num == -1 or server_num == 0)
+    sockfd = init_receiver();
+
+  const char* addr0 = SERVER0_IP;
+  const char* addr1 = SERVER1_IP;
+
   if (server_num == -1) {
-    serverTest();
-  } else if (server_num == 0) {
-    int sockfd = init_receiver();
+    addr0 = "127.0.0.1";
+    addr1 = "127.0.0.1";
+    pid_t pid = fork();
+    server_num = (pid == 0 ? 0 : 1);
+    if (server_num == 1)
+      sleep(1);
+  }
+
+  if (server_num == 0) {
     int newsockfd = accept_receiver(sockfd);
-    runServerTest(0, newsockfd);
+    runServerTest(0, newsockfd, addr0, addr1, batch_size, N);
     close(newsockfd);
     close(sockfd);
   } else if (server_num == 1) {
-    int cli_sockfd = init_sender();
-    runServerTest(1, cli_sockfd);
+    int cli_sockfd = init_sender(addr0);
+    runServerTest(1, cli_sockfd, addr0, addr1, batch_size, N);
     close(cli_sockfd);
   }
 

@@ -518,10 +518,9 @@ fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
   if (server_num == 0) {
     fmpz_t* xr_other; new_fmpz_array(&xr_other, N);
     recv_fmpz_batch(serverfd, xr_other, N);  // get other [x + r]_2
-    for (unsigned int i = 0; i < N; i++)
-      fmpz_xor(xp[i], xp[i], xr_other[i]);  // real x + r
     for (unsigned int i = 0; i < N; i++) {
-      fmpz_randm(xr_other[i], seed, Int_Modulus);  // other [x + r]_p
+      fmpz_xor(xp[i], xp[i], xr_other[i]);  // real x + r
+      fmpz_randm(xr_other[i], seed, Int_Modulus);  // make other [x + r]_p
       fmpz_sub(xp[i], xp[i], xr_other[i]);
       fmpz_mod(xp[i], xp[i], Int_Modulus);  // This [x + r]_p
     }
