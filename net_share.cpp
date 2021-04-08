@@ -219,8 +219,15 @@ int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n) {
         }
         return total;
     }
-    size_t len = fmpz_size(Int_Modulus);
 
+    if (n > MAX_FMPZ_BATCH) {
+        total += send_fmpz_batch(sockfd, x, MAX_FMPZ_BATCH);
+        auto new_x = &x[MAX_FMPZ_BATCH];
+        total += send_fmpz_batch(sockfd, new_x, n - MAX_FMPZ_BATCH);
+        return total;
+    }
+
+    size_t len = fmpz_size(Int_Modulus);
     ulong buf[len * n];
     for (unsigned int i = 0; i < n; i++)
         fmpz_get_ui_array(&buf[i * len], len, x[i]);
@@ -241,8 +248,15 @@ int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n) {
         }
         return total;
     }
-    size_t len = fmpz_size(Int_Modulus);
 
+    if (n > MAX_FMPZ_BATCH) {
+        total += recv_fmpz_batch(sockfd, x, MAX_FMPZ_BATCH);
+        auto new_x = &x[MAX_FMPZ_BATCH];
+        total += recv_fmpz_batch(sockfd, new_x, n - MAX_FMPZ_BATCH);
+        return total;
+    }
+
+    size_t len = fmpz_size(Int_Modulus);
     ulong buf[len * n];
     ret = recv_ulong_batch(sockfd, buf, len * n);
     if (ret <= 0) return ret; else total += ret;
@@ -469,16 +483,20 @@ int recv_DaBit(const int sockfd, DaBit* const x) {
 
 int send_DaBit_batch(const int sockfd, const DaBit* const * const x, const size_t n) {
     int total = 0, ret;
+
+    if (n > MAX_DABIT_BATCH) {
+        total += send_DaBit_batch(sockfd, x, MAX_DABIT_BATCH);
+        auto new_x = &x[MAX_DABIT_BATCH];
+        total += send_DaBit_batch(sockfd, new_x, n - MAX_DABIT_BATCH);
+        return total;
+    }
+
     fmpz_t* bp; new_fmpz_array(&bp, n);
     bool* b2 = new bool[n];
 
-    for (unsigned int i = 0; i < n; i++) {
-        fmpz_set(bp[i], x[i]->bp);
-        b2[i] = x[i]->b2;
-    }
-
     ret = send_fmpz_batch(sockfd, bp, n);
     if (ret <= 0) return ret; else total += ret;
+
     ret = send_bool_batch(sockfd, b2, n);
     if (ret <= 0) return ret; else total += ret;
 
@@ -490,6 +508,14 @@ int send_DaBit_batch(const int sockfd, const DaBit* const * const x, const size_
 
 int recv_DaBit_batch(const int sockfd, DaBit* const * const x, const size_t n) {
     int total = 0, ret;
+
+    if (n > MAX_DABIT_BATCH) {
+        total += recv_DaBit_batch(sockfd, x, MAX_DABIT_BATCH);
+        auto new_x = &x[MAX_DABIT_BATCH];
+        total += recv_DaBit_batch(sockfd, new_x, n - MAX_DABIT_BATCH);
+        return total;
+    }
+
     fmpz_t* bp; new_fmpz_array(&bp, n);
     bool* b2 = new bool[n];
 
