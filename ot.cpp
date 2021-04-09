@@ -150,12 +150,12 @@ void OT_Wrapper::recv_rand(uint64_t* const data, bool* b, const size_t length) {
 
 OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool is_sender, const int sockfd, const int batch_size)
 : is_sender(is_sender)
-, batch_size(batch_size)
+, batch_size(batch_size > 1024 ? batch_size : 1024)  // does not work on small values
 , address(address)
 , port(port)
 , sockfd(sockfd)
 {
-    std::cout << "Making a " << (is_sender ? "sender" : "receiver") << " on port " << port << " with batch size " << batch_size << std::endl;
+    std::cout << "Making a " << (is_sender ? "sender" : "receiver") << " on port " << port << " with batch size " << this->batch_size << std::endl;
     prng = osuCrypto::PRNG(osuCrypto::sysRandomSeed());
 }
 
