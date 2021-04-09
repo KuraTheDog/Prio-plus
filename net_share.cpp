@@ -494,6 +494,11 @@ int send_DaBit_batch(const int sockfd, const DaBit* const * const x, const size_
     fmpz_t* bp; new_fmpz_array(&bp, n);
     bool* b2 = new bool[n];
 
+    for (unsigned int i = 0; i < n; i++) {
+        fmpz_set(bp[i], x[i]->bp);
+        b2[i] = x[i]->b2;
+    }
+
     ret = send_fmpz_batch(sockfd, bp, n);
     if (ret <= 0) return ret; else total += ret;
 

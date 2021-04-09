@@ -901,20 +901,22 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         const std::string pk(share.pk, share.pk + PK_LENGTH);
 
         share.x_vals = new uint64_t[num_x];
+        share.x2_vals = new uint64_t[num_quad];
+        share.xy_vals = new uint64_t[num_x];
+
         num_bytes += recv_uint64_batch(clientfd, share.x_vals, num_x);
         num_bytes += recv_uint64(clientfd, share.y);
         num_bytes += recv_uint64_batch(clientfd, share.x2_vals, num_quad);
-        num_bytes += recv_uint64_batch(clientfd, share.x_vals, num_x);
+        num_bytes += recv_uint64_batch(clientfd, share.xy_vals, num_x);
+
         for (unsigned int j = 0; j < num_x; j++) {
             if (share.x_vals[j] >= max_val)
                 sizes_valid = false;
             if (share.xy_vals[j] >= max_val * max_val)
                 sizes_valid = false;
         }
-
         if (share.y >= max_val)
             sizes_valid = false;
-
         for (unsigned int j = 0; j < num_quad; j++) {
             if (share.x2_vals[j] >= max_val * max_val)
                 sizes_valid = false;
