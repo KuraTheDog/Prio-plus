@@ -9,7 +9,7 @@
 #define SERVER0_IP "127.0.0.1"
 #define SERVER1_IP "127.0.0.1"
 
-const size_t num_bits = 8;     // Must be 3 for tests to work
+const size_t num_bits = 3;     // Must be 3 for tests to work
 const bool do_fork = true;     // false to do leaks testing
 const bool lazy = false;
 const bool over_precompute = false;
