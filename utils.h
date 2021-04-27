@@ -1,5 +1,5 @@
-#ifndef PARSECUTILS_H
-#define PARSECUTILS_H
+#ifndef PRIOBASEUTILS_H
+#define PRIOBASEUTILS_H
 
 #include <emp-tool/emp-tool.h>  // for timing
 
@@ -14,6 +14,6 @@ inline void error_exit(const char* const msg) {
   exit(EXIT_FAILURE);
 }
 
-// todo: possibly connect code? maybe shuffle with utils_test_connect?
+// todo: possibly connection code, from utils test connect and others?
 
 #endif 
