@@ -43,6 +43,8 @@ CorrelatedStore* correlated_store;
 #define CACHE_SIZE 2097152
 // If set, does fast but insecure offline precompute.
 #define LAZY_PRECOMPUTE true
+// Generate excess in case it runs out
+#define OVER_PRECOMPUTE false
 
 uint64_t int_sum_max;
 uint32_t num_bits;
@@ -1161,7 +1163,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
 int main(int argc, char** argv) {
     if (argc < 4) {
-        std::cout << "Usage: ./bin/server server_num(0/1) this_client_port server0_port INT_SUM_MAX_bits" << endl;
+        std::cout << "Usage: ./bin/server server_num(0/1) this_client_port server0_port num_bits" << endl;
+        return 1;
     }
 
     const int server_num = atoi(argv[1]);  // Server # 1 or # 2
@@ -1199,7 +1202,7 @@ int main(int argc, char** argv) {
     ot0 = new OT_Wrapper(server_num == 0 ? nullptr : SERVER0_IP, 60051);
     ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
 
-    correlated_store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, CACHE_SIZE, LAZY_PRECOMPUTE);
+    correlated_store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, CACHE_SIZE, LAZY_PRECOMPUTE, OVER_PRECOMPUTE);
 
     int sockfd, newsockfd;
     sockaddr_in addr;

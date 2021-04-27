@@ -7,11 +7,12 @@
 #include "../net_share.h"
 
 const size_t batch_size = 100; // flexible
-const size_t N = 10;           // Must be >= 2
+const size_t N = 20;           // Must be >= 2
 
 const size_t num_bits = 3;     // fixed
 const bool do_fork = true;     // false to do leaks testing
-const bool lazy = true;
+const bool lazy = false;
+const bool over_precompute = false;
 
 void test_multiplyBoolShares(const size_t N, const int server_num, const int serverfd, CorrelatedStore* store) {
   bool* x = new bool[N];
@@ -267,7 +268,7 @@ void test_validateSharesMatch(const size_t N, const size_t* const nbits, const i
 void runServerTest(const int server_num, const int serverfd) {
   OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : "127.0.0.1", 60051);
   OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : "127.0.0.1", 60052);
-  CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, batch_size, lazy, do_fork);
+  CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, batch_size, lazy, do_fork, over_precompute);
 
   store->maybeUpdate();
 
@@ -301,6 +302,8 @@ void runServerTest(const int server_num, const int serverfd) {
     // std::cout << "validate" << std::endl;
     // test_validateSharesMatch(N, bits_arr, server_num, serverfd, store);
   }
+
+  store->printSizes();
 
   delete ot0;
   delete ot1;

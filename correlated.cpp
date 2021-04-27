@@ -142,15 +142,27 @@ EdaBit* CorrelatedStore::getEdaBit(const size_t num_bits) {
   return ans;
 }
 
+void CorrelatedStore::printSizes() {
+  std::cout << "Current store sizes:" << std::endl;
+  std::cout << "       EdaBits: " << edabit_store.size() << std::endl;
+  std::cout << "     EdaBits 2: " << edabit_store_2.size() << std::endl;
+  std::cout << "        Dabits: " << dabit_store.size() << std::endl;
+  std::cout << " Arith Triples: " << atriple_store.size() << std::endl;
+  std::cout << " Bool  Triples: " << btriple_store.size() << std::endl;
+}
+
 void CorrelatedStore::maybeUpdate() {
   std::cout << "precomputing..." << std::endl;
   auto start = clock_start();
+  const size_t extra = over_precompute ? 1 : 0;
   // Make necessary triples/da for edabits, if needed
   const bool make_eda = edabit_store.size() < batch_size / 2;
   const bool make_eda2 = edabit_store_2.size() < batch_size / 2;
-  const size_t da_target = (make_eda + make_eda2 + 1);
-  const size_t atrip_target = da_target + 1;
-  const size_t btrip_target = (make_eda + 2 * make_eda2 + 1);
+  const size_t da_target = make_eda + make_eda2 + extra;
+  const size_t atrip_target = da_target + extra;
+  // Some for making edabits, some for b2a
+  const size_t btrip_target = 2 * (make_eda + 2 * make_eda2) + extra;
+
   if (btriple_store.size() < btrip_target * bool_batch_size)
       addBoolTriples(btrip_target * bool_batch_size);
   if (!lazy) {
@@ -165,21 +177,8 @@ void CorrelatedStore::maybeUpdate() {
   if (make_eda2)
     addEdaBits(nbits * 2);
 
-  // Also stock up again? Not needed?
-  if (btriple_store.size() < bool_batch_size / 2)
-    addBoolTriples();
-  if (!lazy) {
-    if (atriple_store.size() < batch_size / 2)
-      addTriples(2 * batch_size);
-    if (dabit_store.size() < batch_size / 2)
-      addDaBits();
-  }
-  std::cout << "Current store sizes:" << std::endl;
-  std::cout << "       EdaBits: " << edabit_store.size() << std::endl;
-  std::cout << "     EdaBits 2: " << edabit_store_2.size() << std::endl;
-  std::cout << "        Dabits: " << dabit_store.size() << std::endl;
-  std::cout << " Arith Triples: " << atriple_store.size() << std::endl;
-  std::cout << " Bool  Triples: " << btriple_store.size() << std::endl;
+  printSizes();
+
   std::cout << "precompute timing : " << sec_from(start) << std::endl;
 }
 

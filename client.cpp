@@ -1404,6 +1404,7 @@ void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
 int main(int argc, char** argv) {
     if (argc < 4) {
         std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits linreg_degree" << endl;
+        return 1;
     }
 
     const int numreqs = atoi(argv[1]);  // Number of simulated clients

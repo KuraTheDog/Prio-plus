@@ -35,6 +35,10 @@ class CorrelatedStore {
 
   // If lazy, does fast but insecure offline.
   const bool lazy;
+  // If set, makes extra objects for precomputing. 
+  // E.g. makes n edabits, then also n dabits in case the edabits run out
+  // Allows for remaking edabits if they run out, without being from scratch
+  const bool over_precompute;
 
   // Arithmetic triple generator
   ArithTripleGenerator* triple_gen = nullptr;
@@ -73,12 +77,14 @@ public:
   CorrelatedStore(const int serverfd, const int idx,
                   OT_Wrapper* const ot0, OT_Wrapper* const ot1,
                   const size_t nbits, const size_t batch_size,
-                  const bool lazy = false, const bool do_fork = true)
+                  const bool lazy = false, const bool do_fork = true,
+                  const bool over_precompute = true)
   : batch_size(batch_size)
   , server_num(idx)
   , serverfd(serverfd)
   , nbits(nbits)
   , lazy(lazy)
+  , over_precompute(over_precompute)
   , bool_batch_size(batch_size * nbits)
   , ot0(ot0)
   , ot1(ot1)
@@ -102,6 +108,7 @@ public:
   DaBit* getDaBit();
   EdaBit* getEdaBit(const size_t num_bits);
 
+  void printSizes();
   // Precompute if not enough
   void maybeUpdate();
 
