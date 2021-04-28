@@ -96,45 +96,63 @@ void CorrelatedStore::addEdaBits(const size_t num_bits, const size_t n) {
   std::cout << "addEdaBits timing : " << sec_from(start) << std::endl;
 }
 
+void CorrelatedStore::checkBoolTriples(const size_t n) { 
+  if (btriple_store.size() < n) addBoolTriples(n - btriple_store.size());
+}
+
+void CorrelatedStore::checkTriples(const size_t n) { 
+  if (!lazy and atriple_store.size() < n) addTriples(n - atriple_store.size());
+}
+
+void CorrelatedStore::checkDaBits(const size_t n) { 
+  if (!lazy and dabit_store.size() < n) addDaBits(n - dabit_store.size());
+}
+
+void CorrelatedStore::checkEdaBits(const size_t num_bits, const size_t n) { 
+  if (num_bits == nbits) {
+    if (edabit_store.size() < n) addEdaBits(num_bits, n - edabit_store.size());
+  } else if (num_bits == 2 * nbits) {
+    if (edabit_store_2.size() < n) addEdaBits(num_bits, n - edabit_store_2.size());
+  } else {
+    std::cerr << "Don't support " << num_bits << " bit edabits" << std::endl;
+    std::cerr << "Only " << nbits << " or " << 2 * nbits << " is supported" << std::endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
 BooleanBeaverTriple* CorrelatedStore::getBoolTriple() {
-  if (btriple_store.empty())
-    addBoolTriples();
+  checkBoolTriples(1);
   BooleanBeaverTriple* ans = btriple_store.front();
   btriple_store.pop();
   return ans;
 }
 
 BeaverTriple* CorrelatedStore::getTriple() {
-  if (atriple_store.empty())
-    addTriples();
+  checkTriples(1);
   BeaverTriple* ans = atriple_store.front();
   atriple_store.pop();
   return ans;
 }
 
 DaBit* CorrelatedStore::getDaBit() {
-  if (dabit_store.empty())
-    addDaBits();
+  checkDaBits(1);
   DaBit* ans = dabit_store.front();
   dabit_store.pop();
   return ans;
 }
 
 EdaBit* CorrelatedStore::getEdaBit(const size_t num_bits) {
+  checkEdaBits(num_bits, 1);
   EdaBit* ans;
   if (num_bits == nbits) {
-    if (edabit_store.empty())
-      addEdaBits(num_bits);
     ans = edabit_store.front();
     edabit_store.pop();
     return ans;
   } else if (num_bits == 2 * nbits) {
-    if (edabit_store_2.empty())
-      addEdaBits(num_bits);
     ans = edabit_store_2.front();
     edabit_store_2.pop();
   } else {
-    std::cerr << "Cannot get a " << num_bits << " edabit.";
+    std::cerr << "Cannot get a " << num_bits << " bit edabits" << std::endl;
     std::cerr << "Only " << nbits << " or " << 2 * nbits << " is supported" << std::endl;
     exit(EXIT_FAILURE);
   }
@@ -219,6 +237,8 @@ bool* CorrelatedStore::multiplyBoolShares(const size_t N,
 
   bool* d_this = new bool[N];
   bool* e_this = new bool[N];
+
+  checkBoolTriples(N);
   for (unsigned int i = 0; i < N; i++) {
     BooleanBeaverTriple* triple = getBoolTriple();
     d_this[i] = x[i] ^ triple->a;
@@ -267,6 +287,8 @@ fmpz_t* CorrelatedStore::multiplyArithmeticShares(const size_t N,
   fmpz_t* e; new_fmpz_array(&e, N);
   fmpz_t* d_other; new_fmpz_array(&d_other, N);
   fmpz_t* e_other; new_fmpz_array(&e_other, N);
+
+  checkTriples(N);
 
   for (unsigned int i = 0; i < N; i++) {
     BeaverTriple* triple = getTriple();
@@ -333,8 +355,13 @@ bool* CorrelatedStore::addBinaryShares(const size_t N,
   bool* yi = new bool[N];
 
   size_t max_bits = 0;
-  for (unsigned int i = 0; i < N; i++)
+  size_t total_bits = 0;
+  for (unsigned int i = 0; i < N; i++) {
     max_bits = (num_bits[i] > max_bits ? num_bits[i] : max_bits);
+    total_bits += num_bits[i];
+  }
+
+  checkBoolTriples(total_bits);
 
   for (unsigned int j = 0; j < max_bits; j++) {
     size_t idx = 0;
@@ -368,6 +395,8 @@ bool* CorrelatedStore::addBinaryShares(const size_t N,
 
 fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
   fmpz_t* xp; new_fmpz_array(&xp, N);
+
+  checkDaBits(N);
 
   bool* v_this = new bool[N];
   for (unsigned int i = 0; i < N; i++) {
@@ -413,6 +442,24 @@ fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
 fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
                                     const size_t* const num_bits,
                                     const fmpz_t* const x) {
+  std::cout << "Starting b2a_edabit\n";
+
+  size_t num_n = 0, num_2n = 0;
+  for (unsigned int i = 0; i < N; i++) {
+    if (num_bits[i] == nbits) num_n += 1;
+    if (num_bits[i] == 2 * nbits) num_2n += 1;
+  }
+  const size_t eda_to_make = (edabit_store.size() < num_n) ? num_n - edabit_store.size() : 0;
+  const size_t eda2_to_make = (edabit_store_2.size() < num_2n) ? num_2n - edabit_store_2.size() : 0;
+  const size_t da_target = eda_to_make + eda2_to_make;
+  const size_t bool_target = (1 + !lazy) * nbits * (eda_to_make + 2 * eda2_to_make);
+
+  checkBoolTriples(bool_target);
+  checkTriples(da_target);
+  checkDaBits(da_target);
+  checkEdaBits(nbits, num_n);
+  checkEdaBits(2 * nbits, num_2n);
+
   fmpz_t* xp; new_fmpz_array(&xp, N);
 
   bool** x2 = new bool*[N];

@@ -65,6 +65,12 @@ class CorrelatedStore {
   void addDaBits(const size_t n = 0);
   void addEdaBits(const size_t num_bits, const size_t n = 0);
 
+  // check if enough to make n. if not, call add
+  void checkBoolTriples(const size_t n = 0);
+  void checkTriples(const size_t n = 0);
+  void checkDaBits(const size_t n = 0);
+  void checkEdaBits(const size_t num_bits, const size_t n = 0);
+
   OT_Wrapper* const ot0;
   OT_Wrapper* const ot1;
 
