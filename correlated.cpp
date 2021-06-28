@@ -456,8 +456,6 @@ fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
 fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
                                     const size_t* const num_bits,
                                     const fmpz_t* const x) {
-  std::cout << "Starting b2a_edabit\n";
-
   size_t num_n = 0, num_2n = 0;
   for (unsigned int i = 0; i < N; i++) {
     if (num_bits[i] == nbits) num_n += 1;
