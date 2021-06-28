@@ -297,8 +297,8 @@ void runServerTest(const int server_num, const int serverfd) {
     test_b2a_daBit(N, server_num, serverfd, store);
     std::cout << "b2a da timing : " << sec_from(start) << std::endl; start = clock_start();
     // std::cout << "b2a ed" << std::endl;
-    test_b2a_edaBit(N, bits_arr, server_num, serverfd, store);
-    std::cout << "b2a eda timing : " << sec_from(start) << std::endl; start = clock_start();
+    // test_b2a_edaBit(N, bits_arr, server_num, serverfd, store);
+    // std::cout << "b2a eda timing : " << sec_from(start) << std::endl; start = clock_start();
     // std::cout << "validate" << std::endl;
     // test_validateSharesMatch(N, bits_arr, server_num, serverfd, store);
   }
