@@ -45,6 +45,8 @@ CorrelatedStore* correlated_store;
 #define LAZY_PRECOMPUTE true
 // Generate excess in case it runs out
 #define OVER_PRECOMPUTE false
+// Whether to use OT or Dabits
+#define USE_OT_B2A true
 
 uint64_t int_sum_max;
 uint32_t num_bits;
@@ -144,27 +146,43 @@ CheckerPreComp* getPrecomp(const size_t N) {
     return pre;
 }
 
-fmpz_t* share_convert(const size_t N,
-                      const size_t num_inputs,
+// Currently shares_2 and shares_p are flat num_shares*num_values array.
+// TODO: Consider reworking for matrix form
+fmpz_t* share_convert(const size_t num_shares,
+                      const size_t num_values,
                       const size_t* const num_bits,
                       const uint64_t* const shares_2
                       ) {
     auto start = clock_start();
 
-    size_t* const bits_arr = new size_t[N * num_inputs];
-    fmpz_t* f_shares2; new_fmpz_array(&f_shares2, N * num_inputs);
-    for (unsigned int i = 0; i < N; i++) {
-        memcpy(&bits_arr[i * num_inputs], num_bits, num_inputs * sizeof(size_t));
-        for (unsigned int j = 0; j < num_inputs; j++)
-            fmpz_set_ui(f_shares2[i * num_inputs + j],
-                        shares_2[i * num_inputs + j]);
+    fmpz_t* shares_p;
+
+    // convert
+    fmpz_t* f_shares2; new_fmpz_array(&f_shares2, num_shares * num_values);
+    for (unsigned int i = 0; i < num_shares; i++) {
+        for (unsigned int j = 0; j < num_values; j++)
+            fmpz_set_ui(f_shares2[i * num_values + j],
+                        shares_2[i * num_values + j]);
     }
 
-    fmpz_t* const shares_p = correlated_store->b2a_edaBit(
-        N * num_inputs, bits_arr, f_shares2);
+    if (USE_OT_B2A) {
+        const size_t mod = fmpz_get_ui(Int_Modulus);
+        // TODO: maybe make it take not flattened?
+        shares_p = correlated_store->b2a_ot(
+            num_shares, num_values, num_bits, f_shares2, mod);
 
-    delete[] bits_arr;
-    clear_fmpz_array(f_shares2, N * num_inputs);
+    } else {  // edabit conversion
+        size_t* const bits_arr = new size_t[num_shares * num_values];
+        for (unsigned int i = 0; i < num_shares; i++)
+            memcpy(&bits_arr[i * num_values], num_bits, num_values * sizeof(size_t));
+
+        shares_p = correlated_store->b2a_edaBit(
+            num_shares * num_values, bits_arr, f_shares2);
+
+        delete[] bits_arr;
+    }
+
+    clear_fmpz_array(f_shares2, num_shares * num_values);
 
     std::cout << "Share convert time: " << sec_from(start) << std::endl;
 

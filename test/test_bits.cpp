@@ -237,33 +237,42 @@ void test_b2a_edaBit(const size_t N, const size_t* const nbits, const int server
   clear_fmpz_array(xp, N);
 }
 
-/*
-void test_validateSharesMatch(const size_t N, const size_t* const nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
-  fmpz_t* x2; new_fmpz_array(&x2, N);
-  fmpz_t* xp; new_fmpz_array(&xp, N);
+void test_b2a_ot(const size_t N, const size_t* const nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
+  fmpz_t* x; new_fmpz_array(&x, N);
 
   if (server_num == 0) {
-    fmpz_set_ui(x2[0], 3);
-    fmpz_set_ui(x2[1], 5);
-    fmpz_set_ui(xp[0], 42);
-    fmpz_set_si(xp[1], -68); fmpz_mod(xp[1], xp[1], Int_Modulus);
+    fmpz_set_ui(x[0], 3);
+    fmpz_set_ui(x[1], 5);
   } else {
-    fmpz_set_ui(x2[0], 6);
-    fmpz_set_ui(x2[1], 4);
-    fmpz_set_si(xp[0], -37); fmpz_mod(xp[0], xp[0], Int_Modulus);
-    fmpz_set_ui(xp[1], 69);
+    fmpz_set_ui(x[0], 6);
+    fmpz_set_ui(x[1], 4);
   }
 
-  bool* ret = store->validateSharesMatch(N, nbits, x2, xp);
+  size_t mod = fmpz_get_ui(Int_Modulus);
+  fmpz_t* xp = store->b2a_ot(N, 1, nbits, x, mod);
 
-  assert(ret[0]);
-  assert(ret[1]);
+  if (server_num == 0) {
+    fmpz_t tmp; fmpz_init(tmp);
 
-  delete[] ret;
-  clear_fmpz_array(x2, N);
+    recv_fmpz(serverfd, tmp);
+    fmpz_add(tmp, tmp, xp[0]);
+    fmpz_mod(tmp, tmp, Int_Modulus);
+    assert(fmpz_equal_ui(tmp, 5));  // 3 ^ 6 = 5
+
+    recv_fmpz(serverfd, tmp);
+    fmpz_add(tmp, tmp, xp[1]);
+    fmpz_mod(tmp, tmp, Int_Modulus);
+    assert(fmpz_equal_ui(tmp, 1));  // 5 ^ 4 = 1
+
+    fmpz_clear(tmp);
+  } else {
+    send_fmpz(serverfd, xp[0]);
+    send_fmpz(serverfd, xp[1]);
+  }
+
+  clear_fmpz_array(x, N);
   clear_fmpz_array(xp, N);
 }
-*/
 
 void runServerTest(const int server_num, const int serverfd) {
   OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : "127.0.0.1", 60051);
@@ -296,11 +305,12 @@ void runServerTest(const int server_num, const int serverfd) {
     // std::cout << "b2a da" << std::endl;
     test_b2a_daBit(N, server_num, serverfd, store);
     std::cout << "b2a da timing : " << sec_from(start) << std::endl; start = clock_start();
-    // std::cout << "b2a ed" << std::endl;
-    // test_b2a_edaBit(N, bits_arr, server_num, serverfd, store);
-    // std::cout << "b2a eda timing : " << sec_from(start) << std::endl; start = clock_start();
-    // std::cout << "validate" << std::endl;
-    // test_validateSharesMatch(N, bits_arr, server_num, serverfd, store);
+    
+    test_b2a_edaBit(N, bits_arr, server_num, serverfd, store);
+    std::cout << "b2a eda timing : " << sec_from(start) << std::endl; start = clock_start();
+
+    test_b2a_ot(N, bits_arr, server_num, serverfd, store);
+    std::cout << "b2a ot timing : " << sec_from(start) << std::endl; start = clock_start();
   }
 
   store->printSizes();

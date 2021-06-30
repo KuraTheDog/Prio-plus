@@ -136,9 +136,17 @@ public:
 
   // x, ret is [N]
   // Turns binary share x[i] into arith share ret[i]
+  // Single bit
   fmpz_t* b2a_daBit(const size_t N, const bool* const x);
+  // Multiple bits (now no longer uses edaBits)
   fmpz_t* b2a_edaBit(const size_t N, const size_t* const num_bits,
                      const fmpz_t* const x);
+
+  // Using intsum_ot, multiple bits
+  // TODO: shift mod to fmpz
+  fmpz_t* b2a_ot(const size_t num_shares, const size_t num_values, 
+                 const size_t* const num_bits, const fmpz_t* const shares,
+                 const size_t mod = 0);
 
   // Unused
   // x2, xp, ret are [N]

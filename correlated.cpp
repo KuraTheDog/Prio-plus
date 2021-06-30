@@ -495,6 +495,43 @@ fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
   return xp;
 }
 
+// Using intsum_ot, multiple bits
+fmpz_t* CorrelatedStore::b2a_ot(const size_t num_shares, const size_t num_values, 
+                                const size_t* const num_bits,
+                                const fmpz_t* const x, const size_t mod) {
+  uint64_t** x2 = new uint64_t*[num_shares];
+  bool* const valid = new bool[num_shares];
+  for (unsigned int i = 0; i < num_shares; i++) {
+    x2[i] = new uint64_t[num_values];
+    valid[i] = true;
+    for (unsigned int j = 0; j < num_values; j++) {
+      x2[i][j] = fmpz_get_ui(x[i * num_values + j]);
+    }
+  }
+
+  uint64_t** xp;
+
+  if (server_num == 0) {
+    xp = intsum_ot_sender(ot0, x2, valid, num_bits, num_shares, num_values, mod);
+  } else {
+    xp = intsum_ot_receiver(ot0, x2, num_bits, num_shares, num_values, mod);
+  }
+
+  // for consistency, flatten and fmpz_t
+  fmpz_t* ans; new_fmpz_array(&ans, num_shares * num_values);
+
+  for (unsigned int i = 0; i < num_shares; i++) {
+    for (unsigned int j = 0; j < num_values; j++) {
+      fmpz_set_ui(ans[i * num_values + j], xp[i][j]);
+    }
+    delete[] x2[i];
+  }
+  delete[] x2;
+  delete[] valid;
+
+  return ans;
+}
+
 /*
 //Unused
 bool* CorrelatedStore::validateSharesMatch(const size_t N,
