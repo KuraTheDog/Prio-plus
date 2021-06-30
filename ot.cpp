@@ -65,17 +65,17 @@ uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const 
     uint64_t* const b1 = new uint64_t[n];
 
     for (unsigned int i = 0; i < n; i++){
-
-        if (valid[i]) {
-            prg.random_data(&b0[i], sizeof(uint64_t));
-            if (mod != 0) b0[i] %= mod;
-            b1[i] = b0[i] + 1 - 2 * shares[i];
-            sum += (max - b0[i] + 1) + shares[i];
-            if (mod != 0) sum %= mod;
-        } else {
+        if (!valid[i]) {
             b0[i] = 0;
             b1[i] = 0;
+            continue;
         }
+
+        prg.random_data(&b0[i], sizeof(uint64_t));
+        if (mod != 0) b0[i] %= mod;
+        b1[i] = b0[i] + 1 - 2 * shares[i];
+        sum += (max - b0[i] + 1) + shares[i];
+        if (mod != 0) sum %= mod;
     }
 
     ot->send(b0, b1, n);
@@ -124,6 +124,18 @@ uint64_t** intsum_ot_sender(OT_Wrapper* const ot,
     for (unsigned int i = 0; i < num_shares; i++) {
         ret[i] = new uint64_t[num_values];
         memset(ret[i], 0, num_values * sizeof(uint64_t));
+
+        if (!valid[i]) {
+            for (unsigned int j = 0; j < num_values; j++) {
+                for (unsigned int k = 0; k < num_bits[j]; k++) {
+                    b0[idx] = 0;
+                    b1[idx] = 0;
+                    idx++;
+                }
+            }
+            continue;
+        }
+
         for (unsigned int j = 0; j < num_values; j++) {
             uint64_t num = shares[i][j];
             for (unsigned int k = 0; k < num_bits[j]; k++) {
@@ -134,16 +146,11 @@ uint64_t** intsum_ot_sender(OT_Wrapper* const ot,
                 if (mod != 0) r %= mod;
                 const uint64_t minus_r = max - r + 1;
 
-                if (valid[i]) {
-                    b0[idx] = bool_share * (1ULL << k) + minus_r;
-                    b1[idx] = (1 - bool_share) * (1ULL << k) + minus_r;
+                b0[idx] = bool_share * (1ULL << k) + minus_r;
+                b1[idx] = (1 - bool_share) * (1ULL << k) + minus_r;
 
-                    ret[i][j] += r;
-                    if (mod != 0) ret[i][j] %= mod;
-                } else {
-                    b0[idx] = 0;
-                    b1[idx] = 0;
-                }
+                ret[i][j] += r;
+                if (mod != 0) ret[i][j] %= mod;
 
                 idx++;
             }
