@@ -389,20 +389,27 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
     if (server_num == 1) {
         const unsigned int num_inputs = share_map.size();
         server_bytes += send_size(serverfd, num_inputs);
-        uint64_t* const shares = new uint64_t[num_inputs];
+        uint64_t** const shares = new uint64_t*[num_inputs];
         int i = 0;
         for (const auto& share : share_map) {
             server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
-            shares[i] = share.second;
+            shares[i] = new uint64_t[1];
+            shares[i][0] = share.second;
             i++;
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
-        const uint64_t* const b = intsum_ot_receiver(ot0, shares, nbits, num_inputs, 1);
+        const uint64_t* const * const b_all = intsum_ot_receiver(ot0, shares, nbits, num_inputs, 1);
+        uint64_t b = 0;
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            b += b_all[i][0];
+            delete[] shares[i];
+            delete[] b_all[i];
+        }
         delete[] shares;
+        delete[] b_all;
 
-        send_uint64(serverfd, b[0]);
-        delete[] b;
+        send_uint64(serverfd, b);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         std::cout << "compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
@@ -410,7 +417,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
     } else {
         size_t num_inputs, num_valid = 0;
         recv_size(serverfd, num_inputs);
-        uint64_t* const shares = new uint64_t[num_inputs];
+        uint64_t** const shares = new uint64_t*[num_inputs];
         bool* const valid = new bool[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -418,16 +425,25 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
 
             bool is_valid = (share_map.find(pk) != share_map.end());
             valid[i] = is_valid;
+            shares[i] = new uint64_t[1];
             if (!is_valid)
                 continue;
             num_valid++;
-            shares[i] = share_map[pk];
+            shares[i][0] = share_map[pk];
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
-        const uint64_t* const a = intsum_ot_sender(ot0, shares, valid, nbits, num_inputs, 1);
-        delete[] shares;
+        const uint64_t* const * const a_all = intsum_ot_sender(ot0, shares, valid, nbits, num_inputs, 1);
         delete[] valid;
+
+        uint64_t a = 0;
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            a += a_all[i][0];
+            delete[] shares[i];
+            delete[] a_all[i];
+        }
+        delete[] shares;
+        delete[] a_all;
 
         uint64_t b;
         recv_uint64(serverfd, b);
@@ -439,8 +455,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
             return RET_INVALID;
         }
 
-        ans = a[0] + b;
-        delete[] a;
+        ans = a + b;
         return RET_ANS;
     }
 }
