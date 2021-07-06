@@ -114,7 +114,7 @@ uint64_t** intsum_ot_sender(OT_Wrapper* const ot,
     for (unsigned int j = 0; j < num_values; j++)
         total_bits += num_bits[j];
 
-    uint64_t bool_share, r;
+    uint64_t bool_share;
     uint64_t** const ret = new uint64_t*[num_shares];
 
     uint64_t* const b0 = new uint64_t[num_shares * total_bits];
@@ -141,15 +141,19 @@ uint64_t** intsum_ot_sender(OT_Wrapper* const ot,
             for (unsigned int k = 0; k < num_bits[j]; k++) {
                 bool_share = num % 2;
                 num = num >> 1;
+                const uint64_t pow = 1ULL << k;
+                const uint64_t minus_pow = max - pow + 1;
 
-                prg.random_data(&r, sizeof(uint64_t));
-                if (mod != 0) r %= mod;
-                const uint64_t minus_r = max - r + 1;
+                // b0 = share (1 << k) - r
+                prg.random_data(&b0[idx], sizeof(uint64_t));                
+                if (mod != 0) b0[idx] %= mod;
+                const uint64_t minus_b0 = max - b0[idx] + 1;
+                // b1 = (1 - share) (1 << k) - r
+                b1[idx] = b0[idx] + (bool_share ? minus_pow : pow);
+                if (mod != 0) b1[idx] %= mod;
 
-                b0[idx] = bool_share * (1ULL << k) + minus_r;
-                b1[idx] = (1 - bool_share) * (1ULL << k) + minus_r;
-
-                ret[i][j] += r;
+                // r
+                ret[i][j] += bool_share * (1ULL << k) + minus_b0;
                 if (mod != 0) ret[i][j] %= mod;
 
                 idx++;
