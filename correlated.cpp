@@ -412,7 +412,7 @@ bool* CorrelatedStore::addBinaryShares(const size_t N,
   return carry;
 }
 
-fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
+fmpz_t* CorrelatedStore::b2a_daBit_single(const size_t N, const bool* const x) {
   fmpz_t* xp; new_fmpz_array(&xp, N);
 
   checkDaBits(N);
@@ -458,9 +458,9 @@ fmpz_t* CorrelatedStore::b2a_daBit(const size_t N, const bool* const x) {
   return xp;
 }
 
-fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
-                                    const size_t* const num_bits,
-                                    const fmpz_t* const x) {
+fmpz_t* CorrelatedStore::b2a_daBit_multi(const size_t N,
+                                         const size_t* const num_bits,
+                                         const fmpz_t* const x) {
   size_t total_bits = 0;
   for (unsigned int i = 0; i < N; i++)
     total_bits += num_bits[i];
@@ -477,7 +477,7 @@ fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
     offset += num_bits[i];
   }
 
-  fmpz_t* tmp_xp = b2a_daBit(total_bits, x2);
+  fmpz_t* tmp_xp = b2a_daBit_single(total_bits, x2);
 
   offset = 0;
   for (unsigned int i = 0; i < N; i++) {
@@ -491,6 +491,93 @@ fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
 
   delete[] x2;
   clear_fmpz_array(tmp_xp, total_bits);
+
+  return xp;
+}
+
+fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
+                                    const size_t* const num_bits,
+                                    const fmpz_t* const x) {
+  size_t num_n = 0, num_2n = 0;
+  for (unsigned int i = 0; i < N; i++) {
+    if (num_bits[i] == nbits) num_n += 1;
+    if (num_bits[i] == 2 * nbits) num_2n += 1;
+  }
+  const size_t eda_to_make = (edabit_store.size() < num_n) ? num_n - edabit_store.size() : 0;
+  const size_t eda2_to_make = (edabit_store_2.size() < num_2n) ? num_2n - edabit_store_2.size() : 0;
+  const size_t da_target = eda_to_make + eda2_to_make;
+  const size_t bool_target = (1 + !lazy) * nbits * (eda_to_make + 2 * eda2_to_make);
+
+  checkBoolTriples(bool_target);
+  checkTriples(da_target);
+  checkDaBits(da_target);
+  checkEdaBits(nbits, num_n);
+  checkEdaBits(2 * nbits, num_2n);
+
+  fmpz_t* xp; new_fmpz_array(&xp, N);
+
+  bool** x2 = new bool*[N];
+  bool** b = new bool*[N];
+  bool** xr = new bool*[N];
+  fmpz_t* ebit_r; new_fmpz_array(&ebit_r, N);
+
+  for (unsigned int i = 0; i < N; i++) {
+    x2[i] = new bool[num_bits[i]];
+    b[i] = new bool[num_bits[i]];
+    xr[i] = new bool[num_bits[i] + 1];
+    EdaBit* edabit = getEdaBit(num_bits[i]);
+    for (unsigned int j = 0; j < num_bits[i]; j++) {
+      // Convert x2 to bool array
+      x2[i][j] = fmpz_tstbit(x[i], j);
+      b[i][j] = edabit->b[j];
+    }
+    fmpz_set(ebit_r[i], edabit->r);
+
+    // consume edabit
+    delete edabit;
+  }
+
+  // [x + r]_2 = [x]_2 + [r]_2 via circuit
+  bool* carry = addBinaryShares(N, num_bits, x2, b, xr);
+
+  for (unsigned int i = 0; i < N; i++) {
+    xr[i][num_bits[i]] = carry[i];
+
+    fmpz_from_bool_array(xp[i], xr[i], num_bits[i] + 1);  // [x + r]_2
+
+    delete[] x2[i];
+    delete[] b[i];
+    delete[] xr[i];
+  }
+  delete[] carry;
+  delete[] x2;
+  delete[] b;
+  delete[] xr;
+
+  // reveal x + r, convert to mod p shares
+  if (server_num == 0) {
+    fmpz_t* xr_other; new_fmpz_array(&xr_other, N);
+    recv_fmpz_batch(serverfd, xr_other, N);  // get other [x + r]_2
+    for (unsigned int i = 0; i < N; i++) {
+      fmpz_xor(xp[i], xp[i], xr_other[i]);  // real x + r
+      fmpz_randm(xr_other[i], seed, Int_Modulus);  // make other [x + r]_p
+      fmpz_sub(xp[i], xp[i], xr_other[i]);
+      fmpz_mod(xp[i], xp[i], Int_Modulus);  // This [x + r]_p
+    }
+    send_fmpz_batch(serverfd, xr_other, N);
+    clear_fmpz_array(xr_other, N);
+  } else {
+    send_fmpz_batch(serverfd, xp, N);
+    recv_fmpz_batch(serverfd, xp, N);
+  }
+
+  // [x]_p = [x+r]_p - [r]_p
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_sub(xp[i], xp[i], ebit_r[i]);
+    fmpz_mod(xp[i], xp[i], Int_Modulus);
+  }
+
+  clear_fmpz_array(ebit_r, N);
 
   return xp;
 }
@@ -531,48 +618,6 @@ fmpz_t* CorrelatedStore::b2a_ot(const size_t num_shares, const size_t num_values
 
   return ans;
 }
-
-/*
-//Unused
-bool* CorrelatedStore::validateSharesMatch(const size_t N,
-                                           const size_t* const num_bits,
-                                           const fmpz_t* const x2,
-                                           const fmpz_t* const xp) {
-  bool* ans = new bool[N];
-
-  // Compute [x2]_p
-  fmpz_t* x2_p = b2a_edaBit(N, num_bits, x2);
-
-  // Validate: (x2_0 - xp_0) + (x2_1 - xp_1) = 0
-  if (server_num == 0) {
-    fmpz_t x2_p_other; fmpz_init(x2_p_other);
-    for (unsigned int i = 0; i < N; i++) {
-      // x2 - xp
-      fmpz_sub(x2_p[i], x2_p[i], xp[i]);
-      fmpz_mod(x2_p[i], x2_p[i], Int_Modulus);
-      recv_fmpz(serverfd, x2_p_other);
-      fmpz_add(x2_p[i], x2_p[i], x2_p_other);
-      fmpz_mod(x2_p[i], x2_p[i], Int_Modulus);
-      ans[i] = fmpz_is_zero(x2_p[i]);
-    }
-    send_bool_batch(serverfd, ans, N);
-
-    fmpz_clear(x2_p_other);
-  } else {
-    for (unsigned int i = 0; i < N; i++) {
-      // x2 - xp
-      fmpz_sub(x2_p[i], x2_p[i], xp[i]);
-      fmpz_mod(x2_p[i], x2_p[i], Int_Modulus);
-      send_fmpz(serverfd, x2_p[i]);
-    }
-    recv_bool_batch(serverfd, ans, N);
-  }
-
-  clear_fmpz_array(x2_p, N);
-  return ans;
-}
-*/
-
 
 DaBit** CorrelatedStore::generateDaBit(const size_t N) {
   DaBit** const dabit = new DaBit*[N];
@@ -688,7 +733,7 @@ EdaBit** CorrelatedStore::generateEdaBit(const size_t N, const size_t num_bits) 
   fmpz_from_bool_array(tmp, b[0], num_bits);
 
   // Convert carry to arithmetic [carry]_p
-  fmpz_t* carry_p = b2a_daBit(N, carry);
+  fmpz_t* carry_p = b2a_daBit_single(N, carry);
   delete[] carry;
 
   // Subtract out 2^n * [carry]_p from r

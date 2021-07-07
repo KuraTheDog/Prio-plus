@@ -176,7 +176,7 @@ fmpz_t* share_convert(const size_t num_shares,
         for (unsigned int i = 0; i < num_shares; i++)
             memcpy(&bits_arr[i * num_values], num_bits, num_values * sizeof(size_t));
 
-        shares_p = correlated_store->b2a_edaBit(
+        shares_p = correlated_store->b2a_daBit_multi(
             num_shares * num_values, bits_arr, f_shares2);
 
         delete[] bits_arr;

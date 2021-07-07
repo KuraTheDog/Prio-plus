@@ -136,9 +136,12 @@ public:
 
   // x, ret is [N]
   // Turns binary share x[i] into arith share ret[i]
-  // Single bit
-  fmpz_t* b2a_daBit(const size_t N, const bool* const x);
-  // Multiple bits (now no longer uses edaBits)
+  // Single bit. One round.
+  fmpz_t* b2a_daBit_single(const size_t N, const bool* const x);
+  // Multiple bits. Use a dabit per bit in parallel, so one round
+  fmpz_t* b2a_daBit_multi(const size_t N, const size_t* const num_bits,
+                          const fmpz_t* const x);
+  // Multiple bits. Uses one edabit, which requires L rounds for L bits.
   fmpz_t* b2a_edaBit(const size_t N, const size_t* const num_bits,
                      const fmpz_t* const x);
 
@@ -147,12 +150,6 @@ public:
   fmpz_t* b2a_ot(const size_t num_shares, const size_t num_values, 
                  const size_t* const num_bits, const fmpz_t* const shares,
                  const size_t mod = 0);
-
-  // Unused
-  // x2, xp, ret are [N]
-  // ret[i] is if xor shares x2[i] and additive shares xp[i] are the same value
-  // bool* validateSharesMatch(const size_t N, const size_t* const num_bits,
-  //                           const fmpz_t* const x2, const fmpz_t* const xp);
 };
 
 #endif

@@ -167,7 +167,7 @@ void test_addBinaryShares(const size_t N, const size_t* const nbits, const int s
   delete[] carry;
 }
 
-void test_b2a_daBit(const size_t N, const int server_num, const int serverfd, CorrelatedStore* store) {
+void test_b2a_daBit_single(const size_t N, const int server_num, const int serverfd, CorrelatedStore* store) {
   bool* x = new bool[N];
   if (server_num == 0) {
     x[0] = true; x[1] = false;
@@ -175,7 +175,7 @@ void test_b2a_daBit(const size_t N, const int server_num, const int serverfd, Co
     x[0] = true; x[1] = true;
   }
 
-  fmpz_t* xp = store->b2a_daBit(N, x);
+  fmpz_t* xp = store->b2a_daBit_single(N, x);
 
   if (server_num == 0) {
     fmpz_t tmp; fmpz_init(tmp);
@@ -201,7 +201,7 @@ void test_b2a_daBit(const size_t N, const int server_num, const int serverfd, Co
   clear_fmpz_array(xp, N);
 }
 
-void test_b2a_edaBit(const size_t N, const size_t* const nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
+void test_b2a_multi(const size_t N, const size_t* const nbits, const int server_num, const int serverfd, CorrelatedStore* store, bool use_eda) {
   fmpz_t* x; new_fmpz_array(&x, N);
 
   if (server_num == 0) {
@@ -212,7 +212,12 @@ void test_b2a_edaBit(const size_t N, const size_t* const nbits, const int server
     fmpz_set_ui(x[1], 4);
   }
 
-  fmpz_t* xp = store->b2a_edaBit(N, nbits, x);
+  fmpz_t* xp;
+  if (use_eda) {
+    xp = store->b2a_edaBit(N, nbits, x);    
+  } else {
+    xp = store->b2a_daBit_multi(N, nbits, x);
+  }
 
   if (server_num == 0) {
     fmpz_t tmp; fmpz_init(tmp);
@@ -303,10 +308,13 @@ void runServerTest(const int server_num, const int serverfd) {
     test_addBinaryShares(N, bits_arr, server_num, serverfd, store);
     std::cout << "add bin timing : " << sec_from(start) << std::endl; start = clock_start();
     // std::cout << "b2a da" << std::endl;
-    test_b2a_daBit(N, server_num, serverfd, store);
-    std::cout << "b2a da timing : " << sec_from(start) << std::endl; start = clock_start();
+    test_b2a_daBit_single(N, server_num, serverfd, store);
+    std::cout << "b2a da single timing : " << sec_from(start) << std::endl; start = clock_start();
     
-    test_b2a_edaBit(N, bits_arr, server_num, serverfd, store);
+    test_b2a_multi(N, bits_arr, server_num, serverfd, store, false);
+    std::cout << "b2a da multi timing : " << sec_from(start) << std::endl; start = clock_start();
+
+    test_b2a_multi(N, bits_arr, server_num, serverfd, store, true);
     std::cout << "b2a eda timing : " << sec_from(start) << std::endl; start = clock_start();
 
     test_b2a_ot(N, bits_arr, server_num, serverfd, store);
