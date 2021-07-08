@@ -115,8 +115,10 @@ public:
   EdaBit* getEdaBit(const size_t num_bits);
 
   void printSizes();
-  // Precompute if not enough
-  void maybeUpdate();
+  // Precompute if not enough.
+  // if eda = true, generates edabits
+  // otherwise makes dabits for dabit_multi
+  void maybeUpdate(const bool using_eda = false);
 
   // compute with store elements. Does batches of size N.
 

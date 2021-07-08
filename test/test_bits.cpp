@@ -284,6 +284,7 @@ void runServerTest(const int server_num, const int serverfd) {
   OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : "127.0.0.1", 60052);
   CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, batch_size, lazy, do_fork, over_precompute);
 
+  store->maybeUpdate(true);
   store->maybeUpdate();
 
   std::cout << std::endl;
@@ -298,16 +299,16 @@ void runServerTest(const int server_num, const int serverfd) {
   for (int i = 0; i < 1; i++) {
     std::cout << "iteration: " << i << std::endl;
     start = clock_start();
-    // std::cout << "mul bool" << std::endl;
+
     test_multiplyBoolShares(N, server_num, serverfd, store);
     std::cout << "mul bool timing : " << sec_from(start) << std::endl; start = clock_start();
-    // std::cout << "mul arith" << std::endl;
+
     test_multiplyArithmeticShares(N, server_num, serverfd, store);
     std::cout << "mul arith timing : " << sec_from(start) << std::endl; start = clock_start();
-    // std::cout << "add bin" << std::endl;
+
     test_addBinaryShares(N, bits_arr, server_num, serverfd, store);
     std::cout << "add bin timing : " << sec_from(start) << std::endl; start = clock_start();
-    // std::cout << "b2a da" << std::endl;
+
     test_b2a_daBit_single(N, server_num, serverfd, store);
     std::cout << "b2a da single timing : " << sec_from(start) << std::endl; start = clock_start();
     
