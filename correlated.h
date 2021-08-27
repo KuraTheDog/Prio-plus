@@ -67,7 +67,7 @@ class CorrelatedStore {
 
   // check if enough to make n. if not, call add
   void checkBoolTriples(const size_t n = 0);
-  void checkTriples(const size_t n = 0);
+  void checkTriples(const size_t n = 0, const bool always = false);
   void checkDaBits(const size_t n = 0);
   void checkEdaBits(const size_t num_bits, const size_t n = 0);
 

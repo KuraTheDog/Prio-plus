@@ -125,8 +125,8 @@ void CorrelatedStore::checkBoolTriples(const size_t n) {
   if (btriple_store.size() < n) addBoolTriples(n - btriple_store.size());
 }
 
-void CorrelatedStore::checkTriples(const size_t n) { 
-  if (!lazy and atriple_store.size() < n) addTriples(n - atriple_store.size());
+void CorrelatedStore::checkTriples(const size_t n, const bool always) { 
+  if ((!lazy or always) and atriple_store.size() < n) addTriples(n - atriple_store.size());
 }
 
 void CorrelatedStore::checkDaBits(const size_t n) { 
@@ -319,7 +319,7 @@ fmpz_t* CorrelatedStore::multiplyArithmeticShares(const size_t N,
   fmpz_t* d_other; new_fmpz_array(&d_other, N);
   fmpz_t* e_other; new_fmpz_array(&e_other, N);
 
-  checkTriples(N);
+  checkTriples(N, true);
 
   for (unsigned int i = 0; i < N; i++) {
     BeaverTriple* triple = getTriple();
