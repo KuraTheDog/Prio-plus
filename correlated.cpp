@@ -635,7 +635,54 @@ fmpz_t* CorrelatedStore::b2a_ot(const size_t num_shares, const size_t num_values
   return ans;
 }
 
+// Use b2A via OT on random bit
+// Nearly COT, except delta is changing
+// random choice and random base, but also random delta matters
 DaBit** CorrelatedStore::generateDaBit(const size_t N) {
+  DaBit** const dabit = new DaBit*[N];
+
+  emp::PRG prg;
+  const size_t mod = fmpz_get_ui(Int_Modulus);
+
+  bool* const b = new bool[N];
+  prg.random_bool(b, N);  // random bits
+
+  uint64_t* const x = new uint64_t[N];
+
+  for (unsigned int i = 0; i < N; i++) {
+    dabit[i] = new DaBit();
+    dabit[i]->b2 = b[i];
+  }
+
+  if (server_num == 0) {
+    uint64_t* const b0 = new uint64_t[N];
+    uint64_t* const b1 = new uint64_t[N];
+    for (unsigned int i = 0; i < N; i++) {
+      prg.random_data(&b0[i], sizeof(uint64_t));
+      b0[i] %= mod;
+      b1[i] = (b0[i] + b[i]) % mod;
+      x[i] = mod - b0[i];
+    }
+    ot0->send(b0, b1, N);
+    delete[] b0;
+    delete[] b1;
+  } else {
+    ot0->recv(x, b, N);
+  }
+  for (unsigned int i = 0; i < N; i++) {
+    uint64_t bp = (b[i] + 2 * (mod - x[i])) % mod;
+    fmpz_set_ui(dabit[i]->bp, bp);
+  }
+
+  delete[] b;
+  delete[] x;
+
+  return dabit;
+}
+
+// Outdated, slower making and using arith triples vs just OT
+/*
+DaBit** CorrelatedStore::generateDaBit_triple(const size_t N) {
   DaBit** const dabit = new DaBit*[N];
 
   DaBit** const dabit0 = new DaBit*[N];
@@ -691,6 +738,7 @@ DaBit** CorrelatedStore::generateDaBit(const size_t N) {
 
   return dabit;
 }
+*/
 
 EdaBit** CorrelatedStore::generateEdaBit(const size_t N, const size_t num_bits) {
   EdaBit** edabit = new EdaBit*[N];
