@@ -146,7 +146,7 @@ void syncSnipSeeds(const int serverfd, const int server_num) {
     if (server_num == 0)
         send_seed(serverfd, snips_seed);
     else
-        recv_seed(serverfd, snips_seed);   
+        recv_seed(serverfd, snips_seed);
 }
 
 struct Checker {

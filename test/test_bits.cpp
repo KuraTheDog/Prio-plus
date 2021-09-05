@@ -262,7 +262,7 @@ void runServerTest(const int server_num, const int serverfd) {
 
     test_b2a_daBit_single(N, server_num, serverfd, store);
     std::cout << "b2a da single timing : " << sec_from(start) << std::endl; start = clock_start();
-    
+
     test_b2a_multi(N, bits_arr, server_num, serverfd, store);
     std::cout << "b2a da multi timing : " << sec_from(start) << std::endl; start = clock_start();
 

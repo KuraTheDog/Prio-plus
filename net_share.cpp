@@ -272,7 +272,7 @@ int send_seed(const int sockfd, const flint_rand_t x) {
 }
 
 int recv_seed(const int sockfd, flint_rand_t x) {
-    return recv_in(sockfd, &x[0], sizeof(x[0]));   
+    return recv_in(sockfd, &x[0], sizeof(x[0]));
 }
 
 /* Share functions */

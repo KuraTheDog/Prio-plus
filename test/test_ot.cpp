@@ -8,8 +8,8 @@
 #define SERVER0_IP "127.0.0.1"
 #define SERVER1_IP "127.0.0.1"
 
-const size_t MOD = 100;
-// const size_t MOD = 0;  // 2^64, default
+#define MOD 100
+// #define MOD 0  // 2^64, default
 
 void run_server0(const size_t m) {
   const int server_num = 0;
@@ -130,7 +130,6 @@ void run_server1(const size_t m) {
   const uint64_t b = bitsum_ot_receiver(ot0, bitshares, 1, MOD);
   send_uint64(newsockfd, b);
 
-  // const uint64_t intshares[1][1] = {{9}};
   uint64_t** const intshares = new uint64_t*[9];
   intshares[0] = new uint64_t[1];
   intshares[0][0] = 9;

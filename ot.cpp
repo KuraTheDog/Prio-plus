@@ -57,7 +57,7 @@ uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const 
 
     const uint64_t max = mod == 0 ? UINT64_MAX : mod - 1;
 
-    emp::PRG prg(emp::fix_key);
+    emp::PRG prg;
 
     uint64_t sum = 0;
 
@@ -101,7 +101,7 @@ uint64_t bitsum_ot_receiver(OT_Wrapper* const ot, const bool* const shares, cons
     return sum;
 }
 
-uint64_t** intsum_ot_sender(OT_Wrapper* const ot, 
+uint64_t** intsum_ot_sender(OT_Wrapper* const ot,
                             const uint64_t* const * const shares,
                             const bool* const valid, const size_t* const num_bits,
                             const size_t num_shares, const size_t num_values,
@@ -145,7 +145,7 @@ uint64_t** intsum_ot_sender(OT_Wrapper* const ot,
                 const uint64_t minus_pow = max - pow + 1;
 
                 // b0 = share (1 << k) - r
-                prg.random_data(&b0[idx], sizeof(uint64_t));                
+                prg.random_data(&b0[idx], sizeof(uint64_t));
                 if (mod != 0) b0[idx] %= mod;
                 const uint64_t minus_b0 = max - b0[idx] + 1;
                 // b1 = (1 - share) (1 << k) - r
@@ -169,7 +169,7 @@ uint64_t** intsum_ot_sender(OT_Wrapper* const ot,
     return ret;
 }
 
-uint64_t** intsum_ot_receiver(OT_Wrapper* const ot, 
+uint64_t** intsum_ot_receiver(OT_Wrapper* const ot,
                               const uint64_t* const * const shares,
                               const size_t* const num_bits,
                               const size_t num_shares, const size_t num_values,

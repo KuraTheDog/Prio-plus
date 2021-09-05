@@ -1,7 +1,7 @@
 #ifndef CORRELATED_H
 #define CORRELATED_H
 
-/* 
+/*
 Correlated precomputes
 
 CorrelatedStore object, which has synced correlated precomputes between servers
@@ -118,7 +118,7 @@ public:
 
   // Using intsum_ot, multiple bits
   // TODO: shift mod to fmpz
-  fmpz_t* b2a_ot(const size_t num_shares, const size_t num_values, 
+  fmpz_t* b2a_ot(const size_t num_shares, const size_t num_values,
                  const size_t* const num_bits, const fmpz_t* const shares,
                  const size_t mod = 0);
 };

@@ -57,11 +57,11 @@ void CorrelatedStore::addDaBits(const size_t n) {
   std::cout << "addDaBits timing : " << sec_from(start) << std::endl;
 }
 
-void CorrelatedStore::checkBoolTriples(const size_t n) { 
+void CorrelatedStore::checkBoolTriples(const size_t n) {
   if (btriple_store.size() < n) addBoolTriples(n - btriple_store.size());
 }
 
-void CorrelatedStore::checkDaBits(const size_t n) { 
+void CorrelatedStore::checkDaBits(const size_t n) {
   if (dabit_store.size() < n) addDaBits(n - dabit_store.size());
 }
 
@@ -303,7 +303,7 @@ fmpz_t* CorrelatedStore::b2a_daBit_multi(const size_t N,
 }
 
 // Using intsum_ot, multiple bits
-fmpz_t* CorrelatedStore::b2a_ot(const size_t num_shares, const size_t num_values, 
+fmpz_t* CorrelatedStore::b2a_ot(const size_t num_shares, const size_t num_values,
                                 const size_t* const num_bits,
                                 const fmpz_t* const x, const size_t mod) {
   uint64_t** x2 = new uint64_t*[num_shares];
