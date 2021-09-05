@@ -19,52 +19,6 @@ void run_server0(const size_t m) {
   OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : SERVER0_IP, 60051);
   OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
 
-  // gen beaver triple
-  // auto triples = gen_boolean_beaver_triples(server_num, m, ot0, ot1);
-
-  // std::cout << "Validating bool triples" << std::endl;
-  // BooleanBeaverTriple* other_triple = new BooleanBeaverTriple();
-  // for (int i = 0; i < m; i++) {
-  //   recv_BooleanBeaverTriple(cli_sockfd, other_triple);
-  //   BooleanBeaverTriple* triple = triples.front();
-  //   triples.pop();
-  //   std::cout << "ab = (" << triple->a << " ^ " << other_triple->a << ") * (";
-  //   std::cout << triple->b << " ^ " << other_triple->b << ") = ";
-  //   std::cout << ((triple->a ^ other_triple->a) & (triple->b ^ other_triple->b));
-  //   std::cout << ", vs c = " << triple->c << " ^ " << other_triple->c << " = " << (triple->c ^ other_triple->c) << std::endl;
-  // }
-  // delete other_triple;
-
-  // // gen arith triple
-
-  // std::cout << "Making arith triple" << std::endl;
-  // BeaverTriple* btriple = generate_beaver_triple_lazy(cli_sockfd, server_num);
-  // std::cout << "Validating lazy arith triple" << std::endl;
-  // BeaverTriple* other_btriple = new BeaverTriple();
-  // recv_BeaverTriple(cli_sockfd, other_btriple);
-
-  // fmpz_t tmp; fmpz_init(tmp);
-  // fmpz_t tmp2; fmpz_init(tmp2);
-  // fmpz_add(tmp, btriple->A, other_btriple->A);
-  // fmpz_mod(tmp, tmp, Int_Modulus);
-  // fmpz_add(tmp2, btriple->B, other_btriple->B);
-  // fmpz_mod(tmp2, tmp2, Int_Modulus);
-  // fmpz_mul(tmp, tmp, tmp2);
-  // fmpz_mod(tmp, tmp, Int_Modulus);
-  // std::cout << "actual product: ("; fmpz_print(btriple->A);
-  // std::cout << " + "; fmpz_print(other_btriple->A);
-  // std::cout << ") * ("; fmpz_print(btriple->B);
-  // std::cout << " + "; fmpz_print(other_btriple->B);
-  // std::cout << ") = "; fmpz_print(tmp);
-  // std::cout << std::endl;
-  // fmpz_add(tmp, btriple->C, other_btriple->C);
-  // fmpz_mod(tmp, tmp, Int_Modulus);
-  // fmpz_print(btriple->C); std::cout << " + "; fmpz_print(other_btriple->C);
-  // std::cout << " = "; fmpz_print(tmp); std::cout << std::endl;
-
-  // delete other_btriple;
-  // delete btriple;
-
   // Bitsum OT
   const bool valid[1] = {true};
 
@@ -112,18 +66,6 @@ void run_server1(const size_t m) {
 
   OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : SERVER0_IP, 60051);
   OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
-
-  // auto triples = gen_boolean_beaver_triples(server_num, m, ot0, ot1);
-  // for (int i = 0; i < m; i++) {
-  //   BooleanBeaverTriple* triple = triples.front();
-  //   triples.pop();
-  //   send_BooleanBeaverTriple(newsockfd, triple);
-  //   delete triple;
-  // }
-
-  // BeaverTriple* btriple = generate_beaver_triple_lazy(newsockfd, server_num);
-  // send_BeaverTriple(newsockfd, btriple);
-  // delete btriple;
 
   const bool bitshares[1] = {m % 2 ? true : false};
   std::cout << "bit share1[0] = " << bitshares[0] << std::endl;
