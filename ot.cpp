@@ -53,8 +53,11 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
 #error Not valid or defined OT type
 #endif
 
-uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const bool* const valid, const size_t n){
-    emp::PRG prg(emp::fix_key);
+uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const bool* const valid, const size_t n, const size_t mod){
+
+    const uint64_t max = mod == 0 ? UINT64_MAX : mod - 1;
+
+    emp::PRG prg;
 
     uint64_t sum = 0;
 
@@ -62,15 +65,17 @@ uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const 
     uint64_t* const b1 = new uint64_t[n];
 
     for (unsigned int i = 0; i < n; i++){
-
-        if (valid[i]) {
-            prg.random_data(&b0[i], sizeof(uint64_t));
-            b1[i] = b0[i] + 1 - 2 * shares[i];
-            sum += (UINT64_MAX - b0[i]) + 1 + shares[i];
-        } else {
+        if (!valid[i]) {
             b0[i] = 0;
             b1[i] = 0;
+            continue;
         }
+
+        prg.random_data(&b0[i], sizeof(uint64_t));
+        if (mod != 0) b0[i] %= mod;
+        b1[i] = b0[i] + 1 - 2 * shares[i];
+        sum += (max - b0[i] + 1) + shares[i];
+        if (mod != 0) sum %= mod;
     }
 
     ot->send(b0, b1, n);
@@ -80,57 +85,76 @@ uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const 
     return sum;
 }
 
-uint64_t bitsum_ot_receiver(OT_Wrapper* const ot, const bool* const shares, const size_t n){
+uint64_t bitsum_ot_receiver(OT_Wrapper* const ot, const bool* const shares, const size_t n, const size_t mod){
     uint64_t* const r = new uint64_t[n];
     uint64_t sum = 0;
 
     ot->recv(r, shares, n);
 
-    for (unsigned int i = 0; i < n; i++)
+    for (unsigned int i = 0; i < n; i++) {
         sum += r[i];
+        if (mod != 0) sum %= mod;
+    }
 
     delete[] r;
 
     return sum;
 }
 
-uint64_t* intsum_ot_sender(OT_Wrapper* const ot,  const uint64_t* const shares,
-                           const bool* const valid, const size_t* const num_bits,
-                           const size_t num_shares, const size_t num_values) {
+uint64_t** intsum_ot_sender(OT_Wrapper* const ot,
+                            const uint64_t* const * const shares,
+                            const bool* const valid, const size_t* const num_bits,
+                            const size_t num_shares, const size_t num_values,
+                            const size_t mod) {
     emp::PRG prg;
+
+    const uint64_t max = mod == 0 ? UINT64_MAX : mod - 1;
 
     size_t total_bits = 0;
     for (unsigned int j = 0; j < num_values; j++)
         total_bits += num_bits[j];
 
-    uint64_t bool_share, r;
-    uint64_t* sum = new uint64_t[num_values];
-    memset(sum, 0, num_values * sizeof(uint64_t));
+    uint64_t bool_share;
+    uint64_t** const ret = new uint64_t*[num_shares];
 
     uint64_t* const b0 = new uint64_t[num_shares * total_bits];
     uint64_t* const b1 = new uint64_t[num_shares * total_bits];
 
     size_t idx = 0;
     for (unsigned int i = 0; i < num_shares; i++) {
-        // std::cout << "valid[" << i << "] = " << valid[i] << std::endl;
+        ret[i] = new uint64_t[num_values];
+        memset(ret[i], 0, num_values * sizeof(uint64_t));
+
+        if (!valid[i]) {
+            for (unsigned int j = 0; j < num_values; j++) {
+                for (unsigned int k = 0; k < num_bits[j]; k++) {
+                    b0[idx] = 0;
+                    b1[idx] = 0;
+                    idx++;
+                }
+            }
+            continue;
+        }
+
         for (unsigned int j = 0; j < num_values; j++) {
-            uint64_t num = shares[i * num_values + j];
-            // std::cout << "val[" << j << "] = " << num << std::endl;
+            uint64_t num = shares[i][j];
             for (unsigned int k = 0; k < num_bits[j]; k++) {
                 bool_share = num % 2;
                 num = num >> 1;
+                const uint64_t pow = 1ULL << k;
+                const uint64_t minus_pow = max - pow + 1;
 
-                prg.random_data(&r, sizeof(uint64_t));
+                // b0 = share (1 << k) - r
+                prg.random_data(&b0[idx], sizeof(uint64_t));
+                if (mod != 0) b0[idx] %= mod;
+                const uint64_t minus_b0 = max - b0[idx] + 1;
+                // b1 = (1 - share) (1 << k) - r
+                b1[idx] = b0[idx] + (bool_share ? minus_pow : pow);
+                if (mod != 0) b1[idx] %= mod;
 
-                if (valid[i]) {
-                    b0[idx] = bool_share * (1ULL << k) - r;
-                    b1[idx] = (1 - bool_share) * (1ULL << k) - r;
-
-                    sum[j] += r;
-                } else {
-                    b0[idx] = 0;
-                    b1[idx] = 0;
-                }
+                // r
+                ret[i][j] += bool_share * (1ULL << k) + minus_b0;
+                if (mod != 0) ret[i][j] %= mod;
 
                 idx++;
             }
@@ -142,26 +166,26 @@ uint64_t* intsum_ot_sender(OT_Wrapper* const ot,  const uint64_t* const shares,
     delete[] b0;
     delete[] b1;
 
-    return sum;
+    return ret;
 }
 
-uint64_t* intsum_ot_receiver(OT_Wrapper* const ot, const uint64_t* const shares,
-                             const size_t* const num_bits,
-                             const size_t num_shares, const size_t num_values) {
+uint64_t** intsum_ot_receiver(OT_Wrapper* const ot,
+                              const uint64_t* const * const shares,
+                              const size_t* const num_bits,
+                              const size_t num_shares, const size_t num_values,
+                              const size_t mod) {
     size_t total_bits = 0;
     for (unsigned int j = 0; j < num_values; j++)
         total_bits += num_bits[j];
 
     uint64_t* const r = new uint64_t[num_shares * total_bits];
     bool* const bool_shares = new bool[num_shares * total_bits];
-    uint64_t* sum = new uint64_t[num_values];
-    memset(sum, 0, num_values * sizeof(uint64_t));
+    uint64_t** const ret = new uint64_t*[num_shares];
 
     size_t idx = 0;
     for (unsigned int i = 0; i < num_shares; i++) {
         for (unsigned int j = 0; j < num_values; j++) {
-            uint64_t num = shares[i * num_values + j];
-            // std::cout << "val[" << j << "] = " << num << std::endl;
+            uint64_t num = shares[i][j];
             for (unsigned int k = 0; k < num_bits[j]; k++) {
                 bool_shares[idx] = num % 2;
                 num = num >> 1;
@@ -176,15 +200,18 @@ uint64_t* intsum_ot_receiver(OT_Wrapper* const ot, const uint64_t* const shares,
 
     idx = 0;
     for (unsigned int i = 0; i < num_shares; i++) {
+        ret[i] = new uint64_t[num_values];
+        memset(ret[i], 0, num_values * sizeof(uint64_t));
         for (unsigned int j = 0; j < num_values; j++) {
             for (unsigned int k = 0; k < num_bits[j]; k++) {
-                sum[j] += r[idx];
+                ret[i][j] += r[idx];
+                if (mod != 0) ret[i][j] %= mod;
                 idx++;
             }
         }
     }
     delete[] r;
-    return sum;
+    return ret;
 }
 
 // Ref : https://crypto.stackexchange.com/questions/41651/what-are-the-ways-to-generate-beaver-triples-for-multiplication-gate

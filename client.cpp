@@ -1339,7 +1339,7 @@ void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
         if (i == 8)
             fmpz_add_si(packet1[i]->triple_share->shareA, packet1[i]->triple_share->shareA, 1);
 
-        // 10 vs 11, 12 vs 13 can be non-deterministic which ends up being right. 
+        // 10 vs 11, 12 vs 13 can be non-deterministic which ends up being right.
         if (i <= 9 or i == 11 or i == 13) {
             // std::cout << " (invalid)" << std::endl;
         } else {

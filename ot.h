@@ -29,19 +29,25 @@ struct OT_Wrapper {
   void recv(uint64_t* const data, const bool* b, const size_t length);
 };
 
-uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const bool* const valid, const size_t n);
-uint64_t bitsum_ot_receiver(OT_Wrapper* const ot, const bool* const shares, const size_t n);
+// mod 0 = default 2^64
+uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const bool* const valid, const size_t n, const size_t mod = 0);
+uint64_t bitsum_ot_receiver(OT_Wrapper* const ot, const bool* const shares, const size_t n, const size_t mod = 0);
 
-// Batched version, for multiple values
-// shares: #shares * #values, as (s0v0, s0v1, s0v2, s1v0, ...)
+// Batched version, for multiple values per share
+// shares and ret: matrix of shares x values, as [s0v0, s0v1, s0v2], [s1v0, ...]
 // valid: validity of share i
 // bits: length of value j
-uint64_t* intsum_ot_sender(OT_Wrapper* const ot, const uint64_t* const shares,
-                           const bool* const valid, const size_t* const num_bits,
-                           const size_t num_shares, const size_t num_values);
-uint64_t* intsum_ot_receiver(OT_Wrapper* const ot, const uint64_t* const shares,
-                             const size_t* const num_bits,
-                             const size_t num_shares, const size_t num_values);
+// Does not accumulate
+uint64_t** intsum_ot_sender(OT_Wrapper* const ot,
+                            const uint64_t* const * const shares,
+                            const bool* const valid, const size_t* const num_bits,
+                            const size_t num_shares, const size_t num_values,
+                            const size_t mod = 0);
+uint64_t** intsum_ot_receiver(OT_Wrapper* const ot,
+                              const uint64_t* const * const shares,
+                              const size_t* const num_bits,
+                              const size_t num_shares, const size_t num_values,
+                              const size_t mod = 0);
 
 std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num, const unsigned int m, OT_Wrapper* const ot0, OT_Wrapper* const ot1);
 

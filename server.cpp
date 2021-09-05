@@ -35,7 +35,7 @@ std::unordered_map<size_t, CheckerPreComp*> precomp_store;
 OT_Wrapper* ot0;
 OT_Wrapper* ot1;
 
-// Precompute cache of edabits and beaver triples
+// Precompute cache of dabits
 CorrelatedStore* correlated_store;
 // #define CACHE_SIZE 8192
 // #define CACHE_SIZE 65536
@@ -43,8 +43,8 @@ CorrelatedStore* correlated_store;
 #define CACHE_SIZE 2097152
 // If set, does fast but insecure offline precompute.
 #define LAZY_PRECOMPUTE true
-// Generate excess in case it runs out
-#define OVER_PRECOMPUTE false
+// Whether to use OT or Dabits
+#define USE_OT_B2A true
 
 uint64_t int_sum_max;
 uint32_t num_bits;
@@ -144,27 +144,43 @@ CheckerPreComp* getPrecomp(const size_t N) {
     return pre;
 }
 
-fmpz_t* share_convert(const size_t N,
-                      const size_t num_inputs,
+// Currently shares_2 and shares_p are flat num_shares*num_values array.
+// TODO: Consider reworking for matrix form
+fmpz_t* share_convert(const size_t num_shares,
+                      const size_t num_values,
                       const size_t* const num_bits,
                       const uint64_t* const shares_2
                       ) {
     auto start = clock_start();
 
-    size_t* const bits_arr = new size_t[N * num_inputs];
-    fmpz_t* f_shares2; new_fmpz_array(&f_shares2, N * num_inputs);
-    for (unsigned int i = 0; i < N; i++) {
-        memcpy(&bits_arr[i * num_inputs], num_bits, num_inputs * sizeof(size_t));
-        for (unsigned int j = 0; j < num_inputs; j++)
-            fmpz_set_ui(f_shares2[i * num_inputs + j],
-                        shares_2[i * num_inputs + j]);
+    fmpz_t* shares_p;
+
+    // convert
+    fmpz_t* f_shares2; new_fmpz_array(&f_shares2, num_shares * num_values);
+    for (unsigned int i = 0; i < num_shares; i++) {
+        for (unsigned int j = 0; j < num_values; j++)
+            fmpz_set_ui(f_shares2[i * num_values + j],
+                        shares_2[i * num_values + j]);
     }
 
-    fmpz_t* const shares_p = correlated_store->b2a_edaBit(
-        N * num_inputs, bits_arr, f_shares2);
+    if (USE_OT_B2A) {
+        const size_t mod = fmpz_get_ui(Int_Modulus);
+        // TODO: maybe make it take not flattened?
+        shares_p = correlated_store->b2a_ot(
+            num_shares, num_values, num_bits, f_shares2, mod);
 
-    delete[] bits_arr;
-    clear_fmpz_array(f_shares2, N * num_inputs);
+    } else {  // dabit conversion
+        size_t* const bits_arr = new size_t[num_shares * num_values];
+        for (unsigned int i = 0; i < num_shares; i++)
+            memcpy(&bits_arr[i * num_values], num_bits, num_values * sizeof(size_t));
+
+        shares_p = correlated_store->b2a_daBit_multi(
+            num_shares * num_values, bits_arr, f_shares2);
+
+        delete[] bits_arr;
+    }
+
+    clear_fmpz_array(f_shares2, num_shares * num_values);
 
     std::cout << "Share convert time: " << sec_from(start) << std::endl;
 
@@ -389,20 +405,27 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
     if (server_num == 1) {
         const unsigned int num_inputs = share_map.size();
         server_bytes += send_size(serverfd, num_inputs);
-        uint64_t* const shares = new uint64_t[num_inputs];
+        uint64_t** const shares = new uint64_t*[num_inputs];
         int i = 0;
         for (const auto& share : share_map) {
             server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
-            shares[i] = share.second;
+            shares[i] = new uint64_t[1];
+            shares[i][0] = share.second;
             i++;
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
-        const uint64_t* const b = intsum_ot_receiver(ot0, shares, nbits, num_inputs, 1);
+        const uint64_t* const * const b_all = intsum_ot_receiver(ot0, shares, nbits, num_inputs, 1);
+        uint64_t b = 0;
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            b += b_all[i][0];
+            delete[] shares[i];
+            delete[] b_all[i];
+        }
         delete[] shares;
+        delete[] b_all;
 
-        send_uint64(serverfd, b[0]);
-        delete[] b;
+        send_uint64(serverfd, b);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         std::cout << "compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
@@ -410,7 +433,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
     } else {
         size_t num_inputs, num_valid = 0;
         recv_size(serverfd, num_inputs);
-        uint64_t* const shares = new uint64_t[num_inputs];
+        uint64_t** const shares = new uint64_t*[num_inputs];
         bool* const valid = new bool[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -418,16 +441,25 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
 
             bool is_valid = (share_map.find(pk) != share_map.end());
             valid[i] = is_valid;
+            shares[i] = new uint64_t[1];
             if (!is_valid)
                 continue;
             num_valid++;
-            shares[i] = share_map[pk];
+            shares[i][0] = share_map[pk];
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
-        const uint64_t* const a = intsum_ot_sender(ot0, shares, valid, nbits, num_inputs, 1);
-        delete[] shares;
+        const uint64_t* const * const a_all = intsum_ot_sender(ot0, shares, valid, nbits, num_inputs, 1);
         delete[] valid;
+
+        uint64_t a = 0;
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            a += a_all[i][0];
+            delete[] shares[i];
+            delete[] a_all[i];
+        }
+        delete[] shares;
+        delete[] a_all;
 
         uint64_t b;
         recv_uint64(serverfd, b);
@@ -439,8 +471,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
             return RET_INVALID;
         }
 
-        ans = a[0] + b;
-        delete[] a;
+        ans = a + b;
         return RET_ANS;
     }
 }
@@ -1202,7 +1233,7 @@ int main(int argc, char** argv) {
     ot0 = new OT_Wrapper(server_num == 0 ? nullptr : SERVER0_IP, 60051);
     ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
 
-    correlated_store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, CACHE_SIZE, LAZY_PRECOMPUTE, true, OVER_PRECOMPUTE);
+    correlated_store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, CACHE_SIZE, LAZY_PRECOMPUTE, true);
 
     int sockfd, newsockfd;
     sockaddr_in addr;

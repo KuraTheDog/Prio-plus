@@ -16,4 +16,4 @@ inline void error_exit(const char* const msg) {
 
 // todo: possibly connection code, from utils test connect and others?
 
-#endif 
+#endif
