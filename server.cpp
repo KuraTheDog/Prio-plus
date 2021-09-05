@@ -35,7 +35,7 @@ std::unordered_map<size_t, CheckerPreComp*> precomp_store;
 OT_Wrapper* ot0;
 OT_Wrapper* ot1;
 
-// Precompute cache of edabits and beaver triples
+// Precompute cache of dabits
 CorrelatedStore* correlated_store;
 // #define CACHE_SIZE 8192
 // #define CACHE_SIZE 65536
@@ -43,8 +43,6 @@ CorrelatedStore* correlated_store;
 #define CACHE_SIZE 2097152
 // If set, does fast but insecure offline precompute.
 #define LAZY_PRECOMPUTE true
-// Generate excess in case it runs out
-#define OVER_PRECOMPUTE false
 // Whether to use OT or Dabits
 #define USE_OT_B2A true
 
@@ -1235,7 +1233,7 @@ int main(int argc, char** argv) {
     ot0 = new OT_Wrapper(server_num == 0 ? nullptr : SERVER0_IP, 60051);
     ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
 
-    correlated_store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, CACHE_SIZE, LAZY_PRECOMPUTE, true, OVER_PRECOMPUTE);
+    correlated_store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, CACHE_SIZE, LAZY_PRECOMPUTE, true);
 
     int sockfd, newsockfd;
     sockaddr_in addr;
