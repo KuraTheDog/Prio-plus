@@ -171,7 +171,7 @@ fmpz_t* share_convert(const size_t num_shares,
         shares_p = correlated_store->b2a_ot(
             num_shares, num_values, num_bits, f_shares2, mod);
 
-    } else {  // edabit conversion
+    } else {  // dabit conversion
         size_t* const bits_arr = new size_t[num_shares * num_values];
         for (unsigned int i = 0; i < num_shares; i++)
             memcpy(&bits_arr[i * num_values], num_bits, num_values * sizeof(size_t));

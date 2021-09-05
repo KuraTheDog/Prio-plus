@@ -81,6 +81,7 @@ void CorrelatedStore::addEdaBits(const size_t num_bits, const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > batch_size ? n : batch_size);
   std::cout << "adding " << num_bits << " bit edabits: " << num_to_make << std::endl;
+  std::cout << "Note: edaBits are deprecated" << std::endl;
   if (lazy) {
     if (server_num == 0) {  // make on server 0
       std::cout << "Making lazy edabits" << std::endl;
@@ -187,15 +188,15 @@ EdaBit* CorrelatedStore::getEdaBit(const size_t num_bits) {
 
 void CorrelatedStore::printSizes() {
   std::cout << "Current store sizes:" << std::endl;
-  std::cout << "       EdaBits: " << edabit_store.size() << std::endl;
-  std::cout << "     EdaBits 2: " << edabit_store_2.size() << std::endl;
+  // std::cout << "       EdaBits: " << edabit_store.size() << std::endl;
+  // std::cout << "     EdaBits 2: " << edabit_store_2.size() << std::endl;
   std::cout << "        Dabits: " << dabit_store.size() << std::endl;
   std::cout << " Arith Triples: " << atriple_store.size() << std::endl;
   std::cout << " Bool  Triples: " << btriple_store.size() << std::endl;
 }
 
 void CorrelatedStore::maybeUpdate(const bool using_eda) {
-  std::cout << "precomputing using " << (using_eda?"e":"") << "dabits..." << std::endl;
+  std::cout << "precomputing using " << (using_eda?"deprecated e":"") << "dabits..." << std::endl;
   auto start = clock_start();
 
   // If making extra
@@ -508,9 +509,11 @@ fmpz_t* CorrelatedStore::b2a_daBit_multi(const size_t N,
   return xp;
 }
 
+// Deprecated
 fmpz_t* CorrelatedStore::b2a_edaBit(const size_t N,
                                     const size_t* const num_bits,
                                     const fmpz_t* const x) {
+  std::cout << "b2a_edaBit is deprecated. Use b2a_daBit_multi for less rounds" << std::endl;
   size_t num_n = 0, num_2n = 0;
   for (unsigned int i = 0; i < N; i++) {
     if (num_bits[i] == nbits) num_n += 1;

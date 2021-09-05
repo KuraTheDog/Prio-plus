@@ -12,6 +12,9 @@ New batches are build either as it runs out, or by calling maybeUpdate
 
 edaBit related logic for share conversion based on ia.cr/2020/338
 
+edaBits are deprecated. Require L rounds for L bits. Multiple dabits is 1 round.
+edaBit code left in for legacy.
+
 Due to send buffers potentially filling up, it forks out a child to do sending, while parent receives
 It also waits for the child to finish before exiting or moving to a substep that will send, to stay synced
 */
@@ -47,15 +50,17 @@ class CorrelatedStore {
   // nbits * batch_size
   const size_t bool_batch_size;
 
+  // Deprecated
   std::queue<EdaBit*> edabit_store;    // nbits edabits
   std::queue<EdaBit*> edabit_store_2;  // 2 nbits edabits
+
   std::queue<DaBit*> dabit_store;
   std::queue<BooleanBeaverTriple*> btriple_store;
   std::queue<BeaverTriple*> atriple_store;
 
   // return N new daBits
   DaBit** generateDaBit(const size_t N);
-  // return N new edaBits
+  // return N new edaBits. Deprecated
   EdaBit** generateEdaBit(const size_t N, const size_t num_bits);
 
   // add to the store.
@@ -63,12 +68,14 @@ class CorrelatedStore {
   void addBoolTriples(const size_t n = 0);
   void addTriples(const size_t n = 0);
   void addDaBits(const size_t n = 0);
+  // Deprecated
   void addEdaBits(const size_t num_bits, const size_t n = 0);
 
   // check if enough to make n. if not, call add
   void checkBoolTriples(const size_t n = 0);
   void checkTriples(const size_t n = 0, const bool always = false);
   void checkDaBits(const size_t n = 0);
+  // Deprecated
   void checkEdaBits(const size_t num_bits, const size_t n = 0);
 
   OT_Wrapper* const ot0;
@@ -112,6 +119,7 @@ public:
   BooleanBeaverTriple* getBoolTriple();
   BeaverTriple* getTriple();
   DaBit* getDaBit();
+  // Deprecated
   EdaBit* getEdaBit(const size_t num_bits);
 
   void printSizes();
@@ -144,6 +152,7 @@ public:
   fmpz_t* b2a_daBit_multi(const size_t N, const size_t* const num_bits,
                           const fmpz_t* const x);
   // Multiple bits. Uses one edabit, which requires L rounds for L bits.
+  // Deprecated
   fmpz_t* b2a_edaBit(const size_t N, const size_t* const num_bits,
                      const fmpz_t* const x);
 

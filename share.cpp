@@ -99,6 +99,7 @@ void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {
     fmpz_clear(bit);
 }
 
+// Deprecated
 void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n) {
     DaBit* bit0 = new DaBit();
     DaBit* bit1 = new DaBit();

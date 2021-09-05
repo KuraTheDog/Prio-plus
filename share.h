@@ -178,6 +178,7 @@ struct DaBit {
     }
 };
 
+// Deprecated. Multiple DaBits use less rounds
 struct EdaBit {
     fmpz_t r;        // [r]_p
     const size_t n;  // number of bits, length of b
