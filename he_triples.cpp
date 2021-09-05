@@ -1,3 +1,5 @@
+// Deprecated and unused
+
 #include "he_triples.h"
 
 #include <sys/wait.h>

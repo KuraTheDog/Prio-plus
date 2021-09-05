@@ -18,6 +18,8 @@ using namespace lbcrypto;
 /*
 A generator for Arithmetic triples, between two servers.
 
+Deprecated.
+
 Uses PALISADE's BFVrns encryption scheme.
 The plaintextModulus is the PARSEC Int_Modulus.
   Only supports < 60 bits.
