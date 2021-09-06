@@ -584,7 +584,6 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
     MaxShare share;
     const unsigned int total_inputs = msg.num_of_inputs;
     const unsigned int B = msg.max_inp;
-    const size_t share_sz = (B+1) * sizeof(uint64_t);
     // Need this to have all share arrays stay in memory, for server1 later.
     uint64_t* const shares = new uint64_t[total_inputs * (B + 1)];
 
@@ -593,7 +592,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         num_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
         const std::string pk(share.pk, share.pk + PK_LENGTH);
 
-        num_bytes += recv_in(clientfd, &shares[i*(B+1)], share_sz);
+        num_bytes += recv_uint64_batch(clientfd, &shares[i*(B+1)], B+1);
 
         if (share_map.find(pk) != share_map.end())
             continue;
@@ -631,7 +630,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
                 b[j] ^= share_map[pk_list[i]][j];
         }
         delete[] other_valid;
-        send_out(serverfd, &b[0], share_sz);
+        send_uint64_batch(serverfd, b, B+1);
         delete[] shares;
         delete[] pk_list;
 
@@ -664,7 +663,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         delete[] shares;
         delete[] valid;
         uint64_t b[B+1];
-        recv_in(serverfd, &b[0], share_sz);
+        recv_uint64_batch(serverfd, b, B+1);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "compute time: " << sec_from(start) << std::endl;

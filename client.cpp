@@ -62,9 +62,8 @@ int send_maxshare(const int server_num, const MaxShare& maxshare, const unsigned
     const int sock = (server_num == 0) ? sockfd0 : sockfd1;
 
     int ret = send(sock, (void*)&(maxshare.pk[0]), PK_LENGTH, 0);
+    ret += send_uint64_batch(sock, maxshare.arr, B+1);
 
-    for (unsigned int i = 0; i <= B; i++)
-        ret += send(sock, (void *)&(maxshare.arr[i]), sizeof(uint64_t), 0);
     return ret;
 }
 
