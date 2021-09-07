@@ -35,6 +35,11 @@ struct LinRegShare {
     uint64_t* xy_vals;  // Feat * target: x0 y, x1 y, (d-1)
 };
 
+struct FreqShare {
+    char pk[PK_LENGTH];
+    bool* arr;  // Could theoretically be compacted
+};
+
 enum messageType {
     NONE_OP,
     BIT_SUM,
@@ -46,6 +51,7 @@ enum messageType {
     VAR_OP,
     STDDEV_OP,
     LINREG_OP,
+    FREQ_OP,
 };
 
 struct initMsg {

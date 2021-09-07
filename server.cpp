@@ -1193,6 +1193,170 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     }
 }
 
+returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num) {
+    std::unordered_map<std::string, bool*> share_map;
+    auto start = clock_start();
+
+    FreqShare share;
+    const unsigned int total_inputs = msg.num_of_inputs;
+    // const uint64_t max_inp = msg.max_inp;
+    const uint64_t max_inp = 1 << num_bits;
+    // TODO: if 1 << num_bits < max_inp, fail
+
+    size_t nbits[max_inp];
+    for (unsigned int i = 0; i < max_inp; i++)
+        nbits[i] = num_bits;
+
+    // TODO: batch
+    bool* const shares = new bool[total_inputs * max_inp];
+
+    std::string* const pk_list = new std::string[total_inputs];
+
+    int num_bytes = 0;
+    for (unsigned int i = 0; i < total_inputs; i++) {
+        num_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
+        const std::string pk(share.pk, share.pk+PK_LENGTH);
+        num_bytes += recv_bool_batch(clientfd, &shares[i * max_inp], max_inp);
+
+        if (share_map.find(pk) != share_map.end())
+            continue;
+        share_map[pk] = &shares[i * max_inp];
+
+        // for (unsigned int j = 0; j < max_inp; j++) {
+        //     std::cout << "share[" << i << ", " << j << "] = " << shares[i * max_inp + j] << std::endl;
+        // }
+    }
+
+    std::cout << "Received " << total_inputs << " total shares" << std::endl;
+    std::cout << "bytes from client: " << num_bytes << std::endl;
+    std::cout << "receive time: " << sec_from(start) << std::endl;
+    start = clock_start();
+    auto start2 = clock_start();
+    num_bytes = 0;
+
+    if (server_num == 1) {
+        const size_t num_inputs = share_map.size();
+        num_bytes += send_size(serverfd, num_inputs);
+        fmpz_t* accum; new_fmpz_array(&accum, max_inp);
+        bool* const shares = new bool[num_inputs * max_inp];
+
+        size_t idx = 0;
+        for (const auto& share : share_map) {
+            num_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            pk_list[idx] = share.first;
+            memcpy(&shares[idx * max_inp], share.second, max_inp);
+            idx++;
+        }
+        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
+
+        // Parity check? Or later?
+
+        fmpz_t* shares_p;
+        shares_p = correlated_store->b2a_daBit_single(num_inputs * max_inp, shares);
+        
+        // TOOD: figure out how to round minimize valid
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            // PK test
+
+            // Can rounds be reduced? TBD
+
+            // Accumulate
+            for (unsigned int j = 0; j < max_inp; j++) {
+                // std::cout << "share_p[" << i << ", " << j << "] = ";
+                // fmpz_print(shares_p[i * max_inp + j]); std::cout << std::endl;
+
+                fmpz_add(accum[j], accum[j], shares_p[i * max_inp + j]);
+                fmpz_mod(accum[j], accum[j], Int_Modulus);
+            }
+        }
+
+        // delete[] other_valid;
+        delete[] shares;
+        delete[] pk_list;
+        clear_fmpz_array(shares_p, num_inputs * max_inp);
+        // send accum
+        send_fmpz_batch(serverfd, accum, max_inp);
+        clear_fmpz_array(accum, max_inp);
+        return RET_NO_ANS;
+    } else {
+        size_t num_inputs, num_valid = 0;
+        recv_size(serverfd, num_inputs);
+        fmpz_t* accum; new_fmpz_array(&accum, max_inp);
+        bool* const shares = new bool[num_inputs * max_inp];
+        bool* const valid = new bool[num_inputs];
+
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            const std::string pk = get_pk(serverfd);
+            pk_list[i] = pk;
+            valid[i] = (share_map.find(pk) != share_map.end());
+
+            // realign shares_2 to pk order
+            if (valid[i]) {
+                memcpy(&shares[i * max_inp], share_map[pk], max_inp);
+            } else {
+                memset(&shares[i * max_inp], 0, max_inp);
+            }
+        }
+        // num_bytes += send_bool_batch(serverfd, valid, num_inputs);
+        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
+
+        // parity check? or later?
+
+        fmpz_t* shares_p;
+        shares_p = correlated_store->b2a_daBit_single(num_inputs * max_inp, shares);
+
+        // TODO: figure out how to round minimize valid
+        // send valids now? or later?
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            if (!valid[i])
+                continue;
+            // sum check
+
+            // Accumulate
+            for (unsigned int j = 0; j < max_inp; j++) {
+                // std::cout << "share_p[" << i << ", " << j << "] = ";
+                // fmpz_print(shares_p[i * max_inp + j]); std::cout << std::endl;
+
+                fmpz_add(accum[j], accum[j], shares_p[i * max_inp + j]);
+                fmpz_mod(accum[j], accum[j], Int_Modulus);
+            }
+            num_valid++;
+        }
+        delete[] valid;
+        delete[] shares;
+        delete[] pk_list;
+        clear_fmpz_array(shares_p, num_inputs * max_inp);
+        // recieve accum
+        fmpz_t* accum_other; new_fmpz_array(&accum_other, max_inp);
+        recv_fmpz_batch(serverfd, accum_other, max_inp);
+
+        std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "sent server bytes: " << num_bytes << std::endl;
+        if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
+            std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+            return RET_INVALID;
+        }
+
+        // Sum accumulates
+        for (unsigned int j = 0; j < max_inp; j++) {
+            fmpz_add(accum[j], accum[j], accum_other[j]);
+            fmpz_mod(accum[j], accum[j], Int_Modulus);
+        }
+        clear_fmpz_array(accum_other, max_inp);
+        // output
+        for (unsigned int j = 0; j < max_inp; j++) {
+            std::cout << " Freq(" << j << ") = ";
+            fmpz_print(accum[j]);
+            std::cout << std::endl;
+        }
+        clear_fmpz_array(accum, max_inp);
+        return RET_ANS;
+    }
+}
+
 int main(int argc, char** argv) {
     // TODO: num_bits no longer needed for preprocess. Encode in init_msg?
     if (argc < 4) {
@@ -1352,6 +1516,15 @@ int main(int argc, char** argv) {
             returnType ret = linreg_op(msg, newsockfd, serverfd, server_num);
             if (ret == RET_ANS)
                 ;  // Answer output by linreg_op
+
+            std::cout << "Total time  : " << sec_from(start) << std::endl;
+        } else if (msg.type == FREQ_OP) {
+            std::cout << "FREQ_OP" << std::endl;
+            auto start = clock_start();
+
+            returnType ret = freq_op(msg, newsockfd, serverfd, server_num);
+            if (ret == RET_ANS)
+                ; // Answer output by freq_op
 
             std::cout << "Total time  : " << sec_from(start) << std::endl;
         } else if (msg.type == NONE_OP) {

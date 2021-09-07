@@ -67,6 +67,13 @@ int send_maxshare(const int server_num, const MaxShare& maxshare, const unsigned
     return ret;
 }
 
+int send_freqshare(const int server_num, const FreqShare& freqshare, const uint64_t n) {
+    const int sock = (server_num == 0) ? sockfd0 : sockfd1;
+    int ret = send(sock, (void*)&(freqshare.pk[0]), PK_LENGTH, 0);
+    ret += send_bool_batch(sock, freqshare.arr, n);
+    return ret;
+}
+
 int send_linregshare(const int server_num, const LinRegShare& share,  const size_t degree) {
     const int sock = (server_num == 0) ? sockfd0 : sockfd1;
 
@@ -1400,6 +1407,86 @@ void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
     delete[] c;
 }
 
+int freq_helper(const std::string protocol, const size_t numreqs,
+                uint64_t* counts, const initMsg* const msg_ptr = nullptr) {
+    auto start = clock_start();
+    int num_bytes = 0;
+
+    uint64_t real_val;
+
+    emp::PRG prg;
+
+    FreqShare* const freqshare0 = new FreqShare[numreqs];
+    FreqShare* const freqshare1 = new FreqShare[numreqs];
+    for (unsigned int i = 0; i < numreqs; i++) {
+        prg.random_data(&real_val, sizeof(uint64_t));
+        real_val %= max_int;
+        counts[real_val] += 1;
+
+        // std::cout << "Value " << i << " = " << real_val << std::endl;
+
+        // Same everywhere exept at real_val
+        freqshare0[i].arr = new bool[max_int];
+        prg.random_bool(freqshare0[i].arr, max_int);
+        freqshare1[i].arr = new bool[max_int];
+        memcpy(freqshare1[i].arr, freqshare0[i].arr, max_int * sizeof(bool));
+        freqshare1[i].arr[real_val] ^= 1;
+
+        const std::string pk_s = make_pk(prg);
+        const char* const pk = pk_s.c_str();
+        memcpy(freqshare0[i].pk, &pk[0], PK_LENGTH);
+        memcpy(freqshare1[i].pk, &pk[0], PK_LENGTH);
+    }
+
+    if (numreqs > 1)
+        std::cout << "batch make:\t" << sec_from(start) << std::endl;
+
+    start = clock_start();
+    if (msg_ptr != nullptr) {
+        num_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
+        num_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
+    }
+    for (unsigned int i = 0; i < numreqs; i++) {
+        num_bytes += send_freqshare(0, freqshare0[i], max_int);
+        num_bytes += send_freqshare(1, freqshare1[i], max_int);
+
+        delete[] freqshare0[i].arr;
+        delete[] freqshare1[i].arr;
+    }
+
+    delete[] freqshare0;
+    delete[] freqshare1;
+
+    if (numreqs > 1)
+        std::cout << "batch send:\t" << sec_from(start) << std::endl;
+
+    return num_bytes;
+}
+
+void freq_op(const std::string protocol, const size_t numreqs) {
+    uint64_t* count = new uint64_t[max_int];
+    memset(count, 0, max_int * sizeof(uint64_t));
+    int num_bytes = 0;
+    initMsg msg;
+    msg.num_of_inputs = numreqs;
+    msg.max_inp = max_int;
+    msg.type = FREQ_OP;
+
+    if (CLIENT_BATCH) {
+        num_bytes += freq_helper(protocol, numreqs, count, &msg);
+    } else {
+        auto start = clock_start();
+        for (unsigned int i = 0; i < numreqs; i++)
+            num_bytes += freq_helper(protocol, 1, count, i == 0 ? &msg : nullptr);
+        std::cout << "make+send:\t" << sec_from(start) << std::endl;
+    }
+
+    for (unsigned int j = 0; j < max_int; j++)
+        std::cout << " Freq(" << j << ") = " << count[j] << std::endl;
+    delete[] count;
+    std::cout << "Total sent bytes: " << num_bytes << std::endl;
+}
+
 int main(int argc, char** argv) {
     if (argc < 4) {
         std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits linreg_degree" << endl;
@@ -1545,6 +1632,16 @@ int main(int argc, char** argv) {
             lin_reg_invalid(protocol, numreqs);
         else
             lin_reg(protocol, numreqs);
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
+    }
+
+    else if(protocol == "FREQOP") {
+        std::cout << "Uploading all FREQ shares: " << numreqs << std::endl;
+
+        // if (DEBUG_INVALID)
+        //     lin_reg_invalid(protocol, numreqs);
+        // else
+        freq_op(protocol, numreqs);
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
