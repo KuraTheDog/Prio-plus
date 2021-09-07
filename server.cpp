@@ -46,6 +46,10 @@ CorrelatedStore* correlated_store;
 // Whether to use OT or Dabits
 #define USE_OT_B2A true
 
+// Note: Currently does it in a single batch.
+// I.e. recieve and store all, then process all.
+// TODO: Set up batching. Either every N inputs (based on space consumed), or every S seconds (figure out timer)
+
 uint64_t int_sum_max;
 uint32_t num_bits;
 
@@ -171,6 +175,7 @@ fmpz_t* share_convert(const size_t num_shares,
 
     } else {  // dabit conversion
         size_t* const bits_arr = new size_t[num_shares * num_values];
+        // num_bits 1 char, so this is fine
         for (unsigned int i = 0; i < num_shares; i++)
             memcpy(&bits_arr[i * num_values], num_bits, num_values * sizeof(size_t));
 
@@ -313,7 +318,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
     int server_bytes = 0;
 
     if (server_num == 1) {
-        const unsigned int num_inputs = share_map.size();
+        const size_t num_inputs = share_map.size();
         server_bytes += send_size(serverfd, num_inputs);
         bool* const shares = new bool[num_inputs];
         int i = 0;
@@ -403,7 +408,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
     int server_bytes = 0;
 
     if (server_num == 1) {
-        const unsigned int num_inputs = share_map.size();
+        const size_t num_inputs = share_map.size();
         server_bytes += send_size(serverfd, num_inputs);
         uint64_t** const shares = new uint64_t*[num_inputs];
         int i = 0;
@@ -503,7 +508,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
     int server_bytes = 0;
 
     if (server_num == 1) {
-        const unsigned int num_inputs = share_map.size();
+        const size_t num_inputs = share_map.size();
         server_bytes += send_size(serverfd, num_inputs);
         uint64_t b = 0;
         std::string* const pk_list = new std::string[num_inputs];
@@ -608,7 +613,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
     int server_bytes = 0;
 
     if (server_num == 1) {
-        const unsigned int num_inputs = share_map.size();
+        const size_t num_inputs = share_map.size();
         server_bytes += send_size(serverfd, num_inputs);
         uint64_t b[B+1];
         memset(b, 0, sizeof(b));
@@ -630,22 +635,22 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
                 b[j] ^= share_map[pk_list[i]][j];
         }
         delete[] other_valid;
-        send_uint64_batch(serverfd, b, B+1);
         delete[] shares;
         delete[] pk_list;
+        send_uint64_batch(serverfd, b, B+1);
 
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         std::cout << "compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
     } else {
-        size_t num_inputs, num_valid = 0;;
+        size_t num_inputs, num_valid = 0;
         recv_size(serverfd, num_inputs);
         uint64_t a[B+1];
         memset(a, 0, sizeof(a));
         bool* const valid = new bool[num_inputs];
 
-        for (unsigned int i =0; i < num_inputs; i++) {
+        for (unsigned int i = 0; i < num_inputs; i++) {
             const std::string pk = get_pk(serverfd);
             valid[i] = (share_map.find(pk) != share_map.end());
             if (!valid[i])
@@ -1044,8 +1049,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
         std::cout << "compute time: " << sec_from(start) << std::endl;
 
-        for (unsigned int j = 0; j < num_fields; j++)
-            send_fmpz(serverfd, b[j]);
+        send_fmpz_batch(serverfd, b, num_fields);
 
         delete[] valid;
         clear_fmpz_array(b, num_fields);
@@ -1131,7 +1135,6 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * num_fields);
 
-
         uint64_t* const x_accum = new uint64_t[degree + num_quad];
         memset(x_accum, 0, (degree + num_quad) * sizeof(uint64_t));
         uint64_t* const y_accum = new uint64_t[degree];
@@ -1167,7 +1170,6 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         clear_fmpz_array(a, num_fields);
         fmpz_clear(b);
 
-
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
@@ -1192,6 +1194,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 }
 
 int main(int argc, char** argv) {
+    // TODO: num_bits no longer needed for preprocess. Encode in init_msg?
     if (argc < 4) {
         std::cout << "Usage: ./bin/server server_num(0/1) this_client_port server0_port num_bits" << endl;
         return 1;
@@ -1347,9 +1350,8 @@ int main(int argc, char** argv) {
             auto start = clock_start();
 
             returnType ret = linreg_op(msg, newsockfd, serverfd, server_num);
-            if (ret == RET_ANS) {
-                ;
-            }
+            if (ret == RET_ANS)
+                ;  // Answer output by linreg_op
 
             std::cout << "Total time  : " << sec_from(start) << std::endl;
         } else if (msg.type == NONE_OP) {
