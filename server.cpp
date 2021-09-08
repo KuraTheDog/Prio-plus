@@ -1250,34 +1250,67 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        // Parity check? Or later?
-
         fmpz_t* shares_p;
         shares_p = correlated_store->b2a_daBit_single(num_inputs * max_inp, shares);
         
-        // TOOD: figure out how to round minimize valid
+        // Reusing valid as parity
+        bool* const valid = new bool[num_inputs];
+        fmpz_t* sums; new_fmpz_array(&sums, num_inputs);
+        bool total_parity = 0;
+        fmpz_t sum; fmpz_init(sum); fmpz_zero(sum);
         for (unsigned int i = 0; i < num_inputs; i++) {
-            // PK test
-
-            // Can rounds be reduced? TBD
-
-            // Accumulate
+            valid[i] = false;
+            fmpz_zero(sums[i]);
             for (unsigned int j = 0; j < max_inp; j++) {
                 // std::cout << "share_p[" << i << ", " << j << "] = ";
                 // fmpz_print(shares_p[i * max_inp + j]); std::cout << std::endl;
 
+                valid[i] ^= shares[i * max_inp + j];
+                fmpz_add(sums[i], sums[i], shares_p[i * max_inp + j]);
+                fmpz_mod(sums[i], sums[i], Int_Modulus);
+            }
+            total_parity ^= valid[i];
+            fmpz_add(sum, sum, sums[i]);
+            fmpz_mod(sum, sum, Int_Modulus);
+        }
+        // Batch check.
+        num_bytes += send_bool(serverfd, total_parity);
+        num_bytes += send_fmpz(serverfd, sum);
+        fmpz_clear(sum);
+
+        bool all_valid;
+        recv_bool(serverfd, all_valid);
+        if (all_valid) {
+            memset(valid, true, num_inputs);
+        } else {
+            // Batch check fails. Test single. Binary search is more rounds but (possibly) less bytes).
+            num_bytes += send_bool_batch(serverfd, valid, num_inputs);
+            num_bytes += send_fmpz_batch(serverfd, sums, num_inputs);
+            recv_bool_batch(serverfd, valid, num_inputs);
+        }
+        clear_fmpz_array(sums, num_inputs);
+
+        // Accumulate
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            if (!valid[i])
+                continue;
+            for (unsigned int j = 0; j < max_inp; j++) {
                 fmpz_add(accum[j], accum[j], shares_p[i * max_inp + j]);
                 fmpz_mod(accum[j], accum[j], Int_Modulus);
             }
         }
 
-        // delete[] other_valid;
+        delete[] valid;
         delete[] shares;
         delete[] pk_list;
         clear_fmpz_array(shares_p, num_inputs * max_inp);
         // send accum
         send_fmpz_batch(serverfd, accum, max_inp);
         clear_fmpz_array(accum, max_inp);
+
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "sent server bytes: " << num_bytes << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
@@ -1302,23 +1335,76 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        // parity check? or later?
-
         fmpz_t* shares_p;
         shares_p = correlated_store->b2a_daBit_single(num_inputs * max_inp, shares);
 
-        // TODO: figure out how to round minimize valid
-        // send valids now? or later?
+        // Validity check
+        bool* const parity = new bool[num_inputs];
+        bool total_parity = 0;
+        fmpz_t* sums; new_fmpz_array(&sums, num_inputs);
+        fmpz_t sum; fmpz_init(sum); fmpz_zero(sum);
         for (unsigned int i = 0; i < num_inputs; i++) {
-            if (!valid[i])
-                continue;
-            // sum check
-
-            // Accumulate
+            parity[i] = false;
+            fmpz_zero(sums[i]);
             for (unsigned int j = 0; j < max_inp; j++) {
                 // std::cout << "share_p[" << i << ", " << j << "] = ";
                 // fmpz_print(shares_p[i * max_inp + j]); std::cout << std::endl;
 
+                parity[i] ^= shares[i * max_inp + j];
+                fmpz_add(sums[i], sums[i], shares_p[i * max_inp + j]);
+                fmpz_mod(sums[i], sums[i], Int_Modulus);
+            }
+            total_parity ^= parity[i];
+            fmpz_add(sum, sum, sums[i]);
+            fmpz_mod(sum, sum, Int_Modulus);
+        }
+        // batch check
+        bool total_parity_other;
+        fmpz_t sum_other; fmpz_init(sum_other);
+        recv_bool(serverfd, total_parity_other);
+        recv_fmpz(serverfd, sum_other);
+        bool all_valid = false;
+        all_valid = (total_parity ^ total_parity_other) == (total_inputs % 2);
+        if (all_valid) {
+            fmpz_add(sum, sum, sum_other);
+            fmpz_mod(sum, sum, Int_Modulus);
+            all_valid = fmpz_equal_ui(sum, total_inputs);
+        }
+        num_bytes += send_bool(serverfd, all_valid);
+        if (all_valid) {
+            memset(valid, true, num_inputs);
+        } else {
+            // Batch check fails. Test single. Binary search is more rounds but (possibly) less bytes).
+
+            bool* const parity_other = new bool[num_inputs];
+            fmpz_t* sums_other; new_fmpz_array(&sums_other, num_inputs);
+            recv_bool_batch(serverfd, parity_other, num_inputs);
+            recv_fmpz_batch(serverfd, sums_other, num_inputs);
+            for (unsigned int i = 0; i < num_inputs; i++) {
+                if (!valid[i])
+                    continue;
+                if ((parity[i] ^ parity_other[i]) == 0) {
+                    valid[i] = false;
+                    continue;
+                }
+                fmpz_add(sums[i], sums[i], sums_other[i]);
+                fmpz_mod(sums[i], sums[i], Int_Modulus);
+                if (!fmpz_is_one(sums[i]))
+                    valid[i] = false;
+            }
+            clear_fmpz_array(sums_other, num_inputs);
+            delete[] parity_other;
+        }
+
+        clear_fmpz_array(sums, num_inputs);
+        delete[] parity;
+        num_bytes += send_bool_batch(serverfd, valid, num_inputs);
+
+        // Accumulate
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            if (!valid[i])
+                continue;
+            for (unsigned int j = 0; j < max_inp; j++) {
                 fmpz_add(accum[j], accum[j], shares_p[i * max_inp + j]);
                 fmpz_mod(accum[j], accum[j], Int_Modulus);
             }
