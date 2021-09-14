@@ -1174,6 +1174,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+            delete[] x_accum;
+            delete[] y_accum;
             return RET_INVALID;
         }
 
@@ -1203,14 +1205,8 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
     const uint64_t max_inp = 1 << num_bits;
     // TODO: if 1 << num_bits < max_inp, fail
 
-    size_t nbits[max_inp];
-    for (unsigned int i = 0; i < max_inp; i++)
-        nbits[i] = num_bits;
-
     // TODO: batch
     bool* const shares = new bool[total_inputs * max_inp];
-
-    std::string* const pk_list = new std::string[total_inputs];
 
     int num_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
@@ -1243,7 +1239,6 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         size_t idx = 0;
         for (const auto& share : share_map) {
             num_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
-            pk_list[idx] = share.first;
             memcpy(&shares[idx * max_inp], share.second, max_inp);
             idx++;
         }
@@ -1277,6 +1272,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         num_bytes += send_bool(serverfd, total_parity);
         num_bytes += send_fmpz(serverfd, sum);
         fmpz_clear(sum);
+        delete[] shares;
 
         bool all_valid;
         recv_bool(serverfd, all_valid);
@@ -1301,8 +1297,6 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         }
 
         delete[] valid;
-        delete[] shares;
-        delete[] pk_list;
         clear_fmpz_array(shares_p, num_inputs * max_inp);
         // send accum
         send_fmpz_batch(serverfd, accum, max_inp);
@@ -1321,7 +1315,6 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             const std::string pk = get_pk(serverfd);
-            pk_list[i] = pk;
             valid[i] = (share_map.find(pk) != share_map.end());
 
             // realign shares_2 to pk order
@@ -1331,7 +1324,6 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
                 memset(&shares[i * max_inp], 0, max_inp);
             }
         }
-        // num_bytes += send_bool_batch(serverfd, valid, num_inputs);
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
@@ -1412,7 +1404,6 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         }
         delete[] valid;
         delete[] shares;
-        delete[] pk_list;
         clear_fmpz_array(shares_p, num_inputs * max_inp);
         // recieve accum
         fmpz_t* accum_other; new_fmpz_array(&accum_other, max_inp);
@@ -1423,6 +1414,8 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+            clear_fmpz_array(accum_other, max_inp);
+            clear_fmpz_array(accum, max_inp);
             return RET_INVALID;
         }
 
