@@ -91,6 +91,16 @@ int recv_size(const int sockfd, size_t& x) {
     return ret;
 }
 
+int send_double(const int sockfd, const double x) {
+    const char* data = (const char*) &x;
+    return send(sockfd, data, sizeof(double), 0);
+}
+
+int recv_double(const int sockfd, double& x) {
+    int ret = recv_in(sockfd, &x, sizeof(double));
+    return ret;
+}
+
 int send_uint32(const int sockfd, const uint32_t x) {
     uint32_t x_conv = htonl(x);
     const char* data = (const char*) &x_conv;

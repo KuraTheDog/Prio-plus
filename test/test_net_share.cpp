@@ -35,6 +35,10 @@ void run_sender(int sockfd) {
     n = send_int(sockfd, in);
     std::cout << "send int, \tsize: " << n << " \tval: " << in << std::endl;
 
+    double d = 3.14159;
+    n = send_double(sockfd, d);
+    std::cout << "send double, \tsize: " << n << " \tval: " << d << std::endl;
+
     size_t sz = 92;
     n = send_size(sockfd, sz);
     std::cout << "send size, \tsize: " << n << " \tval: " << sz << std::endl;
@@ -164,6 +168,10 @@ void run_receiver(int sockfd) {
     int in;
     n = recv_int(sockfd, in);
     std::cout << "recv int \tsize: " << n << " \tval: " << in << std::endl;
+
+    double d;
+    n = recv_double(sockfd, d);
+    std::cout << "recv double \tsize: " << n << " \tval: " << d << std::endl;    
 
     size_t sz;
     n = recv_size(sockfd, sz);

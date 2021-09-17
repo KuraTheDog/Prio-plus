@@ -59,6 +59,9 @@ int recv_int(const int sockfd, int& x);
 int send_size(const int sockfd, const size_t x);
 int recv_size(const int sockfd, size_t& x);
 
+int send_double(const int sockfd, const double x);
+int recv_double(const int sockfd, double& x);
+
 // Unused
 int send_uint32(const int sockfd, const uint32_t x);
 int recv_uint32(const int sockfd, uint32_t& x);
