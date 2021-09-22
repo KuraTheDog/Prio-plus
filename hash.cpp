@@ -1,24 +1,21 @@
-/* Only need pairwise independnet hashes for single countmin
-
-X-wise independent: degree x-1 polynomials
-We just need 2 for count-min. 
-TODO: double check for heavy that only need 2
-
-Could be more efficient to use fmpz_t poly, but more work. 
-For degree 1, easy enough to use 1
-
-*/
-
 #include "hash.h"
 
 #include <iostream>
 
 #include "fmpz_utils.h"
 
-void HashStore::eval(const unsigned int i, const fmpz_t x, fmpz_t out) {
-  // Currently hard code for degree 1
-  fmpz_set(out, coeff[i][0]);
-  fmpz_addmul(out, coeff[i][1], x);
+void HashStore::eval(const unsigned int i, const unsigned int x, fmpz_t out) {
+  fmpz_zero(out);
+  // f -> x(f + c_j)
+  for (unsigned int j = degree; j > 0; j--) {
+    fmpz_add(out, out, coeff[i][j]);
+    fmpz_mul_ui(out, out, x);
+    fmpz_mod(out, out, l);
+  }
+  // right shift, take first w_bits bits
+  fmpz_fdiv_q_2exp(out, out, l_bits - w_bits);
+
+  fmpz_add(out, out, coeff[i][0]);
   fmpz_mod(out, out, w);
 }
 
