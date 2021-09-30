@@ -14,6 +14,7 @@ Returns total bytes sent on success, or first fail return of an internal step (t
 #include <string>
 
 #include "share.h"
+#include "types.h"
 
 extern "C" {
   #include "flint/flint.h"
@@ -90,6 +91,9 @@ int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n);
 
 int send_seed(const int sockfd, const flint_rand_t x);
 int recv_seed(const int sockfd, flint_rand_t x);
+
+int send_heavycfg(const int sockfd, const HeavyConfig x);
+int recv_heavycfg(const int sockfd, HeavyConfig &x);
 
 /* Share functions */
 

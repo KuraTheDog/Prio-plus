@@ -1489,8 +1489,10 @@ void freq_op(const std::string protocol, const size_t numreqs) {
 }
 
 int countmin_helper(const std::string protocol, const size_t numreqs,
-                    uint64_t* counts, const size_t w, const size_t d,
-                    const double t, HashStore &hash_store) {
+                    uint64_t* counts, HeavyConfig hconfig, HashStore &hash_store) {
+    const double t = hconfig.t;
+    const size_t w = hconfig.w;
+    const size_t d = hconfig.d;
     auto start = clock_start();
     int num_bytes = 0;
 
@@ -1558,6 +1560,7 @@ void countmin_op(const std::string protocol, const size_t numreqs) {
     uint64_t* count = new uint64_t[max_int];
     memset(count, 0, max_int * sizeof(uint64_t));
     int num_bytes = 0;
+
     initMsg msg;
     msg.num_of_inputs = numreqs;
     msg.max_inp = max_int;
@@ -1586,22 +1589,17 @@ void countmin_op(const std::string protocol, const size_t numreqs) {
     num_bytes += send_to_server(1, &msg, sizeof(initMsg));
 
     // Heavy config
-    // TODO: build a sendHeavyConfig once I figure out what goes in it
-    num_bytes += send_double(sockfd0, t);
-    num_bytes += send_size(sockfd0, w);
-    num_bytes += send_size(sockfd0, d);
+    num_bytes += send_heavycfg(sockfd0, hconfig);
+    num_bytes += send_heavycfg(sockfd1, hconfig);
     num_bytes += send_seed(sockfd0, hash_seed);
-    num_bytes += send_double(sockfd1, t);
-    num_bytes += send_size(sockfd1, w);
-    num_bytes += send_size(sockfd1, d);
     num_bytes += send_seed(sockfd1, hash_seed);
 
     if (CLIENT_BATCH) {
-        num_bytes += countmin_helper(protocol, numreqs, count, w, d, t, hash_store);
+        num_bytes += countmin_helper(protocol, numreqs, count, hconfig, hash_store);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            num_bytes += countmin_helper(protocol, 1, count, w, d, t, hash_store);
+            num_bytes += countmin_helper(protocol, 1, count, hconfig, hash_store);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 

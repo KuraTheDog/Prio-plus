@@ -72,11 +72,11 @@ struct HeavyConfig {
 
     /* Tree params
     For full tree eps/delta, per layer eps/delta values
-    Can be slightly more efficient, due to cyclical references
+    Since recersive, can be slightly more efficient
     */
     // double eps2;  // 1-eps = (1 - eps)^L, so eps' = 1 - log_L (1 - eps)
     // double delta2;  // delta' = delta (1 - eps) t / 2 L
-    // size_t L;  // # layers, input_bits - log_2(w d)
+    size_t L;  // # layers, input_bits - ceil(log_2(w d))
 
     /* Input parameters
     w = a / eps t, d = log_a(1 / delta)

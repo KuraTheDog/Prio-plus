@@ -138,6 +138,14 @@ void run_sender(int sockfd) {
     fmpz_randm(number, this_seed, Int_Modulus);
     fmpz_print(number); std::cout << std::endl;
 
+    HeavyConfig hcfg;
+    hcfg.t = 0.1;
+    hcfg.w = 42;
+    hcfg.d = 5;
+    hcfg.L = 12;
+    n = send_heavycfg(sockfd, hcfg);
+    std::cout << "send hcfg \tsize: " << n << ", (t, w, d, L) = (" << hcfg.t << ", " << hcfg.w << ", " << hcfg.d << ", " << hcfg.L << ")" << std::endl;
+
     // Sanity: sending numbers still works
     fmpz_set_d(number, 54321);
     n = send_fmpz(sockfd, number);
@@ -259,6 +267,10 @@ void run_receiver(int sockfd) {
     std::cout << "recv seed \tsize: " << n << " \tnext random: ";
     fmpz_randm(number, this_seed, Int_Modulus);
     fmpz_print(number); std::cout << std::endl;
+
+    HeavyConfig hcfg;
+    n = recv_heavycfg(sockfd, hcfg);
+    std::cout << "recv hcfg \tsize: " << n << ", (t, w, d, L) = (" << hcfg.t << ", " << hcfg.w << ", " << hcfg.d << ", " << hcfg.L << ")" << std::endl;
 
     n = recv_fmpz(sockfd, number);
     std::cout << "recv fmpz \tsize: " << n << " \tval: ";

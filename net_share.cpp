@@ -285,6 +285,32 @@ int recv_seed(const int sockfd, flint_rand_t x) {
     return recv_in(sockfd, &x[0], sizeof(x[0]));
 }
 
+int send_heavycfg(const int sockfd, const HeavyConfig x) {
+  int total = 0, ret;
+  ret = send_double(sockfd, x.t);
+  if (ret <= 0) return ret; else total += ret;
+  ret = send_size(sockfd, x.L);
+  if (ret <= 0) return ret; else total += ret;
+  ret = send_size(sockfd, x.w);
+  if (ret <= 0) return ret; else total += ret;
+  ret = send_size(sockfd, x.d);
+  if (ret <= 0) return ret; else total += ret;
+  return total;
+}
+
+int recv_heavycfg(const int sockfd, HeavyConfig &x) {
+  int total = 0, ret;
+  ret = recv_double(sockfd, x.t);
+  if (ret <= 0) return ret; else total += ret;
+  ret = recv_size(sockfd, x.L);
+  if (ret <= 0) return ret; else total += ret;
+  ret = recv_size(sockfd, x.w);
+  if (ret <= 0) return ret; else total += ret;
+  ret = recv_size(sockfd, x.d);
+  if (ret <= 0) return ret; else total += ret;
+  return total;
+}
+
 /* Share functions */
 
 int send_Cor(const int sockfd, const Cor* const x) {

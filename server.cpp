@@ -1441,11 +1441,11 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
     std::unordered_map<std::string, bool*> share_map;
     auto start = clock_start();
 
-    size_t w, d;  // hash range, # hashes
-    double t;  // heavy threshold
-    recv_double(clientfd, t);
-    recv_size(clientfd, w);
-    recv_size(clientfd, d);
+    HeavyConfig hcfg;
+    recv_heavycfg(clientfd, hcfg);
+    const double t = hcfg.t;
+    const size_t w = hcfg.w;
+    const size_t d = hcfg.d;
     flint_rand_t hash_seed; flint_randinit(hash_seed);
     recv_seed(clientfd, hash_seed);
 
