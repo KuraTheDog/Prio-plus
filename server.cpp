@@ -11,6 +11,7 @@
 #include <string>
 
 #include "correlated.h"
+#include "hash.h"
 #include "net_share.h"
 #include "ot.h"
 #include "types.h"
@@ -38,9 +39,9 @@ OT_Wrapper* ot1;
 // Precompute cache of dabits
 CorrelatedStore* correlated_store;
 // #define CACHE_SIZE 8192
-// #define CACHE_SIZE 65536
+#define CACHE_SIZE 65536
 // #define CACHE_SIZE 262144
-#define CACHE_SIZE 2097152
+// #define CACHE_SIZE 2097152
 // If set, does fast but insecure offline precompute.
 #define LAZY_PRECOMPUTE true
 // Whether to use OT or Dabits
@@ -1436,6 +1437,209 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
     }
 }
 
+returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num) {
+    std::unordered_map<std::string, bool*> share_map;
+    auto start = clock_start();
+
+    size_t w, d;  // hash range, # hashes
+    double t;  // heavy threshold
+    recv_double(clientfd, t);
+    recv_size(clientfd, w);
+    recv_size(clientfd, d);
+    flint_rand_t hash_seed; flint_randinit(hash_seed);
+    recv_seed(clientfd, hash_seed);
+
+    HashStore hash_store(d, num_bits, w, hash_seed);
+
+    const unsigned int total_inputs = msg.num_of_inputs;
+    
+    FreqShare share;
+    bool* const shares = new bool[total_inputs * d * w];
+
+    int num_bytes = 0;
+    for (unsigned int i = 0; i < total_inputs; i++) {
+        num_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
+        const std::string pk(share.pk, share.pk+PK_LENGTH);
+        num_bytes += recv_bool_batch(clientfd, &shares[i * d * w], d * w);
+
+        if (share_map.find(pk) != share_map.end())
+            continue;
+        share_map[pk] = &shares[i * d * w];
+
+        // for (unsigned int j = 0; j < d; j++) {
+        //     std::cout << "share[" << i << "][" << j << "] = ";
+        //     for (unsigned int k = 0; k < w; k++) {
+        //         std::cout << shares[i * d * w + j * d + k] << " ";
+        //     }
+        //     std::cout << std::endl;
+        // }
+    }
+
+    std::cout << "Received " << total_inputs << " total shares" << std::endl;
+    std::cout << "bytes from client: " << num_bytes << std::endl;
+    std::cout << "receive time: " << sec_from(start) << std::endl;
+    start = clock_start();
+    auto start2 = clock_start();
+    num_bytes = 0;
+
+    if (server_num == 1) {
+        const size_t num_inputs = share_map.size();
+        num_bytes += send_size(serverfd, num_inputs);
+        fmpz_t* accum; new_fmpz_array(&accum, d * w);
+        bool* const shares = new bool[num_inputs * d * w];
+
+        size_t idx = 0;
+        for (const auto& share : share_map) {
+            num_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            memcpy(&shares[idx * d * w], share.second, d * w);
+            idx++;
+        }
+        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
+
+        fmpz_t* shares_p;
+        shares_p = correlated_store->b2a_daBit_single(num_inputs * d * w, shares);
+
+        // validity
+        bool* const valid = new bool[num_inputs];
+        memset(valid, true, num_inputs);
+
+        delete[] shares;
+
+        // Accumulate
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            if (!valid[i])
+                continue;
+            for (unsigned int j = 0; j < d * w; j++) {
+                fmpz_add(accum[j], accum[j], shares_p[i * d * w + j]);
+                fmpz_mod(accum[j], accum[j], Int_Modulus);
+            }
+        }
+
+        delete[] valid;
+        clear_fmpz_array(shares_p, num_inputs * d * w);
+        send_fmpz_batch(serverfd, accum, d * w);
+        clear_fmpz_array(accum, d * w);
+
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "sent server bytes: " << num_bytes << std::endl;
+        return RET_NO_ANS;
+    } else {
+        size_t num_inputs, num_valid = 0;
+        recv_size(serverfd, num_inputs);
+        fmpz_t* accum; new_fmpz_array(&accum, d * w);
+        bool* const shares = new bool[num_inputs * d * w];
+        bool* const valid = new bool[num_inputs];
+
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            const std::string pk = get_pk(serverfd);
+            valid[i] = (share_map.find(pk) != share_map.end());
+
+            if (valid[i]) {
+                memcpy(&shares[i * d * w], share_map[pk], d * w);
+            } else {
+                memset(&shares[i * d * w], 0, d * w);
+            }
+        }
+
+        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
+
+        fmpz_t* shares_p;
+        shares_p = correlated_store->b2a_daBit_single(num_inputs * d * w, shares);
+
+        // validity
+        memset(valid, true, num_inputs);
+
+        delete[] shares;
+
+        // Accumulate
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            if (!valid[i])
+                continue;
+            for (unsigned int j = 0; j < d * w; j++) {
+                fmpz_add(accum[j], accum[j], shares_p[i * d * w + j]);
+                fmpz_mod(accum[j], accum[j], Int_Modulus);
+            }
+            num_valid++;
+        }
+        delete[] valid;
+        clear_fmpz_array(shares_p, num_inputs * d * w);
+
+        std::cout << "getting other accum" << std::endl;
+        fmpz_t* accum_other; new_fmpz_array(&accum_other, d * w);
+        recv_fmpz_batch(serverfd, accum_other, d * w);
+
+        std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "sent server bytes: " << num_bytes << std::endl;
+        if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
+            std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+            clear_fmpz_array(accum_other, d * w);
+            clear_fmpz_array(accum, d * w);
+            return RET_INVALID;
+        }
+
+        // Sum accumulates
+        std::cout << "done, accumulating..." << std::endl;
+        for (unsigned int j = 0; j < d * w; j++) {
+            fmpz_add(accum[j], accum[j], accum_other[j]);
+            fmpz_mod(accum[j], accum[j], Int_Modulus);
+        }
+        clear_fmpz_array(accum_other, d * w);
+
+        // std::cout << "hashes: " << std::endl;
+        // for (unsigned int i = 0; i < d; i++) {
+        //     for (unsigned int j = 0; j < w; j++) {
+        //         if (!fmpz_is_zero(accum[i * w + j])) {
+        //             std::cout << "Hash_" << i << "[" << j << "] = ";
+        //             fmpz_print(accum[i * w + j]);
+        //             std::cout << std::endl;
+        //         }
+        //     }
+        // }
+
+        // Find heavy
+        std::cout << "Finding heavy..." << std::endl;
+        double target_freq = num_inputs * t;
+        std::cout << "Heavy of " << t << " is freq >= " << target_freq << std::endl;
+        fmpz_t hashed; fmpz_init(hashed);
+        int total = 0;
+        for (unsigned int x = 0; x < (1 << num_bits); x++) {
+            int acc = num_inputs;  // could also do mean, other stats
+            // d hashes range w
+            for (unsigned int j = 0; j < d; j++) {
+                hash_store.eval(j, x, hashed);
+                int h = fmpz_get_ui(hashed);
+                int est = fmpz_get_ui(accum[j * w + h]);
+                // std::cout << "hash_" << j << "(" << x << ") = " << h << ", est = " << est << std::endl;
+                acc = est < acc ? est : acc;
+            }
+            total += acc;
+            if (acc > 0) {
+                // std::cout << "Est Freq(" << x << ") \t= " << acc << std::endl;
+                // for (unsigned int j = 0; j < d; j++) {
+                //     hash_store.eval(j, x, hashed);
+                //     int h = fmpz_get_ui(hashed);
+                //     int est = fmpz_get_ui(accum[j * w + h]);
+                //     std::cout << "hash_" << j << "(" << x << ") = " << h << ", est = " << est << std::endl;
+                // }
+            }
+            if (acc >= target_freq) {
+                std::cout << x << " is heavy!" << std::endl;
+            } 
+        }
+        std::cout << "Est total: " << total << std::endl;
+        std::cout << "Overcount: " << (total - num_inputs) << std::endl;
+
+        fmpz_clear(hashed);
+        clear_fmpz_array(accum, d * w);
+        std::cout << "returning" << std::endl;
+        return RET_ANS;
+    }
+}
+
 int main(int argc, char** argv) {
     // TODO: num_bits no longer needed for preprocess. Encode in init_msg?
     if (argc < 4) {
@@ -1604,6 +1808,15 @@ int main(int argc, char** argv) {
             returnType ret = freq_op(msg, newsockfd, serverfd, server_num);
             if (ret == RET_ANS)
                 ; // Answer output by freq_op
+
+            std::cout << "Total time  : " << sec_from(start) << std::endl;
+        } else if (msg.type == COUNTMIN_OP) {
+            std::cout << "COUNTMIN_OP" << std::endl;
+            auto start = clock_start();
+
+            returnType ret = countMin_op(msg, newsockfd, serverfd, server_num);
+            if (ret == RET_ANS)
+                ; // Answer output by countmin_op
 
             std::cout << "Total time  : " << sec_from(start) << std::endl;
         } else if (msg.type == NONE_OP) {

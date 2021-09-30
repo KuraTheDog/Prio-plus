@@ -23,6 +23,7 @@ x_op_invalid: For testing/debugging, does a basic run with intentionally invalid
 #include <string>
 
 #include "circuit.h"
+#include "hash.h"
 #include "net_share.h"
 #include "ot.h"
 #include "types.h"
@@ -1487,6 +1488,131 @@ void freq_op(const std::string protocol, const size_t numreqs) {
     std::cout << "Total sent bytes: " << num_bytes << std::endl;
 }
 
+int countmin_helper(const std::string protocol, const size_t numreqs,
+                    uint64_t* counts, const size_t w, const size_t d,
+                    const double t, HashStore &hash_store) {
+    auto start = clock_start();
+    int num_bytes = 0;
+
+    emp::PRG prg;
+
+    uint64_t real_val;
+    fmpz_t hashed; fmpz_init(hashed);
+
+    uint64_t heavy;
+    prg.random_data(&heavy, sizeof(uint64_t));
+    heavy %= max_int;
+
+    std::cout << "Fixed heavy value: " << heavy << std::endl;
+
+    FreqShare* const freqshare0 = new FreqShare[numreqs];
+    FreqShare* const freqshare1 = new FreqShare[numreqs];
+    for (unsigned int i = 0; i < numreqs; i++) {
+        if (i <= t * numreqs) {  // first t fraction
+            real_val = heavy;
+        } else {
+            prg.random_data(&real_val, sizeof(uint64_t));
+            real_val %= max_int;
+        }
+        counts[real_val] += 1;
+
+        freqshare0[i].arr = new bool[d * w];
+        freqshare1[i].arr = new bool[d * w];
+        prg.random_bool(freqshare0[i].arr, d * w);
+        memcpy(freqshare1[i].arr, freqshare0[i].arr, d * w * sizeof(bool));
+        for (unsigned int j = 0; j < d; j++) {
+            hash_store.eval(j, real_val, hashed);
+            int h = fmpz_get_si(hashed);
+            freqshare1[i].arr[j * w + h] ^= 1;
+        }
+
+        const std::string pk_s = make_pk(prg);
+        const char* const pk = pk_s.c_str();
+        memcpy(freqshare0[i].pk, &pk[0], PK_LENGTH);
+        memcpy(freqshare1[i].pk, &pk[0], PK_LENGTH);
+    }
+    fmpz_clear(hashed);
+
+    if (numreqs > 1)
+        std::cout << "batch make:\t" << sec_from(start) << std::endl;
+
+    start = clock_start();
+    for (unsigned int i = 0; i < numreqs; i++) {
+        num_bytes += send_freqshare(0, freqshare0[i], d * w);
+        num_bytes += send_freqshare(1, freqshare1[i], d * w);
+
+        delete[] freqshare0[i].arr;
+        delete[] freqshare1[i].arr;
+    }
+
+    delete[] freqshare0;
+    delete[] freqshare1;
+
+    if (numreqs > 1)
+        std::cout << "batch send:\t" << sec_from(start) << std::endl;
+
+    return num_bytes;
+}
+
+void countmin_op(const std::string protocol, const size_t numreqs) {
+    uint64_t* count = new uint64_t[max_int];
+    memset(count, 0, max_int * sizeof(uint64_t));
+    int num_bytes = 0;
+    initMsg msg;
+    msg.num_of_inputs = numreqs;
+    msg.max_inp = max_int;
+    msg.type = COUNTMIN_OP;
+
+    // TODO: input param(s)
+    double t = 0.1;
+    // eps, delta
+    // (.3, .1) -> (24, 3)
+    size_t w = 24;
+    size_t d = 3;
+
+    HeavyConfig hconfig;
+    hconfig.t = t;
+    hconfig.w = w;
+    hconfig.d = d;
+    // seed for consistent hashes
+    flint_rand_t hash_seed; flint_randinit(hash_seed);
+
+    HashStore hash_store(d, num_bits, w, hash_seed);
+    for (unsigned int i = 0; i < d; i++)
+        hash_store.print_hash(i);
+
+    // send initMsg
+    num_bytes += send_to_server(0, &msg, sizeof(initMsg));
+    num_bytes += send_to_server(1, &msg, sizeof(initMsg));
+
+    // Heavy config
+    // TODO: build a sendHeavyConfig once I figure out what goes in it
+    num_bytes += send_double(sockfd0, t);
+    num_bytes += send_size(sockfd0, w);
+    num_bytes += send_size(sockfd0, d);
+    num_bytes += send_seed(sockfd0, hash_seed);
+    num_bytes += send_double(sockfd1, t);
+    num_bytes += send_size(sockfd1, w);
+    num_bytes += send_size(sockfd1, d);
+    num_bytes += send_seed(sockfd1, hash_seed);
+
+    if (CLIENT_BATCH) {
+        num_bytes += countmin_helper(protocol, numreqs, count, w, d, t, hash_store);
+    } else {
+        auto start = clock_start();
+        for (unsigned int i = 0; i < numreqs; i++)
+            num_bytes += countmin_helper(protocol, 1, count, w, d, t, hash_store);
+        std::cout << "make+send:\t" << sec_from(start) << std::endl;
+    }
+
+    for (unsigned int j = 0; j < max_int; j++) {
+        if (count[j] > 0)
+            std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
+    }
+    delete[] count;
+    std::cout << "Total sent bytes: " << num_bytes << std::endl;
+}
+
 int main(int argc, char** argv) {
     if (argc < 4) {
         std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits linreg_degree" << endl;
@@ -1642,6 +1768,16 @@ int main(int argc, char** argv) {
         //     lin_reg_invalid(protocol, numreqs);
         // else
         freq_op(protocol, numreqs);
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
+    }
+
+    else if(protocol == "COUNTMIN") {
+        std::cout << "Uploading all COUNTMIN shares: " << numreqs << std::endl;
+
+        // if (DEBUG_INVALID)
+        //     lin_reg_invalid(protocol, numreqs);
+        // else
+        countmin_op(protocol, numreqs);
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
