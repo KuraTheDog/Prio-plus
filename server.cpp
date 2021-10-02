@@ -272,26 +272,28 @@ bool* validate_snips(const size_t N,
     return ans;
 }
 
-fmpz_t* accumulate(const size_t N,
-                   const size_t num_inputs,
-                   const fmpz_t* const shares_p,
-                   const bool* const valid
-                   ) {
-    fmpz_t* ans; new_fmpz_array(&ans, num_inputs);
+size_t accumulate(const size_t num_inputs,
+                  const size_t num_shares,
+                  const fmpz_t* const shares_p,
+                  const bool* const valid,
+                  fmpz_t* const ans
+                  ) {
+    size_t num_valid = 0;
 
-    for (unsigned int j = 0; j < num_inputs; j++)
+    for (unsigned int j = 0; j < num_shares; j++)
         fmpz_zero(ans[j]);
 
-    for (unsigned int i = 0; i < N; i++) {
+    for (unsigned int i = 0; i < num_inputs; i++) {
         if (!valid[i])
             continue;
-        for (unsigned int j = 0; j < num_inputs; j++) {
-            fmpz_add(ans[j], ans[j], shares_p[i * num_inputs + j]);
+        for (unsigned int j = 0; j < num_shares; j++) {
+            fmpz_add(ans[j], ans[j], shares_p[i * num_shares + j]);
             fmpz_mod(ans[j], ans[j], Int_Modulus);  // How frequently?
         }
+        num_valid++;
     }
 
-    return ans;
+    return num_valid;
 }
 
 returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint64_t& ans) {
@@ -794,7 +796,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         start2 = clock_start();
 
         // Convert
-        fmpz_t* b = accumulate(num_inputs, 2, shares_p, valid);
+        fmpz_t* b; new_fmpz_array(&b, 2);
+        accumulate(num_inputs, 2, shares_p, valid, b);
 
         std::cout << "compute time: " << sec_from(start) << std::endl;
 
@@ -808,7 +811,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
     } else {
-        size_t num_inputs, num_valid = 0;
+        size_t num_inputs;
         recv_size(serverfd, num_inputs);
 
         uint64_t* const shares = new uint64_t[2 * num_inputs];
@@ -843,8 +846,6 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             valid[i] &= snip_valid[i];
-            if (valid[i])
-                num_valid++;
 
             delete circuit[i];
             delete packet[i];
@@ -859,7 +860,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         std::cout << "snip time: " << sec_from(start2) << std::endl;
 
         // Convert
-        fmpz_t* a = accumulate(num_inputs, 2, shares_p, valid);
+        fmpz_t* a; new_fmpz_array(&a, 2);
+        size_t num_valid = accumulate(num_inputs, 2, shares_p, valid, a);
 
         std::cout << "compute time: " << sec_from(start) << std::endl;
 
@@ -1046,7 +1048,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         std::cout << "snip time: " << sec_from(start2) << std::endl;
 
         // Convert
-        fmpz_t* b = accumulate(num_inputs, num_fields, shares_p, valid);
+        fmpz_t* b; new_fmpz_array(&b, num_fields);
+        accumulate(num_inputs, num_fields, shares_p, valid, b);
 
         std::cout << "compute time: " << sec_from(start) << std::endl;
 
@@ -1060,7 +1063,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
         return RET_NO_ANS;
     } else {
-        size_t num_inputs, num_valid = 0;
+        size_t num_inputs;
         recv_size(serverfd, num_inputs);
 
         uint64_t* const shares = new uint64_t[num_inputs * num_fields];
@@ -1112,8 +1115,6 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             valid[i] &= snip_valid[i];
-            if (valid[i])
-                num_valid++;
 
             delete circuit[i];
             delete packet[i];
@@ -1129,7 +1130,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         start2 = clock_start();
 
         // Convert
-        fmpz_t* a = accumulate(num_inputs, num_fields, shares_p, valid);
+        fmpz_t* a; new_fmpz_array(&a, num_fields);
+        size_t num_valid = accumulate(num_inputs, num_fields, shares_p, valid, a);
 
         std::cout << "compute time: " << sec_from(start) << std::endl;
 
@@ -1287,28 +1289,21 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         }
         clear_fmpz_array(sums, num_inputs);
 
-        // Accumulate
-        for (unsigned int i = 0; i < num_inputs; i++) {
-            if (!valid[i])
-                continue;
-            for (unsigned int j = 0; j < max_inp; j++) {
-                fmpz_add(accum[j], accum[j], shares_p[i * max_inp + j]);
-                fmpz_mod(accum[j], accum[j], Int_Modulus);
-            }
-        }
+        fmpz_t* b; new_fmpz_array(&b, max_inp);
+        accumulate(num_inputs, max_inp, shares_p, valid, b);
 
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * max_inp);
-        // send accum
-        send_fmpz_batch(serverfd, accum, max_inp);
-        clear_fmpz_array(accum, max_inp);
+        // send b
+        send_fmpz_batch(serverfd, b, max_inp);
+        clear_fmpz_array(b, max_inp);
 
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         std::cout << "compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         return RET_NO_ANS;
     } else {
-        size_t num_inputs, num_valid = 0;
+        size_t num_inputs;
         recv_size(serverfd, num_inputs);
         fmpz_t* accum; new_fmpz_array(&accum, max_inp);
         bool* const shares = new bool[num_inputs * max_inp];
@@ -1393,46 +1388,38 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         delete[] parity;
         num_bytes += send_bool_batch(serverfd, valid, num_inputs);
 
-        // Accumulate
-        for (unsigned int i = 0; i < num_inputs; i++) {
-            if (!valid[i])
-                continue;
-            for (unsigned int j = 0; j < max_inp; j++) {
-                fmpz_add(accum[j], accum[j], shares_p[i * max_inp + j]);
-                fmpz_mod(accum[j], accum[j], Int_Modulus);
-            }
-            num_valid++;
-        }
+        fmpz_t* a; new_fmpz_array(&a, max_inp);
+        size_t num_valid = accumulate(num_inputs, max_inp, shares_p, valid, a);
         delete[] valid;
         delete[] shares;
         clear_fmpz_array(shares_p, num_inputs * max_inp);
-        // recieve accum
-        fmpz_t* accum_other; new_fmpz_array(&accum_other, max_inp);
-        recv_fmpz_batch(serverfd, accum_other, max_inp);
+        // receive b
+        fmpz_t* b; new_fmpz_array(&b, max_inp);
+        recv_fmpz_batch(serverfd, b, max_inp);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
-            clear_fmpz_array(accum_other, max_inp);
-            clear_fmpz_array(accum, max_inp);
+            clear_fmpz_array(b, max_inp);
+            clear_fmpz_array(a, max_inp);
             return RET_INVALID;
         }
 
         // Sum accumulates
         for (unsigned int j = 0; j < max_inp; j++) {
-            fmpz_add(accum[j], accum[j], accum_other[j]);
-            fmpz_mod(accum[j], accum[j], Int_Modulus);
+            fmpz_add(a[j], a[j], b[j]);
+            fmpz_mod(a[j], a[j], Int_Modulus);
         }
-        clear_fmpz_array(accum_other, max_inp);
+        clear_fmpz_array(b, max_inp);
         // output
         for (unsigned int j = 0; j < max_inp; j++) {
             std::cout << " Freq(" << j << ") = ";
-            fmpz_print(accum[j]);
+            fmpz_print(a[j]);
             std::cout << std::endl;
         }
-        clear_fmpz_array(accum, max_inp);
+        clear_fmpz_array(a, max_inp);
         return RET_ANS;
     }
 }
@@ -1485,7 +1472,6 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
         num_bytes += send_size(serverfd, num_inputs);
-        fmpz_t* accum; new_fmpz_array(&accum, d * w);
         bool* const shares = new bool[num_inputs * d * w];
 
         size_t idx = 0;
@@ -1506,29 +1492,21 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
 
         delete[] shares;
 
-        // Accumulate
-        for (unsigned int i = 0; i < num_inputs; i++) {
-            if (!valid[i])
-                continue;
-            for (unsigned int j = 0; j < d * w; j++) {
-                fmpz_add(accum[j], accum[j], shares_p[i * d * w + j]);
-                fmpz_mod(accum[j], accum[j], Int_Modulus);
-            }
-        }
+        fmpz_t* b; new_fmpz_array(&b, d * w);
+        accumulate(num_inputs, d * w, shares_p, valid, b);
 
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * d * w);
-        send_fmpz_batch(serverfd, accum, d * w);
-        clear_fmpz_array(accum, d * w);
+        send_fmpz_batch(serverfd, b, d * w);
+        clear_fmpz_array(b, d * w);
 
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         std::cout << "compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         return RET_NO_ANS;
     } else {
-        size_t num_inputs, num_valid = 0;
+        size_t num_inputs;
         recv_size(serverfd, num_inputs);
-        fmpz_t* accum; new_fmpz_array(&accum, d * w);
         bool* const shares = new bool[num_inputs * d * w];
         bool* const valid = new bool[num_inputs];
 
@@ -1549,52 +1527,43 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
         fmpz_t* shares_p;
         shares_p = correlated_store->b2a_daBit_single(num_inputs * d * w, shares);
 
-        // validity
+        // TODO: validity
         memset(valid, true, num_inputs);
 
         delete[] shares;
 
-        // Accumulate
-        for (unsigned int i = 0; i < num_inputs; i++) {
-            if (!valid[i])
-                continue;
-            for (unsigned int j = 0; j < d * w; j++) {
-                fmpz_add(accum[j], accum[j], shares_p[i * d * w + j]);
-                fmpz_mod(accum[j], accum[j], Int_Modulus);
-            }
-            num_valid++;
-        }
+        fmpz_t* a; new_fmpz_array(&a, d * w);
+        size_t num_valid = accumulate(num_inputs, d * w, shares_p, valid, a);
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * d * w);
 
         std::cout << "getting other accum" << std::endl;
-        fmpz_t* accum_other; new_fmpz_array(&accum_other, d * w);
-        recv_fmpz_batch(serverfd, accum_other, d * w);
+        fmpz_t* b; new_fmpz_array(&b, d * w);
+        recv_fmpz_batch(serverfd, b, d * w);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
-            clear_fmpz_array(accum_other, d * w);
-            clear_fmpz_array(accum, d * w);
+            clear_fmpz_array(b, d * w);
+            clear_fmpz_array(a, d * w);
             return RET_INVALID;
         }
 
         // Sum accumulates
-        std::cout << "done, accumulating..." << std::endl;
         for (unsigned int j = 0; j < d * w; j++) {
-            fmpz_add(accum[j], accum[j], accum_other[j]);
-            fmpz_mod(accum[j], accum[j], Int_Modulus);
+            fmpz_add(a[j], a[j], b[j]);
+            fmpz_mod(a[j], a[j], Int_Modulus);
         }
-        clear_fmpz_array(accum_other, d * w);
+        clear_fmpz_array(b, d * w);
 
         // std::cout << "hashes: " << std::endl;
         // for (unsigned int i = 0; i < d; i++) {
         //     for (unsigned int j = 0; j < w; j++) {
-        //         if (!fmpz_is_zero(accum[i * w + j])) {
+        //         if (!fmpz_is_zero(a[i * w + j])) {
         //             std::cout << "Hash_" << i << "[" << j << "] = ";
-        //             fmpz_print(accum[i * w + j]);
+        //             fmpz_print(a[i * w + j]);
         //             std::cout << std::endl;
         //         }
         //     }
@@ -1612,7 +1581,7 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
             for (unsigned int j = 0; j < d; j++) {
                 hash_store.eval(j, x, hashed);
                 int h = fmpz_get_ui(hashed);
-                int est = fmpz_get_ui(accum[j * w + h]);
+                int est = fmpz_get_ui(a[j * w + h]);
                 // std::cout << "hash_" << j << "(" << x << ") = " << h << ", est = " << est << std::endl;
                 acc = est < acc ? est : acc;
             }
@@ -1622,7 +1591,7 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
                 // for (unsigned int j = 0; j < d; j++) {
                 //     hash_store.eval(j, x, hashed);
                 //     int h = fmpz_get_ui(hashed);
-                //     int est = fmpz_get_ui(accum[j * w + h]);
+                //     int est = fmpz_get_ui(a[j * w + h]);
                 //     std::cout << "hash_" << j << "(" << x << ") = " << h << ", est = " << est << std::endl;
                 // }
             }
@@ -1634,7 +1603,7 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
         std::cout << "Overcount: " << (total - num_inputs) << std::endl;
 
         fmpz_clear(hashed);
-        clear_fmpz_array(accum, d * w);
+        clear_fmpz_array(a, d * w);
         std::cout << "returning" << std::endl;
         return RET_ANS;
     }
