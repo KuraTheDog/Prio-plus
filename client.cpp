@@ -1489,7 +1489,8 @@ void freq_op(const std::string protocol, const size_t numreqs) {
 }
 
 int countmin_helper(const std::string protocol, const size_t numreqs,
-                    uint64_t* counts, HeavyConfig hconfig, HashStore &hash_store) {
+                    uint64_t* counts, HeavyConfig hconfig,
+                    HashStore &hash_store) {
     const double t = hconfig.t;
     const size_t w = hconfig.w;
     const size_t d = hconfig.d;
@@ -1501,17 +1502,23 @@ int countmin_helper(const std::string protocol, const size_t numreqs,
     uint64_t real_val;
     fmpz_t hashed; fmpz_init(hashed);
 
-    uint64_t heavy;
+    uint64_t heavy, heavy2;
     prg.random_data(&heavy, sizeof(uint64_t));
     heavy %= max_int;
+    prg.random_data(&heavy2, sizeof(uint64_t));
+    heavy2 %= max_int;
 
     std::cout << "Fixed heavy value: " << heavy << std::endl;
+    std::cout << "Fixed heavy value 2: " << heavy2 << std::endl;
 
     FreqShare* const freqshare0 = new FreqShare[numreqs];
     FreqShare* const freqshare1 = new FreqShare[numreqs];
     for (unsigned int i = 0; i < numreqs; i++) {
         if (i <= t * numreqs) {  // first t fraction
             real_val = heavy;
+            // TODO: another case for t(1-eps) fraction?
+        } else if (i < 2 * t * numreqs) {  // next t fraction
+            real_val = heavy2;
         } else {
             prg.random_data(&real_val, sizeof(uint64_t));
             real_val %= max_int;
@@ -1567,11 +1574,10 @@ void countmin_op(const std::string protocol, const size_t numreqs) {
     msg.type = COUNTMIN_OP;
 
     // TODO: input param(s)
-    double t = 0.1;
+    const double t = 0.3;
     // eps, delta
-    // (.3, .1) -> (24, 3)
-    size_t w = 24;
-    size_t d = 3;
+    // (.3, .3, .1) -> (24, 3)
+    const size_t w = 24, d = 3;
 
     HeavyConfig hconfig;
     hconfig.t = t;
@@ -1604,7 +1610,7 @@ void countmin_op(const std::string protocol, const size_t numreqs) {
     }
 
     for (unsigned int j = 0; j < max_int; j++) {
-        if (count[j] > 0)
+        if (count[j] > t * numreqs / 2)
             std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
     }
     delete[] count;

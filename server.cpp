@@ -1571,7 +1571,7 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
 
         // Find heavy
         std::cout << "Finding heavy..." << std::endl;
-        double target_freq = num_inputs * t;
+        const double target_freq = num_inputs * t;
         std::cout << "Heavy of " << t << " is freq >= " << target_freq << std::endl;
         fmpz_t hashed; fmpz_init(hashed);
         int total = 0;
@@ -1586,25 +1586,22 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
                 acc = est < acc ? est : acc;
             }
             total += acc;
-            if (acc > 0) {
-                // std::cout << "Est Freq(" << x << ") \t= " << acc << std::endl;
-                // for (unsigned int j = 0; j < d; j++) {
-                //     hash_store.eval(j, x, hashed);
-                //     int h = fmpz_get_ui(hashed);
-                //     int est = fmpz_get_ui(a[j * w + h]);
-                //     std::cout << "hash_" << j << "(" << x << ") = " << h << ", est = " << est << std::endl;
-                // }
-            }
+            // if (acc > 0) {
+            //     std::cout << "Est Freq(" << x << ") \t= " << acc << std::endl;
+            //     for (unsigned int j = 0; j < d; j++) {
+            //         hash_store.eval(j, x, hashed);
+            //         int h = fmpz_get_ui(hashed);
+            //         int est = fmpz_get_ui(a[j * w + h]);
+            //         std::cout << "hash_" << j << "(" << x << ") = " << h << ", est = " << est << std::endl;
+            //     }
+            // }
             if (acc >= target_freq) {
                 std::cout << x << " is heavy!" << std::endl;
             } 
         }
-        std::cout << "Est total: " << total << std::endl;
-        std::cout << "Overcount: " << (total - num_inputs) << std::endl;
 
         fmpz_clear(hashed);
         clear_fmpz_array(a, d * w);
-        std::cout << "returning" << std::endl;
         return RET_ANS;
     }
 }
