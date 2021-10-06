@@ -1619,6 +1619,155 @@ void countmin_op(const std::string protocol, const size_t numreqs) {
     std::cout << "Total sent bytes: " << num_bytes << std::endl;
 }
 
+int heavy_helper(const std::string protocol, const size_t numreqs,
+                 uint64_t* counts, HeavyConfig hconfig,
+                 HashStore** hash_stores) {
+    const double t = hconfig.t;
+    const size_t w = hconfig.w;
+    const size_t d = hconfig.d;
+    const size_t L = hconfig.L;
+    const size_t first_size = 1 << (num_bits - L);
+    const size_t share_size = L * d * w + first_size;
+    std::cout << "share size: " << share_size << std::endl;
+    auto start = clock_start();
+    int num_bytes = 0;
+
+    emp::PRG prg;
+
+    uint64_t real_val;
+    fmpz_t hashed; fmpz_init(hashed);
+
+    uint64_t heavy;
+    prg.random_data(&heavy, sizeof(uint64_t));
+    heavy %= max_int;
+
+    std::cout << "Fixed heavy value: " << heavy << std::endl;
+    FreqShare* const freqshare0 = new FreqShare[numreqs];
+    FreqShare* const freqshare1 = new FreqShare[numreqs];
+    for (unsigned int i = 0; i < numreqs; i++) {
+        if (i <= t * numreqs) {  // first t fraction
+            real_val = heavy;
+            // TODO: another case for t(1-eps) fraction?
+        } else {
+            prg.random_data(&real_val, sizeof(uint64_t));
+            real_val %= max_int;
+        }
+        counts[real_val] += 1;
+
+        freqshare0[i].arr = new bool[share_size];
+        freqshare1[i].arr = new bool[share_size];
+        prg.random_bool(freqshare0[i].arr, share_size);
+        memcpy(freqshare1[i].arr, freqshare0[i].arr, share_size * sizeof(bool));
+        for (unsigned int k = 0; k < L; k++) {
+            // Hash last num-k bits of val in standard count-min
+            const uint64_t offset_val = real_val >> (L - 1 - k);
+            for (unsigned int j = 0; j < d; j++) {
+                hash_stores[k]->eval(j, offset_val, hashed);
+                int h = fmpz_get_si(hashed);
+                // std::cout << "layer " << k << " hash_" << j << "(" << offset_val << ") = " << h << ", setting " << (k * d * w + j * w + h) << std::endl;
+                freqshare1[i].arr[k * d * w + j * w + h] ^= 1;
+            }
+        }
+        // Store final num-L in standard freq
+        // std::cout << "freq set " << L * d * w << " + " << (real_val >> L) << " = " << (L * d * w + (real_val >> L)) << std::endl;
+        freqshare1[i].arr[L * d * w + (real_val >> L)] ^= 1;
+
+        const std::string pk_s = make_pk(prg);
+        const char* const pk = pk_s.c_str();
+        memcpy(freqshare0[i].pk, &pk[0], PK_LENGTH);
+        memcpy(freqshare1[i].pk, &pk[0], PK_LENGTH);
+    }
+    fmpz_clear(hashed);
+
+    // for (unsigned int j = 0; j < share_size; j++) {
+    //     std::cout << "0[" << j << "] " << freqshare0[0].arr[j] << " ^ " << freqshare1[0].arr[j] << " = " << (freqshare0[0].arr[j] ^ freqshare1[0].arr[j]) << std::endl;
+    // }
+
+    if (numreqs > 1)
+        std::cout << "batch make:\t" << sec_from(start) << std::endl;
+
+    start = clock_start();
+    for (unsigned int i = 0; i < numreqs; i++) {
+        num_bytes += send_freqshare(0, freqshare0[i], share_size);
+        num_bytes += send_freqshare(1, freqshare1[i], share_size);
+
+        delete[] freqshare0[i].arr;
+        delete[] freqshare1[i].arr;
+    }
+
+    delete[] freqshare0;
+    delete[] freqshare1;
+
+    if (numreqs > 1)
+        std::cout << "batch send:\t" << sec_from(start) << std::endl;
+
+    return num_bytes;
+}
+
+void heavy_op(const std::string protocol, const size_t numreqs) {
+    uint64_t* const count = new uint64_t[max_int];
+    memset(count, 0, max_int * sizeof(uint64_t));
+    int num_bytes = 0;
+
+    initMsg msg;
+    msg.num_of_inputs = numreqs;
+    msg.max_inp = max_int;
+    msg.type = HEAVY_OP;
+
+    // TODO: input params
+    const double t = 0.3;
+    // (bits, t, eps, delta)
+    // 16, .3, .3, .1
+    // const size_t w = 140, d = 8, L = 5;
+    // 8, .8, .8, .1
+    const size_t w = 7, d = 5, L = 2;
+
+    HeavyConfig hconfig;
+    hconfig.t = t;
+    hconfig.w = w;
+    hconfig.d = d;
+    hconfig.L = L;
+
+    std::cout << "set: t = " << t << std::endl;
+    std::cout << "set: w = " << w << std::endl;
+    std::cout << "set: d = " << d << std::endl;
+    std::cout << "set: L = " << L << std::endl;
+
+    flint_rand_t hash_seed; flint_randinit(hash_seed);
+    HashStore** hash_stores = new HashStore*[L];
+    for (unsigned int i = 0; i < L; i++)
+        hash_stores[i] = new HashStore(d, num_bits - i, w, hash_seed);
+
+    // send initMsg
+    num_bytes += send_to_server(0, &msg, sizeof(initMsg));
+    num_bytes += send_to_server(1, &msg, sizeof(initMsg));
+
+    // Heavy config
+    num_bytes += send_heavycfg(sockfd0, hconfig);
+    num_bytes += send_heavycfg(sockfd1, hconfig);
+    num_bytes += send_seed(sockfd0, hash_seed);
+    num_bytes += send_seed(sockfd1, hash_seed);
+
+    if (CLIENT_BATCH) {
+        num_bytes += heavy_helper(protocol, numreqs, count, hconfig, hash_stores);
+    } else {
+        auto start = clock_start();
+        for (unsigned int i = 0; i < numreqs; i++)
+            num_bytes += heavy_helper(protocol, 1, count, hconfig, hash_stores);
+        std::cout << "make+send:\t" << sec_from(start) << std::endl;
+    }
+
+    for (unsigned int j = 0; j < max_int; j++) {
+        if (count[j] > t * numreqs / 2)
+            std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
+    }
+    delete[] count;
+    for (unsigned int i = 0; i < L; i++)
+        delete hash_stores[i];
+    delete[] hash_stores;
+    std::cout << "Total sent bytes: " << num_bytes << std::endl;
+}
+
 int main(int argc, char** argv) {
     if (argc < 4) {
         std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits linreg_degree" << endl;
@@ -1784,6 +1933,16 @@ int main(int argc, char** argv) {
         //     countmin_invalid(protocol, numreqs);
         // else
         countmin_op(protocol, numreqs);
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
+    }
+
+    else if(protocol == "HEAVY") {
+        std::cout << "Uploading all HEAVY shares: " << numreqs << std::endl;
+
+        // if (DEBUG_INVALID)
+        //     heavy_invalid(protocol, numreqs);
+        // else
+        heavy_op(protocol, numreqs);
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
