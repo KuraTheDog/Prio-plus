@@ -43,6 +43,9 @@ x_op_invalid: For testing/debugging, does a basic run with intentionally invalid
 uint32_t num_bits;
 uint64_t max_int;
 uint32_t linreg_degree = 2;
+// Heavy
+double t = -1;  // default to not work
+size_t w, d, L = 0;
 
 int sockfd0, sockfd1;
 
@@ -1573,13 +1576,8 @@ void countmin_op(const std::string protocol, const size_t numreqs) {
     msg.max_inp = max_int;
     msg.type = COUNTMIN_OP;
 
-    // TODO: input param(s)
-    const double t = 0.3;
-    // t, eps, delta
-    // .3, .3, .1
-    const size_t w = 24, d = 3;
-    // .1, .1, .1
-    // const size_t w = 216, d = 3;
+    if (t == -1)
+        error_exit("provide t, w, d in params");
 
     HeavyConfig hconfig;
     hconfig.t = t;
@@ -1714,13 +1712,8 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
     msg.max_inp = max_int;
     msg.type = HEAVY_OP;
 
-    // TODO: input params
-    const double t = 0.3;
-    // (bits, t, eps, delta)
-    // 16, .3, .3, .1
-    // const size_t w = 140, d = 8, L = 5;
-    // 8, .8, .8, .1
-    const size_t w = 7, d = 5, L = 2;
+    if (t == -1 or L == 0)
+        error_exit("provide t, w, d, L in params");
 
     HeavyConfig hconfig;
     hconfig.t = t;
@@ -1770,7 +1763,7 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
 
 int main(int argc, char** argv) {
     if (argc < 4) {
-        std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits linreg_degree" << endl;
+        std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits (linreg_degree/heavy_t) heavy_w heavy_d heavy_L" << endl;
         return 1;
     }
 
@@ -1789,11 +1782,30 @@ int main(int argc, char** argv) {
             error_exit("Num bits is too large. Int math is done mod 2^64.");
     }
 
-    if (argc >= 7) {
+    if (argc == 7) {
         linreg_degree = atoi(argv[6]);
         std::cout << "linreg degree: " << num_bits << std::endl;
         if (linreg_degree < 2)
             error_exit("Linreg Degree must be >= 2");
+    }
+
+    // Heavy: t, w, d
+    if (argc > 7) {
+        if (argc < 9) // just 8
+            error_exit("Heavy needs at least t, w, d, possibly L");
+        t = atof(argv[6]);
+        if (t < 0 or t > 1)
+            error_exit("heavy threshold should be float between 0 and 1");
+
+        w = atoi(argv[7]);
+        d = atoi(argv[8]);
+        std::cout << "Heavy related with threshold t = " << t << std::endl;
+        std::cout << "  Params (w = " << w << "), (d = " << d << ")";
+        if (argc >= 10) {
+            L = atoi(argv[9]);
+            std::cout << ", (L = " << L << ")"; 
+        }
+        std::cout << std::endl;
     }
 
     // Set up server connections
