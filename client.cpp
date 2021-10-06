@@ -1575,9 +1575,11 @@ void countmin_op(const std::string protocol, const size_t numreqs) {
 
     // TODO: input param(s)
     const double t = 0.3;
-    // eps, delta
-    // (.3, .3, .1) -> (24, 3)
+    // t, eps, delta
+    // .3, .3, .1
     const size_t w = 24, d = 3;
+    // .1, .1, .1
+    // const size_t w = 216, d = 3;
 
     HeavyConfig hconfig;
     hconfig.t = t;
@@ -1779,7 +1781,7 @@ int main(int argc, char** argv) {
         std::cout << "Uploading all COUNTMIN shares: " << numreqs << std::endl;
 
         // if (DEBUG_INVALID)
-        //     lin_reg_invalid(protocol, numreqs);
+        //     countmin_invalid(protocol, numreqs);
         // else
         countmin_op(protocol, numreqs);
         std::cout << "Total time:\t" << sec_from(start) << std::endl;

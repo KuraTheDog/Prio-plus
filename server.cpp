@@ -1251,23 +1251,20 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         fmpz_t* shares_p;
         shares_p = correlated_store->b2a_daBit_single(num_inputs * max_inp, shares);
         
-        // Reusing valid as parity
         bool* const valid = new bool[num_inputs];
         fmpz_t* sums; new_fmpz_array(&sums, num_inputs);
         bool total_parity = 0;
-        fmpz_t sum; fmpz_init(sum); fmpz_zero(sum);
+        fmpz_t sum; fmpz_init_set_si(sum, 0);
         for (unsigned int i = 0; i < num_inputs; i++) {
-            valid[i] = false;
             fmpz_zero(sums[i]);
             for (unsigned int j = 0; j < max_inp; j++) {
                 // std::cout << "share_p[" << i << ", " << j << "] = ";
                 // fmpz_print(shares_p[i * max_inp + j]); std::cout << std::endl;
 
-                valid[i] ^= shares[i * max_inp + j];
                 fmpz_add(sums[i], sums[i], shares_p[i * max_inp + j]);
                 fmpz_mod(sums[i], sums[i], Int_Modulus);
+                total_parity ^= shares[i * max_inp + j];
             }
-            total_parity ^= valid[i];
             fmpz_add(sum, sum, sums[i]);
             fmpz_mod(sum, sum, Int_Modulus);
         }
@@ -1486,11 +1483,35 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
         fmpz_t* shares_p;
         shares_p = correlated_store->b2a_daBit_single(num_inputs * d * w, shares);
 
-        // validity
+        // Batch validity check
         bool* const valid = new bool[num_inputs];
-        memset(valid, true, num_inputs);
-
+        bool* const parity = new bool[d];
+        memset(parity, false, d);
+        fmpz_t* sums; new_fmpz_array(&sums, d);
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            for (unsigned int j = 0; j < d; j++) {
+                for (unsigned int k = 0; k < w; k++) {
+                    const size_t idx = i * d * w + j * w + k;
+                    parity[j] ^= shares[idx];
+                    fmpz_add(sums[j], sums[j], shares_p[idx]);
+                    fmpz_mod(sums[j], sums[j], Int_Modulus);
+                }
+            }
+        }
+        num_bytes += send_bool_batch(serverfd, parity, d);
+        num_bytes += send_fmpz_batch(serverfd, sums, d);
+        clear_fmpz_array(sums, d);
+        delete[] parity;
         delete[] shares;
+
+        bool all_valid;
+        recv_bool(serverfd, all_valid);
+        if (all_valid) {
+            memset(valid, true, num_inputs);
+        } else {
+            std::cout << "Batch not valid. Individual check currently not implemented" << std::endl;
+            memset(valid, false, num_inputs);
+        }
 
         fmpz_t* b; new_fmpz_array(&b, d * w);
         accumulate(num_inputs, d * w, shares_p, valid, b);
@@ -1527,10 +1548,53 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
         fmpz_t* shares_p;
         shares_p = correlated_store->b2a_daBit_single(num_inputs * d * w, shares);
 
-        // TODO: validity
-        memset(valid, true, num_inputs);
+        // Batch validity check
+        bool* const parity = new bool[d];
+        memset(parity, false, d);
+        fmpz_t* sums; new_fmpz_array(&sums, d);
+        for (unsigned int i = 0; i < num_inputs; i++) {
+            for (unsigned int j = 0; j < d; j++) {
+                for (unsigned int k = 0; k < w; k++) {
+                    const size_t idx = i * d * w + j * w + k;
+                    parity[j] ^= shares[idx];
+                    fmpz_add(sums[j], sums[j], shares_p[idx]);
+                    fmpz_mod(sums[j], sums[j], Int_Modulus);
+                }
+            }
+        }
+        bool* parity_other = new bool[d];
+        fmpz_t* sums_other; new_fmpz_array(&sums_other, d);
+        recv_bool_batch(serverfd, parity_other, d);
+        recv_fmpz_batch(serverfd, sums_other, d);
 
+        bool all_valid = false;
+        for (unsigned int j = 0; j < d; j++) {
+            all_valid = (parity[j] ^ parity_other[j]) == (total_inputs % 2);
+            if (!all_valid)
+                continue;
+        }
+        if (all_valid) {
+            for (unsigned int j = 0; j < d; j++) {
+                fmpz_add(sums[j], sums[j], sums_other[j]);
+                fmpz_mod(sums[j], sums[j], Int_Modulus);
+                all_valid = fmpz_equal_ui(sums[j], total_inputs);
+                if (!all_valid)
+                    continue;
+            }
+        }
+        num_bytes += send_bool(serverfd, all_valid);
+        clear_fmpz_array(sums, d);
+        clear_fmpz_array(sums_other, d);
+        delete[] parity;
+        delete[] parity_other;
         delete[] shares;
+
+        if (all_valid) {
+            memset(valid, true, num_inputs);
+        } else {
+            std::cout << "Batch not valid. Individual check currently not implemented" << std::endl;
+            memset(valid, false, num_inputs);
+        }
 
         fmpz_t* a; new_fmpz_array(&a, d * w);
         size_t num_valid = accumulate(num_inputs, d * w, shares_p, valid, a);
