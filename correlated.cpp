@@ -45,14 +45,13 @@ void CorrelatedStore::addDaBits(const size_t n) {
         dabit_store.push(dabit[i]);
         delete other_dabit[i];
       }
-      delete[] dabit;
-    }
-    else {
+      delete[] other_dabit;
+    } else {
       recv_DaBit_batch(serverfd, dabit, num_to_make);
       for (unsigned int i = 0; i < num_to_make; i++)
         dabit_store.push(dabit[i]);
-      delete[] dabit;
     }
+    delete[] dabit;
   }
   std::cout << "addDaBits timing : " << sec_from(start) << std::endl;
 }
@@ -332,9 +331,11 @@ fmpz_t* CorrelatedStore::b2a_ot(const size_t num_shares, const size_t num_values
       fmpz_set_ui(ans[i * num_values + j], xp[i][j]);
     }
     delete[] x2[i];
+    delete[] xp[i];
   }
   delete[] x2;
   delete[] valid;
+  delete[] xp;
 
   return ans;
 }

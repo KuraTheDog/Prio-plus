@@ -1520,7 +1520,7 @@ int countmin_helper(const std::string protocol, const size_t numreqs,
         if (i <= t * numreqs) {  // first t fraction
             real_val = heavy;
             // TODO: another case for t(1-eps) fraction?
-        } else if (i < 2 * t * numreqs) {  // next t fraction
+        } else if (i <= 2 * t * numreqs) {  // next t fraction
             real_val = heavy2;
         } else {
             prg.random_data(&real_val, sizeof(uint64_t));

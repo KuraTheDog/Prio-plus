@@ -1203,27 +1203,27 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
     std::unordered_map<std::string, bool*> share_map;
     auto start = clock_start();
 
-    FreqShare share;
     const unsigned int total_inputs = msg.num_of_inputs;
     // const uint64_t max_inp = msg.max_inp;
     const uint64_t max_inp = 1 << num_bits;
     // TODO: if 1 << num_bits < max_inp, fail
 
-    // TODO: batch
-    bool* const shares = new bool[total_inputs * max_inp];
-
+    FreqShare share;
     int num_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
         num_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
         const std::string pk(share.pk, share.pk+PK_LENGTH);
-        num_bytes += recv_bool_batch(clientfd, &shares[i * max_inp], max_inp);
+        share.arr = new bool[max_inp];
+        num_bytes += recv_bool_batch(clientfd, share.arr, max_inp);
 
-        if (share_map.find(pk) != share_map.end())
+        if (share_map.find(pk) != share_map.end()) {
+            delete[] share.arr;
             continue;
-        share_map[pk] = &shares[i * max_inp];
+        }
+        share_map[pk] = share.arr;
 
         // for (unsigned int j = 0; j < max_inp; j++) {
-        //     std::cout << "share[" << i << ", " << j << "] = " << shares[i * max_inp + j] << std::endl;
+        //     std::cout << "share[" << i << ", " << j << "] = " << share.arr[j] << std::endl;
         // }
     }
 
@@ -1237,13 +1237,13 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
         num_bytes += send_size(serverfd, num_inputs);
-        fmpz_t* accum; new_fmpz_array(&accum, max_inp);
         bool* const shares = new bool[num_inputs * max_inp];
 
         size_t idx = 0;
         for (const auto& share : share_map) {
             num_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             memcpy(&shares[idx * max_inp], share.second, max_inp);
+            delete[] share.second;
             idx++;
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
@@ -1303,7 +1303,6 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
     } else {
         size_t num_inputs;
         recv_size(serverfd, num_inputs);
-        fmpz_t* accum; new_fmpz_array(&accum, max_inp);
         bool* const shares = new bool[num_inputs * max_inp];
         bool* const valid = new bool[num_inputs];
 
@@ -1314,6 +1313,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
             // realign shares_2 to pk order
             if (valid[i]) {
                 memcpy(&shares[i * max_inp], share_map[pk], max_inp);
+                delete[] share_map[pk];
             } else {
                 memset(&shares[i * max_inp], 0, max_inp);
             }
@@ -1439,22 +1439,23 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
     const unsigned int total_inputs = msg.num_of_inputs;
     
     FreqShare share;
-    bool* const shares = new bool[total_inputs * d * w];
-
     int num_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
         num_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
         const std::string pk(share.pk, share.pk+PK_LENGTH);
-        num_bytes += recv_bool_batch(clientfd, &shares[i * d * w], d * w);
+        share.arr = new bool[d * w];
+        num_bytes += recv_bool_batch(clientfd, share.arr, d * w);
 
-        if (share_map.find(pk) != share_map.end())
+        if (share_map.find(pk) != share_map.end()) {
+            delete[] share.arr;
             continue;
-        share_map[pk] = &shares[i * d * w];
+        }
+        share_map[pk] = share.arr;
 
         // for (unsigned int j = 0; j < d; j++) {
         //     std::cout << "share[" << i << "][" << j << "] = ";
         //     for (unsigned int k = 0; k < w; k++) {
-        //         std::cout << shares[i * d * w + j * d + k] << " ";
+        //         std::cout << share.arr[j * d + k] << " ";
         //     }
         //     std::cout << std::endl;
         // }
@@ -1476,6 +1477,7 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
         for (const auto& share : share_map) {
             num_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             memcpy(&shares[idx * d * w], share.second, d * w);
+            delete[] share.second;
             idx++;
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
@@ -1538,6 +1540,7 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
 
             if (valid[i]) {
                 memcpy(&shares[i * d * w], share_map[pk], d * w);
+                delete[] share_map[pk];
             } else {
                 memset(&shares[i * d * w], 0, d * w);
             }
@@ -1694,18 +1697,18 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
     const unsigned int total_inputs = msg.num_of_inputs;
     
     FreqShare share;
-    bool* const shares = new bool[total_inputs * share_size];
-
     int num_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
         num_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
         const std::string pk(share.pk, share.pk+PK_LENGTH);
-        num_bytes += recv_bool_batch(clientfd, &shares[i * share_size],
-                                     share_size);
+        share.arr = new bool[share_size];
+        num_bytes += recv_bool_batch(clientfd, share.arr, share_size);
 
-        if (share_map.find(pk) != share_map.end())
+        if (share_map.find(pk) != share_map.end()) {
+            delete[] share.arr;
             continue;
-        share_map[pk] = &shares[i * share_size];
+        }
+        share_map[pk] = share.arr;
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
@@ -1724,6 +1727,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         for (const auto& share : share_map) {
             num_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             memcpy(&shares[idx * share_size], share.second, share_size);
+            delete[] share.second;
             idx++;
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
@@ -1797,6 +1801,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
 
             if (valid[i]) {
                 memcpy(&shares[i * share_size], share_map[pk], share_size);
+                delete[] share_map[pk];
             } else {
                 memset(&shares[i * share_size], 0, share_size);
             }
@@ -1962,6 +1967,9 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
 
         fmpz_clear(hashed);
         clear_fmpz_array(a, share_size);
+        for (unsigned int i = 0; i < L; i++)
+            delete hash_stores[i];
+        delete[] hash_stores;
 
         return RET_ANS;
     }
@@ -2169,5 +2177,7 @@ int main(int argc, char** argv) {
 
     delete ot0;
     delete ot1;
+    fmpz_clear(randomX);
+
     return 0;
 }

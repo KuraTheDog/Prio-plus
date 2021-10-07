@@ -54,6 +54,7 @@ void precomp_x_init(precomp_x_t* const pre_x, const precomp_t* const pre, const 
     fmpz_invmod(tmp, tmp, pre->modulus);
 
     fmpz_mul(tmp, tmp, prod);
+    fmpz_mod(tmp, tmp, pre_x->modulus);
     fmpz_mul(tmp, tmp, pre->s_points[i]);
     fmpz_mod(pre_x->coeffs[i], tmp, pre_x->modulus);
   }

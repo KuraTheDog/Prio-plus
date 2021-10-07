@@ -206,7 +206,7 @@ void test_b2a_ot(const size_t N, const size_t* const nbits, const int server_num
     fmpz_set_ui(x[1], 4);
   }
 
-  size_t mod = fmpz_get_ui(Int_Modulus);
+  const size_t mod = fmpz_get_ui(Int_Modulus);
   fmpz_t* xp = store->b2a_ot(N, 1, nbits, x, mod);
 
   if (server_num == 0) {
