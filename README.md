@@ -40,8 +40,12 @@ For testing across multiple machines, configure the constants on top of `client.
 The code runs two servers, 0 and 1, each of which needs to be started separately. 
 Server 0 needs to be started before server 1.
 
-* Server arguments are `server_num client_listen_port server0_port max_bits`
-* Client arguments are `num_inputs server0_port server1_port operand max_bits linreg_degree`
+* Server arguments are `server_num client_listen_port server0_port`
+* Client arguments are `./bin/client num_submissions server0_port server1_port OPERATION num_bits (linreg_degree/heavy_t) heavy_w heavy_d heavy_L`
+  * `num_bits` required for ops using integers.
+  * `linreg_degree` optional for LINREG, default 2
+  * `heavy_t`, `heavy_w`, `heavy_d` are parameters for heavy related ops.
+  * `heavy_L` is for heavy, and should be `ceil(log_2(wd))` (param for convenience)
 
 * Ports and max bits need to be consistent across runs and both servers and the client.
 * `max_bits` is used for int based summations, and must match the server value in this case.  
@@ -64,6 +68,9 @@ Server 0 needs to be started before server 1.
 * MAXOP / MINOP: Max/min, with values between 0 and `2^max_bits`
 * VAROP / STDDEVOP: Variance / Standard Deviation of `max_bits`-bit integers
 * LINREGOP: `linreg_degree` degree linear regression on `max_bits`-bit integers
+* FREQ: Standard frequency counting
+* COUNTMIN: Count-min sketch for `t`-heavy hitters, using `d` hashes of range `w`.
+* HEAVY: Full `t`-heavy hitters, with `L` layers of `d` hashes of range `w` for easy querying. 
 
 # Code flow outline
 
@@ -73,7 +80,7 @@ Server 0 needs to be started before server 1.
 3. Client connects to servers, sends corresponding shares
 4. Servers recieve all shares
 5. For each share, servers check if public keys line up
-6. If relevant, servers use EdaBit share conversion to get wire shares for SNIPS, or OT share conversion if SNIPS are not needed
-7. If relevent, servers run SNIPS validations
+6. If relevant, servers use daBit or OT share conversion to convert the values to arithmetic shares, for aggregation and SNIPS
+7. If relevent, servers run validations on shares, including SNIPS
 8. Servers combine their aggregates, taking into account validitiy of shares
 9. Server 0 computes the final answer using the combined aggregates
