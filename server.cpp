@@ -40,8 +40,8 @@ OT_Wrapper* ot1;
 // Precompute cache of dabits
 CorrelatedStore* correlated_store;
 // #define CACHE_SIZE 8192
-#define CACHE_SIZE 65536
-// #define CACHE_SIZE 262144
+// #define CACHE_SIZE 65536
+#define CACHE_SIZE 262144
 // #define CACHE_SIZE 2097152
 // If set, does fast but insecure offline precompute.
 #define LAZY_PRECOMPUTE true
@@ -336,7 +336,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
 
         send_uint64(serverfd, b);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
     } else {
@@ -367,7 +367,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "convert time: " << sec_from(start2) << std::endl;
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             return RET_INVALID;
@@ -433,7 +433,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
 
         send_uint64(serverfd, b);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
     } else {
@@ -471,7 +471,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         recv_uint64(serverfd, b);
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "convert time: " << sec_from(start2) << std::endl;
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             return RET_INVALID;
@@ -534,7 +534,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
         send_uint64(serverfd, b);
         delete[] pk_list;
         std::cout << "convert time: " << sec_from(start2) << std::endl;
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
     } else {
@@ -564,7 +564,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
         const uint64_t aggr = a ^ b;
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
@@ -641,7 +641,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         send_uint64_batch(serverfd, b, B+1);
 
         std::cout << "convert time: " << sec_from(start2) << std::endl;
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         return RET_NO_ANS;
     } else {
@@ -672,7 +672,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
         recv_uint64_batch(serverfd, b, B+1);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << server_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
@@ -797,7 +797,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         fmpz_t* b; new_fmpz_array(&b, 2);
         accumulate(num_inputs, 2, shares_p, valid, b);
 
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
 
         send_fmpz(serverfd, b[0]);
         send_fmpz(serverfd, b[1]);
@@ -861,7 +861,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         fmpz_t* a; new_fmpz_array(&a, 2);
         size_t num_valid = accumulate(num_inputs, 2, shares_p, valid, a);
 
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
 
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * 2);
@@ -1049,7 +1049,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         fmpz_t* b; new_fmpz_array(&b, num_fields);
         accumulate(num_inputs, num_fields, shares_p, valid, b);
 
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
 
         send_fmpz_batch(serverfd, b, num_fields);
 
@@ -1131,7 +1131,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         fmpz_t* a; new_fmpz_array(&a, num_fields);
         size_t num_valid = accumulate(num_inputs, num_fields, shares_p, valid, a);
 
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
 
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * num_fields);
@@ -1294,7 +1294,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         clear_fmpz_array(b, max_inp);
 
         std::cout << "convert time: " << sec_from(start2) << std::endl;
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         return RET_NO_ANS;
     } else {
@@ -1393,7 +1393,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         recv_fmpz_batch(serverfd, b, max_inp);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
@@ -1483,6 +1483,9 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
         fmpz_t* shares_p;
         shares_p = correlated_store->b2a_daBit_single(num_inputs * d * w, shares);
 
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
+
         // Batch validity check
         bool* const valid = new bool[num_inputs];
         bool* const parity = new bool[d];
@@ -1513,6 +1516,9 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
             memset(valid, false, num_inputs);
         }
 
+        std::cout << "validity time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
+
         fmpz_t* b; new_fmpz_array(&b, d * w);
         accumulate(num_inputs, d * w, shares_p, valid, b);
 
@@ -1521,8 +1527,8 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
         send_fmpz_batch(serverfd, b, d * w);
         clear_fmpz_array(b, d * w);
 
-        std::cout << "convert time: " << sec_from(start2) << std::endl;
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         return RET_NO_ANS;
     } else {
@@ -1548,6 +1554,9 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
 
         fmpz_t* shares_p;
         shares_p = correlated_store->b2a_daBit_single(num_inputs * d * w, shares);
+
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
 
         // Batch validity check
         bool* const parity = new bool[d];
@@ -1597,17 +1606,21 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
             memset(valid, false, num_inputs);
         }
 
+        std::cout << "validity time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
+
         fmpz_t* a; new_fmpz_array(&a, d * w);
         size_t num_valid = accumulate(num_inputs, d * w, shares_p, valid, a);
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * d * w);
 
-        std::cout << "getting other accum" << std::endl;
         fmpz_t* b; new_fmpz_array(&b, d * w);
         recv_fmpz_batch(serverfd, b, d * w);
 
+        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
+
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
@@ -1667,6 +1680,10 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
 
         fmpz_clear(hashed);
         clear_fmpz_array(a, d * w);
+
+        std::cout << "find final answer time: " << sec_from(start2) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
+        start2 = clock_start();
         return RET_ANS;
     }
 }
@@ -1733,6 +1750,9 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         fmpz_t* shares_p;
         shares_p = correlated_store->b2a_daBit_single(num_inputs * share_size, shares);
 
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
+
         // Batch validity check
         bool* const valid = new bool[num_inputs];
         const size_t valid_batch_size = L * d + 1;  // L layers size d + freq
@@ -1773,7 +1793,9 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
             memset(valid, false, num_inputs);
         }
 
-        std::cout << "Accumulating..." << std::endl;
+        std::cout << "validity time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
+
         fmpz_t* b; new_fmpz_array(&b, share_size);
         accumulate(num_inputs, share_size, shares_p, valid, b);
         send_fmpz_batch(serverfd, b, share_size);
@@ -1782,8 +1804,8 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         clear_fmpz_array(shares_p, num_inputs * share_size);
         clear_fmpz_array(b, share_size);
 
-        std::cout << "convert time: " << sec_from(start2) << std::endl;
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         return RET_NO_ANS;
     } else {
@@ -1809,6 +1831,9 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
 
         fmpz_t* shares_p;
         shares_p = correlated_store->b2a_daBit_single(num_inputs * share_size, shares);
+
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
 
         // Batch validity check
         const size_t valid_batch_size = L * d + 1;  // L layers size d + freq
@@ -1867,6 +1892,8 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
             std::cout << "Batch not valid. Individual check currently not implemented" << std::endl;
             memset(valid, false, num_inputs);
         }
+        std::cout << "validity time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
 
         fmpz_t* a; new_fmpz_array(&a, share_size);
         size_t num_valid = accumulate(num_inputs, share_size, shares_p, valid, a);
@@ -1876,8 +1903,11 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         fmpz_t* b; new_fmpz_array(&b, share_size);
         recv_fmpz_batch(serverfd, b, share_size);
 
+        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
+
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "compute time: " << sec_from(start) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
@@ -1966,6 +1996,9 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         for (unsigned int i = 0; i < L; i++)
             delete hash_stores[i];
         delete[] hash_stores;
+
+        std::cout << "Final evaluate time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
 
         return RET_ANS;
     }
