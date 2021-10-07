@@ -52,9 +52,6 @@ CorrelatedStore* correlated_store;
 // I.e. recieve and store all, then process all.
 // TODO: Set up batching. Either every N inputs (based on space consumed), or every S seconds (figure out timer)
 
-uint64_t int_sum_max;
-uint32_t num_bits;
-
 size_t send_out(const int sockfd, const void* const buf, const size_t len) {
     size_t ret = send(sockfd, buf, len, 0);
     if (ret <= 0) error_exit("Failed to send");
@@ -386,9 +383,9 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
     auto start = clock_start();
 
     IntShare share;
-    const uint64_t max_val = 1ULL << num_bits;
+    const uint64_t max_val = 1ULL << msg.num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
-    const size_t nbits[1] = {num_bits};
+    const size_t nbits[1] = {msg.num_bits};
 
     int num_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
@@ -710,9 +707,9 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     std::unordered_map<std::string, sharetype> share_map;
 
     VarShare share;
-    const uint64_t max_val = 1ULL << num_bits;
+    const uint64_t max_val = 1ULL << msg.num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
-    const size_t nbits[2] = {num_bits, num_bits * 2};
+    const size_t nbits[2] = {msg.num_bits, msg.num_bits * 2};
 
     // Just for getting sizes
     Circuit* const mock_circuit = CheckVar();
@@ -923,11 +920,11 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     typedef std::tuple <uint64_t*, uint64_t, uint64_t*, uint64_t*, ClientPacket*> sharetype;
     std::unordered_map<std::string, sharetype> share_map;
 
-    const uint64_t max_val = 1ULL << num_bits;
+    const uint64_t max_val = 1ULL << msg.num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
     size_t nbits[num_fields];
     for (unsigned int i = 0; i < num_fields; i++)
-        nbits[i] = num_bits * (i >= degree ? 2 : 1);
+        nbits[i] = msg.num_bits * (i >= degree ? 2 : 1);
 
     // Just for getting sizes
     Circuit* const mock_circuit = CheckLinReg(degree);
@@ -1205,7 +1202,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
 
     const unsigned int total_inputs = msg.num_of_inputs;
     // const uint64_t max_inp = msg.max_inp;
-    const uint64_t max_inp = 1 << num_bits;
+    const uint64_t max_inp = 1 << msg.num_bits;
     // TODO: if 1 << num_bits < max_inp, fail
 
     FreqShare share;
@@ -1434,7 +1431,7 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
     flint_rand_t hash_seed; flint_randinit(hash_seed);
     recv_seed(clientfd, hash_seed);
 
-    HashStore hash_store(d, num_bits, w, hash_seed);
+    HashStore hash_store(d, msg.num_bits, w, hash_seed);
 
     const unsigned int total_inputs = msg.num_of_inputs;
     
@@ -1643,7 +1640,7 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
         std::cout << "Heavy of " << t << " is freq >= " << target_freq << std::endl;
         fmpz_t hashed; fmpz_init(hashed);
         int total = 0;
-        for (unsigned int x = 0; x < (1 << num_bits); x++) {
+        for (unsigned int x = 0; x < (1 << msg.num_bits); x++) {
             int acc = num_inputs;  // could also do mean, other stats
             // d hashes range w
             for (unsigned int j = 0; j < d; j++) {
@@ -1684,7 +1681,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
     const size_t w = hcfg.w;
     const size_t d = hcfg.d;
     const size_t L = hcfg.L;
-    const size_t first_size = 1 << (num_bits - L);  // size of freq layer
+    const size_t first_size = 1 << (msg.num_bits - L);  // size of freq layer
     const size_t share_size = L * d * w + first_size;
     std::cout << "got: t = " << t << std::endl;
     std::cout << "got: w = " << w << std::endl;
@@ -1906,10 +1903,9 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         const double target_freq = num_inputs * t;
         std::cout << "Heavy of " << t << " is freq >= " << target_freq << std::endl;
 
-        // HashStore hash_store(d, num_bits, w, hash_seed);
         HashStore** hash_stores = new HashStore*[L];
         for (unsigned int i = 0; i < L; i++)
-            hash_stores[i] = new HashStore(d, num_bits - i, w, hash_seed);
+            hash_stores[i] = new HashStore(d, msg.num_bits - i, w, hash_seed);
 
         // Check freq layer
         vector<uint64_t> this_values;
@@ -1976,9 +1972,8 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
 }
 
 int main(int argc, char** argv) {
-    // TODO: num_bits no longer needed for preprocess. Encode in init_msg?
     if (argc < 4) {
-        std::cout << "Usage: ./bin/server server_num(0/1) this_client_port server0_port num_bits" << endl;
+        std::cout << "Usage: ./bin/server server_num(0/1) this_client_port server0_port" << endl;
         return 1;
     }
 
@@ -1989,9 +1984,6 @@ int main(int argc, char** argv) {
     std::cout << "This server is server # " << server_num << std::endl;
     std::cout << "  Listening for client on " << client_port << std::endl;
     std::cout << "  Listening for server on " << server_port << std::endl;
-
-    if (argc >= 5)
-        num_bits = atoi(argv[4]);
 
     init_constants();
 
@@ -2017,7 +2009,7 @@ int main(int argc, char** argv) {
     ot0 = new OT_Wrapper(server_num == 0 ? nullptr : SERVER0_IP, 60051);
     ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
 
-    correlated_store = new CorrelatedStore(serverfd, server_num, ot0, ot1, num_bits, CACHE_SIZE, LAZY_PRECOMPUTE, true);
+    correlated_store = new CorrelatedStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE, true);
 
     int sockfd, newsockfd;
     sockaddr_in addr;

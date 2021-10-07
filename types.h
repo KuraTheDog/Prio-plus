@@ -58,6 +58,7 @@ enum messageType {
 
 struct initMsg {
     messageType type;
+    unsigned int num_bits;
     unsigned int num_of_inputs;
     unsigned int max_inp;
 };

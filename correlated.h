@@ -31,14 +31,9 @@ class CorrelatedStore {
   const size_t batch_size;  // How many to make at once
   const int server_num;
   const int serverfd;
-  const size_t nbits;       // base # of bits. Makes this and *2
 
   // If lazy, does fast but insecure offline.
   const bool lazy;
-
-  // Since we use these a lot more, make much bigger batches at once.
-  // nbits * batch_size
-  const size_t bool_batch_size;
 
   std::queue<DaBit*> dabit_store;
   std::queue<BooleanBeaverTriple*> btriple_store;
@@ -66,14 +61,12 @@ public:
 
   CorrelatedStore(const int serverfd, const int idx,
                   OT_Wrapper* const ot0, OT_Wrapper* const ot1,
-                  const size_t nbits, const size_t batch_size,
+                  const size_t batch_size,
                   const bool lazy = false, const bool do_fork = true)
   : batch_size(batch_size)
   , server_num(idx)
   , serverfd(serverfd)
-  , nbits(nbits)
   , lazy(lazy)
-  , bool_batch_size(batch_size * nbits)
   , ot0(ot0)
   , ot1(ot1)
   , do_fork(do_fork)

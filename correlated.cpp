@@ -11,7 +11,7 @@
 
 void CorrelatedStore::addBoolTriples(const size_t n) {
   auto start = clock_start();
-  const size_t num_to_make = (n > bool_batch_size ? n : bool_batch_size);
+  const size_t num_to_make = (n > batch_size ? n : batch_size);
   std::cout << "adding booltriples: " << num_to_make << std::endl;
   std::queue<BooleanBeaverTriple*> new_triples = gen_boolean_beaver_triples(server_num, num_to_make, ot0, ot1);
   for (unsigned int i = 0; i < num_to_make; i++) {
@@ -88,13 +88,13 @@ void CorrelatedStore::maybeUpdate() {
   auto start = clock_start();
 
   // Make top level if stores not enough
-  const bool make_da = dabit_store.size() < (batch_size * nbits / 2);
+  const bool make_da = dabit_store.size() < (batch_size / 2);
   // Determine how much of each to make
-  const size_t da_target = 2 * make_da * nbits;
-  const size_t btrip_target = 0;
+  const size_t da_target = 2 * make_da;
+  const size_t btrip_target = 0;  // NOTE: Currently disabled
 
-  if (btriple_store.size() < btrip_target * bool_batch_size)
-      addBoolTriples(btrip_target * bool_batch_size);
+  if (btriple_store.size() < btrip_target * batch_size)
+      addBoolTriples(btrip_target * batch_size);
 
   if (dabit_store.size() < da_target * batch_size)
     addDaBits(da_target * batch_size);

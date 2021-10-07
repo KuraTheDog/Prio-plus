@@ -285,6 +285,7 @@ void int_sum(const std::string protocol, const size_t numreqs) {
     uint64_t ans = 0;
     int num_bytes = 0;
     initMsg msg;
+    msg.num_bits = num_bits;
     msg.num_of_inputs = numreqs;
     msg.type = INT_SUM;
 
@@ -840,6 +841,7 @@ void var_op(const std::string protocol, const size_t numreqs) {
     uint64_t sum = 0, sumsquared = 0;
     int num_bytes = 0;
     initMsg msg;
+    msg.num_bits = num_bits;
     msg.num_of_inputs = numreqs;
     if (protocol == "VAROP") {
         msg.type = VAR_OP;
@@ -1190,6 +1192,7 @@ void lin_reg(const std::string protocol, const size_t numreqs) {
 
     int num_bytes = 0;
     initMsg msg;
+    msg.num_bits = num_bits;
     msg.num_of_inputs = numreqs;
     msg.type = LINREG_OP;
 
@@ -1364,6 +1367,7 @@ void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
     }
 
     initMsg msg;
+    msg.num_bits = num_bits;
     msg.num_of_inputs = numreqs;
     msg.type = LINREG_OP;
 
@@ -1472,6 +1476,7 @@ void freq_op(const std::string protocol, const size_t numreqs) {
     memset(count, 0, max_int * sizeof(uint64_t));
     int num_bytes = 0;
     initMsg msg;
+    msg.num_bits = num_bits;
     msg.num_of_inputs = numreqs;
     msg.max_inp = max_int;
     msg.type = FREQ_OP;
@@ -1572,8 +1577,8 @@ void countmin_op(const std::string protocol, const size_t numreqs) {
     int num_bytes = 0;
 
     initMsg msg;
+    msg.num_bits = num_bits;
     msg.num_of_inputs = numreqs;
-    msg.max_inp = max_int;
     msg.type = COUNTMIN_OP;
 
     if (t == -1)
@@ -1708,8 +1713,8 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
     int num_bytes = 0;
 
     initMsg msg;
+    msg.num_bits = num_bits;
     msg.num_of_inputs = numreqs;
-    msg.max_inp = max_int;
     msg.type = HEAVY_OP;
 
     if (t == -1 or L == 0)
