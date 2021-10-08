@@ -286,7 +286,7 @@ size_t accumulate(const size_t num_inputs,
             continue;
         for (unsigned int j = 0; j < num_shares; j++) {
             fmpz_add(ans[j], ans[j], shares_p[i * num_shares + j]);
-            fmpz_mod(ans[j], ans[j], Int_Modulus);  // How frequently?
+            fmpz_mod(ans[j], ans[j], Int_Modulus);
         }
         num_valid++;
     }
@@ -763,6 +763,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
             idx++;
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             uint64_t val = 0, val2 = 0;
@@ -773,6 +774,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         }
         fmpz_t* const shares_p = share_convert(num_inputs, 2,
                                                nbits, shares);
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
         const bool* const snip_valid = validate_snips(
             num_inputs, 2, serverfd, server_num, circuit, packet, shares_p);
 
@@ -790,13 +793,14 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         delete[] circuit;
         delete[] packet;
         delete[] shares;
-        // std::cout << "snip time: " << sec_from(start2) << std::endl;
+        std::cout << "validate time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         // Convert
         fmpz_t* b; new_fmpz_array(&b, 2);
         accumulate(num_inputs, 2, shares_p, valid, b);
 
+        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
 
         send_fmpz(serverfd, b[0]);
@@ -839,6 +843,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         }
         fmpz_t* const shares_p = share_convert(num_inputs, 2,
                                                nbits, shares);
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
         const bool* const snip_valid = validate_snips(
             num_inputs, 2, serverfd, server_num, circuit, packet, shares_p);
 
@@ -855,13 +861,16 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         delete[] circuit;
         delete[] packet;
         delete[] shares;
-        std::cout << "snip time: " << sec_from(start2) << std::endl;
+        std::cout << "validate time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
 
         // Convert
         fmpz_t* a; new_fmpz_array(&a, 2);
         size_t num_valid = accumulate(num_inputs, 2, shares_p, valid, a);
 
+        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
+        start2 = clock_start();
 
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * 2);
@@ -895,6 +904,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         clear_fmpz_array(a, 2);
         fmpz_clear(b);
         fmpz_clear(b2);
+        std::cout << "eval time: " << sec_from(start2) << std::endl;
         return RET_ANS;
     }
 }
@@ -1025,6 +1035,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         }
         fmpz_t* const shares_p = share_convert(num_inputs, num_fields,
                                                nbits, shares);
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
         const bool* const snip_valid = validate_snips(
             num_inputs, num_fields, serverfd, server_num, circuit,
             packet, shares_p);
@@ -1043,12 +1055,13 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         delete[] circuit;
         delete[] packet;
         delete[] shares;
-        std::cout << "snip time: " << sec_from(start2) << std::endl;
+        std::cout << "validate time: " << sec_from(start2) << std::endl;
 
         // Convert
         fmpz_t* b; new_fmpz_array(&b, num_fields);
         accumulate(num_inputs, num_fields, shares_p, valid, b);
 
+        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
 
         send_fmpz_batch(serverfd, b, num_fields);
@@ -1107,6 +1120,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         }
         fmpz_t* const shares_p = share_convert(num_inputs, num_fields,
                                                nbits, shares);
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
         const bool* const snip_valid = validate_snips(
             num_inputs, num_fields, serverfd, server_num, circuit,
             packet, shares_p);
@@ -1124,17 +1139,19 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         delete[] circuit;
         delete[] packet;
         delete[] shares;
-        std::cout << "snip time: " << sec_from(start2) << std::endl;
+        std::cout << "validate time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         // Convert
         fmpz_t* a; new_fmpz_array(&a, num_fields);
         size_t num_valid = accumulate(num_inputs, num_fields, shares_p, valid, a);
 
-        std::cout << "total compute time: " << sec_from(start) << std::endl;
-
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * num_fields);
+
+        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
+        start2 = clock_start();
 
         uint64_t* const x_accum = new uint64_t[degree + num_quad];
         memset(x_accum, 0, (degree + num_quad) * sizeof(uint64_t));
@@ -1188,6 +1205,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             if (i > 0) std::cout << " * x_" << (i-1);
         }
         std::cout << std::endl;
+        std::cout << "eval time: " << sec_from(start2) << std::endl;
         delete[] x_accum;
         delete[] y_accum;
         delete[] c;
@@ -1248,6 +1266,8 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
 
         fmpz_t* shares_p;
         shares_p = correlated_store->b2a_daBit_single(num_inputs * max_inp, shares);
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
         
         bool* const valid = new bool[num_inputs];
         fmpz_t* sums; new_fmpz_array(&sums, num_inputs);
@@ -1283,9 +1303,13 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
             recv_bool_batch(serverfd, valid, num_inputs);
         }
         clear_fmpz_array(sums, num_inputs);
+        std::cout << "validate time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
 
         fmpz_t* b; new_fmpz_array(&b, max_inp);
         accumulate(num_inputs, max_inp, shares_p, valid, b);
+        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
 
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * max_inp);
@@ -1293,8 +1317,6 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         send_fmpz_batch(serverfd, b, max_inp);
         clear_fmpz_array(b, max_inp);
 
-        std::cout << "convert time: " << sec_from(start2) << std::endl;
-        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         return RET_NO_ANS;
     } else {
@@ -1320,6 +1342,8 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
 
         fmpz_t* shares_p;
         shares_p = correlated_store->b2a_daBit_single(num_inputs * max_inp, shares);
+        std::cout << "convert time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
 
         // Validity check
         bool* const parity = new bool[num_inputs];
@@ -1382,18 +1406,23 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         clear_fmpz_array(sums, num_inputs);
         delete[] parity;
         num_bytes += send_bool_batch(serverfd, valid, num_inputs);
+        std::cout << "validate time: " << sec_from(start2) << std::endl;
+        start2 = clock_start();
 
         fmpz_t* a; new_fmpz_array(&a, max_inp);
         size_t num_valid = accumulate(num_inputs, max_inp, shares_p, valid, a);
         delete[] valid;
         delete[] shares;
         clear_fmpz_array(shares_p, num_inputs * max_inp);
+        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
+        start2 = clock_start();
+
         // receive b
         fmpz_t* b; new_fmpz_array(&b, max_inp);
         recv_fmpz_batch(serverfd, b, max_inp);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
@@ -1415,6 +1444,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
             std::cout << std::endl;
         }
         clear_fmpz_array(a, max_inp);
+        std::cout << "eval time: " << sec_from(start2) << std::endl;
         return RET_ANS;
     }
 }
@@ -1516,19 +1546,19 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
             memset(valid, false, num_inputs);
         }
 
-        std::cout << "validity time: " << sec_from(start2) << std::endl;
+        std::cout << "validate time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         fmpz_t* b; new_fmpz_array(&b, d * w);
         accumulate(num_inputs, d * w, shares_p, valid, b);
+        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
 
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * d * w);
         send_fmpz_batch(serverfd, b, d * w);
         clear_fmpz_array(b, d * w);
 
-        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
-        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         return RET_NO_ANS;
     } else {
@@ -1606,19 +1636,19 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
             memset(valid, false, num_inputs);
         }
 
-        std::cout << "validity time: " << sec_from(start2) << std::endl;
+        std::cout << "validate time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         fmpz_t* a; new_fmpz_array(&a, d * w);
         size_t num_valid = accumulate(num_inputs, d * w, shares_p, valid, a);
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * d * w);
+        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
+        start2 = clock_start();
 
         fmpz_t* b; new_fmpz_array(&b, d * w);
         recv_fmpz_batch(serverfd, b, d * w);
-
-        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
-        start2 = clock_start();
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
@@ -1635,17 +1665,6 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
             fmpz_mod(a[j], a[j], Int_Modulus);
         }
         clear_fmpz_array(b, d * w);
-
-        // std::cout << "hashes: " << std::endl;
-        // for (unsigned int i = 0; i < d; i++) {
-        //     for (unsigned int j = 0; j < w; j++) {
-        //         if (!fmpz_is_zero(a[i * w + j])) {
-        //             std::cout << "Hash_" << i << "[" << j << "] = ";
-        //             fmpz_print(a[i * w + j]);
-        //             std::cout << std::endl;
-        //         }
-        //     }
-        // }
 
         // Find heavy
         std::cout << "Finding heavy..." << std::endl;
@@ -1681,9 +1700,7 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
         fmpz_clear(hashed);
         clear_fmpz_array(a, d * w);
 
-        std::cout << "find final answer time: " << sec_from(start2) << std::endl;
-        std::cout << "total compute time: " << sec_from(start) << std::endl;
-        start2 = clock_start();
+        std::cout << "eval time: " << sec_from(start2) << std::endl;
         return RET_ANS;
     }
 }
@@ -1793,19 +1810,19 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
             memset(valid, false, num_inputs);
         }
 
-        std::cout << "validity time: " << sec_from(start2) << std::endl;
+        std::cout << "validate time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         fmpz_t* b; new_fmpz_array(&b, share_size);
         accumulate(num_inputs, share_size, shares_p, valid, b);
         send_fmpz_batch(serverfd, b, share_size);
+        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
 
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * share_size);
         clear_fmpz_array(b, share_size);
 
-        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
-        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         return RET_NO_ANS;
     } else {
@@ -1892,22 +1909,21 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
             std::cout << "Batch not valid. Individual check currently not implemented" << std::endl;
             memset(valid, false, num_inputs);
         }
-        std::cout << "validity time: " << sec_from(start2) << std::endl;
+        std::cout << "validate time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         fmpz_t* a; new_fmpz_array(&a, share_size);
         size_t num_valid = accumulate(num_inputs, share_size, shares_p, valid, a);
         delete[] valid;
         clear_fmpz_array(shares_p, num_inputs * share_size);
+        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
+        std::cout << "total compute time: " << sec_from(start) << std::endl;
+        start2 = clock_start();
 
         fmpz_t* b; new_fmpz_array(&b, share_size);
         recv_fmpz_batch(serverfd, b, share_size);
 
-        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
-        start2 = clock_start();
-
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << num_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
@@ -1920,11 +1936,6 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         for (unsigned int j = 0; j < share_size; j++) {
             fmpz_add(a[j], a[j], b[j]);
             fmpz_mod(a[j], a[j], Int_Modulus);
-            
-            // if (fmpz_get_ui(a[j]) != 0) {
-            //     std::cout << "a[" << j << "] = ";
-            //     fmpz_print(a[j]); std::cout << std::endl;
-            // }
         }
         clear_fmpz_array(b, share_size);
 
@@ -1953,7 +1964,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         fmpz_t hashed; fmpz_init(hashed);
         unsigned int h, est, min0, min1;
         for (unsigned int i = 0; i < L; i++) {
-            std::cout << "Layer: " << i << std::endl;
+            // std::cout << "Layer: " << i << std::endl;
             for (const uint64_t x : this_values) {
                 min0 = num_inputs;
                 min1 = num_inputs;
@@ -1972,15 +1983,13 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
                     // std::cout << "hash_" << j << "(" << 2*x+1 << ") = " << h << ", est at " << i * d * w + j * w + h << " = " << est << std::endl;
                 }
 
-                // std::cout << "min(2x     = " << 2 * x << ") = " << min0 << std::endl;
-                // std::cout << "min(2x + 1 = " << 2*x+1 << ") = " << min1 << std::endl;
                 if (min0 >= target_freq) {
                     next_candidates.push_back(2 * x);
-                    std::cout << "heavy 2x   prefix: " << 2 * x << std::endl;
+                    // std::cout << "heavy 2x   prefix: " << 2 * x << std::endl;
                 }
                 if (min1 >= target_freq) {
                     next_candidates.push_back(2 * x + 1);
-                    std::cout << "heavy 2x+1 prefix: " << 2 * x + 1 << std::endl;
+                    // std::cout << "heavy 2x+1 prefix: " << 2 * x + 1 << std::endl;
                 }
             }
             this_values = next_candidates;
@@ -1997,7 +2006,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
             delete hash_stores[i];
         delete[] hash_stores;
 
-        std::cout << "Final evaluate time: " << sec_from(start2) << std::endl;
+        std::cout << "eval time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         return RET_ANS;

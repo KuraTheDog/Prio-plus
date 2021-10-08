@@ -48,7 +48,7 @@ public:
     while(w_tmp >>= 1)
       w_bits++;
 
-    std::cout << "Hash store d: " << d << ", l: 2^" << l_bits << " -> w: " << w_arg << " (" << w_bits << " bits)" << std::endl;
+    // std::cout << "Hash store d: " << d << ", l: 2^" << l_bits << " -> w: " << w_arg << " (" << w_bits << " bits)" << std::endl;
 
     // TODO: sanity checks:
     // We assume w <= L. w > L striaghtforward to do, but currently not needed
