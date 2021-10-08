@@ -46,10 +46,6 @@ class CorrelatedStore {
   void addBoolTriples(const size_t n = 0);
   void addDaBits(const size_t n = 0);
 
-  // check if enough to make n. if not, call add
-  void checkBoolTriples(const size_t n = 0);
-  void checkDaBits(const size_t n = 0);
-
   OT_Wrapper* const ot0;
   OT_Wrapper* const ot1;
 
@@ -85,6 +81,10 @@ public:
   void printSizes();
   // Precompute if not enough.
   void maybeUpdate();
+
+  // check if enough to make n. if not, call add
+  void checkBoolTriples(const size_t n = 0);
+  void checkDaBits(const size_t n = 0);
 
   // compute with store elements. Does batches of size N.
 

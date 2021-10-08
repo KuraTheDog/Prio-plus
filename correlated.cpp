@@ -23,7 +23,8 @@ void CorrelatedStore::addBoolTriples(const size_t n) {
 
 void CorrelatedStore::addDaBits(const size_t n) {
   auto start = clock_start();
-  const size_t num_to_make = (n > batch_size ? n : batch_size);
+  // const size_t num_to_make = (n > batch_size ? n : batch_size);
+  const size_t num_to_make = n;  // Currently to make "end to end" easier to benchmark
   std::cout << "adding dabits: " << num_to_make << std::endl;
   if (!lazy) {
     DaBit** dabit = generateDaBit(num_to_make);

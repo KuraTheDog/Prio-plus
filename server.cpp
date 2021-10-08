@@ -46,7 +46,7 @@ CorrelatedStore* correlated_store;
 // If set, does fast but insecure offline precompute.
 #define LAZY_PRECOMPUTE true
 // Whether to use OT or Dabits
-#define USE_OT_B2A true
+#define USE_OT_B2A false
 
 // Note: Currently does it in a single batch.
 // I.e. recieve and store all, then process all.
@@ -741,7 +741,11 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
+
+    correlated_store->checkDaBits(total_inputs * msg.num_bits * 3);
+
     start = clock_start();
+
     auto start2 = clock_start();
 
     int server_bytes = 0;
@@ -988,6 +992,10 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
+
+    const size_t total_dabits = msg.num_bits * (msg.num_bits - 2) - 2;
+    correlated_store->checkDaBits(total_inputs * msg.num_bits * total_dabits);
+
     start = clock_start();
     auto start2 = clock_start();
 
@@ -1245,6 +1253,9 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
+
+    correlated_store->checkDaBits(total_inputs * max_inp);
+
     start = clock_start();
     auto start2 = clock_start();
     num_bytes = 0;
@@ -1492,6 +1503,9 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
+
+    correlated_store->checkDaBits(total_inputs * msg.num_bits * w * d);
+
     start = clock_start();
     auto start2 = clock_start();
     num_bytes = 0;
@@ -1746,6 +1760,9 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
+
+    correlated_store->checkDaBits(total_inputs * share_size);
+
     start = clock_start();
     auto start2 = clock_start();
     num_bytes = 0;
@@ -2069,7 +2086,8 @@ int main(int argc, char** argv) {
                 pair.second -> setCheckerPrecomp(randomX);
         }
 
-        correlated_store->maybeUpdate();
+        // correlated_store->maybeUpdate();
+        correlated_store->printSizes();
 
         socklen_t addrlen = sizeof(addr);
 
