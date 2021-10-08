@@ -1401,11 +1401,12 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
             }
             clear_fmpz_array(sums_other, num_inputs);
             delete[] parity_other;
+
+            num_bytes += send_bool_batch(serverfd, valid, num_inputs);
         }
 
         clear_fmpz_array(sums, num_inputs);
         delete[] parity;
-        num_bytes += send_bool_batch(serverfd, valid, num_inputs);
         std::cout << "validate time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
