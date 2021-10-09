@@ -1490,7 +1490,7 @@ void freq_op(const std::string protocol, const size_t numreqs) {
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
-    for (unsigned int j = 0; j < max_int; j++)
+    for (unsigned int j = 0; j < max_int && j < 256; j++)
         std::cout << " Freq(" << j << ") = " << count[j] << std::endl;
     delete[] count;
     std::cout << "Total sent bytes: " << num_bytes << std::endl;
@@ -1629,7 +1629,7 @@ int heavy_helper(const std::string protocol, const size_t numreqs,
     const size_t w = hconfig.w;
     const size_t d = hconfig.d;
     const size_t L = hconfig.L;
-    const size_t first_size = 1 << (num_bits - L);
+    const size_t first_size = 1ULL << (num_bits - L);
     const size_t share_size = L * d * w + first_size;
     std::cout << "share size: " << share_size << std::endl;
     auto start = clock_start();

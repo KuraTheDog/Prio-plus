@@ -44,7 +44,7 @@ CorrelatedStore* correlated_store;
 #define CACHE_SIZE 262144
 // #define CACHE_SIZE 2097152
 // If set, does fast but insecure offline precompute.
-#define LAZY_PRECOMPUTE true
+#define LAZY_PRECOMPUTE false
 // Whether to use OT or Dabits
 #define USE_OT_B2A false
 
@@ -1228,7 +1228,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
 
     const unsigned int total_inputs = msg.num_of_inputs;
     // const uint64_t max_inp = msg.max_inp;
-    const uint64_t max_inp = 1 << msg.num_bits;
+    const uint64_t max_inp = 1ULL << msg.num_bits;
     // TODO: if 1 << num_bits < max_inp, fail
 
     FreqShare share;
@@ -1504,7 +1504,7 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    correlated_store->checkDaBits(total_inputs * msg.num_bits * w * d);
+    correlated_store->checkDaBits(total_inputs * w * d);
 
     start = clock_start();
     auto start2 = clock_start();
@@ -1687,7 +1687,7 @@ returnType countMin_op(const initMsg msg, const int clientfd, const int serverfd
         std::cout << "Heavy of " << t << " is freq >= " << target_freq << std::endl;
         fmpz_t hashed; fmpz_init(hashed);
         int total = 0;
-        for (unsigned int x = 0; x < (1 << msg.num_bits); x++) {
+        for (unsigned int x = 0; x < (1ULL << msg.num_bits) && x < 256; x++) {
             int acc = num_inputs;  // could also do mean, other stats
             // d hashes range w
             for (unsigned int j = 0; j < d; j++) {
@@ -1730,7 +1730,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
     const size_t w = hcfg.w;
     const size_t d = hcfg.d;
     const size_t L = hcfg.L;
-    const size_t first_size = 1 << (msg.num_bits - L);  // size of freq layer
+    const size_t first_size = 1ULL << (msg.num_bits - L);  // size of freq layer
     const size_t share_size = L * d * w + first_size;
     std::cout << "got: t = " << t << std::endl;
     std::cout << "got: w = " << w << std::endl;
@@ -1974,7 +1974,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
             // std::cout << "freq(" << x << ") at " << (L * d * w + x) << " = ";
             // fmpz_print(a[L * d * w + x]); std::cout << std::endl;
             if (fmpz_get_ui(a[L * d * w + x]) >= target_freq) {
-                std::cout << "inital heavy prefix: " << x << std::endl;
+                // std::cout << "inital heavy prefix: " << x << std::endl;
                 this_values.push_back(x);
             }
         }

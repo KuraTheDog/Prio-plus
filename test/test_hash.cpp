@@ -9,7 +9,7 @@ const size_t d = 3;
 
 void run_hash(HashStore &store, unsigned int i) {
   fmpz_t out; fmpz_init(out);
-  unsigned int max = (1 << l_bits);
+  unsigned int max = (1ULL << l_bits);
   if (max > 8) max = 8;
   for (unsigned int j = 0; j < max; j++) {
     store.eval(i, j, out);

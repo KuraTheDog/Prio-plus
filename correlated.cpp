@@ -290,7 +290,7 @@ fmpz_t* CorrelatedStore::b2a_daBit_multi(const size_t N,
   for (unsigned int i = 0; i < N; i++) {
     fmpz_set_ui(xp[i], 0);
     for (unsigned int j = 0; j < num_bits[i]; j++) {
-      fmpz_addmul_ui(xp[i], tmp_xp[j + offset], (1 << j));
+      fmpz_addmul_ui(xp[i], tmp_xp[j + offset], (1ULL << j));
       fmpz_mod(xp[i], xp[i], Int_Modulus);
     }
     offset += num_bits[i];

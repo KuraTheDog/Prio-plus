@@ -40,7 +40,7 @@ public:
   , degree(independence - 1)
   {
     fmpz_init(w); fmpz_set_ui(w, w_arg);
-    fmpz_init(l); fmpz_set_ui(l, 1 << l_bits);
+    fmpz_init(l); fmpz_set_ui(l, 1ULL << l_bits);
     hash_seed[0] = hash_seed_arg[0];
 
     w_bits = 1;
