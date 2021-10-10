@@ -993,7 +993,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    const size_t total_dabits = msg.num_bits * (msg.num_bits - 2) - 2;
+    const int total_dabits = degree * (degree + 2) - 2;
     correlated_store->checkDaBits(total_inputs * msg.num_bits * total_dabits);
 
     start = clock_start();
