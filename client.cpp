@@ -45,7 +45,7 @@ uint64_t max_int;
 uint32_t linreg_degree = 2;
 // Heavy
 double t = -1;  // default to not work
-size_t w, d, L = 0;
+size_t w, d;
 
 int sockfd0, sockfd1;
 
@@ -288,6 +288,11 @@ void int_sum(const std::string protocol, const size_t numreqs) {
     msg.num_bits = num_bits;
     msg.num_of_inputs = numreqs;
     msg.type = INT_SUM;
+
+    if (fmpz_cmp_ui(Int_Modulus, (1ULL << num_bits) * numreqs) < 0 ) {
+        std::cout << "Modulus should be at least " << (num_bits + LOG2(numreqs)) << " bits" << std::endl;
+        error_exit("Int Modulus too small");
+    }
 
     if (CLIENT_BATCH) {
         num_bytes += int_sum_helper(protocol, numreqs, ans, &msg);
@@ -837,6 +842,10 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
 void var_op(const std::string protocol, const size_t numreqs) {
     if (num_bits > 31)
         error_exit("Num bits is too large. x^2 > 2^64.");
+    if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
+        std::cout << "Modulus should be at least " << (2 * num_bits + LOG2(numreqs)) << " bits" << std::endl;
+        error_exit("Int Modulus too small");
+    }
 
     uint64_t sum = 0, sumsquared = 0;
     int num_bytes = 0;
@@ -1177,6 +1186,10 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
 void lin_reg(const std::string protocol, const size_t numreqs) {
     if (num_bits > 31)
         error_exit("Num bits is too large. x^2 > 2^64.");
+    if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
+        std::cout << "Modulus should be at least " << (2 * num_bits + LOG2(numreqs)) << " bits" << std::endl;
+        error_exit("Int Modulus too small");
+    }
 
     const size_t degree = linreg_degree;
     const size_t num_x = degree - 1;
@@ -1717,8 +1730,9 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
     msg.num_of_inputs = numreqs;
     msg.type = HEAVY_OP;
 
-    if (t == -1 or L == 0)
-        error_exit("provide t, w, d, L in params");
+    if (t == -1)
+        error_exit("provide t, w, d in params");
+    const size_t L = num_bits - LOG2(w * d);
 
     HeavyConfig hconfig;
     hconfig.t = t;
@@ -1805,12 +1819,7 @@ int main(int argc, char** argv) {
         w = atoi(argv[7]);
         d = atoi(argv[8]);
         std::cout << "Heavy related with threshold t = " << t << std::endl;
-        std::cout << "  Params (w = " << w << "), (d = " << d << ")";
-        if (argc >= 10) {
-            L = atoi(argv[9]);
-            std::cout << ", (L = " << L << ")"; 
-        }
-        std::cout << std::endl;
+        std::cout << "  Params (w = " << w << "), (d = " << d << ")" << std::endl;
     }
 
     // Set up server connections
