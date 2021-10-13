@@ -479,6 +479,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         std::cout << "accumulate time: " << sec_from(start2) << std::endl;
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
+        std::cout << "sent server bytes: " << server_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             return RET_INVALID;
