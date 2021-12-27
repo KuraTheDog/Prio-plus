@@ -56,10 +56,10 @@ public:
       std::cout << "Warning: currently only supports shrinking hashes (w <= L)" << std::endl;
     }
     // assume wd < L, else no space is saved and freq is easier
-    fmpz_t wd; fmpz_init_set(wd, w); fmpz_mul_ui(wd, wd, d);
-    if (fmpz_cmp(wd, l) >= 0) {
-      std::cout << "Warning: wd >= L, so no space saved vs standard frequency" << std::endl;
-    }
+    // fmpz_t wd; fmpz_init_set(wd, w); fmpz_mul_ui(wd, wd, d);
+    // if (fmpz_cmp(wd, l) >= 0) {
+    //   std::cout << "Warning: wd >= L, so no space saved vs standard frequency" << std::endl;
+    // }
 
     coeff = new fmpz_t*[d];
     // Constant term can be mod w, rather than mod L

@@ -1000,6 +1000,9 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             or (not sizes_valid)
             or (packet_bytes  <= 0)
             ) {
+            delete[] share.x_vals;
+            delete[] share.x2_vals;
+            delete[] share.xy_vals;
             delete packet;
             continue;
         }
