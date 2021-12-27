@@ -341,6 +341,122 @@ fmpz_t* CorrelatedStore::b2a_ot(const size_t num_shares, const size_t num_values
   return ans;
 }
 
+void CorrelatedStore::heavy_ot(
+    const size_t N, const size_t b,
+    const bool* const shares_x0, const bool* const shares_x1,
+    const bool* const valid,
+    fmpz_t* const bucket0, fmpz_t* const bucket1) {
+  const size_t n = N * b;
+
+  // Step 1: convert x1 as 01 || 11, single bit per
+  fmpz_t* shares_p = b2a_daBit_single(2 * n, shares_x1);
+
+  // Step 2: Buckets. Goal is (z + z')(x ^ x')
+  // z = servernum - 2y
+  // send: (r, r+z) order on x, so (r+xz, r+(1-x)z
+  //   and add -r
+  // recv: pick using x, get z(x ^ x')
+
+  // 2.1: Setup
+  fmpz_t r; fmpz_init(r);
+  fmpz_t z; fmpz_init(z);
+  fmpz_t tmp; fmpz_init(tmp);
+  uint64_t* const data0 = new uint64_t[2*n];
+  uint64_t* const data1 = new uint64_t[2*n];
+  uint64_t* const recv = new uint64_t[2*n];
+
+  for (unsigned int i = 0; i < N; i++) {
+    if (!valid[i]) {
+      memset(&data0[i*b], 0, b * sizeof(uint64_t));
+      memset(&data0[i*b + n], 0, b * sizeof(uint64_t));
+      memset(&data1[i*b], 0, b * sizeof(uint64_t));
+      memset(&data1[i*b + n], 0, b * sizeof(uint64_t));
+      continue;
+    }
+
+    for (unsigned int j = 0; j < b; j++) {
+      // bucket 0
+      size_t idx = i*b + j;
+      // rand r, add -r to bucket
+      // fmpz_randm(r, seed, Int_Modulus);
+      fmpz_zero(r);
+      fmpz_sub(bucket0[j], bucket0[j], r);
+      fmpz_mod(bucket0[j], bucket0[j], Int_Modulus);
+      // std::cout << "b0[" << j << "]: subtract r = " << fmpz_get_ui(r) << std::endl;
+      // z = 1 - 2y
+      // std::cout << "b0[" << j << "]: x = " << shares_x0[idx] << std::endl;
+      // std::cout << "b0[" << j << "]: y = " << fmpz_get_ui(shares_p[idx]) << std::endl;
+      fmpz_set_si(z, server_num);
+      fmpz_submul_si(z, shares_p[idx], 2);
+      fmpz_mod(z, z, Int_Modulus);
+      // std::cout << "b0[" << j << "]: z = " << fmpz_get_ui(z) << std::endl;
+      // 0 = r + xz
+      fmpz_set(tmp, r); fmpz_addmul_ui(tmp, z, shares_x0[idx]);
+      fmpz_mod(tmp, tmp, Int_Modulus);
+      data0[idx] = fmpz_get_ui(tmp);
+      // 1 = r + (1-x)z
+      fmpz_set(tmp, r); fmpz_addmul_ui(tmp, z, 1 - shares_x0[idx]);
+      fmpz_mod(tmp, tmp, Int_Modulus);
+      data1[idx] = fmpz_get_ui(tmp);
+      // std::cout << "b0[" << j << "]: send (" << data0[idx] << ", " << data1[idx] << ")\n";
+
+      // bucket 1, idx += n
+      idx = i*b + j + n;
+      // std::cout << "b1[" << j << "]: idx = " << idx << std::endl;
+      // rand r, add -r to bucket
+      // fmpz_randm(r, seed, Int_Modulus);
+      fmpz_zero(r);
+      fmpz_sub(bucket1[j], bucket1[j], r);
+      fmpz_mod(bucket1[j], bucket1[j], Int_Modulus);
+      // std::cout << "b1[" << j << "]: subtract r = " << fmpz_get_ui(r) << std::endl;
+      // z = 1 - 2y
+      // std::cout << "b1[" << j << "]: x = " << shares_x0[idx] << std::endl;
+      // std::cout << "b1[" << j << "]: y = " << fmpz_get_ui(shares_p[idx]) << std::endl;
+      fmpz_set_si(z, server_num);
+      fmpz_submul_si(z, shares_p[idx], 2);
+      fmpz_mod(z, z, Int_Modulus);
+      // std::cout << "b1[" << j << "]: z = " << fmpz_get_ui(z) << std::endl;
+      // 0 = r + xz
+      fmpz_set(tmp, r); fmpz_addmul_ui(tmp, z, shares_x0[idx]);
+      fmpz_mod(tmp, tmp, Int_Modulus);
+      data0[idx] = fmpz_get_ui(tmp);
+      // 1 = r + (1-x)z
+      fmpz_set(tmp, r); fmpz_addmul_ui(tmp, z, 1 - shares_x0[idx]);
+      fmpz_mod(tmp, tmp, Int_Modulus);
+      data1[idx] = fmpz_get_ui(tmp);
+      // std::cout << "b1[" << j << "]: send (" << data0[idx] << ", " << data1[idx] << ")\n";
+    }
+  }
+  // OT swap
+  if (server_num == 0) {
+    ot0->send(data0, data1, 2 * n);
+    ot1->recv(recv, shares_x0, 2 * n);
+  } else {
+    ot0->recv(recv, shares_x0, 2 * n);
+    ot1->send(data0, data1, 2 * n);
+  }
+
+  // add recv to buckets
+  for (unsigned int i = 0; i < N; i++) {
+    for (unsigned int j = 0; j < b; j++) {
+      // std::cout << "(" << i << ", " << j << ")" << std::endl;
+      fmpz_add_ui(bucket0[j], bucket0[j], recv[i*b+j]);
+      fmpz_mod(bucket0[j], bucket0[j], Int_Modulus);
+      // std::cout << " bucket0[" << j << "]: add recv[" << i*b+j << "] = " << recv[i*b+j] << std::endl;
+      fmpz_add_ui(bucket1[j], bucket1[j], recv[i*b+j + n]);
+      fmpz_mod(bucket1[j], bucket1[j], Int_Modulus);
+      // std::cout << " bucket1[" << j << "]: add recv[" << i*b+j+n << "] = " << recv[i*b+j + n] << std::endl;
+    }
+  }
+
+  fmpz_clear(r);
+  fmpz_clear(z);
+  fmpz_clear(tmp);
+  delete[] data0;
+  delete[] data1;
+  delete[] recv;
+}
+
 // Use b2A via OT on random bit
 // Nearly COT, except delta is changing
 // random choice and random base, but also random delta matters
