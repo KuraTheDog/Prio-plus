@@ -44,7 +44,7 @@ foreach(_target
 endforeach()
 
 set(test_poly "test_circuit" "test_linreg")
-set(test_correlated "test_ot" "test_bits")
+set(test_correlated "test_ot" "test_bits" "test_heavy")
 set(test_hash "test_hash")
 # stuff that sends shares
 set(test_net_share "test_net_share" ${test_poly} ${test_correlated})
@@ -56,6 +56,7 @@ foreach(_target
   test_ot
   test_bits
   test_hash
+  test_heavy
 )
   set (test_SOURCE_FILES "test/${_target}.cpp")
   set (test_SOURCE_FILES ${test_SOURCE_FILES} "constants.cpp" "fmpz_utils.cpp")
