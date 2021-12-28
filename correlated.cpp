@@ -425,12 +425,23 @@ void CorrelatedStore::heavy_ot(
     }
   }
   // OT swap
-  if (server_num == 0) {
-    ot0->send(data0, data1, 2 * n);
-    ot1->recv(recv, shares_x0, 2 * n);
+  pid_t pid = 0;
+  int status = 0;
+  if (do_fork) {
+    pid = fork();
+    if (pid == 0) {
+      (server_num == 0 ? ot0 : ot1)->send(data0, data1, 2 * n);
+      exit(EXIT_SUCCESS);
+    }
+    (server_num == 0 ? ot1 : ot0)->recv(recv, shares_x0, 2 * n);
   } else {
-    ot0->recv(recv, shares_x0, 2 * n);
-    ot1->send(data0, data1, 2 * n);
+    if (server_num == 0) {
+      ot0->send(data0, data1, 2 * n);
+      ot1->recv(recv, shares_x0, 2 * n);
+    } else {
+      ot0->recv(recv, shares_x0, 2 * n);
+      ot1->send(data0, data1, 2 * n);
+    }
   }
 
   // add recv to buckets
@@ -452,6 +463,8 @@ void CorrelatedStore::heavy_ot(
   delete[] data0;
   delete[] data1;
   delete[] recv;
+
+  if (do_fork) waitpid(pid, &status, 0);
 }
 
 // Use b2A via OT on random bit
@@ -497,4 +510,103 @@ const DaBit* const * const CorrelatedStore::generateDaBit(const size_t N) {
   delete[] x;
 
   return dabit;
+}
+
+// TODO: do better. Currently just in clear.
+// [x] > c for known c, shares [x]
+// Treats > N/2 as negative
+// Maybe also return int (+/-/0) for equality?
+bool* CorrelatedStore::cmp_c(const size_t N,
+                             const fmpz_t* const x,
+                             const fmpz_t* const c) {
+  bool* ans = new bool[N];
+
+  fmpz_t half; fmpz_init(half); fmpz_cdiv_q_ui(half, Int_Modulus, 2);
+
+  // For now, just do in clear. TODO: do securely.
+  if (server_num == 0) {
+    fmpz_t* x2; new_fmpz_array(&x2, N);
+    fmpz_t* c2; new_fmpz_array(&c2, N);
+    recv_fmpz_batch(serverfd, x2, N);
+    for (unsigned int i = 0; i < N; i++) {
+      fmpz_add(x2[i], x2[i], x[i]);
+      fmpz_mod(x2[i], x2[i], Int_Modulus);
+      if (fmpz_cmp(x2[i], half) > 0) {  // > N/2, so negative
+        fmpz_sub(x2[i], x2[i], Int_Modulus);
+      }
+      if (fmpz_cmp(c[i], half) > 0) {
+        fmpz_sub(c2[i], c[i], Int_Modulus);
+      } else {
+        fmpz_set(c2[i], c[i]);
+      }
+      ans[i] = fmpz_cmp(x2[i], c2[i]) < 0;
+    }
+    send_bool_batch(serverfd, ans, N);
+  } else {
+    send_fmpz_batch(serverfd, x, N);
+    recv_bool_batch(serverfd, ans, N);
+  }
+
+  fmpz_clear(half);
+  return ans;
+}
+
+// Just x < y => (x - y) < 0
+bool* CorrelatedStore::cmp(const size_t N,
+                           const fmpz_t* const x,
+                           const fmpz_t* const y) {
+  fmpz_t* diff; new_fmpz_array(&diff, N);
+  fmpz_t* zeros; new_fmpz_array(&zeros, N);  // zeroed out by default
+
+  fmpz_t half; fmpz_init(half); fmpz_cdiv_q_ui(half, Int_Modulus, 2);
+  fmpz_t tmp; fmpz_init(tmp);
+
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_sub(diff[i], x[i], y[i]);
+    fmpz_mod(diff[i], diff[i], Int_Modulus);
+    // std::cout << "diff_" << server_num << "[" << i << "] = " << fmpz_get_ui(diff[i]) << std::endl;
+  }
+
+  bool* ans = cmp_c(N, diff, zeros);
+  fmpz_clear(tmp);
+  fmpz_clear(half);
+  clear_fmpz_array(diff, N);
+  clear_fmpz_array(zeros, N);
+  return ans;
+}
+
+void CorrelatedStore::abs(const size_t N, const fmpz_t* const x, fmpz_t* out) {
+  fmpz_t* zeros; new_fmpz_array(&zeros, N);
+  bool* sign = cmp_c(N, x, zeros);
+  for (unsigned int i = 0; i < N; i++) {
+    if (sign[i]) {  // negative, flip
+      fmpz_sub(out[i], Int_Modulus, x[i]);
+    } else {
+      fmpz_set(out[i], x[i]);
+    }
+  }
+}
+
+bool* CorrelatedStore::abs_cmp(const size_t N,
+                               const fmpz_t* const x, const fmpz_t* const y) {
+  fmpz_t* merge; new_fmpz_array(&merge, 2*N);
+  fmpz_t* merge_abs; new_fmpz_array(&merge_abs, 2*N);
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_set(merge[i], x[i]);
+    fmpz_set(merge[i+N], y[i]);
+  }
+  abs(2*N, merge, merge_abs);
+  clear_fmpz_array(merge, 2*N);
+
+  fmpz_t* x2; new_fmpz_array(&x2, N);
+  fmpz_t* y2; new_fmpz_array(&y2, N);
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_set(x2[i], merge_abs[i]);
+    fmpz_set(y2[i], merge_abs[i+N]);
+  }
+  clear_fmpz_array(merge_abs, N);
+  bool* ans = cmp(N, x2, y2);
+  clear_fmpz_array(x2, N);
+  clear_fmpz_array(y2, N);
+  return ans;
 }
