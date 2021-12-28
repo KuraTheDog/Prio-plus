@@ -21,17 +21,9 @@ bit = 1, all -1 into bucket 1
 bit = 2, all +1 into bucket 0
 bit = 3, all +1 into bucket 1
 */
-void runServerTest(const int server_num, const int serverfd) {
 
-  // init
-  OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : "127.0.0.1", 60051);
-  OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : "127.0.0.1", 60052);
-  CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, ot0, ot1, batch_size, lazy, do_fork);
-
-  store->maybeUpdate();
-  std::cout << std::endl;
-
-  const size_t nbits = 4;
+void testHeavyOT(const int server_num, const int serverfd, CorrelatedStore* store) {
+const size_t nbits = 4;
   const size_t N = 8;
   const size_t n = nbits * N;
 
@@ -41,7 +33,7 @@ void runServerTest(const int server_num, const int serverfd) {
   fmpz_t* bucket1; new_fmpz_array(&bucket1, nbits);
   bool* const valid = new bool[N]; memset(valid, 1, N);
 
-  // Set up values
+  // Set up values for heavy convert
   for (unsigned int j = 0; j < nbits; j++) {
     const size_t bucket = j%2;
     const size_t hash = (j>>1)%2;
@@ -118,6 +110,113 @@ void runServerTest(const int server_num, const int serverfd) {
   delete[] shares_x0;
   delete[] shares_x1;
   delete[] valid;
+}
+
+
+void test_cmp(const int server_num, const int serverfd, CorrelatedStore* store) {
+  // setup
+  const size_t N = 10;
+  fmpz_t* val0; new_fmpz_array(&val0, N);
+  fmpz_t* val1; new_fmpz_array(&val1, N);
+
+  // "Very small" compared to modulus
+  const size_t range = 1000;
+  fmpz_t range_f; fmpz_init_set_si(range_f, range);
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_randm(val0[i], seed, range_f);
+    fmpz_sub_si(val0[i], val0[i], range / 2);
+    fmpz_mod(val0[i], val0[i], Int_Modulus);
+
+    fmpz_randm(val1[i], seed, range_f);
+    fmpz_sub_si(val1[i], val1[i], range / 2);
+    fmpz_mod(val1[i], val1[i], Int_Modulus);
+  }
+  // fmpz_set_si(val0[0], -(100 + 10*server_num));
+  // fmpz_mod(val0[0], val0[0], Int_Modulus);
+  // fmpz_set_si(val1[0], (10 + server_num));
+  // fmpz_mod(val1[0], val1[0], Int_Modulus);
+
+  // run
+  const bool* const larger = store->abs_cmp(N, val0, val1);
+
+  // test
+  if (server_num == 0) {
+    fmpz_t* val0_other; new_fmpz_array(&val0_other, N);
+    fmpz_t* val1_other; new_fmpz_array(&val1_other, N);
+    recv_fmpz_batch(serverfd, val0_other, N);
+    recv_fmpz_batch(serverfd, val1_other, N);
+
+    fmpz_t v0; fmpz_init(v0);
+    fmpz_t v1; fmpz_init(v1);
+    fmpz_t half; fmpz_init(half);
+    fmpz_cdiv_q_ui(half, Int_Modulus, 2);
+
+    fmpz_t v0_tmp; fmpz_init(v0_tmp);
+    fmpz_t v1_tmp; fmpz_init(v1_tmp);
+
+    for (unsigned int i = 0; i < N; i++) {
+      fmpz_add(v0, val0[i], val0_other[i]);
+      fmpz_mod(v0, v0, Int_Modulus);
+      fmpz_set(v0_tmp, v0);
+
+      fmpz_add(v1, val1[i], val1_other[i]);
+      fmpz_mod(v1, v1, Int_Modulus);
+      fmpz_set(v1_tmp, v1);
+
+      if (fmpz_cmp(v0_tmp, half) > 0) {  // > N/2, negate (abs)
+        fmpz_sub(v0_tmp, Int_Modulus, v0);
+      }
+      if (fmpz_cmp(v1_tmp, half) > 0) {  // > N/2, negate (abs)
+        fmpz_sub(v1_tmp, Int_Modulus, v1_tmp);
+      }
+      bool actual = fmpz_cmp(v0_tmp, v1_tmp) < 0;
+
+      std::cout << i << ": |" << get_fsigned(v0, Int_Modulus) << (larger[i] ? "| < |" : "| > |") << get_fsigned(v1, Int_Modulus) << "|, \tactual: " << (actual ? "<" : ">") << std::endl;
+      // std::cout << "(" << fmpz_get_ui(val0[i]) << " + " << fmpz_get_ui(val0_other[i]) << ") = " << get_fsigned(v0, Int_Modulus) << " vs " << get_fsigned(v1, Int_Modulus) << " = (" << fmpz_get_ui(val1[i]) << " + " << fmpz_get_ui(val1_other[i]) << ")\n";
+    }
+    fmpz_clear(v0);
+    fmpz_clear(v1);
+    fmpz_clear(half);
+    clear_fmpz_array(val0_other, N);
+    clear_fmpz_array(val1_other, N);
+  } else {
+    send_fmpz_batch(serverfd, val0, N);
+    send_fmpz_batch(serverfd, val1, N);
+  }
+
+  clear_fmpz_array(val0, N);
+  clear_fmpz_array(val1, N);
+}
+
+void runServerTest(const int server_num, const int serverfd) {
+
+  // init
+  OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : "127.0.0.1", 60051);
+  OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : "127.0.0.1", 60052);
+  CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, ot0, ot1, batch_size, lazy, do_fork);
+
+  store->maybeUpdate();
+  std::cout << std::endl;
+
+  // random adjusting. different numbers adjust seed.
+  // Can also do different per server
+  fmpz_t tmp;
+  fmpz_init(tmp);
+  size_t rand_adjust;
+  if (server_num == 0) {
+    rand_adjust = 1;
+  } else {
+    rand_adjust = 5;
+  }
+  for (unsigned int i = 0; i < rand_adjust; i++)
+    fmpz_randm(tmp, seed, Int_Modulus);
+  fmpz_clear(tmp);
+
+
+  // testHeavyOT(server_num, serverfd, store);
+
+  test_cmp(server_num, serverfd, store);
+  
   delete ot0;
   delete ot1;
   delete store;

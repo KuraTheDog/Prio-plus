@@ -40,3 +40,18 @@ void fmpz_from_block(fmpz_t x, const emp::block &b, const size_t n) {
     if ((1ULL << i) & (*((uint64_t*)&b)))
       fmpz_setbit(x, i);
 }
+
+int64_t get_fsigned(const fmpz_t x, const fmpz_t M) {
+  fmpz_t tmp; fmpz_init(tmp);
+  fmpz_cdiv_q_ui(tmp, M, 2);
+  int64_t ans;
+
+  if (fmpz_cmp(x, tmp) > 0) {  // > N/2, negative
+    fmpz_sub(tmp, x, M);
+    ans = fmpz_get_si(tmp);
+  } else {
+    ans = fmpz_get_si(x);
+  }
+  fmpz_clear(tmp);
+  return ans;
+}
