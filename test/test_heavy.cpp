@@ -23,7 +23,7 @@ bit = 3, all +1 into bucket 1
 */
 void runServerTest(const int server_num, const int serverfd) {
 
-  // set up
+  // init
   OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : "127.0.0.1", 60051);
   OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : "127.0.0.1", 60052);
   CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, ot0, ot1, batch_size, lazy, do_fork);
@@ -77,28 +77,20 @@ void runServerTest(const int server_num, const int serverfd) {
 
       // std::cout << "  share" << server_num << " = " << share << ": " << (share%2) << ((share>>1)%2) << ", " << ((share>>2)%2) << ((share>>3)%2) << std::endl;
 
-      // Convert to format. Is this right?
+      // Convert to format
       shares_x0[idx] = share%2;
       shares_x1[idx] = (share>>1)%2;
       shares_x0[idx + n] = (share>>2)%2;
       shares_x1[idx + n] = (share>>3)%2;
-      // std::cout << " set shares_x0[" << idx << "] = " << shares_x0[idx] << std::endl;
-      // std::cout << " set shares_x0[" << idx+n << "] = " << shares_x0[idx+n] << std::endl;
     }
   }
 
-  // std::cout << "outside shares_x0: ";
-  // for (unsigned int i = 0; i < 2 * n; i++) {
-  //   std::cout << shares_x0[i];
-  //   if (i == n - 1) std::cout << " ";
-  // }
-  // std::cout << std::endl;
-
+  // Execute conversion
   auto start = clock_start();
   store->heavy_ot(N, nbits, shares_x0, shares_x1, valid, bucket0, bucket1);
   std::cout << "heavy ot timing : " << sec_from(start) << std::endl;
 
-  // recombine
+  // recombine / test
   if (server_num == 0) {
     fmpz_t* bucket0_other; new_fmpz_array(&bucket0_other, nbits);
     fmpz_t* bucket1_other; new_fmpz_array(&bucket1_other, nbits);
@@ -125,8 +117,6 @@ void runServerTest(const int server_num, const int serverfd) {
   clear_fmpz_array(bucket1, nbits);
   delete[] shares_x0;
   delete[] shares_x1;
-  clear_fmpz_array(bucket0, nbits);
-  clear_fmpz_array(bucket1, nbits);
   delete[] valid;
   delete ot0;
   delete ot1;
