@@ -122,6 +122,20 @@ public:
   fmpz_t* b2a_ot(const size_t num_shares, const size_t num_values,
                  const size_t* const num_bits, const fmpz_t* const shares,
                  const size_t mod = 0);
+
+  // Comparisons. 
+  // Assumes modulus is large enough, so <N/2 is positive, >N/2 is negative (x-N)
+  // Return true if first < second. (so is index of larger).
+  // Equality is merged in, since rare/should not happen case so far.
+
+  // 1 if [x] > c
+  bool* cmp_c(const size_t N, const fmpz_t* const x, const fmpz_t* const c);
+  // 1 if [x] > [y]
+  bool* cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y);
+  // Given [x], sets out = [|x|] via negating if [x] < 0
+  void abs(const size_t N, const fmpz_t* const x, fmpz_t* out);
+  // 1 if [|x|] > [|y|]
+  bool* abs_cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y);
 };
 
 #endif
