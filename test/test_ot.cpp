@@ -32,7 +32,7 @@ void run_server0(const size_t m) {
   recv_uint64(cli_sockfd, b);
   std::cout << "bit have a = " << a << std::endl;
   std::cout << "bit got  b = " << b << std::endl;
-  std::cout << "bit ans: " << a + b << std::endl;
+  std::cout << "bit ans: " << a + b << " mod " << MOD << std::endl;
 
   // Intsum OT
 
@@ -49,7 +49,7 @@ void run_server0(const size_t m) {
   recv_uint64(cli_sockfd, b);
   std::cout << "int have a = " << int_a[0][0] << std::endl;
   std::cout << "int got  b = " << b << std::endl;
-  std::cout << "int ans: " << int_a[0][0] + b << std::endl;
+  std::cout << "int ans: " << int_a[0][0] + b << " mod " << MOD << std::endl;
   delete[] int_a[0];
   delete[] int_a;
 
