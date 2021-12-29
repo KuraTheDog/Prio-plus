@@ -338,6 +338,9 @@ fmpz_t* const CorrelatedStore::b2a_ot(
   return ans;
 }
 
+// shares are size 2*N*b = 2 * n
+// valid is size N
+// buckets are size b
 void CorrelatedStore::heavy_ot(
     const size_t N, const size_t b,
     const bool* const shares_x0, const bool* const shares_x1,
@@ -360,7 +363,7 @@ void CorrelatedStore::heavy_ot(
   fmpz_t tmp; fmpz_init(tmp);
   uint64_t* const data0 = new uint64_t[2*n];
   uint64_t* const data1 = new uint64_t[2*n];
-  uint64_t* const recv = new uint64_t[2*n];
+  uint64_t* const received = new uint64_t[2*n];
 
   for (unsigned int i = 0; i < N; i++) {
     if (!valid[i]) {
@@ -379,14 +382,14 @@ void CorrelatedStore::heavy_ot(
       fmpz_zero(r);
       fmpz_sub(bucket0[j], bucket0[j], r);
       fmpz_mod(bucket0[j], bucket0[j], Int_Modulus);
-      // std::cout << "b0[" << j << "]: subtract r = " << fmpz_get_ui(r) << std::endl;
       // z = 1 - 2y
-      // std::cout << "b0[" << j << "]: x = " << shares_x0[idx] << std::endl;
-      // std::cout << "b0[" << j << "]: y = " << fmpz_get_ui(shares_p[idx]) << std::endl;
+      // std::cout << "b0[" << server_num << ", " << i << ", " << j << "]: subtract r = " << fmpz_get_ui(r) << std::endl;
+      // std::cout << "b0[" << server_num << ", " << i << ", " << j << "]: x = " << shares_x0[idx] << std::endl;
+      // std::cout << "b0[" << server_num << ", " << i << ", " << j << "]: y = " << fmpz_get_ui(shares_p[idx]) << std::endl;
       fmpz_set_si(z, server_num);
       fmpz_submul_si(z, shares_p[idx], 2);
       fmpz_mod(z, z, Int_Modulus);
-      // std::cout << "b0[" << j << "]: z = " << fmpz_get_ui(z) << std::endl;
+      // std::cout << "b0[" << server_num << ", " << i << ", " << j << "]: z = " << fmpz_get_ui(z) << std::endl;
       // 0 = r + xz
       fmpz_set(tmp, r); fmpz_addmul_ui(tmp, z, shares_x0[idx]);
       fmpz_mod(tmp, tmp, Int_Modulus);
@@ -395,24 +398,23 @@ void CorrelatedStore::heavy_ot(
       fmpz_set(tmp, r); fmpz_addmul_ui(tmp, z, 1 - shares_x0[idx]);
       fmpz_mod(tmp, tmp, Int_Modulus);
       data1[idx] = fmpz_get_ui(tmp);
-      // std::cout << "b0[" << j << "]: send (" << data0[idx] << ", " << data1[idx] << ")\n";
+      // std::cout << "b0[" << server_num << ", " << i << ", " << j << "]: send (" << data0[idx] << ", " << data1[idx] << ")\n";
 
       // bucket 1, idx += n
       idx = i*b + j + n;
-      // std::cout << "b1[" << j << "]: idx = " << idx << std::endl;
       // rand r, add -r to bucket
       // fmpz_randm(r, seed, Int_Modulus);
       fmpz_zero(r);
       fmpz_sub(bucket1[j], bucket1[j], r);
       fmpz_mod(bucket1[j], bucket1[j], Int_Modulus);
-      // std::cout << "b1[" << j << "]: subtract r = " << fmpz_get_ui(r) << std::endl;
       // z = 1 - 2y
-      // std::cout << "b1[" << j << "]: x = " << shares_x0[idx] << std::endl;
-      // std::cout << "b1[" << j << "]: y = " << fmpz_get_ui(shares_p[idx]) << std::endl;
+      // std::cout << "b1[" << server_num << ", " << i << ", " << j << "]: subtract r = " << fmpz_get_ui(r) << std::endl;
+      // std::cout << "b1[" << server_num << ", " << i << ", " << j << "]: x = " << shares_x0[idx] << std::endl;
+      // std::cout << "b1[" << server_num << ", " << i << ", " << j << "]: y = " << fmpz_get_ui(shares_p[idx]) << std::endl;
       fmpz_set_si(z, server_num);
       fmpz_submul_si(z, shares_p[idx], 2);
       fmpz_mod(z, z, Int_Modulus);
-      // std::cout << "b1[" << j << "]: z = " << fmpz_get_ui(z) << std::endl;
+      // std::cout << "b1[" << server_num << ", " << i << ", " << j << "]: z = " << fmpz_get_ui(z) << std::endl;
       // 0 = r + xz
       fmpz_set(tmp, r); fmpz_addmul_ui(tmp, z, shares_x0[idx]);
       fmpz_mod(tmp, tmp, Int_Modulus);
@@ -421,39 +423,45 @@ void CorrelatedStore::heavy_ot(
       fmpz_set(tmp, r); fmpz_addmul_ui(tmp, z, 1 - shares_x0[idx]);
       fmpz_mod(tmp, tmp, Int_Modulus);
       data1[idx] = fmpz_get_ui(tmp);
-      // std::cout << "b1[" << j << "]: send (" << data0[idx] << ", " << data1[idx] << ")\n";
+      // std::cout << "b1[" << server_num << ", " << i << ", " << j << "]: send (" << data0[idx] << ", " << data1[idx] << ")\n";
     }
   }
+
   // OT swap
   pid_t pid = 0;
   int status = 0;
-  if (do_fork) {
+  // OT forking currently seems bugged. Disable for now. 
+  const bool do_ot_fork = false;
+  if (do_ot_fork) {
     pid = fork();
     if (pid == 0) {
       (server_num == 0 ? ot0 : ot1)->send(data0, data1, 2 * n);
       exit(EXIT_SUCCESS);
     }
-    (server_num == 0 ? ot1 : ot0)->recv(recv, shares_x0, 2 * n);
+    (server_num == 0 ? ot1 : ot0)->recv(received, shares_x0, 2 * n);
   } else {
     if (server_num == 0) {
       ot0->send(data0, data1, 2 * n);
-      ot1->recv(recv, shares_x0, 2 * n);
+      ot1->recv(received, shares_x0, 2 * n);
     } else {
-      ot0->recv(recv, shares_x0, 2 * n);
+      ot0->recv(received, shares_x0, 2 * n);
       ot1->send(data0, data1, 2 * n);
     }
   }
 
-  // add recv to buckets
+  // add received to buckets
   for (unsigned int i = 0; i < N; i++) {
     for (unsigned int j = 0; j < b; j++) {
+      size_t idx = i * b + j;
       // std::cout << "(" << i << ", " << j << ")" << std::endl;
-      fmpz_add_ui(bucket0[j], bucket0[j], recv[i*b+j]);
+      fmpz_add_ui(bucket0[j], bucket0[j], received[idx]);
       fmpz_mod(bucket0[j], bucket0[j], Int_Modulus);
-      // std::cout << " bucket0[" << j << "]: add recv[" << i*b+j << "] = " << recv[i*b+j] << std::endl;
-      fmpz_add_ui(bucket1[j], bucket1[j], recv[i*b+j + n]);
+      // std::cout << " b0[" << server_num << ", " << i << ", " << j << "]: add recv[" << idx << "] = " << received[idx] << std::endl;
+
+      idx = (i * b + j) + n;
+      fmpz_add_ui(bucket1[j], bucket1[j], received[idx]);
       fmpz_mod(bucket1[j], bucket1[j], Int_Modulus);
-      // std::cout << " bucket1[" << j << "]: add recv[" << i*b+j+n << "] = " << recv[i*b+j + n] << std::endl;
+      // std::cout << " b1[" << server_num << ", " << i << ", " << j << "]: add recv[" << idx << "] = " << received[idx] << std::endl;
     }
   }
 
@@ -462,9 +470,9 @@ void CorrelatedStore::heavy_ot(
   fmpz_clear(tmp);
   delete[] data0;
   delete[] data1;
-  delete[] recv;
+  delete[] received;
 
-  if (do_fork) waitpid(pid, &status, 0);
+  if (do_ot_fork) waitpid(pid, &status, 0);
 }
 
 // Use b2A via OT on random bit

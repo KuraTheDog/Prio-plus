@@ -129,13 +129,13 @@ public:
   // Return true if first < second. (so is index of larger).
   // Equality is merged in, since rare/should not happen case so far.
 
-  // 1 if [x] > c
+  // True if [x] > c
   bool* cmp_c(const size_t N, const fmpz_t* const x, const fmpz_t* const c);
-  // 1 if [x] > [y]
+  // True if [x] > [y]
   bool* cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y);
   // Given [x], sets out = [|x|] via negating if [x] < 0
   void abs(const size_t N, const fmpz_t* const x, fmpz_t* out);
-  // 1 if [|x|] > [|y|]
+  // True if [|x|] > [|y|]
   bool* abs_cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y);
 };
 
