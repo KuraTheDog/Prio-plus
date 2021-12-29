@@ -22,8 +22,9 @@ bit = 2, all +1 into bucket 0
 bit = 3, all +1 into bucket 1
 */
 
-void testHeavyOT(const int server_num, const int serverfd, CorrelatedStore* store) {
-const size_t nbits = 4;
+void testHeavyOT(const int server_num, const int serverfd,
+                 CorrelatedStore* store) {
+  const size_t nbits = 4;
   const size_t N = 8;
   const size_t n = nbits * N;
 
@@ -89,13 +90,13 @@ const size_t nbits = 4;
     recv_fmpz_batch(serverfd, bucket0_other, nbits);
     recv_fmpz_batch(serverfd, bucket1_other, nbits);
     fmpz_t tmp; fmpz_init(tmp);
-    for (unsigned int i = 0; i < nbits; i++) {
-      fmpz_add(tmp, bucket0[i], bucket0_other[i]);
+    for (unsigned int j = 0; j < nbits; j++) {
+      fmpz_add(tmp, bucket0[j], bucket0_other[j]);
       fmpz_mod(tmp, tmp, Int_Modulus);
-      std::cout << "bucket0[" << i << "] total = " << fmpz_get_ui(tmp) << std::endl;
-      fmpz_add(tmp, bucket1[i], bucket1_other[i]);
+      std::cout << "bucket0[" << j << "] total = " << fmpz_get_ui(tmp) << std::endl;
+      fmpz_add(tmp, bucket1[j], bucket1_other[j]);
       fmpz_mod(tmp, tmp, Int_Modulus);
-      std::cout << "bucket1[" << i << "] total = " << fmpz_get_ui(tmp) << std::endl;
+      std::cout << "bucket1[" << j << "] total = " << fmpz_get_ui(tmp) << std::endl;
     }
     fmpz_clear(tmp);
     clear_fmpz_array(bucket0_other, nbits);
@@ -213,7 +214,7 @@ void runServerTest(const int server_num, const int serverfd) {
   fmpz_clear(tmp);
 
 
-  // testHeavyOT(server_num, serverfd, store);
+  testHeavyOT(server_num, serverfd, store);
 
   test_cmp(server_num, serverfd, store);
   
