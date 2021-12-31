@@ -1744,8 +1744,8 @@ int main(int argc, char** argv) {
                 pair.second -> setCheckerPrecomp(randomX);
         }
 
-        // correlated_store->maybeUpdate();
-        correlated_store->printSizes();
+        correlated_store->maybeUpdate();
+        // correlated_store->printSizes();
 
         socklen_t addrlen = sizeof(addr);
 

@@ -1632,8 +1632,8 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
     // seed for consistent hashes.
     flint_rand_t hash_seed; flint_randinit(hash_seed);
     HashStore hash_store(num_bits, num_bits, 2, hash_seed);
-    for (unsigned int i = 0; i < num_bits; i++)
-        hash_store.print_hash(i);
+    // for (unsigned int i = 0; i < num_bits; i++)
+    //     hash_store.print_hash(i);
 
     // Send initMsg
     num_bytes += send_to_server(0, &msg, sizeof(initMsg));

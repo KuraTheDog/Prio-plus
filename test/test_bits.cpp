@@ -8,7 +8,7 @@
 #include "../fmpz_utils.h"
 #include "../net_share.h"
 
-const size_t batch_size = 10000; // flexible
+const size_t batch_size = 100; // flexible
 const size_t N = 20;           // Must be >= 2
 
 const size_t num_bits = 3;     // Must be >= 3

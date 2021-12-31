@@ -91,14 +91,15 @@ void CorrelatedStore::maybeUpdate() {
   // Make top level if stores not enough
   const bool make_da = dabit_store.size() < (batch_size / 2);
   // Determine how much of each to make
-  const size_t da_target = 2 * make_da;
+  const size_t da_target = 2 * make_da * batch_size;
   const size_t btrip_target = 0;  // NOTE: Currently disabled
 
-  if (btriple_store.size() < btrip_target * batch_size)
-      addBoolTriples(btrip_target * batch_size);
 
-  if (dabit_store.size() < da_target * batch_size)
-    addDaBits(da_target * batch_size);
+  if (btriple_store.size() < btrip_target)
+    addBoolTriples(btrip_target);
+
+  if (dabit_store.size() < da_target)
+    addDaBits(da_target);
 
   printSizes();
 
@@ -353,7 +354,7 @@ void CorrelatedStore::heavy_ot(
 
   // Step 2: Buckets. Goal is (z + z')(x ^ x')
   // z = servernum - 2y
-  // send: (r, r+z) order on x, so (r+xz, r+(1-x)z
+  // send: (r, r+z) order on x, so (r+xz, r+(1-x)z)
   //   and add -r
   // recv: pick using x, get z(x ^ x')
 
