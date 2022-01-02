@@ -726,3 +726,73 @@ bool* CorrelatedStore::abs_cmp(const size_t N,
   clear_fmpz_array(y2, N);
   return ans;
 }
+
+// x, y are Nxb shares of N total b-bit numbers. 
+// I.e. x[i,j] is additive share of bit j of number i. 
+fmpz_t* CorrelatedStore::cmp_bit(const size_t N, const size_t b,
+                                 const fmpz_t* x, const fmpz_t* y) {
+  fmpz_t* ans; new_fmpz_array(&ans, N);
+
+  size_t idx;  // for convenience
+  // c = "x ^ y" = x + y - 2 (xy)
+  fmpz_t* c = multiplyArithmeticShares(N * b, x, y);
+  for (unsigned int i = 0; i < N * b; i++) {
+    fmpz_mul_si(c[i], c[i], -2);
+    fmpz_add(c[i], c[i], x[i]);
+    fmpz_add(c[i], c[i], y[i]);
+    fmpz_mod(c[i], c[i], Int_Modulus);
+  }
+
+  // di = OR(cj) from i+1 to b
+  // = ci OR d(i+1), with d_b = cb
+  // a OR b = 1-(1-a)(1-b) = a + b - ab
+  // TODO: Currently doing b-round version. Can be constant, but lazy for now.
+  fmpz_t* d; new_fmpz_array(&d, N * b);
+  // Start: db = cb
+  for (unsigned int i = 0; i < N; i++) {
+    idx = i * b + (b-1);  // [i, b-1]
+    fmpz_set(d[idx], c[idx]);
+  }
+  fmpz_t* ci; new_fmpz_array(&ci, N);     // ci
+  fmpz_t* di1; new_fmpz_array(&di1, N);   // d(i+1)
+  for (int j = b-2; j >= 0; j--) {
+    for (unsigned int i = 0; i < N; i++) {
+      idx = i * b + j;
+      fmpz_set(ci[i], c[idx]);
+      fmpz_set(di1[i], d[idx + 1]);
+    }
+    fmpz_t* mul = multiplyArithmeticShares(N, ci, di1);
+    for (unsigned int i = 0; i < N; i++) {
+      idx = i * b + j;
+      fmpz_add(d[idx], ci[i], di1[i]);
+      fmpz_sub(d[idx], d[idx], mul[i]);
+      fmpz_mod(d[idx], d[idx], Int_Modulus);
+    }
+    clear_fmpz_array(mul, N);
+  }
+  clear_fmpz_array(ci, N);
+  clear_fmpz_array(di1, N);
+
+  // ei = di - d(i+1), with eb = db
+  fmpz_t* e; new_fmpz_array(&e, N * b);
+  for (unsigned int i = 0; i < N; i++) {
+    idx = i * b + (b-1);
+    fmpz_set(e[idx], d[idx]);
+    for (unsigned int j = 0; j < b - 1; j++) {
+      idx = i * b + j;
+      fmpz_sub(e[idx], d[idx], d[idx + 1]);
+      fmpz_mod(e[idx], e[idx], Int_Modulus);
+    }
+  }
+
+  // [x < y] = sum ei * yi
+  fmpz_t* ey = multiplyArithmeticShares(N * b, e, y);
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_zero(ans[i]);
+    for (unsigned int j = 0; j < b; j++) {
+      fmpz_add(ans[i], ans[i], ey[i * b + j]);
+      fmpz_mod(ans[i], ans[i], Int_Modulus);
+    }
+  }
+  return ans;
+}
