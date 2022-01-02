@@ -35,8 +35,12 @@ class CorrelatedStore {
   // If lazy, does fast but insecure offline.
   const bool lazy;
 
+  // Arithmetic triple generator
+  // ArithTripleGenerator* triple_gen = nullptr;
+
   std::queue<DaBit*> dabit_store;
   std::queue<BooleanBeaverTriple*> btriple_store;
+  std::queue<BeaverTriple*> atriple_store;
 
   // return N new daBits
   DaBit** generateDaBit(const size_t N);
@@ -44,6 +48,7 @@ class CorrelatedStore {
   // add to the store.
   // Adds at least batch_size (or bool_batch_size), or n if bigger
   void addBoolTriples(const size_t n = 0);
+  void addTriples(const size_t n = 0);
   void addDaBits(const size_t n = 0);
 
   OT_Wrapper* const ot0;
@@ -70,12 +75,21 @@ public:
     if (lazy) {
       std::cout << "Doing fast but insecure dabit precomputes." << std::endl;
     }
+    /*
+    else if (fmpz_cmp_ui(Int_Modulus, 1ULL << 49) < 0) {
+      std::cout << "Using PALISADE SHE arith triples" << std::endl;
+      triple_gen = new ArithTripleGenerator(serverfd, server_num);
+    } else {
+      std::cout << "Mod big, using slower arith triples" << std::endl;
+    }
+    */
   }
 
   ~CorrelatedStore();
 
   // get from store, and maybe add if necessary
   BooleanBeaverTriple* getBoolTriple();
+  BeaverTriple* getTriple();
   DaBit* getDaBit();
 
   void printSizes();
@@ -84,14 +98,18 @@ public:
 
   // check if enough to make n. if not, call add
   void checkBoolTriples(const size_t n = 0);
+  // Always forces it to make it even if lazy, for testing purposes.
+  void checkTriples(const size_t n = 0, const bool always = false);
   void checkDaBits(const size_t n = 0);
 
   // compute with store elements. Does batches of size N.
 
   // x, y, ret are [N]
   // does ret[i] = x[i] * y[i], as shares
-  bool* multiplyBoolShares(const size_t N,
-                           const bool* const x, const bool* const y);
+  bool* multiplyBoolShares(
+    const size_t N, const bool* const x, const bool* const y);
+  fmpz_t* multiplyArithmeticShares(
+    const size_t N, const fmpz_t* const x, const fmpz_t* const y);
 
   // x, y, z are [N][num_bits], ret is [N]
   // Treats x[i], y[i], z[i] as array of bits
