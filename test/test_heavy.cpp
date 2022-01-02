@@ -189,6 +189,75 @@ void test_cmp(const int server_num, const int serverfd, CorrelatedStore* store) 
   clear_fmpz_array(val1, N);
 }
 
+void test_cmp_bit(const int server_num, const int serverfd,
+                  CorrelatedStore* store) {
+  // Setup values
+  const size_t bits = 2;
+  const size_t max = 1 << bits;
+  const size_t N = max * max;
+  fmpz_t* x_bits; new_fmpz_array(&x_bits, N * bits);
+  fmpz_t* y_bits; new_fmpz_array(&y_bits, N * bits);
+  if (server_num == 0) {
+    fmpz_t* x_bits_other; new_fmpz_array(&x_bits_other, N * bits);
+    fmpz_t* y_bits_other; new_fmpz_array(&y_bits_other, N * bits);
+    for (unsigned int x = 0; x < max; x++) {
+      for (unsigned int y = 0; y < max; y++) {
+        // std::cout << "case x = " << x << ", y = " << y << std::endl;
+        // if (x == y) continue;  // should be 0, skip for smaller logging for now
+        for (unsigned int b = 0; b < bits; b++) {
+          size_t idx = bits * (x * max + y) + b;
+          fmpz_randm(x_bits[idx], seed, Int_Modulus);
+          fmpz_sub(x_bits_other[idx], Int_Modulus, x_bits[idx]);
+          fmpz_add_ui(x_bits_other[idx], x_bits_other[idx], (x >> b) % 2);
+
+          fmpz_randm(y_bits[idx], seed, Int_Modulus);
+          fmpz_sub(y_bits_other[idx], Int_Modulus, y_bits[idx]);
+          fmpz_add_ui(y_bits_other[idx], y_bits_other[idx], (y >> b) % 2);
+
+          // std::cout << " bit " << b << ", idx = " << idx << std::endl;
+          // std::cout << "  x bit: " << ((x >> b) % 2) << " = " << fmpz_get_ui(x_bits[idx]) << " + " << fmpz_get_ui(x_bits_other[idx]) << std::endl;
+          // std::cout << "  y bit: " << ((y >> b) % 2) << " = " << fmpz_get_ui(y_bits[idx]) << " + " << fmpz_get_ui(y_bits_other[idx]) << std::endl;
+        }
+      }
+    }
+    send_fmpz_batch(serverfd, x_bits_other, N * bits);
+    send_fmpz_batch(serverfd, y_bits_other, N * bits);
+    clear_fmpz_array(x_bits_other, N * bits);
+    clear_fmpz_array(y_bits_other, N * bits);
+  } else {
+    recv_fmpz_batch(serverfd, x_bits, N * bits);
+    recv_fmpz_batch(serverfd, y_bits, N * bits);
+  }
+
+  // Eval cmp
+  fmpz_t* ans = store->cmp_bit(N, bits, x_bits, y_bits);
+
+  // Check values
+  if (server_num == 0) {
+    fmpz_t* ans_other; new_fmpz_array(&ans_other, N);
+    recv_fmpz_batch(serverfd, ans_other, N);
+
+    fmpz_t tmp; fmpz_init(tmp);
+    for (unsigned int x = 0; x < max; x++) {
+      for (unsigned int y = 0; y < max; y++) {
+        size_t idx = x * max + y;
+        fmpz_add(tmp, ans[idx], ans_other[idx]);
+        fmpz_mod(tmp, tmp, Int_Modulus);
+        std::cout << "is " << x << " < " << y << "? " << (fmpz_is_one(tmp) ? "yes" : "no" ) << " (" << fmpz_get_ui(ans[idx]) << " + " << fmpz_get_ui(ans_other[idx]) << " = " << fmpz_get_ui(tmp) << ") " << std::endl;
+      }
+    }
+    clear_fmpz_array(ans_other, N);
+    fmpz_clear(tmp);
+  } else {
+    send_fmpz_batch(serverfd, ans, N);
+  }
+
+
+  clear_fmpz_array(ans, N);
+  clear_fmpz_array(x_bits, N * bits);
+  clear_fmpz_array(y_bits, N * bits);
+}
+
 void runServerTest(const int server_num, const int serverfd) {
 
   // init
@@ -213,10 +282,11 @@ void runServerTest(const int server_num, const int serverfd) {
     fmpz_randm(tmp, seed, Int_Modulus);
   fmpz_clear(tmp);
 
+  // testHeavyOT(server_num, serverfd, store);
 
-  testHeavyOT(server_num, serverfd, store);
+  // test_cmp(server_num, serverfd, store);
 
-  test_cmp(server_num, serverfd, store);
+  test_cmp_bit(server_num, serverfd, store);
   
   delete ot0;
   delete ot1;

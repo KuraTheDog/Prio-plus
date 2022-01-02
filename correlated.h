@@ -154,6 +154,12 @@ public:
   void abs(const size_t N, const fmpz_t* const x, fmpz_t* out);
   // True if [|x|] > [|y|]
   bool* abs_cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y);
+
+  // x, y are Nxb shares of N total b-bit numbers. 
+  // I.e. x[i,j] is additive share of bit j of number i. 
+  // Returns additive shares of [x < y]
+  fmpz_t* cmp_bit(const size_t N, const size_t b,
+                  const fmpz_t* x, const fmpz_t* y);
 };
 
 #endif
