@@ -21,6 +21,25 @@ void CorrelatedStore::addBoolTriples(const size_t n) {
   std::cout << "addBoolTriples timing : " << sec_from(start) << std::endl;
 }
 
+void CorrelatedStore::addTriples(const size_t n) {
+  auto start = clock_start();
+  const size_t num_to_make = (n > batch_size ? n : batch_size);
+  std::cout << "adding triples: " << num_to_make << std::endl;
+  bool triple_gen = false;  // TODO: re-implement
+  if (triple_gen) {  // not null pointer
+    // std::vector<BeaverTriple*> new_triples = triple_gen->generateTriples(num_to_make);
+    // for (unsigned int i = 0; i < num_to_make; i++)
+    //   atriple_store.push(new_triples[i]);
+  } else {
+    std::cout << "Using lazy beaver triples" << std::endl;
+    for (unsigned int i = 0; i < num_to_make; i++) {
+      BeaverTriple* triple = generate_beaver_triple_lazy(serverfd, server_num);
+      atriple_store.push(triple);
+    }
+  }
+  std::cout << "addTriples timing : " << sec_from(start) << std::endl;
+}
+
 void CorrelatedStore::addDaBits(const size_t n) {
   auto start = clock_start();
   // const size_t num_to_make = (n > batch_size ? n : batch_size);
@@ -61,6 +80,10 @@ void CorrelatedStore::checkBoolTriples(const size_t n) {
   if (btriple_store.size() < n) addBoolTriples(n - btriple_store.size());
 }
 
+void CorrelatedStore::checkTriples(const size_t n, const bool always) { 
+  if ((!lazy or always) and atriple_store.size() < n) addTriples(n - atriple_store.size());
+}
+
 void CorrelatedStore::checkDaBits(const size_t n) {
   if (dabit_store.size() < n) addDaBits(n - dabit_store.size());
 }
@@ -69,6 +92,13 @@ const BooleanBeaverTriple* const CorrelatedStore::getBoolTriple() {
   checkBoolTriples(1);
   const BooleanBeaverTriple* const ans = btriple_store.front();
   btriple_store.pop();
+  return ans;
+}
+
+const BeaverTriple* const CorrelatedStore::getTriple() {
+  checkTriples(1);
+  const BeaverTriple* const ans = atriple_store.front();
+  atriple_store.pop();
   return ans;
 }
 
@@ -83,6 +113,7 @@ void CorrelatedStore::printSizes() {
   std::cout << "Current store sizes:" << std::endl;
   std::cout << " Dabits: " << dabit_store.size() << std::endl;
   // std::cout << " Bool  Triples: " << btriple_store.size() << std::endl;
+  std::cout << " Arith Triples: " << atriple_store.size() << std::endl;
 }
 
 void CorrelatedStore::maybeUpdate() {
@@ -94,12 +125,18 @@ void CorrelatedStore::maybeUpdate() {
   const size_t da_target = 2 * make_da * batch_size;
   const size_t btrip_target = 0;  // NOTE: Currently disabled
 
+  // For heavy
+  const bool make_arith = atriple_store.size() < (batch_size / 2);
+  const size_t atrip_target = 2 * make_arith;
 
   if (btriple_store.size() < btrip_target)
     addBoolTriples(btrip_target);
 
   if (dabit_store.size() < da_target)
     addDaBits(da_target);
+
+  if (atriple_store.size() < atrip_target)
+    addTriples(atrip_target);
 
   printSizes();
 
@@ -117,6 +154,13 @@ CorrelatedStore::~CorrelatedStore() {
     btriple_store.pop();
     delete triple;
   }
+  while (!atriple_store.empty()) {
+    BeaverTriple* triple = atriple_store.front();
+    atriple_store.pop();
+    delete triple;
+  }
+  // if (triple_gen)
+  //   delete triple_gen;
 }
 
 const bool* const CorrelatedStore::multiplyBoolShares(
@@ -163,6 +207,69 @@ const bool* const CorrelatedStore::multiplyBoolShares(
   delete[] e_other;
 
   if (do_fork) waitpid(pid, &status, 0);
+  return z;
+}
+
+fmpz_t* CorrelatedStore::multiplyArithmeticShares(
+    const size_t N, const fmpz_t* const x, const fmpz_t* const y) {
+  fmpz_t* z; new_fmpz_array(&z, N);
+
+  fmpz_t* d; new_fmpz_array(&d, N);
+  fmpz_t* e; new_fmpz_array(&e, N);
+  fmpz_t* d_other; new_fmpz_array(&d_other, N);
+  fmpz_t* e_other; new_fmpz_array(&e_other, N);
+
+  checkTriples(N, true);
+
+  for (unsigned int i = 0; i < N; i++) {
+    BeaverTriple* triple = getTriple();
+
+    fmpz_sub(d[i], x[i], triple->A);  // [d] = [x] - [a]
+    fmpz_mod(d[i], d[i], Int_Modulus);
+    fmpz_sub(e[i], y[i], triple->B);  // [e] = [y] - [b]
+    fmpz_mod(e[i], e[i], Int_Modulus);
+
+    fmpz_set(z[i], triple->C);
+
+    // consume the triple
+    delete triple;
+  }
+
+  // Spawn a child to do the sending, so that can recieve at the same time
+  pid_t pid = 0;
+  int status = 0;
+  if (do_fork) pid = fork();
+  if (pid == 0) {
+    send_fmpz_batch(serverfd, d, N);
+    send_fmpz_batch(serverfd, e, N);
+    if (do_fork) exit(EXIT_SUCCESS);
+  }
+  recv_fmpz_batch(serverfd, d_other, N);
+  recv_fmpz_batch(serverfd, e_other, N);
+
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_add(d[i], d[i], d_other[i]);  // x - a
+    fmpz_mod(d[i], d[i], Int_Modulus);
+    fmpz_add(e[i], e[i], e_other[i]);  // y - b
+    fmpz_mod(e[i], e[i], Int_Modulus);
+
+    // [xy] = [c] + [x] e + [y] d - de
+    // Is it more efficient using a tmp for product, and modding more?
+    fmpz_addmul(z[i], x[i], e[i]);
+    fmpz_addmul(z[i], y[i], d[i]);
+    if (server_num == 0)
+      fmpz_submul(z[i], d[i], e[i]);
+    fmpz_mod(z[i], z[i], Int_Modulus);
+  }
+
+  clear_fmpz_array(d_other, N);
+  clear_fmpz_array(e_other, N);
+  clear_fmpz_array(d, N);
+  clear_fmpz_array(e, N);
+
+  // Wait for send child to finish
+  if (do_fork) waitpid(pid, &status, 0);
+
   return z;
 }
 

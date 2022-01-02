@@ -43,6 +43,48 @@ void test_multiplyBoolShares(const size_t N, const int server_num, const int ser
   delete[] z;
 }
 
+void test_multiplyArithmeticShares(const size_t N, const int server_num, const int serverfd, CorrelatedStore* store) {
+  fmpz_t* x; new_fmpz_array(&x, N);
+  fmpz_t* y; new_fmpz_array(&y, N);
+
+  if (server_num == 0) {
+    fmpz_set_ui(x[0], 37);
+    fmpz_set_ui(x[1], 2);
+    fmpz_set_si(y[0], -84); fmpz_mod(y[0], y[0], Int_Modulus);
+    fmpz_set_ui(y[1], 69);
+  } else {
+    fmpz_set_si(x[0], -30); fmpz_mod(x[0], x[0], Int_Modulus);
+    fmpz_set_ui(x[1], 11);
+    fmpz_set_ui(y[0], 90);
+    fmpz_set_si(y[1], -62); fmpz_mod(y[1], y[1], Int_Modulus);
+  }
+
+  fmpz_t* z = store->multiplyArithmeticShares(N, x, y);
+
+  if (server_num == 0) {
+    fmpz_t tmp; fmpz_init(tmp);
+
+    recv_fmpz(serverfd, tmp);
+    fmpz_add(tmp, tmp, z[0]);
+    fmpz_mod(tmp, tmp, Int_Modulus);
+    assert(fmpz_equal_ui(tmp, 42)); // 7 * 6 = 42
+
+    recv_fmpz(serverfd, tmp);
+    fmpz_add(tmp, tmp, z[1]);
+    fmpz_mod(tmp, tmp, Int_Modulus);
+    assert(fmpz_equal_ui(tmp, 91)); // 13 * 7 = 91
+
+    fmpz_clear(tmp);
+  } else {
+    send_fmpz(serverfd, z[0]);
+    send_fmpz(serverfd, z[1]);
+  }
+
+  clear_fmpz_array(x, N);
+  clear_fmpz_array(y, N);
+  clear_fmpz_array(z, N);
+}
+
 void test_addBinaryShares(const size_t N, const size_t* const nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
   bool** const x = new bool*[N];
   bool** const y = new bool*[N];
@@ -257,7 +299,12 @@ void runServerTest(const int server_num, const int serverfd) {
     /* Unused
     test_multiplyBoolShares(N, server_num, serverfd, store);
     std::cout << "mul bool timing : " << sec_from(start) << std::endl; start = clock_start();
+    */
 
+    test_multiplyArithmeticShares(N, server_num, serverfd, store);
+    std::cout << "mul arith timing : " << sec_from(start) << std::endl; start = clock_start();
+
+    /* Unused
     test_addBinaryShares(N, bits_arr, server_num, serverfd, store);
     std::cout << "add bin timing : " << sec_from(start) << std::endl; start = clock_start();
     */
