@@ -7,17 +7,21 @@
 fmpz_t Int_Modulus;
 fmpz_t Int_Gen;
 flint_rand_t seed;
+size_t nbits_mod;
 fmpz_t *roots = nullptr, *invroots = nullptr, *roots2 = nullptr;
 size_t num_roots;
 
 void init_constants() {
     fmpz_init(Int_Modulus);
-    fmpz_set_str(Int_Modulus,Int_Modulus_str.c_str(),16);
+    fmpz_set_str(Int_Modulus, Int_Modulus_str.c_str(), 16);
     fmpz_init(Int_Gen);
-    fmpz_set_str(Int_Gen,Int_Gen_str.c_str(),16);
+    fmpz_set_str(Int_Gen, Int_Gen_str.c_str(), 16);
+
+    nbits_mod = fmpz_clog_ui(Int_Modulus, 2);
 
     std::cout << "Init constants: " << std::endl;
     std::cout << "  Int_Modulus = "; fmpz_print(Int_Modulus); std::cout << std::endl;
+    std::cout << "      # bits: " << nbits_mod << std::endl;
     std::cout << "  Int_Gen = "; fmpz_print(Int_Gen); std::cout << std::endl;
     std::cout << "  twoOrder = " << twoOrder << std::endl;
     flint_randinit(seed);
