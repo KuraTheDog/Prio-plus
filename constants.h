@@ -26,6 +26,10 @@ Smaller k' may work, so differnet a may be required.
 // const std::string Int_Gen_str = "2";
 // const int twoOrder = 2;
 
+// const std::string Int_Modulus_str = "11";  // 17 base 16
+// const std::string Int_Gen_str = "4";
+// const int twoOrder = 4;
+
 // const std::string Int_Modulus_str = "61";  // 97 base 16
 // const std::string Int_Gen_str = "8";       // 8 base 16
 // const int twoOrder = 4;

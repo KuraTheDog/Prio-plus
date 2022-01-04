@@ -151,7 +151,7 @@ public:
   // True if [x] > [y]
   bool* cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y);
   // Given [x], sets out = [|x|] via negating if [x] < 0
-  void abs(const size_t N, const fmpz_t* const x, fmpz_t* out);
+  void abs(const size_t N, const fmpz_t* const x, fmpz_t* const out);
   // True if [|x|] > [|y|]
   bool* abs_cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y);
 
@@ -159,7 +159,7 @@ public:
   // I.e. x[i,j] is additive share of bit j of number i. 
   // Returns additive shares of [x < y]
   fmpz_t* cmp_bit(const size_t N, const size_t b,
-                  const fmpz_t* x, const fmpz_t* y);
+                  const fmpz_t* const x, const fmpz_t* const y);
 };
 
 #endif
