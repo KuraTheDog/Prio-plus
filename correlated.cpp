@@ -635,7 +635,7 @@ const DaBit* const * const CorrelatedStore::generateDaBit(const size_t N) {
 bool* CorrelatedStore::cmp_c(const size_t N,
                              const fmpz_t* const x,
                              const fmpz_t* const c) {
-  bool* ans = new bool[N];
+  bool* const ans = new bool[N];
 
   fmpz_t half; fmpz_init(half); fmpz_cdiv_q_ui(half, Int_Modulus, 2);
 
@@ -683,7 +683,7 @@ bool* CorrelatedStore::cmp(const size_t N,
     // std::cout << "diff_" << server_num << "[" << i << "] = " << fmpz_get_ui(diff[i]) << std::endl;
   }
 
-  bool* ans = cmp_c(N, diff, zeros);
+  bool* const ans = cmp_c(N, diff, zeros);
   fmpz_clear(tmp);
   fmpz_clear(half);
   clear_fmpz_array(diff, N);
@@ -691,7 +691,7 @@ bool* CorrelatedStore::cmp(const size_t N,
   return ans;
 }
 
-void CorrelatedStore::abs(const size_t N, const fmpz_t* const x, fmpz_t* out) {
+void CorrelatedStore::abs(const size_t N, const fmpz_t* const x, fmpz_t* const out) {
   fmpz_t* zeros; new_fmpz_array(&zeros, N);
   bool* sign = cmp_c(N, x, zeros);
   for (unsigned int i = 0; i < N; i++) {
@@ -721,7 +721,7 @@ bool* CorrelatedStore::abs_cmp(const size_t N,
     fmpz_set(y2[i], merge_abs[i+N]);
   }
   clear_fmpz_array(merge_abs, N);
-  bool* ans = cmp(N, x2, y2);
+  bool* const ans = cmp(N, x2, y2);
   clear_fmpz_array(x2, N);
   clear_fmpz_array(y2, N);
   return ans;
@@ -730,11 +730,14 @@ bool* CorrelatedStore::abs_cmp(const size_t N,
 // x, y are Nxb shares of N total b-bit numbers. 
 // I.e. x[i,j] is additive share of bit j of number i. 
 fmpz_t* CorrelatedStore::cmp_bit(const size_t N, const size_t b,
-                                 const fmpz_t* x, const fmpz_t* y) {
+                                 const fmpz_t* const x, const fmpz_t* const y) {
   fmpz_t* ans; new_fmpz_array(&ans, N);
-
   size_t idx;  // for convenience
-  // c = "x ^ y" = x + y - 2 (xy)
+
+  // Total mults: ~3x (N*b)
+  checkTriples(3 * N * b);
+
+  // [c] = [x ^ y] = [x] + [y] - 2[xy]
   fmpz_t* c = multiplyArithmeticShares(N * b, x, y);
   for (unsigned int i = 0; i < N * b; i++) {
     fmpz_mul_si(c[i], c[i], -2);
@@ -743,18 +746,18 @@ fmpz_t* CorrelatedStore::cmp_bit(const size_t N, const size_t b,
     fmpz_mod(c[i], c[i], Int_Modulus);
   }
 
-  // di = OR(cj) from i+1 to b
-  // = ci OR d(i+1), with d_b = cb
+  // [di] = OR([cj]) from i+1 to b
+  // = [ci] OR [d(i+1)], with d_b = cb
   // a OR b = 1-(1-a)(1-b) = a + b - ab
-  // TODO: Currently doing b-round version. Can be constant, but lazy for now.
+  // TODO: Currently doing b-round version. Can be constant, but lazy fine for now.
   fmpz_t* d; new_fmpz_array(&d, N * b);
   // Start: db = cb
   for (unsigned int i = 0; i < N; i++) {
     idx = i * b + (b-1);  // [i, b-1]
     fmpz_set(d[idx], c[idx]);
   }
-  fmpz_t* ci; new_fmpz_array(&ci, N);     // ci
-  fmpz_t* di1; new_fmpz_array(&di1, N);   // d(i+1)
+  fmpz_t* ci; new_fmpz_array(&ci, N);     // [ci]
+  fmpz_t* di1; new_fmpz_array(&di1, N);   // [d(i+1)]
   for (int j = b-2; j >= 0; j--) {
     for (unsigned int i = 0; i < N; i++) {
       idx = i * b + j;

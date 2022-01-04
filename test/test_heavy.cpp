@@ -114,7 +114,8 @@ void testHeavyOT(const int server_num, const int serverfd,
 }
 
 
-void test_cmp(const int server_num, const int serverfd, CorrelatedStore* store) {
+void test_cmp(
+    const int server_num, const int serverfd, CorrelatedStore* store) {
   // setup
   const size_t N = 10;
   fmpz_t* val0; new_fmpz_array(&val0, N);
@@ -189,8 +190,8 @@ void test_cmp(const int server_num, const int serverfd, CorrelatedStore* store) 
   clear_fmpz_array(val1, N);
 }
 
-void test_cmp_bit(const int server_num, const int serverfd,
-                  CorrelatedStore* store) {
+void test_cmp_bit(
+    const int server_num, const int serverfd, CorrelatedStore* store) {
   // Setup values
   const size_t bits = 2;
   const size_t max = 1 << bits;
