@@ -159,8 +159,14 @@ public:
   // x, y are Nxb shares of N total b-bit numbers. 
   // I.e. x[i,j] is additive share of bit j of number i. 
   // Returns additive shares of [x < y]
+  // Uses 3 triples per bit to compare
   fmpz_t* cmp_bit(const size_t N, const size_t b,
                   const fmpz_t* const x, const fmpz_t* const y);
+  // Generate N random b-bit numbers r, with bitshares rB
+  // b is the # of bits in the int modulus
+  // r is N values [r], returns rB is N*b shares of bits
+  // For each gen, uses a dabit to gen and a cmp_bit (3 triple) to check
+  fmpz_t* gen_rand_bitshare(const size_t N, fmpz_t* const r);
 };
 
 #endif
