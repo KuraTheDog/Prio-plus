@@ -259,6 +259,60 @@ void test_cmp_bit(
   clear_fmpz_array(y_bits, N * bits);
 }
 
+void test_rand_bitshare(
+    const int server_num, const int serverfd, CorrelatedStore* store) {
+  const size_t N = 10;
+  const size_t b = nbits_mod;
+
+  fmpz_t* r; new_fmpz_array(&r, N);
+  fmpz_t* r_B = store->gen_rand_bitshare(N, r);
+
+
+  if (server_num == 0) {
+    fmpz_t* r_other; new_fmpz_array(&r_other, N);
+    fmpz_t* r_B_other; new_fmpz_array(&r_B_other, N * b);
+    recv_fmpz_batch(serverfd, r_other, N);
+    recv_fmpz_batch(serverfd, r_B_other, N * b);
+
+    fmpz_t got; fmpz_init(got);
+    fmpz_t bit; fmpz_init(bit);
+
+    std::cout << "P = " << fmpz_get_ui(Int_Modulus) << " (" << b << " bits)" << std::endl;
+
+    size_t keep = 0;
+
+    for (unsigned int i = 0; i < N; i++) {
+      fmpz_add(got, r[i], r_other[i]); 
+      fmpz_mod(got, got, Int_Modulus);
+      // std::cout << "got r = " << fmpz_get_ui(got) << std::endl;
+      // std::cout << " binary (reversed): ";
+      fmpz_zero(r[i]);  // reuse as array
+      for (unsigned int j = 0; j < b; j++) {
+        fmpz_add(bit, r_B[i * b + j], r_B_other[i * b + j]); 
+        fmpz_mod(bit, bit, Int_Modulus);
+        // std::cout << " bit " << j << " = " << fmpz_get_ui(bit) << " (" << fmpz_get_ui(r_B[i * b + j]) << " + " << fmpz_get_ui(r_B_other[i * b + j]) << ")" << std::endl;
+        // std::cout << fmpz_get_ui(bit);
+        fmpz_addmul_ui(r[i], bit, 1 << j);
+      }
+      // std::cout << std::endl;
+      // std::cout << " bit number: " << fmpz_get_ui(r[i]) << std::endl;
+      // 0 if equal (fine), -1 if got < r[i] (not fine)
+      if (fmpz_cmp(got, r[i]) == 0) {
+        keep += 1;
+      }
+    }
+    std::cout << "keepable: " << keep << "/" << N << " = " << ((float)keep)/N << std::endl;
+
+    clear_fmpz_array(r_other, N);
+    clear_fmpz_array(r_B_other, N * b);
+  } else {
+    send_fmpz_batch(serverfd, r, N);
+    send_fmpz_batch(serverfd, r_B, N * b);
+  }
+  clear_fmpz_array(r, N);
+  clear_fmpz_array(r_B, N * b);
+}
+
 void runServerTest(const int server_num, const int serverfd) {
 
   // init
@@ -287,7 +341,9 @@ void runServerTest(const int server_num, const int serverfd) {
 
   // test_cmp(server_num, serverfd, store);
 
-  test_cmp_bit(server_num, serverfd, store);
+  // test_cmp_bit(server_num, serverfd, store);
+
+  test_rand_bitshare(server_num, serverfd, store);
   
   delete ot0;
   delete ot1;

@@ -802,3 +802,102 @@ fmpz_t* CorrelatedStore::cmp_bit(const size_t N, const size_t b,
   }
   return ans;
 }
+
+// Make each bit in parallel: [ri in {0,1}]p
+// check if [r < p] bitwise, retry if not
+// success odds are p/2^b, worst case ~1/2 failure. 
+fmpz_t* CorrelatedStore::gen_rand_bitshare(const size_t N, fmpz_t* const r) {
+  const size_t b = nbits_mod;
+  fmpz_t* rB; new_fmpz_array(&rB, N * b);
+
+  // Assumed tries to succeed. (worst case 1/2 fail, so 2 avg, overestimate)
+  const size_t avg_tries = 4;           
+  checkDaBits(avg_tries * N * b);       // for gen
+  checkTriples(avg_tries * 3 * N * b);  // for cmp
+  std::cout << "check done" << std::endl;
+
+  // p bitwise shared, for [r < p]. All bits set on server 0, since public.
+  fmpz_t* pB; new_fmpz_array(&pB, N * b);  // Zero by default
+  if (server_num == 0)
+    for (unsigned int j = 0; j < b; j++)
+      if (fmpz_tstbit(Int_Modulus, j))
+        for (unsigned int i = 0; i < N; i++)
+          fmpz_set_si(pB[i * b + j], 1);
+
+  // for validation checking
+  fmpz_t* rB_tocheck; new_fmpz_array(&rB_tocheck, N * b);
+  size_t* rB_idx = new size_t[N];
+  fmpz_t* r_lt_p_other; new_fmpz_array(&r_lt_p_other, N);
+
+  // Track which are already set
+  bool* const valid = new bool[N];
+  memset(valid, false, N * sizeof(bool));
+  size_t num_invalid;
+
+  size_t log_num_invalid = 0;
+
+  while (true) {
+    num_invalid = 0;
+
+    // Compute new (if not valid)
+    for (unsigned int i = 0; i < N; i++) {
+      if (valid[i])
+        continue;
+
+      fmpz_zero(r[i]);
+      for (unsigned int j = 0; j < b; j++) {
+        // Just need 2 numbers summing to 0 or 1, so bp. b2 not needed.
+        DaBit* dabit = getDaBit();
+        fmpz_set(rB[i * b + j], dabit->bp);
+        fmpz_addmul_ui(r[i], dabit->bp, 1 << j);
+        fmpz_mod(r[i], r[i], Int_Modulus);
+        // consume the dabit
+        delete dabit;
+
+        // add to rB_tocheck
+        // std::cout << "rB_tocheck[" << num_invalid * b + j << "] := rB[" << i*b+j << "]" << std::endl;
+        fmpz_set(rB_tocheck[num_invalid * b + j], rB[i * b + j]);
+      }
+      rB_idx[num_invalid] = i;
+
+      num_invalid++;
+    }
+
+    log_num_invalid += num_invalid;
+
+    // std::cout << "num invalid: " << num_invalid << " / " << N << std::endl;
+    if (num_invalid == 0) {
+      break;
+    }
+
+    // Check [r < p], retry if not, sets "valid" where [r < p]
+
+    // It's fine if arrays are larger, extras get ignored.
+    fmpz_t* r_lt_p = cmp_bit(num_invalid, b, rB_tocheck, pB);
+    // Get r_lt_p in clear
+    // TODO: fork
+    if (server_num == 0) {
+      send_fmpz_batch(serverfd, r_lt_p, num_invalid);
+      recv_fmpz_batch(serverfd, r_lt_p_other, num_invalid);
+    } else {
+      recv_fmpz_batch(serverfd, r_lt_p_other, num_invalid);
+      send_fmpz_batch(serverfd, r_lt_p, num_invalid);
+    }
+    for (unsigned int i = 0; i < num_invalid; i++) {
+      fmpz_add(r_lt_p[i], r_lt_p[i], r_lt_p_other[i]);
+      fmpz_mod(r_lt_p[i], r_lt_p[i], Int_Modulus);
+      valid[rB_idx[i]] = fmpz_is_one(r_lt_p[i]);
+      // std::cout << "check " << i << ": valid[" << rB_idx[i] << "] = " << valid[rB_idx[i]] << std::endl;
+    }
+    clear_fmpz_array(r_lt_p, num_invalid);
+  }
+
+  clear_fmpz_array(rB_tocheck, N * b);
+  clear_fmpz_array(pB, N * b);
+  clear_fmpz_array(r_lt_p_other, N);
+  delete[] rB_idx;
+
+  // std::cout << "total sub-iterations: " << log_num_invalid << ", vs expected: " << avg_tries * N << std::endl;
+
+  return rB;
+}
