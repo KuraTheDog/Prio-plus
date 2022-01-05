@@ -24,9 +24,14 @@ struct OT_Wrapper {
   OT_Wrapper(const char* const address, const int port);
   ~OT_Wrapper();
 
+  // OT send/recv 64 bit data = datab selected from (data0, data) using b
+  // If dataX_1 are set, is additional 64 bits added on, for 128 total.
+  // I.e. (data, data_1) = (datab, datab_1) for choice b
   void send(const uint64_t* const data0, const uint64_t* const data1,
-            const size_t length);
-  void recv(uint64_t* const data, const bool* b, const size_t length);
+            const size_t length,
+            const uint64_t* const data0_1 = nullptr, const uint64_t* const data1_1 = nullptr);
+  void recv(uint64_t* const data, const bool* b, const size_t length,
+            uint64_t* const data_1 = nullptr);
 };
 
 // mod 0 = default 2^64
