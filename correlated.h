@@ -129,12 +129,15 @@ public:
                                 const fmpz_t* const x);
 
   // N inputs of b bits
-  // 00, 01 -> 0, 10 -> 1, 11 -> -1, accumulate into buckets
-  // shares are 2*N*b sized. first N*b is bucket 0, second is bucket 1
-  void heavy_ot(const size_t N, const size_t b,
-                const bool* const shares_x0, const bool* const shares_x1,
-                const bool* const valid,
-                fmpz_t* const bucket0, fmpz_t* const bucket1);
+  // [xy]: x = which bucket is 0, nonzero is -1 if y = 1
+  // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
+  // N*b for x, y
+  // N valid, if invalid just contributes 0
+  // b buckets each of 0, 1, accumulating as above
+  void heavy_convert(const size_t N, const size_t b,
+                     const bool* const x, const bool* const y,
+                     const bool* const valid,
+                     fmpz_t* const bucket0, fmpz_t* const bucket1);
 
   // Using intsum_ot, multiple bits
   // TODO: shift mod to fmpz

@@ -39,9 +39,9 @@ OT_Wrapper* ot1;
 
 // Precompute cache of dabits
 CorrelatedStore* correlated_store;
-// #define CACHE_SIZE 8192
+#define CACHE_SIZE 8192
 // #define CACHE_SIZE 65536
-#define CACHE_SIZE 262144
+// #define CACHE_SIZE 262144
 // #define CACHE_SIZE 2097152
 // If set, does fast but insecure offline precompute.
 #define LAZY_PRECOMPUTE false
@@ -1489,8 +1489,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
 returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num) {
     auto start = clock_start();
     
-    typedef std::tuple <bool*, bool*, bool*, bool*> sharetype;
-    std::unordered_map<std::string, sharetype> share_map;
+    std::unordered_map<std::string, bool*> share_map;
     int num_bytes = 0;
     const size_t b = msg.num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
@@ -1504,46 +1503,21 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
     fmpz_t* bucket0; new_fmpz_array(&bucket0, b);
     fmpz_t* bucket1; new_fmpz_array(&bucket1, b);
 
-    bool* const buff = new bool[4*b];
     for (unsigned int i = 0; i < total_inputs; i++) {
         char pk_c[PK_LENGTH];
         num_bytes += recv_in(clientfd, &pk_c[0], PK_LENGTH);
         const std::string pk(pk_c, pk_c+PK_LENGTH);
 
-        num_bytes += recv_bool_batch(clientfd, buff, 4*b);
+        bool* const buff = new bool[2 * b];
+        num_bytes += recv_bool_batch(clientfd, buff, 2 * b);
 
-        bool* const arr00 = new bool[b];
-        bool* const arr01 = new bool[b];
-        bool* const arr10 = new bool[b];
-        bool* const arr11 = new bool[b];
-
-        memcpy(arr00, &buff[0], b);
-        memcpy(arr01, &buff[b], b);
-        memcpy(arr10, &buff[2*b], b);
-        memcpy(arr11, &buff[3*b], b);
-
-        bool share_valid = true;
-        for (unsigned int j = 0; j < b; j++) {
-            // 0 is same, 1 is diff
-            // std::cout << "val[" << i << ", " << j << "] are " << arr00[j] << ", " << arr01[j] << ", " << arr10[j] << ", " << arr11[j] << std::endl;
-            if ((arr00[j] ^ arr10[j]) != server_num) {
-                std::cout << "share[" << i << ", " << j << "] invalid for first bits: " << arr00[j] << " ^ " << arr10[j] << " != " << server_num << std::endl;
-                share_valid = false;
-                break;
-            }
-        }
-        if (share_map.find(pk) != share_map.end()
-            or !share_valid) {
-            delete[] arr00;
-            delete[] arr01;
-            delete[] arr10;
-            delete[] arr11;
+        if (share_map.find(pk) != share_map.end()) {
+            delete[] buff;
             continue;
         }
 
-        share_map[pk] = {arr00, arr01, arr10, arr11};
+        share_map[pk] = buff;
     }
-    delete[] buff;
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << num_bytes << std::endl;
@@ -1560,45 +1534,43 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         const size_t n = num_inputs * b;
         num_bytes += send_size(serverfd, num_inputs);
         bool* const valid = new bool[num_inputs];
-        bool* const shares_x0 = new bool[2 * n];
-        bool* const shares_x1 = new bool[2 * n];
+        bool* const x = new bool[n];
+        bool* const y = new bool[n];
 
         size_t idx = 0;
         for (const auto& share : share_map) {
             num_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
 
-            memcpy(&shares_x0[idx*b], std::get<0>(share.second), b);
-            memcpy(&shares_x1[idx*b], std::get<1>(share.second), b);
-            memcpy(&shares_x0[idx*b + n], std::get<2>(share.second), b);
-            memcpy(&shares_x1[idx*b + n], std::get<3>(share.second), b);
+            memcpy(&x[idx*b], share.second, b);
+            memcpy(&y[idx*b], &(share.second[b]), b);
+            
+            // std::cout << "share[" << idx << "] = ";
+            // for (unsigned int j = 0; j < b; j++)
+            //     std::cout << x[idx * b + j];
+            // std::cout << ", ";
+            // for (unsigned int j = 0; j < b; j++)
+            //     std::cout << y[idx * b + j];
+            // std::cout << std::endl;
+
             idx++;
 
-            // the ans_xx
-            delete[] std::get<0>(share.second);
-            delete[] std::get<1>(share.second);
-            delete[] std::get<2>(share.second);
-            delete[] std::get<3>(share.second);
+            delete[] share.second;
         }
         recv_bool_batch(serverfd, valid, num_inputs);
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        correlated_store->heavy_ot(num_inputs, b, shares_x0, shares_x1, valid, bucket0, bucket1);
-        delete[] shares_x0;
-        delete[] shares_x1;
+        correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
+        delete[] x;
+        delete[] y;
         std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
 
         // Evaluate
         // True means |1| is larger than |0|
         start2 = clock_start();
-
         bool* larger = correlated_store->abs_cmp(b, bucket0, bucket1);
         std::cout << "evaluate time: " << sec_from(start2) << std::endl;
-
-        // TEMP: For the sake of testing
-        // send_fmpz_batch(serverfd, bucket0, b);
-        // send_fmpz_batch(serverfd, bucket1, b);
 
         clear_fmpz_array(bucket0, b);
         clear_fmpz_array(bucket1, b);
@@ -1616,41 +1588,40 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         size_t num_inputs;
         recv_size(serverfd, num_inputs);
         const size_t n = num_inputs * b;
-        bool* const shares_x0 = new bool[2 * n];
-        bool* const shares_x1 = new bool[2 * n];
+        bool* const x = new bool[n];
+        bool* const y = new bool[n];
         bool* const valid = new bool[num_inputs];
 
-        sharetype share;
+        bool* share;
         for (unsigned int i = 0; i < num_inputs; i++) {
             const std::string pk = get_pk(serverfd);
             valid[i] = (share_map.find(pk) != share_map.end());
-            if (valid[i]) {
-                share = share_map[pk];
-                // std::cout << "share: " << std::get<0>(share) << std::get<1>(share) << std::get<2>(share) << std::get<3>(share) << std::endl;
-                memcpy(&shares_x0[i*b], std::get<0>(share), b);
-                memcpy(&shares_x1[i*b], std::get<1>(share), b);
-                memcpy(&shares_x0[i*b + n], std::get<2>(share), b);
-                memcpy(&shares_x1[i*b + n], std::get<3>(share), b);
-
-                // the ans_xx
-                delete[] std::get<0>(share);
-                delete[] std::get<1>(share);
-                delete[] std::get<2>(share);
-                delete[] std::get<3>(share);
-            } else {
-                memset(&shares_x0[i*b], 0, b);
-                memset(&shares_x1[i*b], 0, b);
-                memset(&shares_x0[i*b + n], 0, b);
-                memset(&shares_x1[i*b + n], 0, b);
+            if (!valid[i]) {
+                memset(&x[i * b], 0, b);
+                memset(&y[i * b], 0, b);
+                continue;
             }
+            share = share_map[pk];
+            memcpy(&x[i * b], share, b);
+            memcpy(&y[i * b], &(share[b]), b);
+
+            // std::cout << "share[" << i << "] = ";
+            // for (unsigned int j = 0; j < b; j++)
+            //     std::cout << x[i * b + j];
+            // std::cout << ", ";
+            // for (unsigned int j = 0; j < b; j++)
+            //     std::cout << y[i * b + j];
+            // std::cout << std::endl;
+
+            delete[] share;
         }
         send_bool_batch(serverfd, valid, num_inputs);
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        correlated_store->heavy_ot(num_inputs, b, shares_x0, shares_x1, valid, bucket0, bucket1);
-        delete[] shares_x0;
-        delete[] shares_x1;
+        correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
+        delete[] x;
+        delete[] y;
         std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
         
@@ -1679,9 +1650,10 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
             // std::cout << "bucket" << (larger[j] ? 1 : 0) << "[" << j << "] is heavier" << std::endl;
             ans |= (larger[j] << j);
         }
-        std::cout << "Heavy hitter value is " << ans << std::endl;
 
         std::cout << "evaluate time: " << sec_from(start2) << std::endl;
+
+        std::cout << "### Heavy hitter value is " << ans << std::endl;
 
         delete[] larger;
         delete[] valid;
