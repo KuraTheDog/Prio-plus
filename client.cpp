@@ -1525,7 +1525,7 @@ int heavy_helper(const std::string protocol, const size_t numreqs,
     std::cout << "Fixed heavy value: " << heavy << std::endl;
 
     // bools per bucket, so can reuse freqShare
-    // 4x since 2 bits for each of 2 buckets, per bit
+    // Stacked, so arr is (all x, all y)
     FreqShare* const freqshare0 = new FreqShare[numreqs];
     FreqShare* const freqshare1 = new FreqShare[numreqs];
     for (unsigned int i = 0; i < numreqs; i++) {
@@ -1539,42 +1539,22 @@ int heavy_helper(const std::string protocol, const size_t numreqs,
         count[real_val] += 1;
         // std::cout << "real_val: " << real_val << std::endl;
 
-        freqshare0[i].arr = new bool[4 * b];
-        freqshare1[i].arr = new bool[4 * b];
-        prg.random_bool(freqshare0[i].arr, 4 * b);
-        memcpy(freqshare1[i].arr, freqshare0[i].arr, 4 * b * sizeof(bool));
+        freqshare0[i].arr = new bool[2 * b];
+        freqshare1[i].arr = new bool[2 * b];
+        prg.random_bool(freqshare0[i].arr, 2 * b);
         for (unsigned int j = 0; j < b; j++) {
             // just use standard basis, i.e. jth bit
             bool bucket = (real_val >> j) % 2;
             // get bucket value (0/1 rather than +- 1)
             hash_store.eval(j, real_val, hashed);
             // instead test if hashed is 1 using fmpz.
-            int h = fmpz_get_si(hashed);
-            // std::cout << "number " << i << ", bit " << j << " bucket " << bucket << " with value " << (h == 1 ? 1 : -1) << std::endl;
+            bool h = fmpz_is_one(hashed);
+            // std::cout << "number " << i << " = " << real_val << ", bit " << j << " bucket " << bucket << " with value " << h << " (" << (h == 1 ? -1 : 1) << ")" << std::endl;
 
-            // 0 bucket has first bits same. 1 bucket has first diff
-            // Values: hash = 0 (-1), second diff. hash = 1, second same
-            // 00, 01 = 0. 10 = 1, 11 = -1
-
-            if (bucket == 0) {
-                freqshare1[i].arr[j] ^= 1;
-                if (h == 1)
-                    freqshare1[i].arr[b + j] ^= 1;
-                // other: 0 same, 1 diff, second rand
-                freqshare0[i].arr[2*b + j] = freqshare0[i].arr[j];
-                freqshare1[i].arr[2*b + j] = freqshare1[i].arr[j] ^ 1;
-                prg.random_bool(&(freqshare1[i].arr[3*b + j]), 1);
-            } else {
-                freqshare1[i].arr[2*b + j] ^= 1;
-                if (h == 1)
-                    freqshare1[i].arr[3*b + j] ^= 1;
-                // other: 0 same, 1 diff, second rand
-                freqshare0[i].arr[j] = freqshare0[i].arr[2*b + j];
-                freqshare1[i].arr[j] = freqshare1[i].arr[2*b + j] ^ 1;
-                prg.random_bool(&(freqshare1[i].arr[b + j]), 1);
-            }
-            // std::cout << " share0[" << i << "]: (" << freqshare0[i].arr[j] << ", " << freqshare0[i].arr[b + j] << ") , ("  << freqshare0[i].arr[2*b + j] << ", " << freqshare0[i].arr[3*b + j] << ")" << std::endl;
-            // std::cout << " share1[" << i << "]: (" << freqshare1[i].arr[j] << ", " << freqshare1[i].arr[b + j] << ") , ("  << freqshare1[i].arr[2*b + j] << ", " << freqshare1[i].arr[3*b + j] << ")" << std::endl;
+            // [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
+            // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
+            freqshare1[i].arr[j] = freqshare0[i].arr[j] ^ bucket;
+            freqshare1[i].arr[j + b] = freqshare0[i].arr[j + b] ^ h;
         }
 
         const std::string pk_s = make_pk(prg);
@@ -1590,15 +1570,15 @@ int heavy_helper(const std::string protocol, const size_t numreqs,
     start = clock_start();
     for (unsigned int i = 0; i < numreqs; i++) {
         // std::cout << "sending 0[" << i << "] = ";
-        // for (unsigned int j = 0; j < 4 * num_bits; j++)
+        // for (unsigned int j = 0; j < 2 * num_bits; j++)
         //     std::cout << freqshare0[i].arr[j] << " ";
         // std::cout << std::endl;
         // std::cout << "sending 1[" << i << "] = ";
-        // for (unsigned int j = 0; j < 4 * num_bits; j++)
+        // for (unsigned int j = 0; j < 2 * num_bits; j++)
         //     std::cout << freqshare1[i].arr[j] << " ";
         // std::cout << std::endl;
-        num_bytes += send_freqshare(0, freqshare0[i], 4 * num_bits);
-        num_bytes += send_freqshare(1, freqshare1[i], 4 * num_bits);
+        num_bytes += send_freqshare(0, freqshare0[i], 2 * num_bits);
+        num_bytes += send_freqshare(1, freqshare1[i], 2 * num_bits);
 
         delete[] freqshare0[i].arr;
         delete[] freqshare1[i].arr;

@@ -16,72 +16,49 @@ const bool lazy = false;
 8 inputs per, for possible randomness (0-bucket, 2 xor bits)
 Tries all combinations of shares
 
-bit = 0, all -1 into bucket 0
-bit = 1, all -1 into bucket 1
-bit = 2, all +1 into bucket 0
-bit = 3, all +1 into bucket 1
+bit = 0, all +1 into bucket 0
+bit = 1, all +1 into bucket 1
+bit = 2, all -1 into bucket 0
+bit = 3, all -1 into bucket 1
 */
 
-void testHeavyOT(const int server_num, const int serverfd,
+void testHeavyConvert(const int server_num, const int serverfd,
                  CorrelatedStore* store) {
   const size_t nbits = 4;
-  const size_t N = 8;
+  const size_t N = 4;
   const size_t n = nbits * N;
 
-  bool* const shares_x0 = new bool[2 * n];
-  bool* const shares_x1 = new bool[2 * n];
+  bool* const x = new bool[n];
+  bool* const y = new bool[n];
   fmpz_t* bucket0; new_fmpz_array(&bucket0, nbits);
   fmpz_t* bucket1; new_fmpz_array(&bucket1, nbits);
   bool* const valid = new bool[N]; memset(valid, 1, N);
 
-  // Set up values for heavy convert
+  // Setup
   for (unsigned int j = 0; j < nbits; j++) {
-    const size_t bucket = j%2;
-    const size_t hash = (j>>1)%2;
-    // std::cout << "bit " << j << " = bucket " << bucket << ", hash " << hash << std::endl;
+    const bool bucket = j % 2;
+    const bool hash  = (j >> 1) % 2;
+    std::cout << "bit " << j << " = bucket " << bucket << ", hash " << hash << std::endl;
 
     for (unsigned int i = 0; i < N; i++) {
       const size_t idx = i * nbits + j;
-      // std::cout << "idx(" << i << ", " << j << ") = " << idx << std::endl;
-      // std::cout << " bucket" << bucket << "[" << i << "] " << (hash == 1 ? "+" : "-") << "=1" << std::endl;
-      // Base
-      size_t base = 0;
-      if (bucket == 0) {
-        base |= 1;
-        base |= (hash ? 0 : 1) << 1;
-        base |= ((i>>3)%2) << 3;
-      } else {
-        base |= ((i>>3)%2) << 1;
-        base |= 1 << 2;
-        base |= (hash ? 0 : 1) << 3;
+
+      // share 0
+      x[idx] = i % 2;
+      y[idx] = (i >> 1) % 2;
+      // share 1
+      if (server_num == 1) {
+        // std::cout << "x[" << idx << "] = " << x[idx] << ", " << (x[idx] ^ bucket) << std::endl;
+        // std::cout << "y[" << idx << "] = " << x[idx] << ", " << (y[idx] ^ hash) << std::endl;
+        x[idx] ^= bucket;
+        y[idx] ^= hash;
       }
-      // if (j % 4 == 0) {
-      // std::cout << " new base: " << (base%2) << ((base>>1)%2) << ", " << ((base>>2)%2) << ((base>>3)%2) << std::endl;
-      // }
-
-      // 0: first bit same, for validity. 1 has first diff.
-      size_t share = 0;
-      share |= (i>>1)%2;
-      share |= ((i>>2)%2) << 1;  // rand
-      share |= ((i>>1)%2) << 2;  // same as first
-      share |= (i%2) << 3;  // rand
-      if (server_num == 1)
-        share = base ^ share;
-
-      // std::cout << "  share" << server_num << " = " << share << ": " << (share%2) << ((share>>1)%2) << ", " << ((share>>2)%2) << ((share>>3)%2) << std::endl;
-
-      // Convert to format
-      shares_x0[idx] = share%2;
-      shares_x1[idx] = (share>>1)%2;
-      shares_x0[idx + n] = (share>>2)%2;
-      shares_x1[idx + n] = (share>>3)%2;
     }
   }
 
-  // Execute conversion
   auto start = clock_start();
-  store->heavy_ot(N, nbits, shares_x0, shares_x1, valid, bucket0, bucket1);
-  std::cout << "heavy ot timing : " << sec_from(start) << std::endl;
+  store->heavy_convert(N, nbits, x, y, valid, bucket0, bucket1);
+  std::cout << "heavy convert timing : " << sec_from(start) << std::endl;
 
   // recombine / test
   if (server_num == 0) {
@@ -108,11 +85,10 @@ void testHeavyOT(const int server_num, const int serverfd,
 
   clear_fmpz_array(bucket0, nbits);
   clear_fmpz_array(bucket1, nbits);
-  delete[] shares_x0;
-  delete[] shares_x1;
+  delete[] x;
+  delete[] y;
   delete[] valid;
 }
-
 
 void test_cmp(
     const int server_num, const int serverfd, CorrelatedStore* store) {
@@ -337,7 +313,7 @@ void runServerTest(const int server_num, const int serverfd) {
     fmpz_randm(tmp, seed, Int_Modulus);
   fmpz_clear(tmp);
 
-  // testHeavyOT(server_num, serverfd, store);
+  testHeavyConvert(server_num, serverfd, store);
 
   // test_cmp(server_num, serverfd, store);
 

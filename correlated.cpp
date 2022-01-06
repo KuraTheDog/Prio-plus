@@ -449,139 +449,129 @@ fmpz_t* CorrelatedStore::b2a_ot(const size_t num_shares, const size_t num_values
   return ans;
 }
 
-// shares are size 2*N*b = 2 * n
-// valid is size N
-// buckets are size b
-void CorrelatedStore::heavy_ot(
+void CorrelatedStore::heavy_convert(
     const size_t N, const size_t b,
-    const bool* const shares_x0, const bool* const shares_x1,
+    const bool* const x, const bool* const y,
     const bool* const valid,
     fmpz_t* const bucket0, fmpz_t* const bucket1) {
   const size_t n = N * b;
 
-  // Step 1: convert x1 as 01 || 11, single bit per
-  fmpz_t* shares_p = b2a_daBit_single(2 * n, shares_x1);
+  // Step 1: convert y to arith shares
+  fmpz_t* y_p = b2a_daBit_single(n, y);
 
-  // Step 2: Buckets. Goal is (z + z')(x ^ x')
-  // z = servernum - 2y
-  // send: (r, r+z) order on x, so (r+xz, r+(1-x)z)
-  //   and add -r
-  // recv: pick using x, get z(x ^ x')
-
-  // 2.1: Setup
+  // Step 2: OT setup
+  // z = 1 - 2y, as [z] = servernum - 2[y]
+  // then (x ^ x')(z + z')
   fmpz_t r; fmpz_init(r);
   fmpz_t z; fmpz_init(z);
   fmpz_t tmp; fmpz_init(tmp);
-  uint64_t* const data0 = new uint64_t[2*n];
-  uint64_t* const data1 = new uint64_t[2*n];
-  uint64_t* const received = new uint64_t[2*n];
+  // Bucket 0 choices
+  uint64_t* const data0 = new uint64_t[n];
+  uint64_t* const data1 = new uint64_t[n];
+  // Bucket 1 choices
+  uint64_t* const data0_1 = new uint64_t[n];
+  uint64_t* const data1_1 = new uint64_t[n];
 
+  // [ (r0, r1+z), (r0 + z, r1) ] based on x
+  // [ (r0 + xz, r1 + !x z), (r0 + !x z, r1 + x z)]
+  // [ (0, 0_1), (1, 1_1)]
   for (unsigned int i = 0; i < N; i++) {
     if (!valid[i]) {
-      memset(&data0[i*b], 0, b * sizeof(uint64_t));
-      memset(&data0[i*b + n], 0, b * sizeof(uint64_t));
-      memset(&data1[i*b], 0, b * sizeof(uint64_t));
-      memset(&data1[i*b + n], 0, b * sizeof(uint64_t));
+      memset(&data0[i * b], 0, b * sizeof(uint64_t));
+      memset(&data0_1[i * b], 0, b * sizeof(uint64_t));
+      memset(&data1[i * b], 0, b * sizeof(uint64_t));
+      memset(&data1_1[i * b], 0, b * sizeof(uint64_t));
       continue;
     }
 
     for (unsigned int j = 0; j < b; j++) {
-      // bucket 0
-      size_t idx = i*b + j;
-      // rand r, add -r to bucket
-      // fmpz_randm(r, seed, Int_Modulus);
-      fmpz_zero(r);
+      const size_t idx = i * b + j;
+
+      // Build z = 1 - 2y, as [z] = servernum - 2[y]
+      fmpz_set_si(z, server_num);
+      fmpz_submul_si(z, y_p[idx], 2);
+      fmpz_mod(z, z, Int_Modulus);
+
+      // r0
+      fmpz_randm(r, seed, Int_Modulus);
+      // fmpz_zero(r);
       fmpz_sub(bucket0[j], bucket0[j], r);
       fmpz_mod(bucket0[j], bucket0[j], Int_Modulus);
-      // z = 1 - 2y
-      // std::cout << "b0[" << server_num << ", " << i << ", " << j << "]: subtract r = " << fmpz_get_ui(r) << std::endl;
-      // std::cout << "b0[" << server_num << ", " << i << ", " << j << "]: x = " << shares_x0[idx] << std::endl;
-      // std::cout << "b0[" << server_num << ", " << i << ", " << j << "]: y = " << fmpz_get_ui(shares_p[idx]) << std::endl;
-      fmpz_set_si(z, server_num);
-      fmpz_submul_si(z, shares_p[idx], 2);
-      fmpz_mod(z, z, Int_Modulus);
-      // std::cout << "b0[" << server_num << ", " << i << ", " << j << "]: z = " << fmpz_get_ui(z) << std::endl;
-      // 0 = r + xz
-      fmpz_set(tmp, r); fmpz_addmul_ui(tmp, z, shares_x0[idx]);
+      // r0 + xz and r0 + (1-x) z
+      fmpz_add(tmp, r, z);
       fmpz_mod(tmp, tmp, Int_Modulus);
-      data0[idx] = fmpz_get_ui(tmp);
-      // 1 = r + (1-x)z
-      fmpz_set(tmp, r); fmpz_addmul_ui(tmp, z, 1 - shares_x0[idx]);
-      fmpz_mod(tmp, tmp, Int_Modulus);
-      data1[idx] = fmpz_get_ui(tmp);
-      // std::cout << "b0[" << server_num << ", " << i << ", " << j << "]: send (" << data0[idx] << ", " << data1[idx] << ")\n";
+      if (x[idx]) {
+        data0[idx] = fmpz_get_ui(r);
+        data1[idx] = fmpz_get_ui(tmp);
+      } else {
+        data0[idx] = fmpz_get_ui(tmp);
+        data1[idx] = fmpz_get_ui(r);
+      }
 
-      // bucket 1, idx += n
-      idx = i*b + j + n;
-      // rand r, add -r to bucket
-      // fmpz_randm(r, seed, Int_Modulus);
-      fmpz_zero(r);
+      // r1
+      fmpz_randm(r, seed, Int_Modulus);
+      // fmpz_zero(r);
       fmpz_sub(bucket1[j], bucket1[j], r);
       fmpz_mod(bucket1[j], bucket1[j], Int_Modulus);
-      // z = 1 - 2y
-      // std::cout << "b1[" << server_num << ", " << i << ", " << j << "]: subtract r = " << fmpz_get_ui(r) << std::endl;
-      // std::cout << "b1[" << server_num << ", " << i << ", " << j << "]: x = " << shares_x0[idx] << std::endl;
-      // std::cout << "b1[" << server_num << ", " << i << ", " << j << "]: y = " << fmpz_get_ui(shares_p[idx]) << std::endl;
-      fmpz_set_si(z, server_num);
-      fmpz_submul_si(z, shares_p[idx], 2);
-      fmpz_mod(z, z, Int_Modulus);
-      // std::cout << "b1[" << server_num << ", " << i << ", " << j << "]: z = " << fmpz_get_ui(z) << std::endl;
-      // 0 = r + xz
-      fmpz_set(tmp, r); fmpz_addmul_ui(tmp, z, shares_x0[idx]);
+      // r1 + (1-x)z and r1 + xz
+      fmpz_add(tmp, r, z);
       fmpz_mod(tmp, tmp, Int_Modulus);
-      data0[idx] = fmpz_get_ui(tmp);
-      // 1 = r + (1-x)z
-      fmpz_set(tmp, r); fmpz_addmul_ui(tmp, z, 1 - shares_x0[idx]);
-      fmpz_mod(tmp, tmp, Int_Modulus);
-      data1[idx] = fmpz_get_ui(tmp);
-      // std::cout << "b1[" << server_num << ", " << i << ", " << j << "]: send (" << data0[idx] << ", " << data1[idx] << ")\n";
-    }
-  }
-
-  // OT swap
-  pid_t pid = 0;
-  int status = 0;
-  // OT forking currently seems bugged. Disable for now. 
-  const bool do_ot_fork = false;
-  if (do_ot_fork) {
-    pid = fork();
-    if (pid == 0) {
-      (server_num == 0 ? ot0 : ot1)->send(data0, data1, 2 * n);
-      exit(EXIT_SUCCESS);
-    }
-    (server_num == 0 ? ot1 : ot0)->recv(received, shares_x0, 2 * n);
-  } else {
-    if (server_num == 0) {
-      ot0->send(data0, data1, 2 * n);
-      ot1->recv(received, shares_x0, 2 * n);
-    } else {
-      ot0->recv(received, shares_x0, 2 * n);
-      ot1->send(data0, data1, 2 * n);
-    }
-  }
-
-  // add received to buckets
-  for (unsigned int i = 0; i < N; i++) {
-    for (unsigned int j = 0; j < b; j++) {
-      size_t idx = i * b + j;
-      // std::cout << "(" << i << ", " << j << ")" << std::endl;
-      fmpz_add_ui(bucket0[j], bucket0[j], received[idx]);
-      fmpz_mod(bucket0[j], bucket0[j], Int_Modulus);
-      // std::cout << " b0[" << server_num << ", " << i << ", " << j << "]: add recv[" << idx << "] = " << received[idx] << std::endl;
-
-      idx = (i * b + j) + n;
-      fmpz_add_ui(bucket1[j], bucket1[j], received[idx]);
-      fmpz_mod(bucket1[j], bucket1[j], Int_Modulus);
-      // std::cout << " b1[" << server_num << ", " << i << ", " << j << "]: add recv[" << idx << "] = " << received[idx] << std::endl;
+      if (x[idx]) {
+        data0_1[idx] = fmpz_get_ui(tmp);
+        data1_1[idx] = fmpz_get_ui(r);
+      } else {
+        data0_1[idx] = fmpz_get_ui(r);
+        data1_1[idx] = fmpz_get_ui(tmp);
+      }
     }
   }
 
   fmpz_clear(r);
   fmpz_clear(z);
   fmpz_clear(tmp);
+
+  // Step 3: OT swap
+  uint64_t* received = new uint64_t[n];
+  uint64_t* received_1 = new uint64_t[n];
+  pid_t pid = 0;
+  int status = 0;
+  // NOTE: OT forking currently seems bugged. Disable for now.
+  const bool do_ot_fork = false;
+  if (do_ot_fork) {
+    pid = fork();
+    if (pid == 0) {
+      (server_num == 0 ? ot0 : ot1)->send(data0, data1, n, data0_1, data1_1);
+      exit(EXIT_SUCCESS);
+    }
+    (server_num == 0 ? ot1 : ot0)->recv(received, x, n, received_1);
+  } else {
+    if (server_num == 0) {
+      ot0->send(data0, data1, n, data0_1, data1_1);
+      ot1->recv(received, x, n, received_1);
+    } else {
+      ot0->recv(received, x, n, received_1);
+      ot1->send(data0, data1, n, data0_1, data1_1);
+    }
+  }
+
+  // Step 4: Add to buckets
+  for (unsigned int i = 0; i < N; i++) {
+    for (unsigned int j = 0; j < b; j++) {
+      const size_t idx = i * b + j;
+      fmpz_add_ui(bucket0[j], bucket0[j], received[idx]);
+      fmpz_mod(bucket0[j], bucket0[j], Int_Modulus);
+
+      fmpz_add_ui(bucket1[j], bucket1[j], received_1[idx]);
+      fmpz_mod(bucket1[j], bucket1[j], Int_Modulus);
+    }
+  }
+
   delete[] data0;
+  delete[] data0_1;
   delete[] data1;
+  delete[] data1_1;
   delete[] received;
+  delete[] received_1;
 
   if (do_ot_fork) waitpid(pid, &status, 0);
 }
