@@ -1569,14 +1569,15 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         // Evaluate
         // True means |1| is larger than |0|
         start2 = clock_start();
-        bool* larger = correlated_store->abs_cmp(b, bucket0, bucket1);
+        fmpz_t* larger = correlated_store->abs_cmp(b, bucket0, bucket1);
+        send_fmpz_batch(serverfd, larger, b);
         std::cout << "evaluate time: " << sec_from(start2) << std::endl;
 
         clear_fmpz_array(bucket0, b);
         clear_fmpz_array(bucket1, b);
         // Other side has it, no more eval needed.
 
-        delete[] larger;
+        clear_fmpz_array(larger, b);
         delete[] valid;
 
         // TODO: bytes tracking
@@ -1628,7 +1629,9 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         // Evaluate
 
         start2 = clock_start();
-        bool* larger = correlated_store->abs_cmp(b, bucket0, bucket1);
+        fmpz_t* larger_0 = correlated_store->abs_cmp(b, bucket0, bucket1);
+        fmpz_t* larger_1; new_fmpz_array(&larger_1, b);
+        recv_fmpz_batch(serverfd, larger_1, b);
 
         clear_fmpz_array(bucket0, b);
         clear_fmpz_array(bucket1, b);
@@ -1639,14 +1642,19 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
-            delete[] larger;
+            clear_fmpz_array(larger_0, b);
+            clear_fmpz_array(larger_1, b);
             delete[] valid;
             return RET_INVALID;
         }
 
         // fmpz_from_bool_array?
         uint64_t ans = 0;
+        bool* larger = new bool[b];
         for (unsigned int j = 0; j < b; j++) {
+            fmpz_add(larger_0[j], larger_0[j], larger_1[j]);
+            fmpz_mod(larger_0[j], larger_0[j], Int_Modulus);
+            larger[j] = fmpz_is_one(larger_0[j]);
             // std::cout << "bucket" << (larger[j] ? 1 : 0) << "[" << j << "] is heavier" << std::endl;
             ans |= (larger[j] << j);
         }
@@ -1655,6 +1663,8 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
 
         std::cout << "### Heavy hitter value is " << ans << std::endl;
 
+        clear_fmpz_array(larger_0, b);
+        clear_fmpz_array(larger_1, b);
         delete[] larger;
         delete[] valid;
         return RET_ANS;

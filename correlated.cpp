@@ -618,13 +618,12 @@ const DaBit* const * const CorrelatedStore::generateDaBit(const size_t N) {
   return dabit;
 }
 
-// TODO: do better. Currently just in clear.
+// NOTE: Just does x in clear. Early version for debug/test
 // [x] > c for known c, shares [x]
 // Treats > N/2 as negative
-// Maybe also return int (+/-/0) for equality?
-bool* CorrelatedStore::cmp_c(const size_t N,
-                             const fmpz_t* const x,
-                             const fmpz_t* const c) {
+bool* CorrelatedStore::cmp_c_clear(const size_t N,
+                                   const fmpz_t* const x,
+                                   const fmpz_t* const c) {
   bool* const ans = new bool[N];
 
   fmpz_t half; fmpz_init(half); fmpz_cdiv_q_ui(half, Int_Modulus, 2);
@@ -657,53 +656,58 @@ bool* CorrelatedStore::cmp_c(const size_t N,
   return ans;
 }
 
-// Just x < y => (x - y) < 0
-bool* CorrelatedStore::cmp(const size_t N,
+// Just (x < y) = (x - y < 0) = is_neg([x - y])
+fmpz_t* CorrelatedStore::cmp(const size_t N,
                            const fmpz_t* const x,
                            const fmpz_t* const y) {
-  fmpz_t* diff; new_fmpz_array(&diff, N);
-  fmpz_t* zeros; new_fmpz_array(&zeros, N);  // zeroed out by default
+  checkDaBits(4 * N * nbits_mod);
+  checkTriples(13 * N * nbits_mod);
 
-  fmpz_t half; fmpz_init(half); fmpz_cdiv_q_ui(half, Int_Modulus, 2);
-  fmpz_t tmp; fmpz_init(tmp);
+  fmpz_t* diff; new_fmpz_array(&diff, N);
 
   for (unsigned int i = 0; i < N; i++) {
     fmpz_sub(diff[i], x[i], y[i]);
     fmpz_mod(diff[i], diff[i], Int_Modulus);
-    // std::cout << "diff_" << server_num << "[" << i << "] = " << fmpz_get_ui(diff[i]) << std::endl;
   }
 
-  bool* const ans = cmp_c(N, diff, zeros);
-  fmpz_clear(tmp);
-  fmpz_clear(half);
+  fmpz_t* const ans = is_negative(N, diff);
   clear_fmpz_array(diff, N);
-  clear_fmpz_array(zeros, N);
   return ans;
 }
 
-void CorrelatedStore::abs(const size_t N, const fmpz_t* const x, fmpz_t* const out) {
-  fmpz_t* zeros; new_fmpz_array(&zeros, N);
-  bool* sign = cmp_c(N, x, zeros);
+// |x| = (1 - 2[x < 0]) * x
+// if hashes known, sign might reveal some info about non-heavy bucket, so reveal in clear is not fully secure
+fmpz_t* CorrelatedStore::abs(const size_t N, const fmpz_t* const x) {
+  checkDaBits(4 * N * nbits_mod);
+  checkTriples((13 + 1) * N * nbits_mod);
+
+  fmpz_t* is_neg = is_negative(N, x);
   for (unsigned int i = 0; i < N; i++) {
-    if (sign[i]) {  // negative, flip
-      fmpz_sub(out[i], Int_Modulus, x[i]);
-    } else {
-      fmpz_set(out[i], x[i]);
-    }
+    fmpz_mul_si(is_neg[i], is_neg[i], -2);
+    if (server_num == 1)
+      fmpz_add_ui(is_neg[i], is_neg[i], 1);
+    fmpz_mod(is_neg[i], is_neg[i], Int_Modulus);
   }
+  fmpz_t* ans = multiplyArithmeticShares(N, x, is_neg);
+  clear_fmpz_array(is_neg, N);
+  return ans;
 }
 
-bool* CorrelatedStore::abs_cmp(const size_t N,
-                               const fmpz_t* const x, const fmpz_t* const y) {
+fmpz_t* CorrelatedStore::abs_cmp(const size_t N,
+                                 const fmpz_t* const x, const fmpz_t* const y) {
+  checkDaBits(3 * 4 * N * nbits_mod);  // 1 per abs, and 1 for cmp
+  checkTriples((13 + 14 + 14) * N * nbits_mod);  // 13 for cmp, 14 for abs
+
+  // Do abs x and y in one merged set
   fmpz_t* merge; new_fmpz_array(&merge, 2*N);
-  fmpz_t* merge_abs; new_fmpz_array(&merge_abs, 2*N);
   for (unsigned int i = 0; i < N; i++) {
     fmpz_set(merge[i], x[i]);
     fmpz_set(merge[i+N], y[i]);
   }
-  abs(2*N, merge, merge_abs);
+  fmpz_t* merge_abs = abs(2*N, merge);
   clear_fmpz_array(merge, 2*N);
 
+  // split out, and compare
   fmpz_t* x2; new_fmpz_array(&x2, N);
   fmpz_t* y2; new_fmpz_array(&y2, N);
   for (unsigned int i = 0; i < N; i++) {
@@ -711,7 +715,7 @@ bool* CorrelatedStore::abs_cmp(const size_t N,
     fmpz_set(y2[i], merge_abs[i+N]);
   }
   clear_fmpz_array(merge_abs, N);
-  bool* const ans = cmp(N, x2, y2);
+  fmpz_t* ans = cmp(N, x2, y2);
   clear_fmpz_array(x2, N);
   clear_fmpz_array(y2, N);
   return ans;
@@ -801,7 +805,6 @@ fmpz_t* CorrelatedStore::gen_rand_bitshare(const size_t N, fmpz_t* const r) {
   const size_t avg_tries = 4;           
   checkDaBits(avg_tries * N * b);       // for gen
   checkTriples(avg_tries * 3 * N * b);  // for cmp
-  std::cout << "check done" << std::endl;
 
   // p bitwise shared, for [r < p]. All bits set on server 0, since public.
   fmpz_t* pB; new_fmpz_array(&pB, N * b);  // Zero by default
@@ -887,4 +890,113 @@ fmpz_t* CorrelatedStore::gen_rand_bitshare(const size_t N, fmpz_t* const r) {
   // std::cout << "total sub-iterations: " << log_num_invalid << ", vs expected: " << avg_tries * N << std::endl;
 
   return rB;
+}
+
+// Since we are masking with random r, this should have max b (2^b > p)
+fmpz_t* CorrelatedStore::LSB(const size_t N, const fmpz_t* const x) {
+  const size_t b = nbits_mod;
+  fmpz_t* ans; new_fmpz_array(&ans, N);
+
+  checkDaBits(4 * N * b);   // for gen_rand
+  checkTriples((4*3 + 1) * N * b);  // 12 for gen_rand
+
+  // 1: Random bitwise shared r, true [r]p, bitwise [rB]
+  fmpz_t* r; new_fmpz_array(&r, N);
+  fmpz_t* rB = gen_rand_bitshare(N, r);
+
+  // 2: Compute [c]p = [x]p + [r]p
+  fmpz_t* c; new_fmpz_array(&c, N);
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_add(c[i], x[i], r[i]);
+    fmpz_mod(c[i], c[i], Int_Modulus);
+  }
+  clear_fmpz_array(r, N);
+  // 2.1: Reveal c = x + r
+  // TODO: fork
+  fmpz_t* c_other; new_fmpz_array(&c_other, N);
+  if (server_num == 0) {
+    send_fmpz_batch(serverfd, c, N);
+    recv_fmpz_batch(serverfd, c_other, N);
+  } else {
+    recv_fmpz_batch(serverfd, c_other, N);
+    send_fmpz_batch(serverfd, c, N);
+  }
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_add(c[i], c[i], c_other[i]);
+    fmpz_mod(c[i], c[i], Int_Modulus);
+    // std::cout << "true c = " << fmpz_get_ui(c[i]) << std::endl;
+  }
+  clear_fmpz_array(c_other, N);
+
+  // 3: if wraparound (c < r), x0 = c0 ^ r0
+  //    if no wraparound, then x0 = 1 - c0 ^ r0
+  // [x0] = [c < r] + (c0 ^ r0) + 2 [c < r] (c0 ^ r0)
+  // 3.1: c0 ^ r0 = ([r0] if c0 = 0, 1 - [r0] if c0 = 1
+  fmpz_t* cr; new_fmpz_array(&cr, N);
+  fmpz_t adj; fmpz_set_ui(adj, server_num);  // "1" is just once
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_set(cr[i], rB[i * b]);  // Just get r0 from bitwise shares
+    if (fmpz_tstbit(c[i], 0) == 1) {  // 1 - cr
+      fmpz_sub(cr[i], adj, cr[i]);
+      fmpz_mod(cr[i], cr[i], Int_Modulus);
+    }
+  }
+  fmpz_clear(adj);
+  // 3.2: Get [c < r], as bitwise
+  // Since c is in clear, server 0 sets [c] = c, 1 sets [c] = 0
+  fmpz_t* cB; new_fmpz_array(&cB, N * b);
+  if (server_num == 0) {
+    for (unsigned int i = 0; i < N; i++) {
+      for (unsigned int j = 0; j < b; j++) {
+        fmpz_set_ui(cB[i * b + j], fmpz_tstbit(c[i], j));
+      }
+    }
+  } else {
+    for (unsigned int i = 0; i < N * b; i++) {
+      fmpz_zero(cB[i]);
+    }
+  }
+  fmpz_t* cmp = cmp_bit(N, b, cB, rB);
+  clear_fmpz_array(cB, N*b);
+  clear_fmpz_array(rB, N*b);
+  clear_fmpz_array(c, N);
+  // 4: [x0] = [c < r] + (c0 ^ r0) - 2 [c < r] (c0 ^ r0)
+  // 4.1: mul = [c<r] * [c0 ^ r0]
+  fmpz_t* mul = multiplyArithmeticShares(N, cmp, cr);
+  // 4.2: Final eval: cmp + cr - 2 cmp*cr
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_add(ans[i], cmp[i], cr[i]);
+    fmpz_submul_si(ans[i], mul[i], 2);
+    fmpz_mod(ans[i], ans[i], Int_Modulus);
+  }
+
+  clear_fmpz_array(cmp, N);
+  clear_fmpz_array(cr, N);
+  clear_fmpz_array(mul, N);
+
+
+  return ans;
+}
+
+fmpz_t* CorrelatedStore::is_negative(
+    const size_t N, const fmpz_t* const x) {
+  checkDaBits(4 * N * nbits_mod);
+  checkTriples(13 * N * nbits_mod);
+
+  // [(2a)_0]
+  fmpz_t* inp; new_fmpz_array(&inp, N);
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_mul_ui(inp[i], x[i], 2);
+    fmpz_mod(inp[i], inp[i], Int_Modulus);
+  }
+  fmpz_t* ans = LSB(N, inp);
+  clear_fmpz_array(inp, N);
+  // Code for (1 - [(2a)_0]), aka 1 if positive, 0 if negative
+  // for (unsigned int i = 0; i < N; i++) {
+  //   fmpz_neg(ans[i], ans[i]);
+  //   if (server_num == 0)
+  //     fmpz_add_ui(ans[i], ans[i], 1);
+  //   fmpz_mod(ans[i], ans[i], Int_Modulus);
+  // }
+  return ans;
 }
