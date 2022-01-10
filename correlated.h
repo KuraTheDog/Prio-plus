@@ -32,6 +32,11 @@ class CorrelatedStore {
   const int server_num;
   const int serverfd;
 
+  // Currently only used for heavy eval, which is independent of # clients
+  // Approx 41 * b * nbits_mod, where b is #bits of run
+  // Here estimating a rounds of 16 bits (or 4 of 4, etc)
+  const size_t triples_batch_size = 41 * 16 * nbits_mod;
+
   // If lazy, does fast but insecure offline.
   const bool lazy;
 

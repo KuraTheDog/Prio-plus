@@ -169,6 +169,7 @@ void test_abs_cmp(
     send_fmpz_batch(serverfd, val1, N);
   }
 
+  clear_fmpz_array(larger, N);
   clear_fmpz_array(val0, N);
   clear_fmpz_array(val1, N);
 }
@@ -235,7 +236,6 @@ void test_cmp_bit(
   } else {
     send_fmpz_batch(serverfd, ans, N);
   }
-
 
   clear_fmpz_array(ans, N);
   clear_fmpz_array(x_bits, N * bits);
