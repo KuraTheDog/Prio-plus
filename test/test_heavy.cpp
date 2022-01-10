@@ -170,7 +170,7 @@ void test_cmp_bit(
     const int server_num, const int serverfd, CorrelatedStore* store) {
   // Setup values
   const size_t bits = 2;
-  const size_t max = 1 << bits;
+  const size_t max = 1ULL << bits;
   const size_t N = max * max;
   fmpz_t* x_bits; new_fmpz_array(&x_bits, N * bits);
   fmpz_t* y_bits; new_fmpz_array(&y_bits, N * bits);
@@ -261,14 +261,14 @@ void test_rand_bitshare(
       fmpz_add(got, r[i], r_other[i]); 
       fmpz_mod(got, got, Int_Modulus);
       // std::cout << "got r = " << fmpz_get_ui(got) << std::endl;
-      // std::cout << " binary (reversed): ";
+      // std::cout << " binary: ";
       fmpz_zero(r[i]);  // reuse as array
-      for (unsigned int j = 0; j < b; j++) {
+      for (int j = b - 1; j >= 0; --j) {  // For printing binary
         fmpz_add(bit, r_B[i * b + j], r_B_other[i * b + j]); 
         fmpz_mod(bit, bit, Int_Modulus);
         // std::cout << " bit " << j << " = " << fmpz_get_ui(bit) << " (" << fmpz_get_ui(r_B[i * b + j]) << " + " << fmpz_get_ui(r_B_other[i * b + j]) << ")" << std::endl;
         // std::cout << fmpz_get_ui(bit);
-        fmpz_addmul_ui(r[i], bit, 1 << j);
+        fmpz_addmul_ui(r[i], bit, 1ULL << j);
       }
       // std::cout << std::endl;
       // std::cout << " bit number: " << fmpz_get_ui(r[i]) << std::endl;

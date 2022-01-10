@@ -839,7 +839,7 @@ fmpz_t* CorrelatedStore::gen_rand_bitshare(const size_t N, fmpz_t* const r) {
         // Just need 2 numbers summing to 0 or 1, so bp. b2 not needed.
         DaBit* dabit = getDaBit();
         fmpz_set(rB[i * b + j], dabit->bp);
-        fmpz_addmul_ui(r[i], dabit->bp, 1 << j);
+        fmpz_addmul_ui(r[i], dabit->bp, 1ULL << j);
         fmpz_mod(r[i], r[i], Int_Modulus);
         // consume the dabit
         delete dabit;
