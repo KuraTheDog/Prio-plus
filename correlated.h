@@ -144,7 +144,7 @@ public:
                  const size_t* const num_bits, const fmpz_t* const shares,
                  const size_t mod = 0);
 
-  // Comparisons. 
+  // Comparisons.
   // Assumes modulus is large enough, so <N/2 is positive, >N/2 is negative (x-N)
   // Return true if first < second. (so is index of larger).
   // Equality is merged in, since rare/should not happen case so far.
@@ -162,8 +162,8 @@ public:
   // True if [|x|] > [|y|]
   fmpz_t* abs_cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y);
 
-  // x, y are Nxb shares of N total b-bit numbers. 
-  // I.e. x[i,j] is additive share of bit j of number i. 
+  // x, y are Nxb shares of N total b-bit numbers.
+  // I.e. x[i,j] is additive share of bit j of number i.
   // Returns additive shares of [x < y]
   // Uses 3 triples per bit to compare
   fmpz_t* cmp_bit(const size_t N, const size_t b,

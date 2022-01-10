@@ -467,7 +467,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
         start2 = clock_start();
 
         server_bytes += send_bool_batch(serverfd, valid, num_inputs);
-        
+
         fmpz_t* a; new_fmpz_array(&a, 1);
         size_t num_valid = accumulate(num_inputs, 1, shares_p, valid, a);
         clear_fmpz_array(shares_p, num_inputs);
@@ -1298,7 +1298,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         shares_p = correlated_store->b2a_daBit_single(num_inputs * max_inp, shares);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
-        
+
         bool* const valid = new bool[num_inputs];
         fmpz_t* sums; new_fmpz_array(&sums, num_inputs);
         bool total_parity = 0;
@@ -1482,7 +1482,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
 
 returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num) {
     auto start = clock_start();
-    
+
     std::unordered_map<std::string, bool*> share_map;
     int num_bytes = 0;
     const size_t b = msg.num_bits;
@@ -1537,7 +1537,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
 
             memcpy(&x[idx*b], share.second, b);
             memcpy(&y[idx*b], &(share.second[b]), b);
-            
+
             // std::cout << "share[" << idx << "] = ";
             // for (unsigned int j = 0; j < b; j++)
             //     std::cout << x[idx * b + j];
@@ -1619,7 +1619,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         delete[] y;
         std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
-        
+
         // Evaluate
 
         start2 = clock_start();
