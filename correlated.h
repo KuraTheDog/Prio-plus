@@ -128,7 +128,7 @@ public:
                           const fmpz_t* const x);
 
   // N inputs of b bits
-  // [xy]: x = which bucket is 0, nonzero is -1 if y = 1
+  // [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
   // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
   // N*b for x, y
   // N valid, if invalid just contributes 0
@@ -148,15 +148,19 @@ public:
   // Assumes modulus is large enough, so <N/2 is positive, >N/2 is negative (x-N)
   // Return true if first < second. (so is index of larger).
   // Equality is merged in, since rare/should not happen case so far.
+  //   Specifically, if x < y then 1, if x >= y then 0
+  // Returns additive shares of the comparsion
 
+  // Clear: Reveals info, not secure
   // True if [x] > c
-  bool* cmp_c(const size_t N, const fmpz_t* const x, const fmpz_t* const c);
+  bool* cmp_c_clear(const size_t N, const fmpz_t* const x, const fmpz_t* const c);
+
   // True if [x] > [y]
-  bool* cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y);
+  fmpz_t* cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y);
   // Given [x], sets out = [|x|] via negating if [x] < 0
-  void abs(const size_t N, const fmpz_t* const x, fmpz_t* const out);
+  fmpz_t* abs(const size_t N, const fmpz_t* const x);
   // True if [|x|] > [|y|]
-  bool* abs_cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y);
+  fmpz_t* abs_cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y);
 
   // x, y are Nxb shares of N total b-bit numbers. 
   // I.e. x[i,j] is additive share of bit j of number i. 
@@ -169,6 +173,13 @@ public:
   // r is N values [r], returns rB is N*b shares of bits
   // For each gen, uses a dabit to gen and a cmp_bit (3 triple) to check
   fmpz_t* gen_rand_bitshare(const size_t N, fmpz_t* const r);
+  // Extracts shares of the least significant bit of additive secret [x]
+  fmpz_t* LSB(const size_t N, const fmpz_t* const x);
+  // Returns share of
+  //    1 if x is negative (x > p/2)
+  //    0 if x is positive (x < p/2)
+  // x is N b-bit numbers as additive shares
+  fmpz_t* is_negative(const size_t N, const fmpz_t* const x);
 };
 
 #endif
