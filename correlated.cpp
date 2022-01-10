@@ -23,7 +23,7 @@ void CorrelatedStore::addBoolTriples(const size_t n) {
 
 void CorrelatedStore::addTriples(const size_t n) {
   auto start = clock_start();
-  const size_t num_to_make = (n > batch_size ? n : batch_size);
+  const size_t num_to_make = (n > triples_batch_size ? n : triples_batch_size);
   std::cout << "adding triples: " << num_to_make << std::endl;
   bool triple_gen = false;  // TODO: re-implement
   if (triple_gen) {  // not null pointer
@@ -522,6 +522,7 @@ void CorrelatedStore::heavy_convert(
     }
   }
 
+  clear_fmpz_array(y_p, N * b);
   fmpz_clear(r);
   fmpz_clear(z);
   fmpz_clear(tmp);
@@ -766,6 +767,7 @@ fmpz_t* CorrelatedStore::cmp_bit(const size_t N, const size_t b,
     }
     clear_fmpz_array(mul, N);
   }
+  clear_fmpz_array(c, N * b);
   clear_fmpz_array(ci, N);
   clear_fmpz_array(di1, N);
 
@@ -780,9 +782,11 @@ fmpz_t* CorrelatedStore::cmp_bit(const size_t N, const size_t b,
       fmpz_mod(e[idx], e[idx], Int_Modulus);
     }
   }
+  clear_fmpz_array(d, N * b);
 
   // [x < y] = sum ei * yi
   fmpz_t* ey = multiplyArithmeticShares(N * b, e, y);
+  clear_fmpz_array(e, N * b);
   for (unsigned int i = 0; i < N; i++) {
     fmpz_zero(ans[i]);
     for (unsigned int j = 0; j < b; j++) {
@@ -790,6 +794,7 @@ fmpz_t* CorrelatedStore::cmp_bit(const size_t N, const size_t b,
       fmpz_mod(ans[i], ans[i], Int_Modulus);
     }
   }
+  clear_fmpz_array(ey, N * b);
   return ans;
 }
 
@@ -885,6 +890,7 @@ fmpz_t* CorrelatedStore::gen_rand_bitshare(const size_t N, fmpz_t* const r) {
   clear_fmpz_array(pB, N * b);
   clear_fmpz_array(r_lt_p_other, N);
   delete[] rB_idx;
+  delete[] valid;
 
   // std::cout << "total sub-iterations: " << log_num_invalid << ", vs expected: " << avg_tries * N << std::endl;
 

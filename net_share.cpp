@@ -44,7 +44,7 @@ int send_bool_batch(const int sockfd, const bool* const x, const size_t n) {
 
     for (unsigned int i = 0; i < n; i++)
         if (x[i])
-            buf[i / 8] ^= (1 << (i % 8));
+            buf[i / 8] ^= (1ULL << (i % 8));
 
     int ret = send(sockfd, buf, len, 0);
 
@@ -60,7 +60,7 @@ int recv_bool_batch(const int sockfd, bool* const x, const size_t n) {
     int ret = recv_in(sockfd, buf, len);
 
     for (unsigned int i = 0; i < n; i++)
-        x[i] = (buf[i/8] & (1 << (i % 8)));
+        x[i] = (buf[i/8] & (1ULL << (i % 8)));
 
     delete[] buf;
 
