@@ -80,7 +80,7 @@ void CorrelatedStore::checkBoolTriples(const size_t n) {
   if (btriple_store.size() < n) addBoolTriples(n - btriple_store.size());
 }
 
-void CorrelatedStore::checkTriples(const size_t n, const bool always) { 
+void CorrelatedStore::checkTriples(const size_t n, const bool always) {
   if ((!lazy or always) and atriple_store.size() < n) addTriples(n - atriple_store.size());
 }
 
@@ -451,10 +451,9 @@ void CorrelatedStore::heavy_convert(
     const bool* const x, const bool* const y,
     const bool* const valid,
     fmpz_t* const bucket0, fmpz_t* const bucket1) {
-  const size_t n = N * b;
 
   // Step 1: convert y to arith shares
-  fmpz_t* y_p = b2a_daBit_single(n, y);
+  fmpz_t* y_p = b2a_daBit_single(N * b, y);
 
   // Step 2: OT setup
   // z = 1 - 2y, as [z] = servernum - 2[y]
@@ -463,11 +462,11 @@ void CorrelatedStore::heavy_convert(
   fmpz_t z; fmpz_init(z);
   fmpz_t tmp; fmpz_init(tmp);
   // Bucket 0 choices
-  uint64_t* const data0 = new uint64_t[n];
-  uint64_t* const data1 = new uint64_t[n];
+  uint64_t* const data0 = new uint64_t[N * b];
+  uint64_t* const data1 = new uint64_t[N * b];
   // Bucket 1 choices
-  uint64_t* const data0_1 = new uint64_t[n];
-  uint64_t* const data1_1 = new uint64_t[n];
+  uint64_t* const data0_1 = new uint64_t[N * b];
+  uint64_t* const data1_1 = new uint64_t[N * b];
 
   // [ (r0, r1+z), (r0 + z, r1) ] based on x
   // [ (r0 + xz, r1 + !x z), (r0 + !x z, r1 + x z)]
@@ -528,8 +527,8 @@ void CorrelatedStore::heavy_convert(
   fmpz_clear(tmp);
 
   // Step 3: OT swap
-  uint64_t* received = new uint64_t[n];
-  uint64_t* received_1 = new uint64_t[n];
+  uint64_t* received = new uint64_t[N * b];
+  uint64_t* received_1 = new uint64_t[N * b];
   pid_t pid = 0;
   int status = 0;
   // NOTE: OT forking currently seems bugged. Disable for now.
@@ -537,17 +536,17 @@ void CorrelatedStore::heavy_convert(
   if (do_ot_fork) {
     pid = fork();
     if (pid == 0) {
-      (server_num == 0 ? ot0 : ot1)->send(data0, data1, n, data0_1, data1_1);
+      (server_num == 0 ? ot0 : ot1)->send(data0, data1, N * b, data0_1, data1_1);
       exit(EXIT_SUCCESS);
     }
-    (server_num == 0 ? ot1 : ot0)->recv(received, x, n, received_1);
+    (server_num == 0 ? ot1 : ot0)->recv(received, x, N * b, received_1);
   } else {
     if (server_num == 0) {
-      ot0->send(data0, data1, n, data0_1, data1_1);
-      ot1->recv(received, x, n, received_1);
+      ot0->send(data0, data1, N * b, data0_1, data1_1);
+      ot1->recv(received, x, N * b, received_1);
     } else {
-      ot0->recv(received, x, n, received_1);
-      ot1->send(data0, data1, n, data0_1, data1_1);
+      ot0->recv(received, x, N * b, received_1);
+      ot1->send(data0, data1, N * b, data0_1, data1_1);
     }
   }
 
@@ -721,8 +720,8 @@ fmpz_t* CorrelatedStore::abs_cmp(const size_t N,
   return ans;
 }
 
-// x, y are Nxb shares of N total b-bit numbers. 
-// I.e. x[i,j] is additive share of bit j of number i. 
+// x, y are Nxb shares of N total b-bit numbers.
+// I.e. x[i,j] is additive share of bit j of number i.
 fmpz_t* CorrelatedStore::cmp_bit(const size_t N, const size_t b,
                                  const fmpz_t* const x, const fmpz_t* const y) {
   fmpz_t* ans; new_fmpz_array(&ans, N);
@@ -796,13 +795,13 @@ fmpz_t* CorrelatedStore::cmp_bit(const size_t N, const size_t b,
 
 // Make each bit in parallel: [ri in {0,1}]p
 // check if [r < p] bitwise, retry if not
-// success odds are p/2^b, worst case ~1/2 failure. 
+// success odds are p/2^b, worst case ~1/2 failure.
 fmpz_t* CorrelatedStore::gen_rand_bitshare(const size_t N, fmpz_t* const r) {
   const size_t b = nbits_mod;
   fmpz_t* rB; new_fmpz_array(&rB, N * b);
 
   // Assumed tries to succeed. (worst case 1/2 fail, so 2 avg, overestimate)
-  const size_t avg_tries = 4;           
+  const size_t avg_tries = 4;
   checkDaBits(avg_tries * N * b);       // for gen
   checkTriples(avg_tries * 3 * N * b);  // for cmp
 

@@ -265,13 +265,13 @@ void test_rand_bitshare(
     size_t keep = 0;
 
     for (unsigned int i = 0; i < N; i++) {
-      fmpz_add(got, r[i], r_other[i]); 
+      fmpz_add(got, r[i], r_other[i]);
       fmpz_mod(got, got, Int_Modulus);
       // std::cout << "got r = " << fmpz_get_ui(got) << std::endl;
       // std::cout << " binary: ";
       fmpz_zero(r[i]);  // reuse as array
       for (int j = b - 1; j >= 0; --j) {  // For printing binary
-        fmpz_add(bit, r_B[i * b + j], r_B_other[i * b + j]); 
+        fmpz_add(bit, r_B[i * b + j], r_B_other[i * b + j]);
         fmpz_mod(bit, bit, Int_Modulus);
         // std::cout << " bit " << j << " = " << fmpz_get_ui(bit) << " (" << fmpz_get_ui(r_B[i * b + j]) << " + " << fmpz_get_ui(r_B_other[i * b + j]) << ")" << std::endl;
         // std::cout << fmpz_get_ui(bit);
@@ -375,7 +375,7 @@ void runServerTest(const int server_num, const int serverfd) {
   // test_sign(server_num, serverfd, store);
 
   test_abs_cmp(server_num, serverfd, store);
-  
+
   delete ot0;
   delete ot1;
   delete store;

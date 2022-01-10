@@ -173,7 +173,7 @@ void run_receiver(int sockfd) {
 
     double d;
     n = recv_double(sockfd, d);
-    std::cout << "recv double \tsize: " << n << " \tval: " << d << std::endl;    
+    std::cout << "recv double \tsize: " << n << " \tval: " << d << std::endl;
 
     size_t sz;
     n = recv_size(sockfd, sz);
