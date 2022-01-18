@@ -50,7 +50,6 @@ public:
 
     // std::cout << "Hash store d: " << d << ", l: 2^" << l_bits << " -> w: " << w_arg << " (" << w_bits << " bits)" << std::endl;
 
-    // TODO: sanity checks:
     // We assume w <= L. w > L striaghtforward to do, but currently not needed
     if (fmpz_cmp(w, l) > 0) {
       std::cout << "Warning: currently only supports shrinking hashes (w <= L)" << std::endl;

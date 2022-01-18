@@ -635,7 +635,7 @@ DaBit** CorrelatedStore::generateDaBit(const size_t N) {
   return dabit;
 }
 
-// NOTE: Just does x in clear. Early version for debug/test
+// WARNING: Just does x in clear. Early version for debug/test
 // [x] > c for known c, shares [x]
 // Treats > N/2 as negative
 bool* CorrelatedStore::cmp_c_clear(const size_t N,
@@ -645,7 +645,7 @@ bool* CorrelatedStore::cmp_c_clear(const size_t N,
 
   fmpz_t half; fmpz_init(half); fmpz_cdiv_q_ui(half, Int_Modulus, 2);
 
-  // For now, just do in clear. TODO: do securely.
+  // Done in clear
   if (server_num == 0) {
     fmpz_t* x2; new_fmpz_array(&x2, N);
     fmpz_t* c2; new_fmpz_array(&c2, N);
@@ -856,8 +856,10 @@ int CorrelatedStore::gen_rand_bitshare(const size_t N,
   bool* const valid = new bool[N];
   memset(valid, false, N * sizeof(bool));
   size_t num_invalid;
+  size_t log_num_invalid = 0;  // Just for logging
 
-  size_t log_num_invalid = 0;
+  pid_t pid = 0;
+  int status = 0;
 
   while (true) {
     num_invalid = 0;
@@ -899,14 +901,12 @@ int CorrelatedStore::gen_rand_bitshare(const size_t N,
     fmpz_t* r_lt_p; new_fmpz_array(&r_lt_p, num_invalid);
     sent_bytes += cmp_bit(num_invalid, b, rB_tocheck, pB, r_lt_p);
     // Get r_lt_p in clear
-    // TODO: fork
-    if (server_num == 0) {
+    if (do_fork) pid = fork();
+    if (pid == 0) {
       sent_bytes += send_fmpz_batch(serverfd, r_lt_p, num_invalid);
-      recv_fmpz_batch(serverfd, r_lt_p_other, num_invalid);
-    } else {
-      recv_fmpz_batch(serverfd, r_lt_p_other, num_invalid);
-      sent_bytes += send_fmpz_batch(serverfd, r_lt_p, num_invalid);
+      if (do_fork) exit(EXIT_SUCCESS);
     }
+    sent_bytes += recv_fmpz_batch(serverfd, r_lt_p_other, num_invalid);
     for (unsigned int i = 0; i < num_invalid; i++) {
       fmpz_add(r_lt_p[i], r_lt_p[i], r_lt_p_other[i]);
       fmpz_mod(r_lt_p[i], r_lt_p[i], Int_Modulus);
@@ -914,6 +914,8 @@ int CorrelatedStore::gen_rand_bitshare(const size_t N,
       // std::cout << "check " << i << ": valid[" << rB_idx[i] << "] = " << valid[rB_idx[i]] << std::endl;
     }
     clear_fmpz_array(r_lt_p, num_invalid);
+
+    if (do_fork) waitpid(pid, &status, 0);
   }
 
   clear_fmpz_array(rB_tocheck, N * b);
@@ -949,15 +951,15 @@ int CorrelatedStore::LSB(const size_t N, const fmpz_t* const x,
   }
   clear_fmpz_array(r, N);
   // 2.1: Reveal c = x + r
-  // TODO: fork
-  fmpz_t* c_other; new_fmpz_array(&c_other, N);
-  if (server_num == 0) {
-    sent_bytes += send_fmpz_batch(serverfd, c, N);
-    recv_fmpz_batch(serverfd, c_other, N);
-  } else {
-    recv_fmpz_batch(serverfd, c_other, N);
-    sent_bytes += send_fmpz_batch(serverfd, c, N);
+  pid_t pid = 0;
+  int status = 0;
+  if (do_fork) pid = fork();
+  if (pid == 0) {
+    send_fmpz_batch(serverfd, c, N);
+    if (do_fork) exit(EXIT_SUCCESS);
   }
+  fmpz_t* c_other; new_fmpz_array(&c_other, N);
+  sent_bytes += recv_fmpz_batch(serverfd, c_other, N);
   for (unsigned int i = 0; i < N; i++) {
     fmpz_add(c[i], c[i], c_other[i]);
     fmpz_mod(c[i], c[i], Int_Modulus);
@@ -998,6 +1000,7 @@ int CorrelatedStore::LSB(const size_t N, const fmpz_t* const x,
   clear_fmpz_array(cB, N*b);
   clear_fmpz_array(rB, N*b);
   clear_fmpz_array(c, N);
+  if (do_fork) waitpid(pid, &status, 0);
   // 4: [x0] = [c < r] + (c0 ^ r0) - 2 [c < r] (c0 ^ r0)
   // 4.1: mul = [c<r] * [c0 ^ r0]
   fmpz_t* mul; new_fmpz_array(&mul, N);
