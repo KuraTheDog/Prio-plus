@@ -547,7 +547,7 @@ int CorrelatedStore::heavy_convert(
   pid_t pid = 0;
   int status = 0;
   // NOTE: OT forking currently seems bugged. Disable for now.
-  // TODO: sent bytes of OT
+  // TODO: sent bytes of OT somehow, inside of fork send before exit
   const bool do_ot_fork = false;
   if (do_ot_fork) {
     pid = fork();
@@ -558,11 +558,11 @@ int CorrelatedStore::heavy_convert(
     (server_num == 0 ? ot1 : ot0)->recv(received, x, N * b, received_1);
   } else {
     if (server_num == 0) {
-      ot0->send(data0, data1, N * b, data0_1, data1_1);
-      ot1->recv(received, x, N * b, received_1);
+      sent_bytes += ot0->send(data0, data1, N * b, data0_1, data1_1);
+      sent_bytes += ot1->recv(received, x, N * b, received_1);
     } else {
-      ot0->recv(received, x, N * b, received_1);
-      ot1->send(data0, data1, N * b, data0_1, data1_1);
+      sent_bytes += ot0->recv(received, x, N * b, received_1);
+      sent_bytes += ot1->send(data0, data1, N * b, data0_1, data1_1);
     }
   }
 
