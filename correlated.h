@@ -108,29 +108,31 @@ public:
   void checkDaBits(const size_t n = 0);
 
   // compute with store elements. Does batches of size N.
+  // Returns the number of bytes sent (or -1 if failure)
 
-  // x, y, ret are [N]
-  // does ret[i] = x[i] * y[i], as shares
-  bool* multiplyBoolShares(
-    const size_t N, const bool* const x, const bool* const y);
-  fmpz_t* multiplyArithmeticShares(
-    const size_t N, const fmpz_t* const x, const fmpz_t* const y);
+  // x, y, z are [N]
+  // does z[i] = x[i] * y[i], as shares
+  int multiplyBoolShares(
+    const size_t N, const bool* const x, const bool* const y, bool* const z);
+  int multiplyArithmeticShares(
+    const size_t N, const fmpz_t* const x, const fmpz_t* const y,
+    fmpz_t* const z);
 
   // x, y, z are [N][num_bits], ret is [N]
   // Treats x[i], y[i], z[i] as array of bits
-  // sets z[i] and ret[i] as x[i] + y[i] and carry[i], as shares
+  // sets z[i] and carry[i] as x[i] + y[i] and carry[i], as shares
   // Currently unused
-  bool* addBinaryShares(const size_t N, const size_t* const num_bits,
-                        const bool* const * const x, const bool* const * const y,
-                        bool* const * const z);
+  int addBinaryShares(const size_t N, const size_t* const num_bits,
+                      const bool* const * const x, const bool* const * const y,
+                      bool* const * const z, bool* const carry);
 
   // x, ret is [N]
   // Turns binary share x[i] into arith share ret[i]
   // Single bit. One round.
-  fmpz_t* b2a_daBit_single(const size_t N, const bool* const x);
+  int b2a_daBit_single(const size_t N, const bool* const x, fmpz_t* const xp);
   // Multiple bits. Use a dabit per bit in parallel, so one round
-  fmpz_t* b2a_daBit_multi(const size_t N, const size_t* const num_bits,
-                          const fmpz_t* const x);
+  int b2a_daBit_multi(const size_t N, const size_t* const num_bits,
+                      const fmpz_t* const x, fmpz_t* const xp);
 
   // N inputs of b bits
   // [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
@@ -138,16 +140,17 @@ public:
   // N*b for x, y
   // N valid, if invalid just contributes 0
   // b buckets each of 0, 1, accumulating as above
-  void heavy_convert(const size_t N, const size_t b,
-                     const bool* const x, const bool* const y,
-                     const bool* const valid,
-                     fmpz_t* const bucket0, fmpz_t* const bucket1);
+  int heavy_convert(const size_t N, const size_t b,
+                    const bool* const x, const bool* const y,
+                    const bool* const valid,
+                    fmpz_t* const bucket0, fmpz_t* const bucket1);
 
   // Using intsum_ot, multiple bits
   // TODO: shift mod to fmpz
-  fmpz_t* b2a_ot(const size_t num_shares, const size_t num_values,
-                 const size_t* const num_bits, const fmpz_t* const shares,
-                 const size_t mod = 0);
+  int b2a_ot(const size_t num_shares, const size_t num_values,
+             const size_t* const num_bits, 
+             const fmpz_t* const x, fmpz_t* const xp,
+             const size_t mod = 0);
 
   // Comparisons.
   // Assumes modulus is large enough, so <N/2 is positive, >N/2 is negative (x-N)
@@ -161,30 +164,31 @@ public:
   bool* cmp_c_clear(const size_t N, const fmpz_t* const x, const fmpz_t* const c);
 
   // True if [x] > [y]
-  fmpz_t* cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y);
+  int cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
   // Given [x], sets out = [|x|] via negating if [x] < 0
-  fmpz_t* abs(const size_t N, const fmpz_t* const x);
+  int abs(const size_t N, const fmpz_t* const x, fmpz_t* const abs_x);
   // True if [|x|] > [|y|]
-  fmpz_t* abs_cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y);
+  int abs_cmp(const size_t N,
+              const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
 
   // x, y are Nxb shares of N total b-bit numbers.
   // I.e. x[i,j] is additive share of bit j of number i.
   // Returns additive shares of [x < y]
   // Uses 3 triples per bit to compare
-  fmpz_t* cmp_bit(const size_t N, const size_t b,
-                  const fmpz_t* const x, const fmpz_t* const y);
+  int cmp_bit(const size_t N, const size_t b,
+                  const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
   // Generate N random b-bit numbers r, with bitshares rB
   // b is the # of bits in the int modulus
   // r is N values [r], returns rB is N*b shares of bits
   // For each gen, uses a dabit to gen and a cmp_bit (3 triple) to check
-  fmpz_t* gen_rand_bitshare(const size_t N, fmpz_t* const r);
+  int gen_rand_bitshare(const size_t N, fmpz_t* const r, fmpz_t* const rB);
   // Extracts shares of the least significant bit of additive secret [x]
-  fmpz_t* LSB(const size_t N, const fmpz_t* const x);
+  int LSB(const size_t N, const fmpz_t* const x, fmpz_t* const x0);
   // Returns share of
   //    1 if x is negative (x > p/2)
   //    0 if x is positive (x < p/2)
   // x is N b-bit numbers as additive shares
-  fmpz_t* is_negative(const size_t N, const fmpz_t* const x);
+  int is_negative(const size_t N, const fmpz_t* const x, fmpz_t* const ans);
 };
 
 #endif

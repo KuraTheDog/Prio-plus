@@ -115,7 +115,8 @@ void test_abs_cmp(
   // fmpz_mod(val1[0], val1[0], Int_Modulus);
 
   // run
-  fmpz_t* larger = store->abs_cmp(N, val0, val1);
+  fmpz_t* larger; new_fmpz_array(&larger, N);
+  store->abs_cmp(N, val0, val1, larger);
 
   // test
   if (server_num == 0) {
@@ -215,7 +216,8 @@ void test_cmp_bit(
   }
 
   // Eval cmp
-  fmpz_t* ans = store->cmp_bit(N, bits, x_bits, y_bits);
+  fmpz_t* ans; new_fmpz_array(&ans, N);
+  store->cmp_bit(N, bits, x_bits, y_bits, ans);
 
   // Check values
   if (server_num == 0) {
@@ -248,7 +250,8 @@ void test_rand_bitshare(
   const size_t b = nbits_mod;
 
   fmpz_t* r; new_fmpz_array(&r, N);
-  fmpz_t* r_B = store->gen_rand_bitshare(N, r);
+  fmpz_t* r_B; new_fmpz_array(&r_B, N * b);
+  store->gen_rand_bitshare(N, r, r_B);
 
 
   if (server_num == 0) {
@@ -317,8 +320,9 @@ void test_sign(
     recv_fmpz_batch(serverfd, x, N);
   }
 
-  // fmpz_t* s = store->LSB(N, x);
-  fmpz_t* s = store->is_negative(N, x);
+  fmpz_t* s; new_fmpz_array(&s, N);
+  // store->LSB(N, x, s);
+  store->is_negative(N, x, s);
 
   if (server_num == 0) {
     recv_fmpz_batch(serverfd, other, N);
