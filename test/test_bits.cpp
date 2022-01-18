@@ -26,7 +26,8 @@ void test_multiplyBoolShares(const size_t N, const int server_num, const int ser
     x[1] = true; y[1] = false;
   }
 
-  const bool* const z = store->multiplyBoolShares(N, x, y);
+  bool* z = new bool[N];
+  store->multiplyBoolShares(N, x, y, z);
 
   if (server_num == 0) {
     bool z_other;
@@ -59,7 +60,8 @@ void test_multiplyArithmeticShares(const size_t N, const int server_num, const i
     fmpz_set_si(y[1], -62); fmpz_mod(y[1], y[1], Int_Modulus);
   }
 
-  fmpz_t* z = store->multiplyArithmeticShares(N, x, y);
+  fmpz_t* z; new_fmpz_array(&z, N);
+  store->multiplyArithmeticShares(N, x, y, z);
 
   if (server_num == 0) {
     fmpz_t tmp; fmpz_init(tmp);
@@ -113,7 +115,8 @@ void test_addBinaryShares(const size_t N, const size_t* const nbits, const int s
     y[1][0] = 1; y[1][1] = 0; y[1][2] = 1; y[1][3] = 0;
   }
 
-  const bool* const carry = store->addBinaryShares(N, nbits, x, y, z);
+  bool* carry = new bool[N];
+  store->addBinaryShares(N, nbits, x, y, z, carry);
 
   if (server_num == 0) {
     bool other;
@@ -176,7 +179,8 @@ void test_b2a_daBit_single(const size_t N, const int server_num, const int serve
     x[0] = true; x[1] = true;
   }
 
-  fmpz_t* xp = store->b2a_daBit_single(N, x);
+  fmpz_t* xp; new_fmpz_array(&xp, N);
+  store->b2a_daBit_single(N, x, xp);
 
   if (server_num == 0) {
     fmpz_t tmp; fmpz_init(tmp);
@@ -213,8 +217,8 @@ void test_b2a_multi(const size_t N, const size_t* const nbits, const int server_
     fmpz_set_ui(x[1], 4);
   }
 
-  fmpz_t* xp;
-  xp = store->b2a_daBit_multi(N, nbits, x);
+  fmpz_t* xp; new_fmpz_array(&xp, N);
+  store->b2a_daBit_multi(N, nbits, x, xp);
 
   if (server_num == 0) {
     fmpz_t tmp; fmpz_init(tmp);
@@ -251,7 +255,8 @@ void test_b2a_ot(const size_t N, const size_t* const nbits, const int server_num
   }
 
   const size_t mod = fmpz_get_ui(Int_Modulus);
-  fmpz_t* xp = store->b2a_ot(N, 1, nbits, x, mod);
+  fmpz_t* xp; new_fmpz_array(&xp, N);
+  store->b2a_ot(N, 1, nbits, x, xp, mod);
 
   if (server_num == 0) {
     fmpz_t tmp; fmpz_init(tmp);

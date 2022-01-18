@@ -157,8 +157,9 @@ fmpz_t* const share_convert(const size_t num_shares,  // # inputs
                             const uint64_t* const shares_2
                             ) {
     auto start = clock_start();
+    int sent_bytes = 0;
 
-    fmpz_t* shares_p;
+    fmpz_t* shares_p; new_fmpz_array(&shares_p, num_shares * num_values);
 
     // convert
     fmpz_t* f_shares2; new_fmpz_array(&f_shares2, num_shares * num_values);
@@ -171,8 +172,8 @@ fmpz_t* const share_convert(const size_t num_shares,  // # inputs
     if (USE_OT_B2A) {
         const size_t mod = fmpz_get_ui(Int_Modulus);
         // TODO: maybe make it take not flattened?
-        shares_p = correlated_store->b2a_ot(
-            num_shares, num_values, num_bits, f_shares2, mod);
+        sent_bytes += correlated_store->b2a_ot(
+            num_shares, num_values, num_bits, f_shares2, shares_p, mod);
 
     } else {  // dabit conversion
         size_t* const bits_arr = new size_t[num_shares * num_values];
@@ -180,8 +181,8 @@ fmpz_t* const share_convert(const size_t num_shares,  // # inputs
         for (unsigned int i = 0; i < num_shares; i++)
             memcpy(&bits_arr[i * num_values], num_bits, num_values * sizeof(size_t));
 
-        shares_p = correlated_store->b2a_daBit_multi(
-            num_shares * num_values, bits_arr, f_shares2);
+        sent_bytes += correlated_store->b2a_daBit_multi(
+            num_shares * num_values, bits_arr, f_shares2, shares_p);
 
         delete[] bits_arr;
     }
@@ -1302,8 +1303,8 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        fmpz_t* shares_p;
-        shares_p = correlated_store->b2a_daBit_single(num_inputs * max_inp, shares);
+        fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * max_inp);
+        num_bytes += correlated_store->b2a_daBit_single(num_inputs * max_inp, shares, shares_p);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
@@ -1378,8 +1379,8 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        fmpz_t* const shares_p = correlated_store->b2a_daBit_single(
-            num_inputs * max_inp, shares);
+        fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * max_inp);
+        num_bytes = correlated_store->b2a_daBit_single(num_inputs * max_inp, shares, shares_p);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
@@ -1562,18 +1563,21 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
+        num_bytes += correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
         delete[] x;
         delete[] y;
         std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
+        std::cout << "compute bytes sent: " << num_bytes << std::endl;
 
         // Evaluate
         // True means |1| is larger than |0|
         start2 = clock_start();
-        fmpz_t* larger = correlated_store->abs_cmp(b, bucket0, bucket1);
-        send_fmpz_batch(serverfd, larger, b);
+        fmpz_t* larger; new_fmpz_array(&larger, b);
+        num_bytes = correlated_store->abs_cmp(b, bucket0, bucket1, larger);
+        num_bytes += send_fmpz_batch(serverfd, larger, b);
         std::cout << "evaluate time: " << sec_from(start2) << std::endl;
+        std::cout << "evaluate bytes sent: " << num_bytes << std::endl;
 
         clear_fmpz_array(bucket0, b);
         clear_fmpz_array(bucket1, b);
@@ -1618,21 +1622,23 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
 
             delete[] share;
         }
-        send_bool_batch(serverfd, valid, num_inputs);
+        num_bytes += send_bool_batch(serverfd, valid, num_inputs);
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
+        num_bytes += correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
         delete[] x;
         delete[] y;
         std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
+        std::cout << "compute bytes sent: " << num_bytes << std::endl;
 
         // Evaluate
 
         start2 = clock_start();
-        fmpz_t* larger_0 = correlated_store->abs_cmp(b, bucket0, bucket1);
+        fmpz_t* larger_0; new_fmpz_array(&larger_0, b);
         fmpz_t* larger_1; new_fmpz_array(&larger_1, b);
+        num_bytes = correlated_store->abs_cmp(b, bucket0, bucket1, larger_0);
         recv_fmpz_batch(serverfd, larger_1, b);
 
         clear_fmpz_array(bucket0, b);
@@ -1662,6 +1668,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         }
 
         std::cout << "evaluate time: " << sec_from(start2) << std::endl;
+        std::cout << "evaluate sent bytes: " << num_bytes << std::endl;
 
         std::cout << "### Heavy hitter value is " << ans << std::endl;
 

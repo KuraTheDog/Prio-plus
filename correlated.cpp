@@ -163,9 +163,11 @@ CorrelatedStore::~CorrelatedStore() {
   //   delete triple_gen;
 }
 
-const bool* const CorrelatedStore::multiplyBoolShares(
-    const size_t N, const bool* const x, const bool* const y) {
-  bool* const z = new bool[N];
+int CorrelatedStore::multiplyBoolShares(const size_t N,
+                                        const bool* const x,
+                                        const bool* const y,
+                                        bool* const z) {
+  int sent_bytes = 0;
 
   bool* const d_this = new bool[N];
   bool* const e_this = new bool[N];
@@ -190,8 +192,8 @@ const bool* const CorrelatedStore::multiplyBoolShares(
 
   bool* d_other = new bool[N];
   bool* e_other = new bool[N];
-  recv_bool_batch(serverfd, d_other, N);
-  recv_bool_batch(serverfd, e_other, N);
+  sent_bytes += recv_bool_batch(serverfd, d_other, N);
+  sent_bytes += recv_bool_batch(serverfd, e_other, N);
 
   for (unsigned int i = 0; i < N; i++) {
     bool d = d_this[i] ^ d_other[i];
@@ -207,12 +209,13 @@ const bool* const CorrelatedStore::multiplyBoolShares(
   delete[] e_other;
 
   if (do_fork) waitpid(pid, &status, 0);
-  return z;
+  return sent_bytes;
 }
 
-fmpz_t* CorrelatedStore::multiplyArithmeticShares(
-    const size_t N, const fmpz_t* const x, const fmpz_t* const y) {
-  fmpz_t* z; new_fmpz_array(&z, N);
+int CorrelatedStore::multiplyArithmeticShares(
+    const size_t N, const fmpz_t* const x, const fmpz_t* const y,
+    fmpz_t* const z) {
+  int sent_bytes = 0;
 
   fmpz_t* d; new_fmpz_array(&d, N);
   fmpz_t* e; new_fmpz_array(&e, N);
@@ -244,8 +247,8 @@ fmpz_t* CorrelatedStore::multiplyArithmeticShares(
     send_fmpz_batch(serverfd, e, N);
     if (do_fork) exit(EXIT_SUCCESS);
   }
-  recv_fmpz_batch(serverfd, d_other, N);
-  recv_fmpz_batch(serverfd, e_other, N);
+  sent_bytes += recv_fmpz_batch(serverfd, d_other, N);
+  sent_bytes += recv_fmpz_batch(serverfd, e_other, N);
 
   for (unsigned int i = 0; i < N; i++) {
     fmpz_add(d[i], d[i], d_other[i]);  // x - a
@@ -270,17 +273,20 @@ fmpz_t* CorrelatedStore::multiplyArithmeticShares(
   // Wait for send child to finish
   if (do_fork) waitpid(pid, &status, 0);
 
-  return z;
+  return sent_bytes;
 }
 
 // c_{i+1} = c_i xor ((x_i xor c_i) and (y_i xor c_i))
 // output z_i = x_i xor y_i xor c_i
 // Unused
-const bool* const CorrelatedStore::addBinaryShares(
-    const size_t N, const size_t* const num_bits,
-    const bool* const * const x, const bool* const * const y,
-    bool* const * const z) {
-  bool* const carry = new bool[N];
+int CorrelatedStore::addBinaryShares(const size_t N,
+                                     const size_t* const num_bits,
+                                     const bool* const * const x,
+                                     const bool* const * const y,
+                                     bool* const * const z,
+                                     bool* const carry) {
+  int sent_bytes = 0;
+
   memset(carry, false, N);
   bool* const xi = new bool[N];
   bool* const yi = new bool[N];
@@ -305,7 +311,8 @@ const bool* const CorrelatedStore::addBinaryShares(
       idx++;
     }
 
-    const bool* const new_carry = multiplyBoolShares(idx, xi, yi);
+    const bool* const new_carry = new bool[idx];
+    sent_bytes += multiplyBoolShares(idx, xi, yi, new_carry);
 
     idx = 0;
     for (unsigned int i = 0; i < N; i++) {
@@ -321,12 +328,12 @@ const bool* const CorrelatedStore::addBinaryShares(
   delete[] xi;
   delete[] yi;
 
-  return carry;
+  return sent_bytes;
 }
 
-fmpz_t* const CorrelatedStore::b2a_daBit_single(const size_t N, const bool* const x) {
-  fmpz_t* xp; new_fmpz_array(&xp, N);
-
+int CorrelatedStore::b2a_daBit_single(const size_t N, const bool* const x,
+                                      fmpz_t* const xp) {
+  int sent_bytes = 0;
   checkDaBits(N);
 
   bool* const v_this = new bool[N];
@@ -348,7 +355,7 @@ fmpz_t* const CorrelatedStore::b2a_daBit_single(const size_t N, const bool* cons
     if (do_fork) exit(EXIT_SUCCESS);
   }
   bool* const v_other = new bool[N];
-  recv_bool_batch(serverfd, v_other, N);
+  sent_bytes += recv_bool_batch(serverfd, v_other, N);
 
   for (unsigned int i = 0; i < N; i++) {
     const bool v = v_this[i] ^ v_other[i];
@@ -368,18 +375,20 @@ fmpz_t* const CorrelatedStore::b2a_daBit_single(const size_t N, const bool* cons
 
   if (do_fork) waitpid(pid, &status, 0);
 
-  return xp;
+  return sent_bytes;
 }
 
-fmpz_t* const CorrelatedStore::b2a_daBit_multi(
-    const size_t N, const size_t* const num_bits, const fmpz_t* const x) {
+int CorrelatedStore::b2a_daBit_multi(
+    const size_t N, const size_t* const num_bits,
+    const fmpz_t* const x, fmpz_t* const xp) {
+  int sent_bytes = 0;
+
   size_t total_bits = 0;
   for (unsigned int i = 0; i < N; i++)
     total_bits += num_bits[i];
 
   checkDaBits(total_bits);
 
-  fmpz_t* xp; new_fmpz_array(&xp, N);
   bool* const x2 = new bool[total_bits];
 
   size_t offset = 0;
@@ -389,7 +398,8 @@ fmpz_t* const CorrelatedStore::b2a_daBit_multi(
     offset += num_bits[i];
   }
 
-  fmpz_t* tmp_xp = b2a_daBit_single(total_bits, x2);
+  fmpz_t* tmp_xp; new_fmpz_array(&tmp_xp, total_bits);
+  sent_bytes += b2a_daBit_single(total_bits, x2, tmp_xp);
 
   offset = 0;
   for (unsigned int i = 0; i < N; i++) {
@@ -404,13 +414,16 @@ fmpz_t* const CorrelatedStore::b2a_daBit_multi(
   delete[] x2;
   clear_fmpz_array(tmp_xp, total_bits);
 
-  return xp;
+  return sent_bytes;
 }
 
 // Using intsum_ot, multiple bits
-fmpz_t* const CorrelatedStore::b2a_ot(
-    const size_t num_shares, const size_t num_values, const size_t* const num_bits,
-    const fmpz_t* const x, const size_t mod) {
+int CorrelatedStore::b2a_ot(const size_t num_shares, const size_t num_values,
+                            const size_t* const num_bits,
+                            const fmpz_t* const x, fmpz_t* const xp_out,
+                            const size_t mod) {
+  int sent_bytes = 0;
+
   uint64_t** const x2 = new uint64_t*[num_shares];
   bool* const valid = new bool[num_shares];
   for (unsigned int i = 0; i < num_shares; i++) {
@@ -423,6 +436,7 @@ fmpz_t* const CorrelatedStore::b2a_ot(
 
   const uint64_t* const * xp;
 
+  // TODO: incorperate sent_bytes into OT
   if (server_num == 0) {
     xp = intsum_ot_sender(ot0, x2, valid, num_bits, num_shares, num_values, mod);
   } else {
@@ -430,11 +444,9 @@ fmpz_t* const CorrelatedStore::b2a_ot(
   }
 
   // for consistency, flatten and fmpz_t
-  fmpz_t* ans; new_fmpz_array(&ans, num_shares * num_values);
-
   for (unsigned int i = 0; i < num_shares; i++) {
     for (unsigned int j = 0; j < num_values; j++) {
-      fmpz_set_ui(ans[i * num_values + j], xp[i][j]);
+      fmpz_set_ui(xp_out[i * num_values + j], xp[i][j]);
     }
     delete[] x2[i];
     delete[] xp[i];
@@ -443,17 +455,19 @@ fmpz_t* const CorrelatedStore::b2a_ot(
   delete[] valid;
   delete[] xp;
 
-  return ans;
+  return sent_bytes;
 }
 
-void CorrelatedStore::heavy_convert(
+int CorrelatedStore::heavy_convert(
     const size_t N, const size_t b,
     const bool* const x, const bool* const y,
     const bool* const valid,
     fmpz_t* const bucket0, fmpz_t* const bucket1) {
+  int sent_bytes = 0;
 
   // Step 1: convert y to arith shares
-  fmpz_t* y_p = b2a_daBit_single(N * b, y);
+  fmpz_t* y_p; new_fmpz_array(&y_p, N * b);
+  sent_bytes += b2a_daBit_single(N * b, y, y_p);
 
   // Step 2: OT setup
   // z = 1 - 2y, as [z] = servernum - 2[y]
@@ -533,6 +547,7 @@ void CorrelatedStore::heavy_convert(
   pid_t pid = 0;
   int status = 0;
   // NOTE: OT forking currently seems bugged. Disable for now.
+  // TODO: sent bytes of OT
   const bool do_ot_fork = false;
   if (do_ot_fork) {
     pid = fork();
@@ -571,6 +586,8 @@ void CorrelatedStore::heavy_convert(
   delete[] received_1;
 
   if (do_ot_fork) waitpid(pid, &status, 0);
+
+  return sent_bytes;
 }
 
 // Use b2A via OT on random bit
@@ -657,9 +674,10 @@ bool* CorrelatedStore::cmp_c_clear(const size_t N,
 }
 
 // Just (x < y) = (x - y < 0) = is_neg([x - y])
-fmpz_t* CorrelatedStore::cmp(const size_t N,
-                           const fmpz_t* const x,
-                           const fmpz_t* const y) {
+int CorrelatedStore::cmp(const size_t N,
+                         const fmpz_t* const x, const fmpz_t* const y,
+                         fmpz_t* const ans) {
+  int sent_bytes = 0;
   checkDaBits(4 * N * nbits_mod);
   checkTriples(13 * N * nbits_mod);
 
@@ -670,31 +688,36 @@ fmpz_t* CorrelatedStore::cmp(const size_t N,
     fmpz_mod(diff[i], diff[i], Int_Modulus);
   }
 
-  fmpz_t* const ans = is_negative(N, diff);
+  sent_bytes += is_negative(N, diff, ans);
   clear_fmpz_array(diff, N);
-  return ans;
+  return sent_bytes;
 }
 
 // |x| = (1 - 2[x < 0]) * x
 // if hashes known, sign might reveal some info about non-heavy bucket, so reveal in clear is not fully secure
-fmpz_t* CorrelatedStore::abs(const size_t N, const fmpz_t* const x) {
+int CorrelatedStore::abs(const size_t N, const fmpz_t* const x,
+                         fmpz_t* const abs_x) {
+  int sent_bytes = 0;
   checkDaBits(4 * N * nbits_mod);
   checkTriples((13 + 1) * N * nbits_mod);
 
-  fmpz_t* is_neg = is_negative(N, x);
+  fmpz_t* is_neg; new_fmpz_array(&is_neg, N);
+  sent_bytes += is_negative(N, x, is_neg);
   for (unsigned int i = 0; i < N; i++) {
     fmpz_mul_si(is_neg[i], is_neg[i], -2);
     if (server_num == 1)
       fmpz_add_ui(is_neg[i], is_neg[i], 1);
     fmpz_mod(is_neg[i], is_neg[i], Int_Modulus);
   }
-  fmpz_t* ans = multiplyArithmeticShares(N, x, is_neg);
+  sent_bytes += multiplyArithmeticShares(N, x, is_neg, abs_x);
   clear_fmpz_array(is_neg, N);
-  return ans;
+  return sent_bytes;
 }
 
-fmpz_t* CorrelatedStore::abs_cmp(const size_t N,
-                                 const fmpz_t* const x, const fmpz_t* const y) {
+int CorrelatedStore::abs_cmp(const size_t N,
+                             const fmpz_t* const x, const fmpz_t* const y,
+                             fmpz_t* const ans) {
+  int sent_bytes = 0;
   checkDaBits(3 * 4 * N * nbits_mod);  // 1 per abs, and 1 for cmp
   checkTriples((13 + 14 + 14) * N * nbits_mod);  // 13 for cmp, 14 for abs
 
@@ -704,7 +727,8 @@ fmpz_t* CorrelatedStore::abs_cmp(const size_t N,
     fmpz_set(merge[i], x[i]);
     fmpz_set(merge[i+N], y[i]);
   }
-  fmpz_t* merge_abs = abs(2*N, merge);
+  fmpz_t* merge_abs; new_fmpz_array(&merge_abs, 2*N);
+  sent_bytes += abs(2*N, merge, merge_abs);
   clear_fmpz_array(merge, 2*N);
 
   // split out, and compare
@@ -715,24 +739,26 @@ fmpz_t* CorrelatedStore::abs_cmp(const size_t N,
     fmpz_set(y2[i], merge_abs[i+N]);
   }
   clear_fmpz_array(merge_abs, N);
-  fmpz_t* ans = cmp(N, x2, y2);
+  sent_bytes += cmp(N, x2, y2, ans);
   clear_fmpz_array(x2, N);
   clear_fmpz_array(y2, N);
-  return ans;
+  return sent_bytes;
 }
 
 // x, y are Nxb shares of N total b-bit numbers.
 // I.e. x[i,j] is additive share of bit j of number i.
-fmpz_t* CorrelatedStore::cmp_bit(const size_t N, const size_t b,
-                                 const fmpz_t* const x, const fmpz_t* const y) {
-  fmpz_t* ans; new_fmpz_array(&ans, N);
+int CorrelatedStore::cmp_bit(const size_t N, const size_t b,
+                             const fmpz_t* const x, const fmpz_t* const y,
+                             fmpz_t* const ans) {
+  int sent_bytes = 0;
   size_t idx;  // for convenience
 
   // Total mults: ~3x (N*b)
   checkTriples(3 * N * b);
 
   // [c] = [x ^ y] = [x] + [y] - 2[xy]
-  fmpz_t* c = multiplyArithmeticShares(N * b, x, y);
+  fmpz_t* c; new_fmpz_array(&c, N * b);
+  sent_bytes += multiplyArithmeticShares(N * b, x, y, c);
   for (unsigned int i = 0; i < N * b; i++) {
     fmpz_mul_si(c[i], c[i], -2);
     fmpz_add(c[i], c[i], x[i]);
@@ -752,24 +778,25 @@ fmpz_t* CorrelatedStore::cmp_bit(const size_t N, const size_t b,
   }
   fmpz_t* ci; new_fmpz_array(&ci, N);     // [ci]
   fmpz_t* di1; new_fmpz_array(&di1, N);   // [d(i+1)]
+  fmpz_t* mul; new_fmpz_array(&mul, N);
   for (int j = b-2; j >= 0; j--) {
     for (unsigned int i = 0; i < N; i++) {
       idx = i * b + j;
       fmpz_set(ci[i], c[idx]);
       fmpz_set(di1[i], d[idx + 1]);
     }
-    fmpz_t* mul = multiplyArithmeticShares(N, ci, di1);
+    sent_bytes += multiplyArithmeticShares(N, ci, di1, mul);
     for (unsigned int i = 0; i < N; i++) {
       idx = i * b + j;
       fmpz_add(d[idx], ci[i], di1[i]);
       fmpz_sub(d[idx], d[idx], mul[i]);
       fmpz_mod(d[idx], d[idx], Int_Modulus);
     }
-    clear_fmpz_array(mul, N);
   }
   clear_fmpz_array(c, N * b);
   clear_fmpz_array(ci, N);
   clear_fmpz_array(di1, N);
+  clear_fmpz_array(mul, N);
 
   // ei = di - d(i+1), with eb = db
   fmpz_t* e; new_fmpz_array(&e, N * b);
@@ -785,7 +812,8 @@ fmpz_t* CorrelatedStore::cmp_bit(const size_t N, const size_t b,
   clear_fmpz_array(d, N * b);
 
   // [x < y] = sum ei * yi
-  fmpz_t* ey = multiplyArithmeticShares(N * b, e, y);
+  fmpz_t* ey; new_fmpz_array(&ey, N * b);
+  sent_bytes += multiplyArithmeticShares(N * b, e, y, ey);
   clear_fmpz_array(e, N * b);
   for (unsigned int i = 0; i < N; i++) {
     fmpz_zero(ans[i]);
@@ -795,15 +823,16 @@ fmpz_t* CorrelatedStore::cmp_bit(const size_t N, const size_t b,
     }
   }
   clear_fmpz_array(ey, N * b);
-  return ans;
+  return sent_bytes;
 }
 
 // Make each bit in parallel: [ri in {0,1}]p
 // check if [r < p] bitwise, retry if not
 // success odds are p/2^b, worst case ~1/2 failure.
-fmpz_t* CorrelatedStore::gen_rand_bitshare(const size_t N, fmpz_t* const r) {
+int CorrelatedStore::gen_rand_bitshare(const size_t N,
+                                       fmpz_t* const r, fmpz_t* const rB) {
+  int sent_bytes = 0;
   const size_t b = nbits_mod;
-  fmpz_t* rB; new_fmpz_array(&rB, N * b);
 
   // Assumed tries to succeed. (worst case 1/2 fail, so 2 avg, overestimate)
   const size_t avg_tries = 4;
@@ -867,15 +896,16 @@ fmpz_t* CorrelatedStore::gen_rand_bitshare(const size_t N, fmpz_t* const r) {
     // Check [r < p], retry if not, sets "valid" where [r < p]
 
     // It's fine if arrays are larger, extras get ignored.
-    fmpz_t* r_lt_p = cmp_bit(num_invalid, b, rB_tocheck, pB);
+    fmpz_t* r_lt_p; new_fmpz_array(&r_lt_p, num_invalid);
+    sent_bytes += cmp_bit(num_invalid, b, rB_tocheck, pB, r_lt_p);
     // Get r_lt_p in clear
     // TODO: fork
     if (server_num == 0) {
-      send_fmpz_batch(serverfd, r_lt_p, num_invalid);
+      sent_bytes += send_fmpz_batch(serverfd, r_lt_p, num_invalid);
       recv_fmpz_batch(serverfd, r_lt_p_other, num_invalid);
     } else {
       recv_fmpz_batch(serverfd, r_lt_p_other, num_invalid);
-      send_fmpz_batch(serverfd, r_lt_p, num_invalid);
+      sent_bytes += send_fmpz_batch(serverfd, r_lt_p, num_invalid);
     }
     for (unsigned int i = 0; i < num_invalid; i++) {
       fmpz_add(r_lt_p[i], r_lt_p[i], r_lt_p_other[i]);
@@ -894,20 +924,22 @@ fmpz_t* CorrelatedStore::gen_rand_bitshare(const size_t N, fmpz_t* const r) {
 
   // std::cout << "total sub-iterations: " << log_num_invalid << ", vs expected: " << avg_tries * N << std::endl;
 
-  return rB;
+  return sent_bytes;
 }
 
 // Since we are masking with random r, this should have max b (2^b > p)
-fmpz_t* CorrelatedStore::LSB(const size_t N, const fmpz_t* const x) {
+int CorrelatedStore::LSB(const size_t N, const fmpz_t* const x,
+                         fmpz_t* const x0) {
+  int sent_bytes = 0;
   const size_t b = nbits_mod;
-  fmpz_t* ans; new_fmpz_array(&ans, N);
 
   checkDaBits(4 * N * b);   // for gen_rand
   checkTriples((4*3 + 1) * N * b);  // 12 for gen_rand
 
   // 1: Random bitwise shared r, true [r]p, bitwise [rB]
   fmpz_t* r; new_fmpz_array(&r, N);
-  fmpz_t* rB = gen_rand_bitshare(N, r);
+  fmpz_t* rB; new_fmpz_array(&rB, N * b);
+  sent_bytes += gen_rand_bitshare(N, r, rB);
 
   // 2: Compute [c]p = [x]p + [r]p
   fmpz_t* c; new_fmpz_array(&c, N);
@@ -920,11 +952,11 @@ fmpz_t* CorrelatedStore::LSB(const size_t N, const fmpz_t* const x) {
   // TODO: fork
   fmpz_t* c_other; new_fmpz_array(&c_other, N);
   if (server_num == 0) {
-    send_fmpz_batch(serverfd, c, N);
+    sent_bytes += send_fmpz_batch(serverfd, c, N);
     recv_fmpz_batch(serverfd, c_other, N);
   } else {
     recv_fmpz_batch(serverfd, c_other, N);
-    send_fmpz_batch(serverfd, c, N);
+    sent_bytes += send_fmpz_batch(serverfd, c, N);
   }
   for (unsigned int i = 0; i < N; i++) {
     fmpz_add(c[i], c[i], c_other[i]);
@@ -961,30 +993,32 @@ fmpz_t* CorrelatedStore::LSB(const size_t N, const fmpz_t* const x) {
       fmpz_zero(cB[i]);
     }
   }
-  fmpz_t* cmp = cmp_bit(N, b, cB, rB);
+  fmpz_t* cmp; new_fmpz_array(&cmp, N);
+  sent_bytes += cmp_bit(N, b, cB, rB, cmp);
   clear_fmpz_array(cB, N*b);
   clear_fmpz_array(rB, N*b);
   clear_fmpz_array(c, N);
   // 4: [x0] = [c < r] + (c0 ^ r0) - 2 [c < r] (c0 ^ r0)
   // 4.1: mul = [c<r] * [c0 ^ r0]
-  fmpz_t* mul = multiplyArithmeticShares(N, cmp, cr);
+  fmpz_t* mul; new_fmpz_array(&mul, N);
+  sent_bytes += multiplyArithmeticShares(N, cmp, cr, mul);
   // 4.2: Final eval: cmp + cr - 2 cmp*cr
   for (unsigned int i = 0; i < N; i++) {
-    fmpz_add(ans[i], cmp[i], cr[i]);
-    fmpz_submul_si(ans[i], mul[i], 2);
-    fmpz_mod(ans[i], ans[i], Int_Modulus);
+    fmpz_add(x0[i], cmp[i], cr[i]);
+    fmpz_submul_si(x0[i], mul[i], 2);
+    fmpz_mod(x0[i], x0[i], Int_Modulus);
   }
 
   clear_fmpz_array(cmp, N);
   clear_fmpz_array(cr, N);
   clear_fmpz_array(mul, N);
 
-
-  return ans;
+  return sent_bytes;
 }
 
-fmpz_t* CorrelatedStore::is_negative(
-    const size_t N, const fmpz_t* const x) {
+int CorrelatedStore::is_negative(const size_t N,
+                                 const fmpz_t* const x, fmpz_t* ans) {
+  int sent_bytes = 0;
   checkDaBits(4 * N * nbits_mod);
   checkTriples(13 * N * nbits_mod);
 
@@ -994,7 +1028,7 @@ fmpz_t* CorrelatedStore::is_negative(
     fmpz_mul_ui(inp[i], x[i], 2);
     fmpz_mod(inp[i], inp[i], Int_Modulus);
   }
-  fmpz_t* ans = LSB(N, inp);
+  sent_bytes += LSB(N, inp, ans);
   clear_fmpz_array(inp, N);
   // Code for (1 - [(2a)_0]), aka 1 if positive, 0 if negative
   // for (unsigned int i = 0; i < N; i++) {
@@ -1003,5 +1037,5 @@ fmpz_t* CorrelatedStore::is_negative(
   //     fmpz_add_ui(ans[i], ans[i], 1);
   //   fmpz_mod(ans[i], ans[i], Int_Modulus);
   // }
-  return ans;
+  return sent_bytes;
 }
