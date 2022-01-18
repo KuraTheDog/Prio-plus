@@ -129,7 +129,7 @@ void sync_randomX(const int serverfd, const int server_num, fmpz_t randomX) {
     }
 }
 
-// TODO: can maybe batch this? Seems to help in other places. Not a big timesink though, so should be fine for now
+// TODO: can maybe batch this? I.e. get list of all PK at once.
 std::string get_pk(const int serverfd) {
     char pk_buf[PK_LENGTH];
     recv_in(serverfd, &pk_buf[0], PK_LENGTH);
@@ -171,7 +171,6 @@ fmpz_t* const share_convert(const size_t num_shares,  // # inputs
 
     if (USE_OT_B2A) {
         const size_t mod = fmpz_get_ui(Int_Modulus);
-        // TODO: maybe make it take not flattened?
         sent_bytes += correlated_store->b2a_ot(
             num_shares, num_values, num_bits, f_shares2, shares_p, mod);
 
@@ -1257,7 +1256,6 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     const unsigned int total_inputs = msg.num_of_inputs;
     // const uint64_t max_inp = msg.max_inp;
     const uint64_t max_inp = 1ULL << msg.num_bits;
-    // TODO: if 1 << num_bits < max_inp, fail
 
     FreqShare share;
     int num_bytes = 0;
@@ -1585,9 +1583,6 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
 
         clear_fmpz_array(larger, b);
         delete[] valid;
-
-        // TODO: bytes tracking
-        // std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
 
         return RET_NO_ANS;
 
