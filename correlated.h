@@ -22,6 +22,7 @@ It also waits for the child to finish before exiting or moving to a substep that
 #include <queue>
 
 #include "constants.h"
+#include "he_triples.h"
 #include "ot.h"
 #include "share.h"
 
@@ -41,7 +42,7 @@ class CorrelatedStore {
   const bool lazy;
 
   // Arithmetic triple generator
-  // ArithTripleGenerator* triple_gen = nullptr;
+  ArithTripleGenerator* triple_gen = nullptr;
 
   std::queue<DaBit*> dabit_store;
   std::queue<BooleanBeaverTriple*> btriple_store;
@@ -78,16 +79,13 @@ public:
   , do_fork(do_fork)
   {
     if (lazy) {
-      std::cout << "Doing fast but insecure dabit precomputes." << std::endl;
-    }
-    /*
-    else if (fmpz_cmp_ui(Int_Modulus, 1ULL << 49) < 0) {
+      std::cout << "Doing fast but insecure dabit precomputes and Beaver Triples." << std::endl;
+    } else if (fmpz_cmp_ui(Int_Modulus, 1ULL << 49) < 0) {
       std::cout << "Using PALISADE SHE arith triples" << std::endl;
       triple_gen = new ArithTripleGenerator(serverfd, server_num);
     } else {
       std::cout << "Mod big, using slower arith triples" << std::endl;
     }
-    */
   }
 
   ~CorrelatedStore();
