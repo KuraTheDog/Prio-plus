@@ -25,11 +25,10 @@ void CorrelatedStore::addTriples(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > triples_batch_size ? n : triples_batch_size);
   std::cout << "adding triples: " << num_to_make << std::endl;
-  bool triple_gen = false;  // TODO: re-implement
   if (triple_gen) {  // not null pointer
-    // std::vector<BeaverTriple*> new_triples = triple_gen->generateTriples(num_to_make);
-    // for (unsigned int i = 0; i < num_to_make; i++)
-    //   atriple_store.push(new_triples[i]);
+    std::vector<BeaverTriple*> new_triples = triple_gen->generateTriples(num_to_make);
+    for (unsigned int i = 0; i < num_to_make; i++)
+      atriple_store.push(new_triples[i]);
   } else {
     std::cout << "Using lazy beaver triples" << std::endl;
     for (unsigned int i = 0; i < num_to_make; i++) {
