@@ -45,7 +45,8 @@ T* ArithTripleGenerator::serializedSwap(const size_t num_batches, const T* mine)
   return other;
 }
 
-ArithTripleGenerator::ArithTripleGenerator(const int serverfd, const int server_num, const unsigned int random_offset, const bool do_fork)
+ArithTripleGenerator::ArithTripleGenerator(const int serverfd,
+                                           const bool do_fork)
 : serverfd(serverfd)
 , do_fork(do_fork)
 {
@@ -65,15 +66,11 @@ ArithTripleGenerator::ArithTripleGenerator(const int serverfd, const int server_
   sk = keyPair.secretKey;
   cc->EvalMultKeyGen(sk);
 
+  // Seed and set up random ints
+  std::random_device rd;
+  std::mt19937 gen(rd());
   std::uniform_int_distribution<int64_t> index_dist{0, plaintextModulus - 1};
   random_int = std::bind(index_dist, generator);
-
-  // Randomness offset
-  if (server_num == 1) {
-    for (unsigned int i = 0; i < random_offset; i++) {
-      random_int();
-    }
-  }
 
   // Swap public keys
   LPPublicKey<DCRTPoly> inp[1] = {pk};
