@@ -53,13 +53,7 @@ private:
   T* serializedSwap(const size_t num_batches, const T* mine) const;
 
 public:
-
-  /*
-   - serverfd: sockfd of the other server
-   - server_num: index of the server. Only used for randomness offset
-   - random_offset: Have server 1 make this many extra random values, so that the servers have different random values even when starting with the same seed
-  */
-  ArithTripleGenerator(const int serverfd, const int server_num = 0, const unsigned int random_offset = 8, const bool do_fork = true);
+  ArithTripleGenerator(const int serverfd, const bool do_fork = true);
 
   // Make n arithmetic beaver triples at once, in batches of 8192
   std::vector<BeaverTriple*> generateTriples(const size_t n) const;
