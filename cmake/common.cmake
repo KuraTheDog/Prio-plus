@@ -1,10 +1,3 @@
-if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-	if(NOT DEFINED OPENSSL_ROOT_DIR)
-		set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")	
-		message(STATUS "OPENSSL_ROOT_DIR set to default: ${OPENSSL_ROOT_DIR}")
-	endif()
-endif()
-
 if(NOT WIN32)
   string(ASCII 27 Esc)
   set(ColourReset "${Esc}[m")
@@ -26,46 +19,58 @@ if(NOT WIN32)
 endif()
 
 set(CMAKE_MACOSX_RPATH 0)
-
-
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 include_directories(${CMAKE_SOURCE_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
+set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${CMAKE_SOURCE_DIR}/cmake)
+
 
 if (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-	if(NOT DEFINED OPENSSL_ROOT_DIR)
-		set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")	
-		message(STATUS "OPENSSL_ROOT_DIR set to default: ${OPENSSL_ROOT_DIR}")
-	endif()
+  if(NOT DEFINED OPENSSL_ROOT_DIR)
+    IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "(aarch64)|(arm64)")
+      # M1 Apple
+      set(OPENSSL_ROOT_DIR "/opt/homebrew/opt/openssl")
+      message(STATUS "OPENSSL_ROOT_DIR set to default: ${OPENSSL_ROOT_DIR}")
+    ELSE(${CMAKE_SYSTEM_PROCESSOR} MATCHES "(aarch64)|(arm64)")
+      # Intel Apple
+      set(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
+      message(STATUS "OPENSSL_ROOT_DIR set to default: ${OPENSSL_ROOT_DIR}")
+    ENDIF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "(aarch64)|(arm64)" )
+
+  endif()
 endif()
 
 #Compilation flags
-set(CMAKE_C_FLAGS "-pthread -Wall -march=native -O3 -maes -mrdseed")
-set(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -std=c++11")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -ggdb")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread -Wall -funroll-loops -Wno-ignored-attributes -Wno-unused-result")
+message("${Blue}-- Platform: ${CMAKE_SYSTEM_PROCESSOR}${ColourReset}")
+IF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "(aarch64)|(arm64)")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8-a+simd+crypto+crc")
+ELSE(${CMAKE_SYSTEM_PROCESSOR} MATCHES "(aarch64)|(arm64)")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=native -maes -mrdseed")
+ENDIF(${CMAKE_SYSTEM_PROCESSOR} MATCHES "(aarch64)|(arm64)" )
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_C_FLAGS} -std=c++11")
 
 ## Build type
 if(NOT CMAKE_BUILD_TYPE)
 set(CMAKE_BUILD_TYPE Release)
 endif(NOT CMAKE_BUILD_TYPE)
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "${Blue}Build type: ${CMAKE_BUILD_TYPE}${ColourReset}")
 
 if (CMAKE_BUILD_TYPE MATCHES Debug)
-message(STATUS "CXX Flags: ${CMAKE_CXX_FLAGS_DEBUG}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -ggdb")
+message(STATUS "CXX Flags: ${CMAKE_CXX_FLAGS}")
 endif()
 
 if (CMAKE_BUILD_TYPE MATCHES Release)
-message(STATUS "CXX Flags: ${CMAKE_CXX_FLAGS_RELEASE}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+message(STATUS "CXX Flags: ${CMAKE_CXX_FLAGS}")
 endif()
 
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
-set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${CMAKE_SOURCE_DIR}/cmake)
-
-
-#Testing macro
-macro (add_test_with_lib _name libs)
-	add_executable(${_name} "test/${_name}.cpp")
-	target_link_libraries(${_name} ${OPENSSL_LIBRARIES} ${Boost_LIBRARIES} ${GMP_LIBRARIES} ${libs}) 
-endmacro()
+# #Testing macro
+# macro (add_test_with_lib _name libs)
+# 	add_executable(${_name} "test/${_name}.cpp")
+# 	target_link_libraries(${_name} ${OPENSSL_LIBRARIES} ${Boost_LIBRARIES} ${GMP_LIBRARIES} ${libs}) 
+# endmacro()
