@@ -44,8 +44,8 @@ void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B, const int num_bits) {
 }
 */
 
-BeaverTriple* NewBeaverTriple() {
-    BeaverTriple* out = new BeaverTriple();
+const BeaverTriple* const NewBeaverTriple() {
+    BeaverTriple* const out = new BeaverTriple();
 
     fmpz_randm(out->A, seed, Int_Modulus);
     fmpz_randm(out->B, seed, Int_Modulus);
@@ -101,8 +101,8 @@ void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {
 
 // Deprecated
 void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n) {
-    DaBit* bit0 = new DaBit();
-    DaBit* bit1 = new DaBit();
+    DaBit* const bit0 = new DaBit();
+    DaBit* const bit1 = new DaBit();
 
     fmpz_zero(ebit0->r);
     fmpz_zero(ebit1->r);

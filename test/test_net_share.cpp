@@ -92,7 +92,7 @@ void run_sender(int sockfd) {
     std::cout << "send btriple \tsize: " << n << " \tvals: " << btrip->a << ", " << btrip->b << ", " << btrip->c << std::endl;
     delete btrip;
 
-    BeaverTriple* trip = NewBeaverTriple();
+    const BeaverTriple* const trip = NewBeaverTriple();
     n = send_BeaverTriple(sockfd, trip);
     std::cout << "send triple \tsize: " << n << " \tvals: ";
     fmpz_print(trip->A); std::cout << ", ";
@@ -100,14 +100,14 @@ void run_sender(int sockfd) {
     fmpz_print(trip->C); std::cout << std::endl;
     delete trip;
 
-    ClientPacket* packet = new ClientPacket(1);
+    ClientPacket* const packet = new ClientPacket(1);
     fmpz_set_si(packet->f0_s, 10);
     n = send_ClientPacket(sockfd, packet, 1);
     std::cout << "send packet \tsize: " << n << " \tf0_s: ";
     fmpz_print(packet->f0_s); std::cout << std::endl;
     delete packet;
 
-    ClientPacket* packet2 = new ClientPacket(2);
+    ClientPacket* const packet2 = new ClientPacket(2);
     fmpz_set_si(packet2->f0_s, 20);
     n = send_ClientPacket(sockfd, packet2, 2);
     std::cout << "send packet \tsize: " << n << " \tf0_s = ";

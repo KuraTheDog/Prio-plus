@@ -4,7 +4,7 @@
 
 #include "fmpz_utils.h"
 
-void HashStore::eval(const unsigned int i, const unsigned int x, fmpz_t out) {
+void HashStore::eval(const unsigned int i, const unsigned int x, fmpz_t out) const {
   fmpz_zero(out);
   // f -> x(f + c_j)
   for (unsigned int j = degree; j > 0; j--) {
@@ -19,7 +19,7 @@ void HashStore::eval(const unsigned int i, const unsigned int x, fmpz_t out) {
   fmpz_mod(out, out, w);
 }
 
-void HashStore::print_hash(const unsigned int i) {
+void HashStore::print_hash(const unsigned int i) const {
   std::cout << "Hash " << i << ": ";
   for (unsigned int j = 0; j <= degree; j++) {
     fmpz_print(coeff[i][j]);

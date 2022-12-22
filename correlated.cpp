@@ -13,7 +13,7 @@ void CorrelatedStore::addBoolTriples(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > batch_size ? n : batch_size);
   std::cout << "adding booltriples: " << num_to_make << std::endl;
-  std::queue<BooleanBeaverTriple*> new_triples = gen_boolean_beaver_triples(server_num, num_to_make, ot0, ot1);
+  std::queue<const BooleanBeaverTriple* const> new_triples = gen_boolean_beaver_triples(server_num, num_to_make, ot0, ot1);
   for (unsigned int i = 0; i < num_to_make; i++) {
     btriple_store.push(new_triples.front());
     new_triples.pop();
@@ -27,7 +27,7 @@ void CorrelatedStore::addDaBits(const size_t n) {
   const size_t num_to_make = n;  // Currently to make "end to end" easier to benchmark
   std::cout << "adding dabits: " << num_to_make << std::endl;
   if (!lazy) {
-    DaBit** dabit = generateDaBit(num_to_make);
+    const DaBit* const * const dabit = generateDaBit(num_to_make);
     for (unsigned int i = 0; i < num_to_make; i++)
       dabit_store.push(dabit[i]);
     delete[] dabit;
@@ -65,16 +65,16 @@ void CorrelatedStore::checkDaBits(const size_t n) {
   if (dabit_store.size() < n) addDaBits(n - dabit_store.size());
 }
 
-BooleanBeaverTriple* CorrelatedStore::getBoolTriple() {
+const BooleanBeaverTriple* const CorrelatedStore::getBoolTriple() {
   checkBoolTriples(1);
-  BooleanBeaverTriple* ans = btriple_store.front();
+  const BooleanBeaverTriple* const ans = btriple_store.front();
   btriple_store.pop();
   return ans;
 }
 
-DaBit* CorrelatedStore::getDaBit() {
+const DaBit* const CorrelatedStore::getDaBit() {
   checkDaBits(1);
-  DaBit* ans = dabit_store.front();
+  const DaBit* const ans = dabit_store.front();
   dabit_store.pop();
   return ans;
 }
@@ -107,28 +107,27 @@ void CorrelatedStore::maybeUpdate() {
 
 CorrelatedStore::~CorrelatedStore() {
   while (!dabit_store.empty()) {
-    DaBit* bit = dabit_store.front();
+    const DaBit* const bit = dabit_store.front();
     dabit_store.pop();
     delete bit;
   }
   while (!btriple_store.empty()) {
-    BooleanBeaverTriple* triple = btriple_store.front();
+    const BooleanBeaverTriple* const triple = btriple_store.front();
     btriple_store.pop();
     delete triple;
   }
 }
 
-bool* CorrelatedStore::multiplyBoolShares(const size_t N,
-                                          const bool* const x,
-                                          const bool* const y) {
-  bool* z = new bool[N];
+const bool* const CorrelatedStore::multiplyBoolShares(
+    const size_t N, const bool* const x, const bool* const y) {
+  bool* const z = new bool[N];
 
-  bool* d_this = new bool[N];
-  bool* e_this = new bool[N];
+  bool* const d_this = new bool[N];
+  bool* const e_this = new bool[N];
 
   checkBoolTriples(N);
   for (unsigned int i = 0; i < N; i++) {
-    BooleanBeaverTriple* triple = getBoolTriple();
+    const BooleanBeaverTriple* const triple = getBoolTriple();
     d_this[i] = x[i] ^ triple->a;
     e_this[i] = y[i] ^ triple->b;
     z[i] = triple->c;
@@ -169,15 +168,14 @@ bool* CorrelatedStore::multiplyBoolShares(const size_t N,
 // c_{i+1} = c_i xor ((x_i xor c_i) and (y_i xor c_i))
 // output z_i = x_i xor y_i xor c_i
 // Unused
-bool* CorrelatedStore::addBinaryShares(const size_t N,
-                                       const size_t* const num_bits,
-                                       const bool* const * const x,
-                                       const bool* const * const y,
-                                       bool* const * const z) {
-  bool* carry = new bool[N];
+const bool* const CorrelatedStore::addBinaryShares(
+    const size_t N, const size_t* const num_bits,
+    const bool* const * const x, const bool* const * const y,
+    bool* const * const z) {
+  bool* const carry = new bool[N];
   memset(carry, false, N);
-  bool* xi = new bool[N];
-  bool* yi = new bool[N];
+  bool* const xi = new bool[N];
+  bool* const yi = new bool[N];
 
   size_t max_bits = 0;
   size_t total_bits = 0;
@@ -199,7 +197,7 @@ bool* CorrelatedStore::addBinaryShares(const size_t N,
       idx++;
     }
 
-    bool* new_carry = multiplyBoolShares(idx, xi, yi);
+    const bool* const new_carry = multiplyBoolShares(idx, xi, yi);
 
     idx = 0;
     for (unsigned int i = 0; i < N; i++) {
@@ -218,14 +216,14 @@ bool* CorrelatedStore::addBinaryShares(const size_t N,
   return carry;
 }
 
-fmpz_t* CorrelatedStore::b2a_daBit_single(const size_t N, const bool* const x) {
+fmpz_t* const CorrelatedStore::b2a_daBit_single(const size_t N, const bool* const x) {
   fmpz_t* xp; new_fmpz_array(&xp, N);
 
   checkDaBits(N);
 
-  bool* v_this = new bool[N];
+  bool* const v_this = new bool[N];
   for (unsigned int i = 0; i < N; i++) {
-    DaBit* dabit = getDaBit();
+    const DaBit* const dabit = getDaBit();
     v_this[i] = x[i] ^ dabit->b2;
 
     fmpz_set(xp[i], dabit->bp);
@@ -241,7 +239,7 @@ fmpz_t* CorrelatedStore::b2a_daBit_single(const size_t N, const bool* const x) {
 
     if (do_fork) exit(EXIT_SUCCESS);
   }
-  bool* v_other = new bool[N];
+  bool* const v_other = new bool[N];
   recv_bool_batch(serverfd, v_other, N);
 
   for (unsigned int i = 0; i < N; i++) {
@@ -265,9 +263,8 @@ fmpz_t* CorrelatedStore::b2a_daBit_single(const size_t N, const bool* const x) {
   return xp;
 }
 
-fmpz_t* CorrelatedStore::b2a_daBit_multi(const size_t N,
-                                         const size_t* const num_bits,
-                                         const fmpz_t* const x) {
+fmpz_t* const CorrelatedStore::b2a_daBit_multi(
+    const size_t N, const size_t* const num_bits, const fmpz_t* const x) {
   size_t total_bits = 0;
   for (unsigned int i = 0; i < N; i++)
     total_bits += num_bits[i];
@@ -275,7 +272,7 @@ fmpz_t* CorrelatedStore::b2a_daBit_multi(const size_t N,
   checkDaBits(total_bits);
 
   fmpz_t* xp; new_fmpz_array(&xp, N);
-  bool* x2 = new bool[total_bits];
+  bool* const x2 = new bool[total_bits];
 
   size_t offset = 0;
   for (unsigned int i = 0; i < N; i++) {
@@ -303,10 +300,10 @@ fmpz_t* CorrelatedStore::b2a_daBit_multi(const size_t N,
 }
 
 // Using intsum_ot, multiple bits
-fmpz_t* CorrelatedStore::b2a_ot(const size_t num_shares, const size_t num_values,
-                                const size_t* const num_bits,
-                                const fmpz_t* const x, const size_t mod) {
-  uint64_t** x2 = new uint64_t*[num_shares];
+fmpz_t* const CorrelatedStore::b2a_ot(
+    const size_t num_shares, const size_t num_values, const size_t* const num_bits,
+    const fmpz_t* const x, const size_t mod) {
+  uint64_t** const x2 = new uint64_t*[num_shares];
   bool* const valid = new bool[num_shares];
   for (unsigned int i = 0; i < num_shares; i++) {
     x2[i] = new uint64_t[num_values];
@@ -316,7 +313,7 @@ fmpz_t* CorrelatedStore::b2a_ot(const size_t num_shares, const size_t num_values
     }
   }
 
-  uint64_t** xp;
+  const uint64_t* const * xp;
 
   if (server_num == 0) {
     xp = intsum_ot_sender(ot0, x2, valid, num_bits, num_shares, num_values, mod);
@@ -344,7 +341,7 @@ fmpz_t* CorrelatedStore::b2a_ot(const size_t num_shares, const size_t num_values
 // Use b2A via OT on random bit
 // Nearly COT, except delta is changing
 // random choice and random base, but also random delta matters
-DaBit** CorrelatedStore::generateDaBit(const size_t N) {
+const DaBit* const * const CorrelatedStore::generateDaBit(const size_t N) {
   DaBit** const dabit = new DaBit*[N];
 
   emp::PRG prg;

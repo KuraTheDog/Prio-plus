@@ -41,7 +41,7 @@ void run_server0(const size_t m) {
   intshares[0][0] = m ^ 9;
   const size_t sizes[1] = {4};
   std::cout << "int share0[0] = " << intshares[0][0] << std::endl;
-  uint64_t** int_a = intsum_ot_sender(ot0, intshares, valid, sizes, 1, 1, MOD);
+  const uint64_t* const * const int_a = intsum_ot_sender(ot0, intshares, valid, sizes, 1, 1, MOD);
   delete[] intshares[0];
   delete[] intshares;
   recv_uint64(cli_sockfd, b);
@@ -77,7 +77,7 @@ void run_server1(const size_t m) {
   intshares[0][0] = 9;
   const size_t sizes[1] = {4};
   std::cout << "int share1[0] = " << intshares[0][0] << std::endl;
-  uint64_t** int_b = intsum_ot_receiver(ot0, intshares, sizes, 1, 1, MOD);
+  const uint64_t* const * const int_b = intsum_ot_receiver(ot0, intshares, sizes, 1, 1, MOD);
   delete[] intshares[0];
   delete[] intshares;
   send_uint64(newsockfd, int_b[0][0]);

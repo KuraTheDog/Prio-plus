@@ -14,8 +14,8 @@ const bool do_fork = true;     // false to do leaks testing
 const bool lazy = false;
 
 void test_multiplyBoolShares(const size_t N, const int server_num, const int serverfd, CorrelatedStore* store) {
-  bool* x = new bool[N];
-  bool* y = new bool[N];
+  bool* const x = new bool[N];
+  bool* const y = new bool[N];
   if (server_num == 0) {
     x[0] = true; x[1] = false;
     y[0] = false; y[1] = true;
@@ -24,7 +24,7 @@ void test_multiplyBoolShares(const size_t N, const int server_num, const int ser
     x[1] = true; y[1] = false;
   }
 
-  bool* z = store->multiplyBoolShares(N, x, y);
+  const bool* const z = store->multiplyBoolShares(N, x, y);
 
   if (server_num == 0) {
     bool z_other;
@@ -42,9 +42,9 @@ void test_multiplyBoolShares(const size_t N, const int server_num, const int ser
 }
 
 void test_addBinaryShares(const size_t N, const size_t* const nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
-  bool** x = new bool*[N];
-  bool** y = new bool*[N];
-  bool** z = new bool*[N];
+  bool** const x = new bool*[N];
+  bool** const y = new bool*[N];
+  bool** const z = new bool*[N];
   for (unsigned int i = 0; i < N; i++) {
     x[i] = new bool[nbits[i]];
     y[i] = new bool[nbits[i]];
@@ -69,7 +69,7 @@ void test_addBinaryShares(const size_t N, const size_t* const nbits, const int s
     y[1][0] = 1; y[1][1] = 0; y[1][2] = 1; y[1][3] = 0;
   }
 
-  bool* carry = store->addBinaryShares(N, nbits, x, y, z);
+  const bool* const carry = store->addBinaryShares(N, nbits, x, y, z);
 
   if (server_num == 0) {
     bool other;

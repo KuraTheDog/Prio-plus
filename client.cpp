@@ -95,7 +95,7 @@ int send_linregshare(const int server_num, const LinRegShare& share,  const size
 int send_to_server(const int server, const void* const buffer, const size_t n, const int flags = 0) {
     const int socket = (server == 0 ? sockfd0 : sockfd1);
     int ret = send(socket, buffer, n, flags);
-    if (ret < 0) error_exit("Failed to send to server ");
+    if (ret < 0) error_exit("Failed to send to server");
     return ret;
 }
 
@@ -1217,7 +1217,7 @@ void lin_reg(const std::string protocol, const size_t numreqs) {
     }
 
     // compute answer
-    double* c = SolveLinReg(degree, x_accum, y_accum);
+    const double* const c = SolveLinReg(degree, x_accum, y_accum);
 
     delete[] x_accum;
     delete[] y_accum;
@@ -1411,7 +1411,7 @@ void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
 
     std::cout << "Sent " << numvalid << " / " << numreqs << " valid requests" << std::endl;
 
-    double* c = SolveLinReg(degree, x_accum, y_accum);
+    const double* const c = SolveLinReg(degree, x_accum, y_accum);
     delete[] x_accum;
     delete[] y_accum;
     std::cout << "Estimate: y = ";

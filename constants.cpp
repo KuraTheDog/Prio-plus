@@ -45,7 +45,7 @@ void init_roots(const size_t N) {
     new_fmpz_array(&invroots, N);
     new_fmpz_array(&roots2, 2 * N);
 
-    int step_size = (1 << twoOrder)/N;  // 2^(twoOrder - log_2 N)
+    const int step_size = (1 << twoOrder)/N;  // 2^(twoOrder - log_2 N)
     fmpz_t g_, ginv_, ghalf_;
     fmpz_init(g_);      // Generator (Int_Gen)
     fmpz_init(ginv_);   // Inverse of g_

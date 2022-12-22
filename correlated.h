@@ -35,11 +35,11 @@ class CorrelatedStore {
   // If lazy, does fast but insecure offline.
   const bool lazy;
 
-  std::queue<DaBit*> dabit_store;
-  std::queue<BooleanBeaverTriple*> btriple_store;
+  std::queue<const DaBit* const> dabit_store;
+  std::queue<const BooleanBeaverTriple* const> btriple_store;
 
   // return N new daBits
-  DaBit** generateDaBit(const size_t N);
+  const DaBit* const * const generateDaBit(const size_t N);
 
   // add to the store.
   // Adds at least batch_size (or bool_batch_size), or n if bigger
@@ -75,8 +75,8 @@ public:
   ~CorrelatedStore();
 
   // get from store, and maybe add if necessary
-  BooleanBeaverTriple* getBoolTriple();
-  DaBit* getDaBit();
+  const BooleanBeaverTriple* const getBoolTriple();
+  const DaBit* const getDaBit();
 
   void printSizes();
   // Precompute if not enough.
@@ -90,30 +90,32 @@ public:
 
   // x, y, ret are [N]
   // does ret[i] = x[i] * y[i], as shares
-  bool* multiplyBoolShares(const size_t N,
-                           const bool* const x, const bool* const y);
+  const bool* const multiplyBoolShares(
+      const size_t N, const bool* const x, const bool* const y);
 
   // x, y, z are [N][num_bits], ret is [N]
   // Treats x[i], y[i], z[i] as array of bits
   // sets z[i] and ret[i] as x[i] + y[i] and carry[i], as shares
   // Currently unused
-  bool* addBinaryShares(const size_t N, const size_t* const num_bits,
-                        const bool* const * const x, const bool* const * const y,
-                        bool* const * const z);
+  const bool* const addBinaryShares(
+      const size_t N, const size_t* const num_bits,
+      const bool* const * const x, const bool* const * const y,
+      bool* const * const z);
 
   // x, ret is [N]
   // Turns binary share x[i] into arith share ret[i]
   // Single bit. One round.
-  fmpz_t* b2a_daBit_single(const size_t N, const bool* const x);
+  fmpz_t* const b2a_daBit_single(const size_t N, const bool* const x);
   // Multiple bits. Use a dabit per bit in parallel, so one round
-  fmpz_t* b2a_daBit_multi(const size_t N, const size_t* const num_bits,
-                          const fmpz_t* const x);
+  fmpz_t* const b2a_daBit_multi(const size_t N, const size_t* const num_bits,
+                                const fmpz_t* const x);
 
   // Using intsum_ot, multiple bits
   // TODO: shift mod to fmpz
-  fmpz_t* b2a_ot(const size_t num_shares, const size_t num_values,
-                 const size_t* const num_bits, const fmpz_t* const shares,
-                 const size_t mod = 0);
+  fmpz_t* const b2a_ot(
+      const size_t num_shares, const size_t num_values,
+      const size_t* const num_bits, const fmpz_t* const shares,
+      const size_t mod = 0);
 };
 
 #endif

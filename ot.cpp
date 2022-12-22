@@ -17,7 +17,7 @@ OT_Wrapper::~OT_Wrapper() {
 }
 
 void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
-        const size_t length) {
+                      const size_t length) {
     emp::block* const block0 = new emp::block[length];
     emp::block* const block1 = new emp::block[length];
 
@@ -53,7 +53,9 @@ void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) 
 #error Not valid or defined OT type
 #endif
 
-uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const bool* const valid, const size_t n, const size_t mod){
+uint64_t bitsum_ot_sender(
+        OT_Wrapper* const ot, const bool* const shares, const bool* const valid,
+        const size_t n, const size_t mod){
 
     const uint64_t max = mod == 0 ? UINT64_MAX : mod - 1;
 
@@ -85,7 +87,9 @@ uint64_t bitsum_ot_sender(OT_Wrapper* const ot, const bool* const shares, const 
     return sum;
 }
 
-uint64_t bitsum_ot_receiver(OT_Wrapper* const ot, const bool* const shares, const size_t n, const size_t mod){
+uint64_t bitsum_ot_receiver(
+        OT_Wrapper* const ot, const bool* const shares,
+        const size_t n, const size_t mod){
     uint64_t* const r = new uint64_t[n];
     uint64_t sum = 0;
 
@@ -101,11 +105,11 @@ uint64_t bitsum_ot_receiver(OT_Wrapper* const ot, const bool* const shares, cons
     return sum;
 }
 
-uint64_t** intsum_ot_sender(OT_Wrapper* const ot,
-                            const uint64_t* const * const shares,
-                            const bool* const valid, const size_t* const num_bits,
-                            const size_t num_shares, const size_t num_values,
-                            const size_t mod) {
+const uint64_t* const * const intsum_ot_sender(
+        OT_Wrapper* const ot,
+        const uint64_t* const * const shares, const bool* const valid,
+        const size_t* const num_bits, const size_t num_shares, const size_t num_values,
+        const size_t mod) {
     emp::PRG prg;
 
     const uint64_t max = mod == 0 ? UINT64_MAX : mod - 1;
@@ -169,11 +173,10 @@ uint64_t** intsum_ot_sender(OT_Wrapper* const ot,
     return ret;
 }
 
-uint64_t** intsum_ot_receiver(OT_Wrapper* const ot,
-                              const uint64_t* const * const shares,
-                              const size_t* const num_bits,
-                              const size_t num_shares, const size_t num_values,
-                              const size_t mod) {
+const uint64_t* const * const intsum_ot_receiver(
+        OT_Wrapper* const ot, const uint64_t* const * const shares,
+        const size_t* const num_bits, const size_t num_shares, const size_t num_values,
+        const size_t mod) {
     size_t total_bits = 0;
     for (unsigned int j = 0; j < num_values; j++)
         total_bits += num_bits[j];
@@ -215,20 +218,22 @@ uint64_t** intsum_ot_receiver(OT_Wrapper* const ot,
 }
 
 // Ref : https://crypto.stackexchange.com/questions/41651/what-are-the-ways-to-generate-beaver-triples-for-multiplication-gate
-std::queue<BooleanBeaverTriple*> gen_boolean_beaver_triples(const int server_num, const unsigned int m, OT_Wrapper* const ot0, OT_Wrapper* const ot1){
+std::queue<const BooleanBeaverTriple* const> gen_boolean_beaver_triples(
+        const int server_num, const unsigned int m,
+        OT_Wrapper* const ot0, OT_Wrapper* const ot1){
     emp::PRG prg;
-    std::queue<BooleanBeaverTriple*> ans;
-    bool* x = new bool[m];
-    bool* y = new bool[m];
-    bool* z = new bool[m];
-    bool* r = new bool[m];
+    std::queue<const BooleanBeaverTriple* const> ans;
+    bool* const x = new bool[m];
+    bool* const y = new bool[m];
+    bool* const z = new bool[m];
+    bool* const r = new bool[m];
     prg.random_bool(x, m);
     prg.random_bool(y, m);
     prg.random_bool(r, m);
 
-    uint64_t* b0 = new uint64_t[m];
-    uint64_t* b1 = new uint64_t[m];
-    uint64_t* b = new uint64_t[m];
+    uint64_t* const b0 = new uint64_t[m];
+    uint64_t* const b1 = new uint64_t[m];
+    uint64_t* const b = new uint64_t[m];
 
     for (unsigned int i = 0; i < m; i++){
         b0[i] = r[i];
@@ -376,8 +381,9 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, O
 */
 
 // Simple beaver triple generation. Fast but unsafe.
-BeaverTriple* generate_beaver_triple_lazy(const int serverfd, const int server_num) {
-    BeaverTriple* triple = new BeaverTriple();
+const BeaverTriple* const generate_beaver_triple_lazy(
+        const int serverfd, const int server_num) {
+    BeaverTriple* const triple = new BeaverTriple();
 
     if (server_num == 0) {
         BeaverTriple* other_triple = new BeaverTriple();

@@ -20,7 +20,7 @@
 
 int recv_in(const int sockfd, void* const buf, const size_t len) {
     unsigned int bytes_read = 0, tmp;
-    char* bufptr = (char*) buf;
+    char* const bufptr = (char*) buf;
     while (bytes_read < len) {
         tmp = recv(sockfd, bufptr + bytes_read, len - bytes_read, 0);
         if (tmp <= 0) return tmp; else bytes_read += tmp;
@@ -38,7 +38,7 @@ int recv_bool(const int sockfd, bool& x) {
 
 int send_bool_batch(const int sockfd, const bool* const x, const size_t n) {
     const size_t len = (n+7) / 8;  // Number of bytes to hold n, aka ceil(n/8)
-    char* buf = new char[len];
+    char* const buf = new char[len];
 
     memset(buf, 0, sizeof(char) * len);
 
@@ -55,7 +55,7 @@ int send_bool_batch(const int sockfd, const bool* const x, const size_t n) {
 
 int recv_bool_batch(const int sockfd, bool* const x, const size_t n) {
     const size_t len = (n+7) / 8;
-    char* buf = new char[len];
+    char* const buf = new char[len];
 
     int ret = recv_in(sockfd, buf, len);
 
@@ -69,7 +69,7 @@ int recv_bool_batch(const int sockfd, bool* const x, const size_t n) {
 
 int send_int(const int sockfd, const int x) {
     int x_conv = htonl(x);
-    const char* data = (const char*) &x_conv;
+    const char* const data = (const char*) &x_conv;
     return send(sockfd, data, sizeof(int), 0);
 }
 
@@ -81,7 +81,7 @@ int recv_int(const int sockfd, int& x) {
 
 int send_size(const int sockfd, const size_t x) {
     size_t x_conv = htonl(x);
-    const char* data = (const char*) &x_conv;
+    const char* const data = (const char*) &x_conv;
     return send(sockfd, data, sizeof(size_t), 0);
 }
 
@@ -92,7 +92,7 @@ int recv_size(const int sockfd, size_t& x) {
 }
 
 int send_double(const int sockfd, const double x) {
-    const char* data = (const char*) &x;
+    const char* const data = (const char*) &x;
     return send(sockfd, data, sizeof(double), 0);
 }
 
@@ -103,7 +103,7 @@ int recv_double(const int sockfd, double& x) {
 
 int send_uint32(const int sockfd, const uint32_t x) {
     uint32_t x_conv = htonl(x);
-    const char* data = (const char*) &x_conv;
+    const char* const data = (const char*) &x_conv;
     return send(sockfd, data, sizeof(uint32_t), 0);
 }
 
@@ -115,7 +115,7 @@ int recv_uint32(const int sockfd, uint32_t& x) {
 
 int send_uint64(const int sockfd, const uint64_t x) {
     uint64_t x_conv = htonll(x);
-    const char* data = (const char*) &x_conv;
+    const char* const data = (const char*) &x_conv;
     return send(sockfd, data, sizeof(uint64_t), 0);
 }
 
@@ -135,7 +135,7 @@ int recv_uint64_batch(const int sockfd, uint64_t* const x, const size_t n) {
 
 int send_ulong(const int sockfd, const ulong x) {
     ulong x_conv = htonll(x);
-    const char* data = (const char*) &x_conv;
+    const char* const data = (const char*) &x_conv;
     return send(sockfd, data, sizeof(ulong), 0);
 }
 
@@ -168,7 +168,7 @@ int recv_string(const int sockfd, std::string& x) {
     size_t len;
     ret = recv_size(sockfd, len);
     if (ret <= 0) return ret; else total += ret;
-    char* buf = new char[len];
+    char* const buf = new char[len];
     ret = recv_in(sockfd, buf, len);
     if (ret <= 0) return ret; else total += ret;
     x.assign(&buf[0], len);
@@ -277,7 +277,7 @@ int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n) {
 }
 
 int send_seed(const int sockfd, const flint_rand_t x) {
-    const char* data = (const char*) &x[0];
+    const char* const data = (const char*) &x[0];
     return send(sockfd, data, sizeof(x[0]), 0);
 }
 
@@ -502,7 +502,7 @@ int send_DaBit_batch(const int sockfd, const DaBit* const * const x, const size_
     }
 
     fmpz_t* bp; new_fmpz_array(&bp, n);
-    bool* b2 = new bool[n];
+    bool* const b2 = new bool[n];
 
     for (unsigned int i = 0; i < n; i++) {
         fmpz_set(bp[i], x[i]->bp);
@@ -532,7 +532,7 @@ int recv_DaBit_batch(const int sockfd, DaBit* const * const x, const size_t n) {
     }
 
     fmpz_t* bp; new_fmpz_array(&bp, n);
-    bool* b2 = new bool[n];
+    bool* const b2 = new bool[n];
 
     ret = recv_fmpz_batch(sockfd, bp, n);
     if (ret <= 0) return ret; else total += ret;
@@ -571,7 +571,7 @@ int recv_EdaBit(const int sockfd, EdaBit* const x, const size_t nbits) {
 int send_EdaBit_batch(const int sockfd, const EdaBit* const * const x, const size_t nbits, const size_t n) {
     int total = 0, ret;
     fmpz_t* r; new_fmpz_array(&r, n);
-    bool* b = new bool[n * nbits];
+    bool* const b = new bool[n * nbits];
 
     for (unsigned int i = 0; i < n; i++) {
         fmpz_set(r[i], x[i]->r);
@@ -592,7 +592,7 @@ int send_EdaBit_batch(const int sockfd, const EdaBit* const * const x, const siz
 int recv_EdaBit_batch(const int sockfd, EdaBit* const * const x, const size_t nbits, const size_t n) {
     int total = 0, ret;
     fmpz_t* r; new_fmpz_array(&r, n);
-    bool* b = new bool[n * nbits];
+    bool* const b = new bool[n * nbits];
 
     ret = recv_fmpz_batch(sockfd, r, n);
     if (ret <= 0) return ret; else total += ret;

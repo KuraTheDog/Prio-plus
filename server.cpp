@@ -149,11 +149,11 @@ CheckerPreComp* getPrecomp(const size_t N) {
 
 // Currently shares_2 and shares_p are flat num_shares*num_values array.
 // TODO: Consider reworking for matrix form
-fmpz_t* share_convert(const size_t num_shares,  // # inputs
-                      const size_t num_values,  // # values per input
-                      const size_t* const num_bits,  // # bits per value
-                      const uint64_t* const shares_2
-                      ) {
+fmpz_t* const share_convert(const size_t num_shares,  // # inputs
+                            const size_t num_values,  // # values per input
+                            const size_t* const num_bits,  // # bits per value
+                            const uint64_t* const shares_2
+                            ) {
     auto start = clock_start();
 
     fmpz_t* shares_p;
@@ -193,14 +193,14 @@ fmpz_t* share_convert(const size_t num_shares,  // # inputs
 
 // Batch of N (snips + num_input wire/share) validations
 // Due to the nature of the final swap, both servers get the same valid array
-bool* validate_snips(const size_t N,
-                     const size_t num_inputs,
-                     const int serverfd,
-                     const int server_num,
-                     Circuit* const * const circuit,
-                     const ClientPacket* const * const packet,
-                     const fmpz_t* const shares_p
-                     ) {
+const bool* const validate_snips(const size_t N,
+                                 const size_t num_inputs,
+                                 const int serverfd,
+                                 const int server_num,
+                                 Circuit* const * const circuit,
+                                 const ClientPacket* const * const packet,
+                                 const fmpz_t* const shares_p
+                                 ) {
     auto start = clock_start();
 
     bool* const ans = new bool[N];
@@ -294,7 +294,8 @@ size_t accumulate(const size_t num_inputs,
     return num_valid;
 }
 
-returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint64_t& ans) {
+returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
+                   const int server_num, uint64_t& ans) {
     std::unordered_map<std::string, bool> share_map;
     auto start = clock_start();
 
@@ -378,7 +379,8 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd, co
     }
 }
 
-returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint64_t& ans) {
+returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
+                   const int server_num, uint64_t& ans) {
     std::unordered_map<std::string, uint64_t> share_map;
     auto start = clock_start();
 
@@ -495,7 +497,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd, co
 }
 
 // For AND and OR
-returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, bool& ans) {
+returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
+                  const int server_num, bool& ans) {
     std::unordered_map<std::string, uint64_t> share_map;
     auto start = clock_start();
 
@@ -595,7 +598,8 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd, con
 }
 
 // For MAX and MIN
-returnType max_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, uint64_t& ans) {
+returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
+                  const int server_num, uint64_t& ans) {
     std::unordered_map<std::string, uint64_t*> share_map;
     auto start = clock_start();
 
@@ -712,7 +716,8 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd, con
 }
 
 // For var, stddev
-returnType var_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num, double& ans) {
+returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
+                  const int server_num, double& ans) {
     auto start = clock_start();
 
     typedef std::tuple <uint64_t, uint64_t, ClientPacket*> sharetype;
@@ -724,7 +729,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
     const size_t nbits[2] = {msg.num_bits, msg.num_bits * 2};
 
     // Just for getting sizes
-    Circuit* const mock_circuit = CheckVar();
+    const Circuit* const mock_circuit = CheckVar();
     const size_t NMul = mock_circuit->NumMulGates();
     delete mock_circuit;
 
@@ -733,7 +738,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd, con
         num_bytes += recv_in(clientfd, &share, sizeof(VarShare));
         const std::string pk(share.pk, share.pk + PK_LENGTH);
 
-        ClientPacket* packet = new ClientPacket(NMul);
+        ClientPacket* const packet = new ClientPacket(NMul);
         int packet_bytes = recv_ClientPacket(clientfd, packet, NMul);
         num_bytes += packet_bytes;
 
@@ -987,7 +992,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
                 sizes_valid = false;
         }
 
-        ClientPacket* packet = new ClientPacket(NMul);
+        ClientPacket* const packet = new ClientPacket(NMul);
         int packet_bytes = recv_ClientPacket(clientfd, packet, NMul);
         num_bytes += packet_bytes;
 
@@ -1221,7 +1226,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             return RET_INVALID;
         }
 
-        double* c = SolveLinReg(degree, x_accum, y_accum);
+        const double* const c = SolveLinReg(degree, x_accum, y_accum);
         std::cout << "Estimate: y = ";
         for (unsigned int i = 0; i < degree; i++) {
             if (i > 0) std::cout << " + ";
@@ -1238,7 +1243,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     }
 }
 
-returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num) {
+returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
+                   const int server_num) {
     std::unordered_map<std::string, bool*> share_map;
     auto start = clock_start();
 
@@ -1367,8 +1373,8 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd, co
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        fmpz_t* shares_p;
-        shares_p = correlated_store->b2a_daBit_single(num_inputs * max_inp, shares);
+        fmpz_t* const shares_p = correlated_store->b2a_daBit_single(
+            num_inputs * max_inp, shares);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 

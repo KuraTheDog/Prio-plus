@@ -25,7 +25,7 @@ struct Gate {
     Gate* const ParentL;
     Gate* const ParentR;
     fmpz_t Constant;
-    fmpz_t WireValue;
+    fmpz_t WireValue;  // set by eval/input, so gates not const
 
     Gate(GateType gatetype, Gate* pL = nullptr, Gate* pR = nullptr)
     : type(gatetype)
@@ -42,8 +42,8 @@ struct Gate {
     }
 };
 
-Gate* MulByNegOne(Gate* const gate) {
-    Gate* out = new Gate(Gate_MulConst, gate);
+Gate* const MulByNegOne(Gate* const gate) {
+    Gate* const out = new Gate(Gate_MulConst, gate);
 
     fmpz_set_si(out->Constant, -1);
     fmpz_mod(out->Constant, out->Constant, Int_Modulus);
@@ -64,7 +64,7 @@ struct Circuit {
 
     Circuit(const size_t num_inputs) : Circuit() {
         for (unsigned int i = 0; i < num_inputs; i++) {
-            Gate* inp = new Gate(Gate_Input);
+            Gate* const inp = new Gate(Gate_Input);
             addGate(inp);
         }
     }
@@ -75,13 +75,13 @@ struct Circuit {
             delete gate;
     }
 
-    void addGate(Gate* gate) {
+    void addGate(Gate* const gate) {
         gates.push_back(gate);
         if (gate->type == Gate_Mul)
             mul_gates.push_back(gate);
     }
 
-    void addZeroGate(Gate* zerogate) {
+    void addZeroGate(Gate* const zerogate) {
         result_zero.push_back(zerogate);
     }
 
@@ -146,7 +146,8 @@ struct Circuit {
         return mul_gates.size();
     }
 
-    void GetMulShares(fmpz_t** shares0, fmpz_t** shares1) const {
+    void GetMulShares(fmpz_t* const * const shares0,
+                      fmpz_t* const * const shares1) const {
         unsigned int i = 0;
 
         for (Gate* gate : mul_gates) {
@@ -192,9 +193,9 @@ struct Circuit {
 
     // Adds Gate[i] * Gate[j] = Gate[k] to circuit
     void AddCheckMulEqual(const size_t i, const size_t j, const size_t k) {
-        Gate* mul = new Gate(Gate_Mul, gates[i], gates[j]);
-        Gate* inv = MulByNegOne(gates[k]);
-        Gate* add = new Gate(Gate_Add, mul, inv);
+        Gate* const mul = new Gate(Gate_Mul, gates[i], gates[j]);
+        Gate* const inv = MulByNegOne(gates[k]);
+        Gate* const add = new Gate(Gate_Add, mul, inv);
 
         addGate(mul);
         addGate(inv);
@@ -225,8 +226,8 @@ Various VALID(*) circuits.
 */
 
 // Returns circuit for x^2 == y. For Varience and StdDev.
-Circuit* CheckVar() {
-    Circuit* out = new Circuit(2);
+Circuit* const CheckVar() {
+    Circuit* const out = new Circuit(2);
 
     out->AddCheckMulEqual(0, 0, 1);
 
@@ -238,11 +239,11 @@ Circuit* CheckVar() {
 3: x0, x1, x0^2, x0x1, x1^2, y, x0 y, x1 y
 4: x0, x1, x2, x0^2, x0x1, x0x2, x1^2, x1x2, x2^2, y, x0 y, x1 y, x2 y
 */
-Circuit* CheckLinReg(const size_t degree) {
+Circuit* const CheckLinReg(const size_t degree) {
     const size_t num_x = degree - 1;
     const size_t num_fields = 2 * num_x + 1 + num_x * (num_x + 1) / 2;
 
-    Circuit* out = new Circuit(num_fields);
+    Circuit* const out = new Circuit(num_fields);
 
     // xi * xj
     unsigned int idx = degree;
@@ -260,7 +261,8 @@ Circuit* CheckLinReg(const size_t degree) {
     return out;
 }
 
-double* SolveLinReg(const size_t degree, const uint64_t* const x, const uint64_t* const y) {
+const double* const SolveLinReg(
+        const size_t degree, const uint64_t* const x, const uint64_t* const y) {
 
     size_t idx = degree;
 

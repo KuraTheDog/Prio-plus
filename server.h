@@ -93,8 +93,8 @@ struct PreX {
 struct CheckerPreComp {
     fmpz_t x;
 
-    const BatchPre* degN;
-    const BatchPre* deg2N;
+    const BatchPre* const degN;
+    const BatchPre* const deg2N;
 
     PreX *xN = nullptr;
     PreX *x2N = nullptr;
@@ -157,9 +157,9 @@ struct Checker {
     const size_t n;  // number of mult gates
     const size_t N;  // NextPowerOfTwo(n)
 
-    fmpz_t *pointsF;  // Points on f. f(i) = ith mul gate left input
-    fmpz_t *pointsG;  // Points on g. g(i) = ith mul gate right input
-    fmpz_t *pointsH;  // points on h. Want to check if h = f * g
+    fmpz_t* pointsF;  // Points on f. f(i) = ith mul gate left input
+    fmpz_t* pointsG;  // Points on g. g(i) = ith mul gate right input
+    fmpz_t* pointsH;  // points on h. Want to check if h = f * g
 
     // For sigma = [r * (f(r) * g(r) - h(r))]
     fmpz_t evalF;  // [f(r)]
@@ -241,7 +241,7 @@ struct Checker {
 
     CorShare* CorShareFn() {
         // std::cout << "CorShareFn" << std::endl;
-        CorShare* out = new CorShare();
+        CorShare* const out = new CorShare();
 
         fmpz_sub(out->shareD, evalF, req->triple_share->shareA);
         fmpz_mod(out->shareD, out->shareD, Int_Modulus);

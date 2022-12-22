@@ -7,22 +7,22 @@ extern "C" {
   #include "flint/fmpz.h"
 };
 
-void new_fmpz_array(fmpz_t** arr, const size_t N) {
-    fmpz_t* out = (fmpz_t*) malloc(N * sizeof(fmpz_t));
-    for (unsigned int i = 0; i < N; i++)
-        fmpz_init_set_ui(out[i], 0);
-    *arr = out;
+void new_fmpz_array(fmpz_t** const arr, const size_t N) {
+  fmpz_t* const out = (fmpz_t*) malloc(N * sizeof(fmpz_t));
+  for (unsigned int i = 0; i < N; i++)
+    fmpz_init_set_ui(out[i], 0);
+  *arr = out;
 }
 
-void clear_fmpz_array(fmpz_t* arr, const size_t N) {
-    for (unsigned int i = 0; i < N; i++)
-        fmpz_clear(arr[i]);
-    free(arr);
+void clear_fmpz_array(fmpz_t* const arr, const size_t N) {
+  for (unsigned int i = 0; i < N; i++)
+    fmpz_clear(arr[i]);
+  free(arr);
 }
 
-void copy_fmpz_array(fmpz_t* dest, const fmpz_t* const src, const size_t N) {
-    for (unsigned int i = 0; i < N; i++)
-        fmpz_set(dest[i],src[i]);
+void copy_fmpz_array(fmpz_t* const dest, const fmpz_t* const src, const size_t N) {
+  for (unsigned int i = 0; i < N; i++)
+    fmpz_set(dest[i],src[i]);
 }
 
 // Turn bool (bit) array into fmpz_t

@@ -216,7 +216,7 @@ struct EdaBit {
 
 void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B);
 
-BeaverTriple* NewBeaverTriple();
+const BeaverTriple* const NewBeaverTriple();
 
 void BeaverTripleShares(const BeaverTriple* const inp,
                         BeaverTripleShare* const out0,
