@@ -1,4 +1,6 @@
 #Autobuilt by cmake and/or make
+*.DS_Store
+build/
 CMakeCache.txt
 CMakeFiles/
 Makefile

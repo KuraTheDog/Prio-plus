@@ -19,9 +19,14 @@ include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(FLINT DEFAULT_MSG FLINT_INCLUDE_DIR FLINT_LIBRARIES)
 mark_as_advanced(FLINT_INCLUDE_DIR FLINT_LIBRARIES)
 
-include(cmake/common.cmake)
-find_package(EMP-TOOL REQUIRED)
-include_directories(${EMP-TOOL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
+include(cmake/FindGMP.cmake)
+
+find_path(CMAKE_FOLDER NAMES cmake/emp-base.cmake)
+message(STATUS "CMAKE_FOLDER: ${CMAKE_FOLDER}")
+include(${CMAKE_FOLDER}/cmake/emp-base.cmake)
+include(${CMAKE_FOLDER}/cmake/emp-tool-config.cmake)
+include(${CMAKE_FOLDER}/cmake/emp-ot-config.cmake)
+include_directories(${EMP-OT_INCLUDE_DIRS})
 
 foreach(_target
   server client
@@ -34,7 +39,6 @@ foreach(_target
     ${OPENSSL_LIBRARIES}
     ${Boost_LIBRARIES}
     ${GMP_LIBRARIES}
-    ${EMP-TOOL_LIBRARIES}
     ${FLINT_LIBRARIES}
   )
 endforeach()
@@ -78,7 +82,6 @@ foreach(_target
     ${OPENSSL_LIBRARIES}
     ${Boost_LIBRARIES}
     ${GMP_LIBRARIES}
-    ${EMP-TOOL_LIBRARIES}
     ${FLINT_LIBRARIES}
   )
 endforeach()
