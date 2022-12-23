@@ -49,9 +49,13 @@ void test_CheckLinReg() {
   // Will be done with share conversion
   fmpz_t inp0[4];
   fmpz_t inp1[4];
+  fmpz_init(inp0[0]); fmpz_init(inp1[0]);
   SplitShare(inp[0], inp0[0], inp1[0]);
+  fmpz_init(inp0[1]); fmpz_init(inp1[1]);
   SplitShare(inp[1], inp0[1], inp1[1]);
+  fmpz_init(inp0[2]); fmpz_init(inp1[2]);
   SplitShare(inp[2], inp0[2], inp1[2]);
+  fmpz_init(inp0[3]); fmpz_init(inp1[3]);
   SplitShare(inp[3], inp0[3], inp1[3]);
 
   std::cout << "------ Running through validity checks" << std::endl;

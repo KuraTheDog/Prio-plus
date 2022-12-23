@@ -25,7 +25,9 @@ void test_CheckVar() {
   // Will be done with share conversion
   fmpz_t inp0[2];
   fmpz_t inp1[2];
+  fmpz_init(inp0[0]); fmpz_init(inp1[0]);
   SplitShare(inp[0], inp0[0], inp1[0]);
+  fmpz_init(inp0[1]); fmpz_init(inp1[1]);
   SplitShare(inp[1], inp0[1], inp1[1]);
 
   Circuit* var_circuit = CheckVar();  // x^2 == y
