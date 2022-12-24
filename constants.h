@@ -76,21 +76,8 @@ extern fmpz_t Int_Modulus;        // Large prime modulus
 extern fmpz_t Int_Gen;            // Generates subgroup order 2^twoOrder in Zp
 extern flint_rand_t seed;         // Global random seed, for fmpz_randm, etc.
 
-/* Nth roots of unity, used for FFT.
-   over 2^twoOrder.
-   N is a power of 2, 2^k.
-   g is Int_Gen
-   r is an Nth root of unity. Done by 2^(ord - k).
-Then we have roots = 1, r, r^2, ..., r^{N-1}, and their inverses.
-root2 are the 2Nth roots of unity.
-*/
-extern size_t num_roots;  // Tracker for N, so we can clear and rebuild
-extern fmpz_t *roots, *invroots, *roots2;
-
 void init_constants();
 
 void clear_constants();
-
-void init_roots(const size_t N);
 
 #endif

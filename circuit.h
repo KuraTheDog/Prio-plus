@@ -9,7 +9,6 @@
 
 extern "C" {
     #include "flint/fmpq_mat.h"  // for LinReg solving
-    #include "poly/fft.h"
 }
 
 enum GateType {

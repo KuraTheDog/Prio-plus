@@ -3,12 +3,9 @@
 
 #include "circuit.h"
 #include "constants.h"
+#include "interp.h"
 #include "fmpz_utils.h"
 #include "share.h"
-
-extern "C" {
-    #include "poly/fft.h"
-}
 
 // Expects p0, p1 to already be initialized
 void share_polynomials(const Circuit* const circuit, ClientPacket* const p0, ClientPacket* const p1) {
@@ -37,15 +34,10 @@ void share_polynomials(const Circuit* const circuit, ClientPacket* const p0, Cli
         fmpz_set(pointsG[i + 1], mulgates[i]->ParentR->WireValue);
     }
 
-    // Initialize roots (nth roots of unity) and invroots (their inverse)
-    if (roots == nullptr) {
-        init_roots(N);
-    }
-
     // Build f, g that goes through pointsF, pointsG.
     // Interpolate through the Nth roots of unity
-    fmpz_t* const polyF = fft_interpolate(Int_Modulus, N, invroots, pointsF, true);
-    fmpz_t* const polyG = fft_interpolate(Int_Modulus, N, invroots, pointsG, true);
+    fmpz_t* const polyF = interpolate_inv(N, pointsF);
+    fmpz_t* const polyG = interpolate_inv(N, pointsG);
 
     // Pad to length 2N, to ensure it fits h.
     fmpz_t* paddedF; new_fmpz_array(&paddedF, 2*N);
@@ -58,8 +50,8 @@ void share_polynomials(const Circuit* const circuit, ClientPacket* const p0, Cli
     clear_fmpz_array(polyG, N);
 
     // Evaluate at all 2Nth roots of unity.
-    fmpz_t* const evalsF = fft_interpolate(Int_Modulus, 2*N, roots2, paddedF, false);
-    fmpz_t* const evalsG = fft_interpolate(Int_Modulus, 2*N, roots2, paddedG, false);
+    fmpz_t* const evalsF = interpolate_2N(N, paddedF);
+    fmpz_t* const evalsG = interpolate_2N(N, paddedG);
 
     // Send evaluations of f(r) * g(r) for all 2N-th roots of unity
     //     that aren't also N-th roots of unity

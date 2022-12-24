@@ -33,7 +33,7 @@ foreach(_target
 )
   add_executable(${_target} "${_target}.cpp" 
                  "constants.cpp" "ot.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp" "correlated.cpp" "hash.cpp"
-                 "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c"
+                 "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c" "interp.cpp"
                  )
   target_link_libraries(${_target}
     ${OPENSSL_LIBRARIES}
@@ -43,7 +43,7 @@ foreach(_target
   )
 endforeach()
 
-set(test_poly "test_circuit" "test_linreg")
+set(test_poly "test_interp" "test_circuit" "test_linreg")
 set(test_correlated "test_ot" "test_bits")
 set(test_hash "test_hash")
 # stuff that sends shares
@@ -56,12 +56,13 @@ foreach(_target
   test_ot
   test_bits
   test_hash
+  test_interp
 )
   set (test_SOURCE_FILES "test/${_target}.cpp")
   set (test_SOURCE_FILES ${test_SOURCE_FILES} "constants.cpp" "fmpz_utils.cpp")
   if (_target IN_LIST test_poly)
     set (test_SOURCE_FILES ${test_SOURCE_FILES} 
-         "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c")
+         "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c" "interp.cpp")
   endif()
   if (_target IN_LIST test_share)
     set (test_SOURCE_FILES ${test_SOURCE_FILES} "share.cpp")

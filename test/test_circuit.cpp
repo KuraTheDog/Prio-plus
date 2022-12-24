@@ -2,18 +2,11 @@
 #include <assert.h>
 #include <iostream>
 
-#include <gmpxx.h>
-
 #include "../circuit.h"
 #include "../constants.h"
 #include "../share.h"
 #include "../client.h"
 #include "../server.h"
-
-extern "C" {
-  #include "flint/flint.h"
-  #include "flint/fmpz.h"
-};
 
 void test_CheckVar() {
   std::cout << "Testing CheckVar Eval and share_polynomials" << std::endl;
@@ -66,16 +59,16 @@ void test_CheckVar() {
   std::cout << "Random X: "; fmpz_print(randomX); std::cout << std::endl;
 
   Circuit* var_circuit0 = CheckVar();
-  CheckerPreComp* pre0 = new CheckerPreComp(N);
-  pre0->setCheckerPrecomp(randomX);
+  MultCheckPreComp* pre0 = new MultCheckPreComp(N);
+  pre0->setEvalPoint(randomX);
 
   Checker* checker_0 = new Checker(var_circuit0, 0, p0, pre0, inp0, true);
 
   std::cout << "-=-=-=-=-=-" << std::endl;
 
   Circuit* var_circuit1 = CheckVar();
-  CheckerPreComp* pre1 = new CheckerPreComp(N);
-  pre1->setCheckerPrecomp(randomX);
+  MultCheckPreComp* pre1 = new MultCheckPreComp(N);
+  pre1->setEvalPoint(randomX);
 
   Checker* checker_1 = new Checker(var_circuit1, 1, p1, pre1, inp1, true);
 

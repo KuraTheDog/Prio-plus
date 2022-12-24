@@ -3,132 +3,15 @@
 
 #include "circuit.h"
 #include "constants.h"
+#include "interp.h"
 #include "fmpz_utils.h"
 #include "net_share.h"
-
-extern "C" {
-    #include "poly/poly_batch.h"
-    #include "poly/poly_once.h"
-}
 
 // Return type of different ops
 enum returnType {
     RET_INVALID,    // Too many inputs invalid
     RET_ANS,        // Success, Returning ans. For server returning an answer
     RET_NO_ANS,     // Success, no ans. For support server.
-};
-
-// Only used in unused BatchPre.Interp
-/*
-struct BatchPoly {
-    fmpz_mod_poly_t fpoly;
-
-    // Below 2 are unused in test_circuit.
-
-    fmpz_t* Eval(const fmpz_t* const xPointsIn, const int n) {
-        return poly_batch_evaluate(fpoly, n, xPointsIn);
-    }
-
-    void EvalOnce(const fmpz_t x, fmpz_t out) {
-        fmpz_init(out);
-        poly_batch_evaluate_once(fpoly, x, out);
-    }
-
-    ~BatchPoly() {
-        poly_batch_clear(fpoly);
-    }
-};
-*/
-
-struct BatchPre {
-    precomp_t pre;
-
-    // Newbatch
-    BatchPre(const fmpz_t* const xPointsIn, const int n) {
-        // std::cout << " new BatchPre , n = " << n << ", xPointsIn = [";
-        // for (int i =0; i < n; i++) {
-        //     if (i > 0) std::cout << ", ";
-        //     fmpz_print(xPointsIn[i]);
-        // }
-        // std::cout << "]\n";
-        poly_batch_precomp_init(&pre, Int_Modulus, n, xPointsIn);
-    }
-
-    // Unused.
-    /*
-    BatchPoly* Interp(const fmpz_t* const yPointsIn, const int n) {
-        BatchPoly* bpoly = new BatchPoly();
-
-        poly_batch_init(bpoly->fpoly, &pre);
-
-        poly_batch_interpolate(bpoly->fpoly, &pre, yPointsIn);
-
-        return bpoly;
-    }
-    */
-
-    ~BatchPre() {
-        poly_batch_precomp_clear(&pre);
-    }
-};
-
-struct PreX {
-    const BatchPre* const batchPre;
-    precomp_x_t pre;
-
-    // Replaces NewEvalPoint
-    PreX(const BatchPre* const b, const fmpz_t x) : batchPre(b) {
-        precomp_x_init(&pre, &batchPre->pre, x);
-    }
-
-    ~PreX() {
-        precomp_x_clear(&pre);
-    }
-
-    void Eval(const fmpz_t* const yValues, fmpz_t out) {
-        precomp_x_eval(&pre, yValues, out);
-    }
-};
-
-struct CheckerPreComp {
-    fmpz_t x;
-
-    const BatchPre* const degN;
-    const BatchPre* const deg2N;
-
-    PreX *xN = nullptr;
-    PreX *x2N = nullptr;
-
-    CheckerPreComp(const size_t N)
-    : degN(new BatchPre(roots, N))
-    , deg2N(new BatchPre(roots2, 2 * N))
-    {
-        fmpz_init(x);
-    }
-
-    void setCheckerPrecomp(const fmpz_t val) {
-        fmpz_set(x, val);
-
-        clear_preX();
-        xN = new PreX(degN, x);
-        x2N = new PreX(deg2N, x);
-    }
-
-    void clear_preX() {
-        if (xN != nullptr) {
-            delete xN;
-            delete x2N;
-        }
-        xN = nullptr;
-        x2N = nullptr;
-    }
-
-    ~CheckerPreComp() {
-        clear_preX();
-        delete degN;
-        delete deg2N;
-        fmpz_clear(x);
-    }
 };
 
 // Common (synced) randomness between all checkers on both servers
@@ -170,7 +53,7 @@ struct Checker {
     const bool same_runtime = false;
 
     Checker(Circuit* const c, const int idx, const ClientPacket* const req,
-            const CheckerPreComp* const pre, const fmpz_t* const InputShares,
+            const MultCheckPreComp* const pre, const fmpz_t* const InputShares,
             const bool same_runtime = false)
     : server_num(idx)
     , req(req)
@@ -206,7 +89,7 @@ struct Checker {
         fmpz_clear(evalH);
     }
 
-    void evalPoly(const CheckerPreComp* const pre) {
+    void evalPoly(const MultCheckPreComp* const pre) {
         // std::cout << "evalPoly" << std::endl;
         std::vector<Gate*> mulgates = ckt->mul_gates;
         // Get constant terms from packet
@@ -229,14 +112,16 @@ struct Checker {
             fmpz_set(pointsH[2 * j + 1], req->h_points[j]);
         }
 
-        // set evals
-        pre->xN->Eval(pointsF, evalF);
-        pre->xN->Eval(pointsG, evalG);
-        fmpz_mul(evalG, evalG, pre->x);
+        // set evals, extra times x to poly
+        fmpz_t x; fmpz_init(x); pre->getEvalPoint(x);
+        pre->Eval(pointsF, evalF);
+        pre->Eval(pointsG, evalG);
+        fmpz_mul(evalG, evalG, x);
         fmpz_mod(evalG, evalG, Int_Modulus);
-        pre->x2N->Eval(pointsH, evalH);
-        fmpz_mul(evalH, evalH, pre->x);
+        pre->Eval2(pointsH, evalH);
+        fmpz_mul(evalH, evalH, x);
         fmpz_mod(evalH, evalH, Int_Modulus);
+        fmpz_clear(x);
     }
 
     CorShare* CorShareFn() {

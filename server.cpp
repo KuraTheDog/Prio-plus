@@ -31,8 +31,8 @@
 #define RANDOMX_THRESHOLD 1e6
 uint64_t randx_uses = 0;
 fmpz_t randomX;
-// Precomputes for the current random X
-std::unordered_map<size_t, CheckerPreComp*> precomp_store;
+// Precomputes for the current random X, keyed by number of mults. 
+std::unordered_map<size_t, MultCheckPreComp*> precomp_store;
 
 OT_Wrapper* ot0;
 OT_Wrapper* ot1;
@@ -135,11 +135,11 @@ std::string get_pk(const int serverfd) {
     return pk;
 }
 
-CheckerPreComp* getPrecomp(const size_t N) {
-    CheckerPreComp* pre;
+MultCheckPreComp* getPrecomp(const size_t N) {
+    MultCheckPreComp* pre;
     if (precomp_store.find(N) == precomp_store.end()) {
-        pre = new CheckerPreComp(N);
-        pre->setCheckerPrecomp(randomX);
+        pre = new MultCheckPreComp(N);
+        pre->setEvalPoint(randomX);
         precomp_store[N] = pre;
     } else {
         pre = precomp_store[N];
@@ -209,10 +209,8 @@ const bool* const validate_snips(const size_t N,
     pid_t pid = 0;
     int status = 0;
 
-    init_roots(NumRoots);
-
     Checker** const checker = new Checker*[N];
-    CheckerPreComp* const pre = getPrecomp(NumRoots);
+    MultCheckPreComp* const pre = getPrecomp(NumRoots);
     randx_uses += N;
     for (unsigned int i = 0; i < N; i++)
         checker[i] = new Checker(circuit[i], server_num, packet[i], pre,
@@ -1535,7 +1533,7 @@ int main(int argc, char** argv) {
             sync_randomX(serverfd, server_num, randomX);
             // Update precomps
             for (const auto& pair : precomp_store)
-                pair.second -> setCheckerPrecomp(randomX);
+                pair.second -> setEvalPoint(randomX);
         }
 
         // correlated_store->maybeUpdate();
