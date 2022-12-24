@@ -64,10 +64,6 @@ void precomp_x_init(precomp_x_t* const pre_x, const precomp_t* const pre, const 
 }
 
 void precomp_x_clear(precomp_x_t* const pre_x) {
-  if (pre_x->short_x >= 0)
-    return;
-
-  // Make sure that x-coordinate is not too small
   for (int i = 0; i < pre_x->n_points; i++)
     fmpz_clear(pre_x->coeffs[i]);
 
