@@ -1,5 +1,7 @@
-#include "../share.h"
+#undef NDEBUG
 #include <assert.h>
+
+#include "../share.h"
 
 void testSplitShare() {
     fmpz_t num, sum;

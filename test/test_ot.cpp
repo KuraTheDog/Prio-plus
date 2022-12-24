@@ -1,3 +1,5 @@
+#undef NDEBUG
+#include <assert.h>
 #include <iostream>
 
 #include "utils_test_connect.h"

@@ -4,6 +4,8 @@ Tests out net_share.cpp
 Creates "sender" and "receiver", and sends a bunch of struct.h objects from sender to receiver.
 */
 
+#undef NDEBUG
+#include <assert.h>
 #include <iostream>
 
 #include "utils_test_connect.h"

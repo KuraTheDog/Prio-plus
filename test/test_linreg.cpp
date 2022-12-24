@@ -1,3 +1,5 @@
+#undef NDEBUG
+#include <assert.h>
 #include <iostream>
 
 #include <gmpxx.h>
