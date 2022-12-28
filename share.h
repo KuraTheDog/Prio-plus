@@ -59,25 +59,6 @@ struct BeaverTriple {
     }
 };
 
-// I kind of want ot just combine this with BeaverTriple, since it's the same
-struct BeaverTripleShare {
-    fmpz_t shareA;
-    fmpz_t shareB;
-    fmpz_t shareC;
-
-    BeaverTripleShare(){
-        fmpz_init(shareA);
-        fmpz_init(shareB);
-        fmpz_init(shareC);
-    }
-
-    ~BeaverTripleShare(){
-        fmpz_clear(shareA);
-        fmpz_clear(shareB);
-        fmpz_clear(shareC);
-    }
-};
-
 struct BooleanBeaverTriple {
     bool a;
     bool b;
@@ -108,7 +89,7 @@ struct ClientPacket {
     fmpz_t g0_s;          // share of g(0) = pointsG[0] = v_0
     fmpz_t h0_s;          // share of h(0)
     fmpz_t* h_points;     // h evaluated on odd 2N-th roots of unity
-    BeaverTripleShare* triple_share;
+    BeaverTriple* triple;
 
     ClientPacket(const size_t NMul)
     : NMul(NMul), N(NextPowerOfTwo(NMul)) {
@@ -117,7 +98,7 @@ struct ClientPacket {
         fmpz_init(g0_s);
         fmpz_init(h0_s);
         new_fmpz_array(&h_points, N);
-        triple_share = new BeaverTripleShare();
+        triple = new BeaverTriple();
     }
 
     ~ClientPacket() {
@@ -126,7 +107,7 @@ struct ClientPacket {
         fmpz_clear(g0_s);
         fmpz_clear(h0_s);
         clear_fmpz_array(h_points, N);
-        delete triple_share;
+        delete triple;
     }
 
     void print() const {
@@ -151,14 +132,6 @@ struct ClientPacket {
         std::cout << "}" << std::endl;
     }
 };
-
-// Unused?
-/*
-struct ClientSubmission {
-    fmpz_t* vals;
-    BeaverTripleShare triple;
-};
-*/
 
 struct DaBit {
     fmpz_t bp;   // [b]_p, mod p
@@ -216,11 +189,7 @@ struct EdaBit {
 
 void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B);
 
-const BeaverTriple* const NewBeaverTriple();
-
-void BeaverTripleShares(const BeaverTriple* const inp,
-                        BeaverTripleShare* const out0,
-                        BeaverTripleShare* const out1);
+void NewBeaverTriples(BeaverTriple* const out0, BeaverTriple* const out1);
 
 void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1);
 void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n);

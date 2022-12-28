@@ -50,6 +50,7 @@ set(test_hash "test_hash")
 set(test_net_share "test_net_share" ${test_poly} ${test_correlated})
 set(test_share "test_share" ${test_net_share})
 foreach(_target
+  test_share
   test_net_share
   test_circuit
   test_linreg

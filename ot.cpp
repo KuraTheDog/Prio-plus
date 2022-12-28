@@ -387,22 +387,8 @@ const BeaverTriple* const generate_beaver_triple_lazy(
 
     if (server_num == 0) {
         BeaverTriple* other_triple = new BeaverTriple();
-        fmpz_randm(triple->A, seed, Int_Modulus);
-        fmpz_randm(triple->B, seed, Int_Modulus);
-        fmpz_randm(triple->C, seed, Int_Modulus);
-        fmpz_randm(other_triple->A, seed, Int_Modulus);
-        fmpz_randm(other_triple->B, seed, Int_Modulus);
-
-        fmpz_add(other_triple->C, triple->A, other_triple->A);
-        fmpz_t tmp; fmpz_init(tmp);
-        fmpz_add(tmp, triple->B, other_triple->B);
-        fmpz_mul(other_triple->C, other_triple->C, tmp);
-        fmpz_sub(other_triple->C, other_triple->C, triple->C);
-        fmpz_mod(other_triple->C, other_triple->C, Int_Modulus);
-
+        NewBeaverTriples(triple, other_triple);
         send_BeaverTriple(serverfd, other_triple);
-
-        fmpz_clear(tmp);
         delete other_triple;
     } else {
         recv_BeaverTriple(serverfd, triple);

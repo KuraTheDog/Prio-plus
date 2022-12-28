@@ -996,7 +996,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         if (i == 7)
             fmpz_add_si(p0->MulShares[0], p0->MulShares[0], 1);
         if (i == 8)
-            fmpz_add_si(p1->triple_share->shareA, p1->triple_share->shareA, 1);
+            fmpz_add_si(p1->triple->A, p1->triple->A, 1);
         send_ClientPacket(sockfd0, p0, NMul);
         send_ClientPacket(sockfd1, p1, NMul);
         delete p0;
@@ -1360,7 +1360,7 @@ void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
         if (i == 7)
             fmpz_add_si(packet0[i]->MulShares[0], packet0[i]->MulShares[0], 1);
         if (i == 8)
-            fmpz_add_si(packet1[i]->triple_share->shareA, packet1[i]->triple_share->shareA, 1);
+            fmpz_add_si(packet1[i]->triple->A, packet1[i]->triple->A, 1);
 
         // 10 vs 11, 12 vs 13 can be non-deterministic which ends up being right.
         if (i <= 9 or i == 11 or i == 13) {

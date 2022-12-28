@@ -381,7 +381,7 @@ int send_ClientPacket(const int sockfd, const ClientPacket* const x,
         if (ret <= 0) return ret; else total += ret;
     }
 
-    ret = send_BeaverTripleShare(sockfd, x->triple_share);
+    ret = send_BeaverTriple(sockfd, x->triple);
     if (ret <= 0) return ret; else total += ret;
 
     return total;
@@ -409,7 +409,7 @@ int recv_ClientPacket(const int sockfd, ClientPacket* const x,
         if (ret <= 0) return ret; else total += ret;
     }
 
-    ret = recv_BeaverTripleShare(sockfd, x->triple_share);
+    ret = recv_BeaverTriple(sockfd, x->triple);
     if (ret <= 0) return ret; else total += ret;
 
     return total;
@@ -433,28 +433,6 @@ int recv_BeaverTriple(const int sockfd, BeaverTriple* const x) {
     ret = recv_fmpz(sockfd, x->B);
     if (ret <= 0) return ret; else total += ret;
     ret = recv_fmpz(sockfd, x->C);
-    if (ret <= 0) return ret; else total += ret;
-    return total;
-}
-
-int send_BeaverTripleShare(const int sockfd, const BeaverTripleShare* const x) {
-    int total = 0, ret;
-    ret = send_fmpz(sockfd, x->shareA);
-    if (ret <= 0) return ret; else total += ret;
-    ret = send_fmpz(sockfd, x->shareB);
-    if (ret <= 0) return ret; else total += ret;
-    ret = send_fmpz(sockfd, x->shareC);
-    if (ret <= 0) return ret; else total += ret;
-    return total;
-}
-
-int recv_BeaverTripleShare(const int sockfd, BeaverTripleShare* const x) {
-    int total = 0, ret;
-    ret = recv_fmpz(sockfd, x->shareA);
-    if (ret <= 0) return ret; else total += ret;
-    ret = recv_fmpz(sockfd, x->shareB);
-    if (ret <= 0) return ret; else total += ret;
-    ret = recv_fmpz(sockfd, x->shareC);
     if (ret <= 0) return ret; else total += ret;
     return total;
 }
