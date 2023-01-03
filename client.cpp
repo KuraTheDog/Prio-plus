@@ -1675,6 +1675,7 @@ int main(int argc, char** argv) {
     close(sockfd0);
     close(sockfd1);
 
+    RootManager(1).clearCache();
     clear_constants();
 
     return 0;

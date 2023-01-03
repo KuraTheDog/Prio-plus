@@ -140,6 +140,7 @@ int main(int argc, char* argv[])
 
   test_CheckLinReg();
 
+  RootManager(1).clearCache();
   clear_constants();
   return 0;
 }

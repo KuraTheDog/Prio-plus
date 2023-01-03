@@ -144,6 +144,8 @@ int main(int argc, char* argv[])
 
   test_CheckVar();
 
+  RootManager(1).clearCache();
+
   clear_constants();
   return 0;
 }

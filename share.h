@@ -187,6 +187,7 @@ struct EdaBit {
     }
 };
 
+// Note: A can't be val, but B can. 
 void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B);
 
 void NewBeaverTriples(BeaverTriple* const out0, BeaverTriple* const out1);

@@ -34,11 +34,11 @@ void CorrelatedStore::addDaBits(const size_t n) {
   } else {  // Lazy generation: make local and send over
     DaBit** const dabit = new DaBit*[num_to_make];
     for (unsigned int i = 0; i < num_to_make; i++)
-      dabit[i] = new DaBit;
+      dabit[i] = new DaBit();
     if (server_num == 0) {
       DaBit** const other_dabit = new DaBit*[num_to_make];
       for (unsigned int i = 0; i < num_to_make; i++) {
-        other_dabit[i] = new DaBit;
+        other_dabit[i] = new DaBit();
         makeLocalDaBit(dabit[i], other_dabit[i]);
       }
       send_DaBit_batch(serverfd, other_dabit, num_to_make);

@@ -27,12 +27,10 @@
 // Fail if more than this fraction of clients provide invalid inputs
 #define INVALID_THRESHOLD 0.5
 
-// Can keep the same random X for a while
-#define RANDOMX_THRESHOLD 1e6
 uint64_t randx_uses = 0;
 fmpz_t randomX;
 // Precomputes for the current random X, keyed by number of mults. 
-std::unordered_map<size_t, MultCheckPreComp*> precomp_store;
+std::unordered_map<size_t, MultCheckPreComp*> eval_precomp_store;
 
 OT_Wrapper* ot0;
 OT_Wrapper* ot1;
@@ -137,12 +135,12 @@ std::string get_pk(const int serverfd) {
 
 MultCheckPreComp* getPrecomp(const size_t N) {
     MultCheckPreComp* pre;
-    if (precomp_store.find(N) == precomp_store.end()) {
+    if (eval_precomp_store.find(N) == eval_precomp_store.end()) {
         pre = new MultCheckPreComp(N);
         pre->setEvalPoint(randomX);
-        precomp_store[N] = pre;
+        eval_precomp_store[N] = pre;
     } else {
-        pre = precomp_store[N];
+        pre = eval_precomp_store[N];
     }
     return pre;
 }
@@ -1528,11 +1526,11 @@ int main(int argc, char** argv) {
 
     while(1) {
         // Refresh randomX if used too much
-        if (randx_uses > RANDOMX_THRESHOLD) {
+        if (randx_uses > EVAL_REUSE_THRESHOLD) {
             randx_uses = 0;
             sync_randomX(serverfd, server_num, randomX);
             // Update precomps
-            for (const auto& pair : precomp_store)
+            for (const auto& pair : eval_precomp_store)
                 pair.second -> setEvalPoint(randomX);
         }
 
@@ -1657,12 +1655,15 @@ int main(int argc, char** argv) {
     }
 
     delete correlated_store;
-    for (const auto& precomp : precomp_store)
+    for (const auto& precomp : eval_precomp_store)
         delete precomp.second;
 
     delete ot0;
     delete ot1;
     fmpz_clear(randomX);
+
+    RootManager(1).clearCache();
+    clear_constants();
 
     return 0;
 }
