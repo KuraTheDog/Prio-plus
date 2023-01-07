@@ -35,14 +35,17 @@ std::unordered_map<size_t, MultCheckPreComp*> eval_precomp_store;
 OT_Wrapper* ot0;
 OT_Wrapper* ot1;
 
-// Precompute cache of dabits
+// Store wrapper for share conversion.
 CorrelatedStore* correlated_store;
+PrecomputeStore* precompute_store = nullptr;  // Typecast for if need precompute calls.
 // #define CACHE_SIZE 8192
 // #define CACHE_SIZE 65536
 #define CACHE_SIZE 262144
 // #define CACHE_SIZE 2097152
 // If set, does fast but insecure offline precompute.
 #define LAZY_PRECOMPUTE false
+// False for leaks testing, true for efficiency
+#define DO_FORK false
 // Whether to use OT or Dabits
 #define USE_OT_B2A false
 
@@ -164,23 +167,15 @@ fmpz_t* const share_convert(const size_t num_shares,  // # inputs
                         shares_2[i * num_values + j]);
     }
 
-    if (USE_OT_B2A) {
-        const size_t mod = fmpz_get_ui(Int_Modulus);
-        // TODO: maybe make it take not flattened?
-        shares_p = correlated_store->b2a_ot(
-            num_shares, num_values, num_bits, f_shares2, mod);
+    size_t* const bits_arr = new size_t[num_shares * num_values];
+    // num_bits 1 char, so this is fine
+    for (unsigned int i = 0; i < num_shares; i++)
+        memcpy(&bits_arr[i * num_values], num_bits, num_values * sizeof(size_t));
 
-    } else {  // dabit conversion
-        size_t* const bits_arr = new size_t[num_shares * num_values];
-        // num_bits 1 char, so this is fine
-        for (unsigned int i = 0; i < num_shares; i++)
-            memcpy(&bits_arr[i * num_values], num_bits, num_values * sizeof(size_t));
+    shares_p = correlated_store->b2a_multi(
+        num_shares * num_values, bits_arr, f_shares2);
 
-        shares_p = correlated_store->b2a_daBit_multi(
-            num_shares * num_values, bits_arr, f_shares2);
-
-        delete[] bits_arr;
-    }
+    delete[] bits_arr;
 
     clear_fmpz_array(f_shares2, num_shares * num_values);
 
@@ -402,9 +397,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (USE_OT_B2A == false) {
-        correlated_store->checkDaBits(total_inputs * msg.num_bits);
-    }
+    if (precompute_store) precompute_store->checkDaBits(total_inputs * msg.num_bits);
 
     start = clock_start();
     auto start2 = clock_start();
@@ -755,8 +748,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (USE_OT_B2A == false)
-        correlated_store->checkDaBits(total_inputs * msg.num_bits * 3);
+    if (precompute_store) precompute_store->checkDaBits(total_inputs * msg.num_bits * 3);
 
     start = clock_start();
 
@@ -1007,9 +999,9 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (USE_OT_B2A == false) {
+    if (precompute_store) {
         const int total_dabits = degree * (degree + 2) - 2;
-        correlated_store->checkDaBits(total_inputs * msg.num_bits * total_dabits);
+        precompute_store->checkDaBits(total_inputs * msg.num_bits * total_dabits);
     }
 
     start = clock_start();
@@ -1272,7 +1264,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    correlated_store->checkDaBits(total_inputs * max_inp);
+    if(precompute_store) precompute_store->checkDaBits(total_inputs * max_inp);
 
     start = clock_start();
     auto start2 = clock_start();
@@ -1294,7 +1286,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         start2 = clock_start();
 
         fmpz_t* shares_p;
-        shares_p = correlated_store->b2a_daBit_single(num_inputs * max_inp, shares);
+        shares_p = correlated_store->b2a_single(num_inputs * max_inp, shares);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
         
@@ -1369,7 +1361,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        fmpz_t* const shares_p = correlated_store->b2a_daBit_single(
+        fmpz_t* const shares_p = correlated_store->b2a_single(
             num_inputs * max_inp, shares);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
@@ -1517,7 +1509,12 @@ int main(int argc, char** argv) {
     ot0 = new OT_Wrapper(server_num == 0 ? nullptr : SERVER0_IP, 60051);
     ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
 
-    correlated_store = new CorrelatedStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE, true);
+    if (USE_OT_B2A) {
+        correlated_store = new OTCorrelatedStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE, DO_FORK);
+    } else {
+        precompute_store = new PrecomputeStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE, DO_FORK);
+        correlated_store = precompute_store;
+    }
 
     int sockfd, newsockfd;
     sockaddr_in addr;
@@ -1534,8 +1531,10 @@ int main(int argc, char** argv) {
                 pair.second -> setEvalPoint(randomX);
         }
 
-        // correlated_store->maybeUpdate();
-        correlated_store->printSizes();
+        if(precompute_store) {
+            precompute_store->maybeUpdate();
+            // precompute_store->printSizes();
+        }
 
         socklen_t addrlen = sizeof(addr);
 

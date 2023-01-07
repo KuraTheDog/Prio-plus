@@ -15,7 +15,8 @@ const size_t num_bits = 3;     // Must be >= 3
 const bool do_fork = true;     // false to do leaks testing
 const bool lazy = false;
 
-void test_multiplyBoolShares(const size_t N, const int server_num, const int serverfd, CorrelatedStore* store) {
+void test_multiplyBoolShares(const size_t N, const int server_num, const int serverfd,
+    BoolStore* store) {
   bool* const x = new bool[N];
   bool* const y = new bool[N];
   if (server_num == 0) {
@@ -43,7 +44,8 @@ void test_multiplyBoolShares(const size_t N, const int server_num, const int ser
   delete[] z;
 }
 
-void test_addBinaryShares(const size_t N, const size_t* const nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
+void test_addBinaryShares(const size_t N, const size_t* const nbits, const int server_num, const int serverfd,
+    BoolStore* store) {
   bool** const x = new bool*[N];
   bool** const y = new bool*[N];
   bool** const z = new bool*[N];
@@ -126,7 +128,8 @@ void test_addBinaryShares(const size_t N, const size_t* const nbits, const int s
   delete[] carry;
 }
 
-void test_b2a_daBit_single(const size_t N, const int server_num, const int serverfd, CorrelatedStore* store) {
+void test_b2a_single(const size_t N, const int server_num, const int serverfd,
+    CorrelatedStore* store) {
   bool* x = new bool[N];
   if (server_num == 0) {
     x[0] = true; x[1] = false;
@@ -134,7 +137,7 @@ void test_b2a_daBit_single(const size_t N, const int server_num, const int serve
     x[0] = true; x[1] = true;
   }
 
-  fmpz_t* xp = store->b2a_daBit_single(N, x);
+  fmpz_t* xp = store->b2a_single(N, x);
 
   if (server_num == 0) {
     fmpz_t tmp; fmpz_init(tmp);
@@ -160,7 +163,8 @@ void test_b2a_daBit_single(const size_t N, const int server_num, const int serve
   clear_fmpz_array(xp, N);
 }
 
-void test_b2a_multi(const size_t N, const size_t* const nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
+void test_b2a_multi(const size_t N, const size_t* const nbits, const int server_num, const int serverfd,
+    CorrelatedStore* store) {
   fmpz_t* x; new_fmpz_array(&x, N);
 
   if (server_num == 0) {
@@ -172,44 +176,7 @@ void test_b2a_multi(const size_t N, const size_t* const nbits, const int server_
   }
 
   fmpz_t* xp;
-  xp = store->b2a_daBit_multi(N, nbits, x);
-
-  if (server_num == 0) {
-    fmpz_t tmp; fmpz_init(tmp);
-
-    recv_fmpz(serverfd, tmp);
-    fmpz_add(tmp, tmp, xp[0]);
-    fmpz_mod(tmp, tmp, Int_Modulus);
-    assert(fmpz_equal_ui(tmp, 5));  // 3 ^ 6 = 5
-
-    recv_fmpz(serverfd, tmp);
-    fmpz_add(tmp, tmp, xp[1]);
-    fmpz_mod(tmp, tmp, Int_Modulus);
-    assert(fmpz_equal_ui(tmp, 1));  // 5 ^ 4 = 1
-
-    fmpz_clear(tmp);
-  } else {
-    send_fmpz(serverfd, xp[0]);
-    send_fmpz(serverfd, xp[1]);
-  }
-
-  clear_fmpz_array(x, N);
-  clear_fmpz_array(xp, N);
-}
-
-void test_b2a_ot(const size_t N, const size_t* const nbits, const int server_num, const int serverfd, CorrelatedStore* store) {
-  fmpz_t* x; new_fmpz_array(&x, N);
-
-  if (server_num == 0) {
-    fmpz_set_ui(x[0], 3);
-    fmpz_set_ui(x[1], 5);
-  } else {
-    fmpz_set_ui(x[0], 6);
-    fmpz_set_ui(x[1], 4);
-  }
-
-  const size_t mod = fmpz_get_ui(Int_Modulus);
-  fmpz_t* xp = store->b2a_ot(N, 1, nbits, x, mod);
+  xp = store->b2a_multi(N, nbits, x);
 
   if (server_num == 0) {
     fmpz_t tmp; fmpz_init(tmp);
@@ -237,11 +204,11 @@ void test_b2a_ot(const size_t N, const size_t* const nbits, const int server_num
 void runServerTest(const int server_num, const int serverfd) {
   OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : "127.0.0.1", 60051);
   OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : "127.0.0.1", 60052);
-  CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, ot0, ot1, batch_size, lazy, do_fork);
+  PrecomputeStore* store_pre = new PrecomputeStore(serverfd, server_num, ot0, ot1, batch_size, lazy, do_fork);
+  OTCorrelatedStore* store_ot = new OTCorrelatedStore(serverfd, server_num, ot0, ot1, batch_size, lazy, do_fork);
+  BoolStore* store_bool = new BoolStore(serverfd, server_num, ot0, ot1, batch_size, lazy, do_fork);
 
-  store->maybeUpdate();
-
-  std::cout << std::endl;
+  store_pre->maybeUpdate();
 
   size_t* bits_arr = new size_t[N];
   for (unsigned int i = 0; i < N; i++)
@@ -254,30 +221,34 @@ void runServerTest(const int server_num, const int serverfd) {
     std::cout << "iteration: " << i << std::endl;
     start = clock_start();
 
-    /* Unused
-    test_multiplyBoolShares(N, server_num, serverfd, store);
+    test_multiplyBoolShares(N, server_num, serverfd, store_bool);
     std::cout << "mul bool timing : " << sec_from(start) << std::endl; start = clock_start();
 
-    test_addBinaryShares(N, bits_arr, server_num, serverfd, store);
+    test_addBinaryShares(N, bits_arr, server_num, serverfd, store_bool);
     std::cout << "add bin timing : " << sec_from(start) << std::endl; start = clock_start();
-    */
+    
 
-    test_b2a_daBit_single(N, server_num, serverfd, store);
+    test_b2a_single(N, server_num, serverfd, store_pre);
     std::cout << "b2a da single timing : " << sec_from(start) << std::endl; start = clock_start();
 
-    test_b2a_multi(N, bits_arr, server_num, serverfd, store);
+    test_b2a_multi(N, bits_arr, server_num, serverfd, store_pre);
     std::cout << "b2a da multi timing : " << sec_from(start) << std::endl; start = clock_start();
 
-    test_b2a_ot(N, bits_arr, server_num, serverfd, store);
-    std::cout << "b2a ot timing : " << sec_from(start) << std::endl; start = clock_start();
+    test_b2a_single(N, server_num, serverfd, store_ot);
+    std::cout << "b2a ot single timing : " << sec_from(start) << std::endl; start = clock_start();
+
+    test_b2a_multi(N, bits_arr, server_num, serverfd, store_ot);
+    std::cout << "b2a ot multi timing : " << sec_from(start) << std::endl; start = clock_start();
   }
 
-  store->printSizes();
+  store_pre->printSizes();
 
   delete ot0;
   delete ot1;
   delete[] bits_arr;
-  delete store;
+  delete store_pre;
+  delete store_ot;
+  delete store_bool;
 }
 
 void serverTest() {
