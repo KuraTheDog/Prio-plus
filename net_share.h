@@ -117,6 +117,9 @@ int recv_BeaverTriple(const int sockfd, BeaverTriple* const x);
 int send_BooleanBeaverTriple(const int sockfd, const BooleanBeaverTriple* const x);
 int recv_BooleanBeaverTriple(const int sockfd, BooleanBeaverTriple* const x);
 
+int send_AltTriple(const int sockfd, const AltTriple* const x);
+int recv_AltTriple(const int sockfd, AltTriple* const x);
+
 // Bits stuff
 int send_DaBit(const int sockfd, const DaBit* const x);
 int recv_DaBit(const int sockfd, DaBit* const x);

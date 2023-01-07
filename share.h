@@ -70,6 +70,20 @@ struct BooleanBeaverTriple {
     : a(a), b(b), c(c) {}
 };
 
+// S0 has A, S1 has B, both have [C]
+struct AltTriple {
+    fmpz_t AB;
+    fmpz_t C;
+    AltTriple(){
+        fmpz_init(AB);
+        fmpz_init(C);
+    }
+    ~AltTriple(){
+        fmpz_clear(AB);
+        fmpz_clear(C);
+    }
+};
+
 // Not inclusive, so next(2) = 4
 unsigned int NextPowerOfTwo(const unsigned int n);
 
@@ -191,6 +205,7 @@ struct EdaBit {
 void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B);
 
 void NewBeaverTriples(BeaverTriple* const out0, BeaverTriple* const out1);
+void NewAltTriples(AltTriple* const out0, AltTriple* const out1);
 
 void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1);
 void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n);

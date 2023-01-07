@@ -451,6 +451,24 @@ int recv_BooleanBeaverTriple(const int sockfd, BooleanBeaverTriple* const x) {
     return ret;
 }
 
+int send_AltTriple(const int sockfd, const AltTriple* const x) {
+    int total = 0, ret;
+    ret = send_fmpz(sockfd, x->AB);
+    if (ret <= 0) return ret; else total += ret;
+    ret = send_fmpz(sockfd, x->C);
+    if (ret <= 0) return ret; else total += ret;
+    return total;
+}
+
+int recv_AltTriple(const int sockfd, AltTriple* const x) {
+    int total = 0, ret;
+    ret = recv_fmpz(sockfd, x->AB);
+    if (ret <= 0) return ret; else total += ret;
+    ret = recv_fmpz(sockfd, x->C);
+    if (ret <= 0) return ret; else total += ret;
+    return total;
+}
+
 int send_DaBit(const int sockfd, const DaBit* const x) {
     int total = 0, ret;
     ret = send_fmpz(sockfd, x->bp);

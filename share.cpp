@@ -54,6 +54,16 @@ void NewBeaverTriples(BeaverTriple* const out0, BeaverTriple* const out1) {
     fmpz_mod(out1->C, out1->C, Int_Modulus);
 }
 
+void NewAltTriples(AltTriple* const out0, AltTriple* const out1) {
+    fmpz_randm(out0->AB, seed, Int_Modulus);
+    fmpz_randm(out1->AB, seed, Int_Modulus);
+    fmpz_randm(out0->C, seed, Int_Modulus);
+    // a * b = c
+    fmpz_mul(out1->C, out0->AB, out1->AB);
+    fmpz_sub(out1->C, out1->C, out0->C);
+    fmpz_mod(out1->C, out1->C, Int_Modulus);
+}
+
 
 void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {
     fmpz_t two;
