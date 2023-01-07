@@ -120,6 +120,9 @@ int recv_BooleanBeaverTriple(const int sockfd, BooleanBeaverTriple* const x);
 int send_AltTriple(const int sockfd, const AltTriple* const x);
 int recv_AltTriple(const int sockfd, AltTriple* const x);
 
+int send_AltTriple_batch(const int sockfd, const AltTriple* const * const x, const size_t n);
+int recv_AltTriple_batch(const int sockfd, AltTriple* const * const x, const size_t n);
+
 // Bits stuff
 int send_DaBit(const int sockfd, const DaBit* const x);
 int recv_DaBit(const int sockfd, DaBit* const x);
