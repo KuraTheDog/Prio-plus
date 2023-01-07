@@ -47,6 +47,7 @@ class RootManager {
   static std::unordered_map<size_t, fmpz_t*> roots;
   static std::unordered_map<size_t, fmpz_t*> invroots;
   static std::unordered_map<size_t, fmpz_t*> roots2;
+  static std::unordered_map<size_t, fmpz_t*> invroots2;
 
   const size_t N;
 
@@ -72,6 +73,10 @@ public:
     return invroots.at(N);
   };
 
+  fmpz_t* getRoots2Inv() const {
+    return invroots2.at(N);
+  };
+
   void clearCache() {
     for (auto it = roots.begin(); it != roots.end(); ++it) {
       clear_fmpz_array(it->second, it->first);
@@ -85,6 +90,10 @@ public:
       clear_fmpz_array(it->second, it->first);
     }
     roots2.clear();
+    for (auto it = invroots2.begin(); it != invroots2.end(); ++it) {
+      clear_fmpz_array(it->second, it->first);
+    }
+    invroots2.clear();
   }
 
   ~RootManager() {};
@@ -96,6 +105,7 @@ Inverse interpolate finds coefficients.
 fmpz_t* interpolate_N(const size_t N, const fmpz_t* const points);
 fmpz_t* interpolate_inv(const size_t N, const fmpz_t* const points);
 fmpz_t* interpolate_2N(const size_t N, const fmpz_t* const points);
+fmpz_t* interpolate_2N_inv(const size_t N, const fmpz_t* const points);
 
 
 // Precompute on interpolation X values

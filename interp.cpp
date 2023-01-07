@@ -11,6 +11,7 @@ extern "C" {
 std::unordered_map<size_t, fmpz_t*> RootManager::roots;
 std::unordered_map<size_t, fmpz_t*> RootManager::roots2;
 std::unordered_map<size_t, fmpz_t*> RootManager::invroots;
+std::unordered_map<size_t, fmpz_t*> RootManager::invroots2;
 
 void RootManager::addRoots(const size_t N){
   if (roots.count(N) == 1)
@@ -19,6 +20,7 @@ void RootManager::addRoots(const size_t N){
   fmpz_t* r; new_fmpz_array(&r, N);
   fmpz_t* inv; new_fmpz_array(&inv, N);
   fmpz_t* r2; new_fmpz_array(&r2, 2 * N);
+  fmpz_t* r2inv; new_fmpz_array(&r2inv, 2 * N);
 
   const int step_size = (1 << twoOrder) / N;
   fmpz_t g_; fmpz_init(g_);          // Generator order N
@@ -35,6 +37,7 @@ void RootManager::addRoots(const size_t N){
   fmpz_set_ui(r[0], 1);
   fmpz_set_ui(inv[0], 1);
   fmpz_set_ui(r2[0], 1);
+  fmpz_set_ui(r2inv[0], 1);
 
   for (unsigned int i = 1; i < N; i++) {
     fmpz_mul(r[i], r[i-1], g_);
@@ -44,6 +47,7 @@ void RootManager::addRoots(const size_t N){
   for (unsigned int i = 1; i < 2 * N; i++) {
     fmpz_mul(r2[i], r2[i-1], ghalf_);
     fmpz_mod(r2[i], r2[i], Int_Modulus);
+    fmpz_set(r2inv[2*N-i], r2[i]);
   }
 
   fmpz_clear(g_);
@@ -52,6 +56,7 @@ void RootManager::addRoots(const size_t N){
   roots[N] = r;
   invroots[N] = inv;
   roots2[N] = r2;
+  invroots2[N] = r2inv;
 }
 
 fmpz_t* interpolate_N(const size_t N, const fmpz_t* const points) {
@@ -64,4 +69,8 @@ fmpz_t* interpolate_inv(const size_t N, const fmpz_t* const points) {
 
 fmpz_t* interpolate_2N(const size_t N, const fmpz_t* const points) {
   return fft_interpolate(Int_Modulus, 2 * N, RootManager(N).getRoots2(), points, false);
+}
+
+fmpz_t* interpolate_2N_inv(const size_t N, const fmpz_t* const points) {
+  return fft_interpolate(Int_Modulus, 2 * N, RootManager(N).getRoots2Inv(), points, true);
 }
