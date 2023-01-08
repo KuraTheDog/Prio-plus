@@ -10,7 +10,7 @@ Due to send buffers potentially filling up,
 send is done on a forked child, while parent receives
 This can be turned off for testing.
 
-CorrelatedStore:
+PrecomputeStore:
 Made in at least batch_size chunks at a time.
 New batches are build either as it runs out, or by calling maybeUpdate
 Also includes io objects for OT, which have their own precomputes
