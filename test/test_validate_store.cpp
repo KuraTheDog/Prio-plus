@@ -40,7 +40,7 @@ void multiServerRun(const int server_num, const int serverfd, const size_t N) {
     for (unsigned int i = 0; i < N; i++) {
       send_AltTriple(serverfd, trips1[i]);
 
-      store.addUnverified(bits0[i], trips0[i]);
+      store.addUnvalidated(bits0[i], trips0[i]);
 
       delete bits1[i];
       delete trips1[i];
@@ -55,16 +55,16 @@ void multiServerRun(const int server_num, const int serverfd, const size_t N) {
     recv_DaBit_batch(serverfd, bits1, N);
     for (unsigned int i = 0; i < N; i++) {
        recv_AltTriple(serverfd, trips1[i]);
-       store.addUnverified(bits1[i], trips1[i]);
+       store.addUnvalidated(bits1[i], trips1[i]);
     }
   }
   std::cout << "Run " << server_num << std::endl;
 
   store.batchValidate();
 
-  std::cout << "Assert " << server_num << ", NumVerified = " << store.numVerified() << std::endl;
+  std::cout << "Assert " << server_num << ", Numvalidated = " << store.numvalidated() << std::endl;
 
-  assert(store.numVerified() == N);
+  assert(store.numvalidated() == N);
 
 }
 

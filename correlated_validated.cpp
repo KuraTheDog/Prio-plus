@@ -6,9 +6,9 @@
 #include "net_share.h"
 
 
-const AltTriple* ValidateCorrelatedStore::get_verified_alt_triple() {
-  if (verified_alt_triple_store.size() < 1) {
-    std::cout << "Doing lazy gen of verified alt triple" << std::endl;
+const AltTriple* ValidateCorrelatedStore::get_validated_alt_triple() {
+  if (validated_alt_triple_store.size() < 1) {
+    std::cout << "Doing lazy gen of validated alt triple" << std::endl;
     // TODO: currently lazy gen. Do smart gen
     AltTriple* t = new AltTriple();
     if (server_num == 0) {
@@ -23,8 +23,8 @@ const AltTriple* ValidateCorrelatedStore::get_verified_alt_triple() {
     return t;
   }
   else {
-    const AltTriple* const trip = verified_alt_triple_store.front();
-    verified_alt_triple_store.pop();
+    const AltTriple* const trip = validated_alt_triple_store.front();
+    validated_alt_triple_store.pop();
     return trip;
   }
 }
@@ -37,7 +37,7 @@ z_0 = (diff_1 * trip->AB) + trip->C
 z_1 = (diff_0 * x_1) + trip->C
 */
 fmpz_t* ValidateCorrelatedStore::multiplyAltShares(
-    const size_t N, const fmpz_t* const x, const bool* const use_verified) {
+    const size_t N, const fmpz_t* const x, const bool* const use_validated) {
   fmpz_t* z; new_fmpz_array(&z, N);
   fmpz_t* diff; new_fmpz_array(&diff, N);
 
@@ -46,11 +46,11 @@ fmpz_t* ValidateCorrelatedStore::multiplyAltShares(
 
   for (unsigned int i = 0; i < N; i++) {
     const AltTriple* trip;
-    if (use_verified[i]) {
-      trip = get_verified_alt_triple();
+    if (use_validated[i]) {
+      trip = get_validated_alt_triple();
     } else {
-      trip = unverified_alt_triple_store.front();
-      unverified_alt_triple_store.pop();
+      trip = unvalidated_alt_triple_store.front();
+      unvalidated_alt_triple_store.pop();
     }
 
     fmpz_sub(diff[i], x[i], trip->AB);
@@ -88,10 +88,10 @@ fmpz_t* ValidateCorrelatedStore::multiplyAltShares(
   return z;
 }
 
-void ValidateCorrelatedStore::addUnverified(
+void ValidateCorrelatedStore::addUnvalidated(
     const DaBit* const dabit, const AltTriple* const trip) {
-  unverified_dabit_store.push(dabit);
-  unverified_alt_triple_store.push(trip);
+  unvalidated_dabit_store.push(dabit);
+  unvalidated_alt_triple_store.push(trip);
 }
 
 void ValidateCorrelatedStore::batchValidate(const size_t N) {
@@ -100,13 +100,13 @@ void ValidateCorrelatedStore::batchValidate(const size_t N) {
     std::cout << N << " should be a power of two" << std::endl;
     return;
   }
-  if (unverified_dabit_store.size() < N) {
-    std::cout << "Not enough unverified dabits: " << unverified_dabit_store.size();
+  if (unvalidated_dabit_store.size() < N) {
+    std::cout << "Not enough unvalidated dabits: " << unvalidated_dabit_store.size();
     std::cout << " of " << N << std::endl;
     return;
   }
-  if (unverified_dabit_store.size() < N) {
-    std::cout << "Not enough unverified alt triples: " << unverified_alt_triple_store.size();
+  if (unvalidated_dabit_store.size() < N) {
+    std::cout << "Not enough unvalidated alt triples: " << unvalidated_alt_triple_store.size();
     std::cout << " of " << N << std::endl;
     return;
   }
@@ -120,8 +120,8 @@ void ValidateCorrelatedStore::batchValidate(const size_t N) {
   fmpz_t* pointsF; new_fmpz_array(&pointsF, N);
   fmpz_t* pointsG; new_fmpz_array(&pointsG, 2*N);
   for (unsigned int i = 0; i < N; i++) {
-    const DaBit* const bit = unverified_dabit_store.front();
-    unverified_dabit_store.pop();
+    const DaBit* const bit = unvalidated_dabit_store.front();
+    unvalidated_dabit_store.pop();
 
     // *2 on server0 only
     fmpz_set_ui(pointsF[i], (1 + (server_num == 0)) * (int) bit->b2);
@@ -144,17 +144,17 @@ void ValidateCorrelatedStore::batchValidate(const size_t N) {
   clear_fmpz_array(paddedF, 2*N);
 
   // Multiply evalF's to get G points
-  // Also multiply sigmaF at the same time, as verified
+  // Also multiply sigmaF at the same time, as validated
   fmpz_t* points; new_fmpz_array(&points, N+1);
   for (unsigned int i = 0; i < N; i++) {
     fmpz_set(points[i], evalsF[2*i+1]);
   }
   clear_fmpz_array(evalsF, N);
   fmpz_set(points[N], sigmaF);
-  bool use_verified[N+1];
-  memset(use_verified, 0, sizeof(bool)*N);
-  use_verified[N] = true;
-  fmpz_t* pointsMult = multiplyAltShares(N+1, points, use_verified);
+  bool use_validated[N+1];
+  memset(use_validated, 0, sizeof(bool)*N);
+  use_validated[N] = true;
+  fmpz_t* pointsMult = multiplyAltShares(N+1, points, use_validated);
   clear_fmpz_array(points, N+1);
   for (unsigned int i = 0; i < N; i++) {
     fmpz_set(pointsG[2*i+1], pointsMult[i]);
@@ -232,19 +232,19 @@ ValidateCorrelatedStore::~ValidateCorrelatedStore() {
   fmpz_clear(sigma);
   delete chk;
 
-  while (!unverified_dabit_store.empty()) {
-    const DaBit* const bit = unverified_dabit_store.front();
-    unverified_dabit_store.pop();
+  while (!unvalidated_dabit_store.empty()) {
+    const DaBit* const bit = unvalidated_dabit_store.front();
+    unvalidated_dabit_store.pop();
     delete bit;
   }
-  while (!verified_alt_triple_store.empty()) {
-    const AltTriple* const trip = verified_alt_triple_store.front();
-    verified_alt_triple_store.pop();
+  while (!validated_alt_triple_store.empty()) {
+    const AltTriple* const trip = validated_alt_triple_store.front();
+    validated_alt_triple_store.pop();
     delete trip;
   }
-  while (!unverified_alt_triple_store.empty()) {
-    const AltTriple* const trip = unverified_alt_triple_store.front();
-    unverified_alt_triple_store.pop();
+  while (!unvalidated_alt_triple_store.empty()) {
+    const AltTriple* const trip = unvalidated_alt_triple_store.front();
+    unvalidated_alt_triple_store.pop();
     delete trip;
   }
 }

@@ -11,16 +11,16 @@ class ValidateCorrelatedStore : public DaBitStore {
   void check_sigma();  // Call before using sigma. Not return to avoid extra copy.
   void new_sigma();
 
-  std::queue<const DaBit* const> unverified_dabit_store;
+  std::queue<const DaBit* const> unvalidated_dabit_store;
 
-  // unverified
-  std::queue<const AltTriple* const> unverified_alt_triple_store;
-  std::queue<const AltTriple* const> verified_alt_triple_store;
+  // unvalidated
+  std::queue<const AltTriple* const> unvalidated_alt_triple_store;
+  std::queue<const AltTriple* const> validated_alt_triple_store;
 
   MultCheckPreComp* chk;
 
   // TODO: some way to bulk generate alt triples (e.g. OT).
-  const AltTriple* get_verified_alt_triple();
+  const AltTriple* get_validated_alt_triple();
 
 // Batch size must be power of two. NextPowerOfTwo is not inclusive, so -1 to make it so.
 public:
@@ -38,9 +38,9 @@ public:
   ~ValidateCorrelatedStore();
 
   fmpz_t* multiplyAltShares(const size_t N, const fmpz_t* const x, 
-                            const bool* const use_verified);
+                            const bool* const use_validated);
 
-  void addUnverified(const DaBit* const dabit, const AltTriple* const trip);
+  void addUnvalidated(const DaBit* const dabit, const AltTriple* const trip);
 
   void checkDaBits(const size_t n = 0);
 
@@ -50,7 +50,7 @@ public:
   };
   // TODO: batch validate max possible? NextPowerOfTwo(store size) / 2? 
 
-  size_t numVerified() {
+  size_t numvalidated() {
     return dabit_store.size();
   };
 };
