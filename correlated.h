@@ -33,6 +33,16 @@ Pure OT based B2A, via intsum_ot
 #include "ot.h"
 #include "share.h"
 
+// Selector
+enum StoreType {
+  precompute,
+  ot,
+};
+
+// Global for now. Can have client/server sync it or be a param file, but not necessary.
+const StoreType STORE_TYPE = precompute;
+
+
 class CorrelatedStore {
 protected:
   const size_t batch_size;

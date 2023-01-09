@@ -46,8 +46,6 @@ PrecomputeStore* precompute_store = nullptr;  // Typecast for if need precompute
 #define LAZY_PRECOMPUTE false
 // False for leaks testing, true for efficiency
 #define DO_FORK false
-// Whether to use OT or Dabits
-#define USE_OT_B2A false
 
 // Note: Currently does it in a single batch.
 // I.e. recieve and store all, then process all.
@@ -1509,11 +1507,13 @@ int main(int argc, char** argv) {
     ot0 = new OT_Wrapper(server_num == 0 ? nullptr : SERVER0_IP, 60051);
     ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
 
-    if (USE_OT_B2A) {
-        correlated_store = new OTCorrelatedStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE, DO_FORK);
-    } else {
+    if (STORE_TYPE == precompute) {
         precompute_store = new PrecomputeStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE, DO_FORK);
         correlated_store = precompute_store;
+    } else if (STORE_TYPE == ot) {
+        correlated_store = new OTCorrelatedStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE, DO_FORK);
+    } else {
+        error_exit("Unknown store type");
     }
 
     int sockfd, newsockfd;
