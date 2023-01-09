@@ -37,7 +37,6 @@ OT_Wrapper* ot1;
 
 // Store wrapper for share conversion.
 CorrelatedStore* correlated_store;
-PrecomputeStore* precompute_store = nullptr;  // Typecast for if need precompute calls.
 // #define CACHE_SIZE 8192
 // #define CACHE_SIZE 65536
 #define CACHE_SIZE 262144
@@ -395,7 +394,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (precompute_store) precompute_store->checkDaBits(total_inputs * msg.num_bits);
+    if (STORE_TYPE == precompute)
+        ((PrecomputeStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits);
 
     start = clock_start();
     auto start2 = clock_start();
@@ -746,7 +746,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (precompute_store) precompute_store->checkDaBits(total_inputs * msg.num_bits * 3);
+    if (STORE_TYPE == precompute)
+        ((PrecomputeStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * 3);
 
     start = clock_start();
 
@@ -997,9 +998,9 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (precompute_store) {
+    if (STORE_TYPE == precompute) {
         const int total_dabits = degree * (degree + 2) - 2;
-        precompute_store->checkDaBits(total_inputs * msg.num_bits * total_dabits);
+        ((PrecomputeStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * total_dabits);
     }
 
     start = clock_start();
@@ -1262,7 +1263,8 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if(precompute_store) precompute_store->checkDaBits(total_inputs * max_inp);
+    if (STORE_TYPE == precompute)
+        ((PrecomputeStore*) correlated_store)->checkDaBits(total_inputs * max_inp);
 
     start = clock_start();
     auto start2 = clock_start();
@@ -1508,8 +1510,7 @@ int main(int argc, char** argv) {
     ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
 
     if (STORE_TYPE == precompute) {
-        precompute_store = new PrecomputeStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE, DO_FORK);
-        correlated_store = precompute_store;
+        correlated_store = new PrecomputeStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE, DO_FORK);
     } else if (STORE_TYPE == ot) {
         correlated_store = new OTCorrelatedStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE, DO_FORK);
     } else {
@@ -1531,9 +1532,9 @@ int main(int argc, char** argv) {
                 pair.second -> setEvalPoint(randomX);
         }
 
-        if(precompute_store) {
-            precompute_store->maybeUpdate();
-            // precompute_store->printSizes();
+        if (STORE_TYPE == precompute) {
+            ((PrecomputeStore*) correlated_store)->maybeUpdate();
+            // ((PrecomputeStore*) correlated_store)->printSizes();
         }
 
         socklen_t addrlen = sizeof(addr);
