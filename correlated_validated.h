@@ -37,7 +37,7 @@ public:
 
   ~ValidateCorrelatedStore();
 
-  fmpz_t* multiplyAltShares(const size_t N, const fmpz_t* const x, 
+  fmpz_t* multiplyAltShares(const size_t N, const fmpz_t* const x,
                             const bool* const use_validated);
 
   void addUnvalidated(const DaBit* const dabit, const AltTriple* const trip);
@@ -48,7 +48,7 @@ public:
   void batchValidate() {
     batchValidate(batch_size);
   };
-  // TODO: batch validate max possible? NextPowerOfTwo(store size) / 2? 
+  // TODO: batch validate max possible? NextPowerOfTwo(store size) / 2?
 
   size_t numvalidated() {
     return dabit_store.size();

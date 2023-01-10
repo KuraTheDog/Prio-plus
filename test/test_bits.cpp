@@ -226,7 +226,7 @@ void runServerTest(const int server_num, const int serverfd) {
 
     test_addBinaryShares(N, bits_arr, server_num, serverfd, store_bool);
     std::cout << "add bin timing : " << sec_from(start) << std::endl; start = clock_start();
-    
+
 
     test_b2a_single(N, server_num, serverfd, store_pre);
     std::cout << "b2a da single timing : " << sec_from(start) << std::endl; start = clock_start();

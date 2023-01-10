@@ -30,7 +30,7 @@ const AltTriple* ValidateCorrelatedStore::get_validated_alt_triple() {
 }
 
 // [z] = x_this * x_other
-/* 
+/*
 diff_i = x-i - trip_i->AB
 swap diff
 z_0 = (diff_1 * trip->AB) + trip->C
@@ -41,7 +41,7 @@ fmpz_t* ValidateCorrelatedStore::multiplyAltShares(
   fmpz_t* z; new_fmpz_array(&z, N);
   fmpz_t* diff; new_fmpz_array(&diff, N);
 
-  // only used by server 1, save trip->AB value 
+  // only used by server 1, save trip->AB value
   fmpz_t* a; if (server_num == 0) new_fmpz_array(&a, N);
 
   for (unsigned int i = 0; i < N; i++) {
@@ -198,7 +198,7 @@ void ValidateCorrelatedStore::batchValidate(const size_t N) {
       delete candidates[i];
     }
   }
-  
+
   fmpz_clear(diff);
 
   if (do_fork) waitpid(pid, &status, 0);

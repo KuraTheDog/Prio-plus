@@ -76,11 +76,11 @@ extern fmpz_t Int_Modulus;        // Large prime modulus
 extern fmpz_t Int_Gen;            // Generates subgroup order 2^twoOrder in Zp
 extern flint_rand_t seed;         // Global random seed, for fmpz_randm, etc.
 
-/* How much polynomial identity test eval point can be reused. 
+/* How much polynomial identity test eval point can be reused.
 Clients never see the point, so just comes down to soundness.
-a) For SNIP, client can try to learn by what fails to be accepted. 
-b) For precompute validation, clients don't learn of validity, so less concern. 
-degree * threshold / modulus should still be small for case a. 
+a) For SNIP, client can try to learn by what fails to be accepted.
+b) For precompute validation, clients don't learn of validity, so less concern.
+degree * threshold / modulus should still be small for case a.
 */
 const unsigned int EVAL_REUSE_THRESHOLD = 1e6;
 

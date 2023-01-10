@@ -2,12 +2,12 @@
 
 This is the software prototype that accompanies the research paper
 
-Prio+ https://eprint.iacr.org/2021/576.pdf  
+Prio+ https://eprint.iacr.org/2021/576.pdf
 By Surya Addanki, Kevin Garbe, Eli Jaffe, Rafail Ostrovsky, and Antigoni Polychroniadou
 
 This is an improvement of the original Prio code by Henry Corrigan-Gibs and Dan Boneh, which can be found [here](https://github.com/henrycg/prio), detailed in ["Prio: Private, Robust, and Scalable Computation of Aggregate Statistics"](https://crypto.stanford.edu/prio/paper.pdf)
 
-Some of this code, such as the fast polynomial operations, is directly based on their code. 
+Some of this code, such as the fast polynomial operations, is directly based on their code.
 
 
 ## Dependencies
@@ -37,7 +37,7 @@ There are two relevant binaries:
 By default, they are configured to connect to localhost.
 For testing across multiple machines, configure the constants on top of `client.cpp` and `server.cpp` to the IP addresses of the two servers.
 
-The code runs two servers, 0 and 1, each of which needs to be started separately. 
+The code runs two servers, 0 and 1, each of which needs to be started separately.
 Server 0 needs to be started before server 1.
 
 * Server arguments are `server_num client_listen_port server0_port`
@@ -48,8 +48,8 @@ Server 0 needs to be started before server 1.
   * `heavy_L` is for heavy, and should be `ceil(log_2(wd))` (param for convenience)
 
 * Ports and max bits need to be consistent across runs and both servers and the client.
-* `max_bits` is used for int based summations, and must match the server value in this case.  
-  * For MAXOP, client `max_bits` instead determines the max value (e.g. 7 -> 128), and does not have to match the servers.  
+* `max_bits` is used for int based summations, and must match the server value in this case.
+  * For MAXOP, client `max_bits` instead determines the max value (e.g. 7 -> 128), and does not have to match the servers.
 * For server communication, `server0_port` tells Server 0 which port to open, and server 1 which port of server 0 is open.
 
 ### Usage example
@@ -70,7 +70,7 @@ Server 0 needs to be started before server 1.
 * LINREGOP: `linreg_degree` degree linear regression on `max_bits`-bit integers
 * FREQ: Standard frequency counting
 * COUNTMIN: Count-min sketch for `t`-heavy hitters, using `d` hashes of range `w`.
-* HEAVY: Full `t`-heavy hitters, with `L` layers of `d` hashes of range `w` for easy querying. 
+* HEAVY: Full `t`-heavy hitters, with `L` layers of `d` hashes of range `w` for easy querying.
 
 # Code flow outline
 

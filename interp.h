@@ -29,10 +29,10 @@ finding the corresponding poly, and returns it evaluated at the point.
 MultCheckPreComp:
 The common use case is mass testing multiplication.
 Namely, for lists of {a}, {b}, {c}, ensure all a_i * b_i = c_i
-For this, there is f(x_i) = a_i, g for b, and h for c. 
+For this, there is f(x_i) = a_i, g for b, and h for c.
 Then identity test f * g = h at random x gives that all mults hold with high probability
 For degrees, f and g are deg N, then h has to be deg 2N
-Hence this gives an easy framework for having both N and 2N poly interp. 
+Hence this gives an easy framework for having both N and 2N poly interp.
 */
 
 /* Cache of roots of unity
@@ -53,7 +53,7 @@ class RootManager {
 
   void addRoots(const size_t N);
 
-public: 
+public:
   // Only powers of 2
   RootManager(const size_t N) : N(N) {
     if (not isPowerOfTwo(N))

@@ -4,7 +4,7 @@
 /*
 Correlated precomputes
 synced correlated precomputed values between servers
-Maintaines a cache of precomputed correlated randomness. 
+Maintaines a cache of precomputed correlated randomness.
 
 Due to send buffers potentially filling up,
 send is done on a forked child, while parent receives
@@ -14,9 +14,9 @@ PrecomputeStore:
 Made in at least batch_size chunks at a time.
 New batches are build either as it runs out, or by calling maybeUpdate
 Also includes io objects for OT, which have their own precomputes
-Uses for generating daBits via OT. 
+Uses for generating daBits via OT.
 Also adding boolean shares via boolean triples (currently unused).
-OT share conversion only for comparison with USE_OT_B2A. 
+OT share conversion only for comparison with USE_OT_B2A.
 
 ValidateCorrelatedStore:
 Clients also send unvalidated randomness, then it batch validates them.
@@ -146,13 +146,13 @@ class OTCorrelatedStore : public CorrelatedStore {
   OT_Wrapper* const ot0;
   [[maybe_unused]] OT_Wrapper* const ot1;
 
-public: 
+public:
 
   OTCorrelatedStore(const int serverfd, const int server_num,
       OT_Wrapper* const ot0, OT_Wrapper* const ot1,
       const size_t batch_size = 0,
       const bool lazy = false, const bool do_fork = true)
-  : CorrelatedStore(serverfd, server_num, batch_size, lazy, do_fork) 
+  : CorrelatedStore(serverfd, server_num, batch_size, lazy, do_fork)
   , ot0(ot0)
   , ot1(ot1)
   {
@@ -169,8 +169,8 @@ public:
       const fmpz_t* const x, const size_t mod);
 };
 
-// "legacy" EdaBit boolean triples. 
-// No longer relevant, as rounds scaled with num bits. 
+// "legacy" EdaBit boolean triples.
+// No longer relevant, as rounds scaled with num bits.
 // Kept as legacy, since bool triple logic can be helpful
 class BoolStore : public CorrelatedStore {
   std::queue<const BooleanBeaverTriple* const> btriple_store;
