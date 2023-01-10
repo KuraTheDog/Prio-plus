@@ -349,9 +349,9 @@ int send_CorShare_batch(const int sockfd, const CorShare* const * const x, const
 
 int recv_CorShare_batch(const int sockfd, CorShare* const * const x, const size_t n) {
     int total = 0, ret;
-    fmpz_t* buf; new_fmpz_array(&buf, n);
+    fmpz_t* buf; new_fmpz_array(&buf, 2 * n);
 
-    ret = recv_fmpz_batch(sockfd, buf, n);
+    ret = recv_fmpz_batch(sockfd, buf, 2 * n);
     if (ret <= 0) return ret; else total += ret;
 
     for (unsigned int i = 0; i < n; i++) {
