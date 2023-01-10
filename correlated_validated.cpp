@@ -9,7 +9,7 @@
 const AltTriple* ValidateCorrelatedStore::get_validated_alt_triple() {
   if (validated_alt_triple_store.size() < 1) {
     std::cout << "Doing lazy gen of validated alt triple" << std::endl;
-    // TODO: currently lazy gen. Do smart gen
+    // TODO: currently lazy gen. Do smart gen. Can do inefficinetly with normal triple.
     AltTriple* t = new AltTriple();
     if (server_num == 0) {
       AltTriple* t_other = new AltTriple();
@@ -94,8 +94,13 @@ void ValidateCorrelatedStore::addUnvalidated(
   unvalidated_alt_triple_store.push(trip);
 }
 
+// TODO: Backup process if there is unvalidated.
+// Perhaps merge with Preocmpute store, to precompute only if necessary?
+
 void ValidateCorrelatedStore::batchValidate(const size_t N) {
   // isPowerOfTwo from utils.h
+  std::cout << "Batch validating " << N << std::endl;
+  printSizes();
   if (not isPowerOfTwo(N)) {
     std::cout << N << " should be a power of two" << std::endl;
     return;
@@ -113,6 +118,8 @@ void ValidateCorrelatedStore::batchValidate(const size_t N) {
 
   check_sigma();
   sigma_uses += 1;
+
+  MultCheckPreComp* chk = getPrecomp(N);
 
   const DaBit* candidates[N];
 
@@ -190,13 +197,16 @@ void ValidateCorrelatedStore::batchValidate(const size_t N) {
   fmpz_clear(diff_other);
 
   if (fmpz_is_zero(diff)) {
+    std::cout << "batch validate is valid" << std::endl;
     for (unsigned int i = 0; i < N; i++) {
       dabit_store.push(candidates[i]);
     }
   } else {
+    std::cout << "batch validate is invalid" << std::endl;
     for (unsigned int i = 0; i < N; i++) {
       delete candidates[i];
     }
+    error_exit("Currently no recovery");
   }
 
   fmpz_clear(diff);
@@ -205,9 +215,12 @@ void ValidateCorrelatedStore::batchValidate(const size_t N) {
 }
 
 void ValidateCorrelatedStore::checkDaBits(const size_t n) {
+  std::cout << "CheckDaBits: " << n << std::endl;
   if (dabit_store.size() < n) {
-    // Can fail if not enough unvalidated, in which case batchValidate complains
-    batchValidate(NextPowerOfTwo(n - dabit_store.size()));
+    // Does the smallest power of 2 >= n, to cover n.
+    // BatchValidate currently handles the yelling if not enough.
+    // NextPowerOfTwo is not inclusive, so -1
+    batchValidate(NextPowerOfTwo(n - dabit_store.size() - 1));
   }
 }
 
@@ -225,12 +238,34 @@ void ValidateCorrelatedStore::new_sigma() {
     recv_fmpz(serverfd, sigma);
   }
   sigma_uses = 0;
-  chk->setEvalPoint(sigma);
+  for (const auto& pair : eval_precomp_store)
+      pair.second -> setEvalPoint(sigma);
+}
+
+MultCheckPreComp* ValidateCorrelatedStore::getPrecomp(const size_t N) {
+  MultCheckPreComp* pre;
+  if (eval_precomp_store.find(N) == eval_precomp_store.end()) {
+    pre = new MultCheckPreComp(N);
+    pre->setEvalPoint(sigma);
+    eval_precomp_store[N] = pre;
+  } else {
+    pre = eval_precomp_store[N];
+  }
+  return pre;
+}
+
+void ValidateCorrelatedStore::printSizes() {
+  std::cout << "Current store sizes:" << std::endl;
+  std::cout << " Dabits: " << dabit_store.size() << std::endl;
+  std::cout << " Unvalidated Dabits: " << unvalidated_dabit_store.size() << std::endl;
+  std::cout << " Triples: " << validated_alt_triple_store.size() << std::endl;
+  std::cout << " Unvalidated: " << unvalidated_alt_triple_store.size() << std::endl;
 }
 
 ValidateCorrelatedStore::~ValidateCorrelatedStore() {
   fmpz_clear(sigma);
-  delete chk;
+  for (const auto& pair : eval_precomp_store)
+    delete pair.second;
 
   while (!unvalidated_dabit_store.empty()) {
     const DaBit* const bit = unvalidated_dabit_store.front();

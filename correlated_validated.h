@@ -11,13 +11,15 @@ class ValidateCorrelatedStore : public DaBitStore {
   void check_sigma();  // Call before using sigma. Not return to avoid extra copy.
   void new_sigma();
 
+  const size_t true_batch_size;
+
   std::queue<const DaBit* const> unvalidated_dabit_store;
 
   // unvalidated
   std::queue<const AltTriple* const> unvalidated_alt_triple_store;
   std::queue<const AltTriple* const> validated_alt_triple_store;
 
-  MultCheckPreComp* chk;
+  std::unordered_map<size_t, MultCheckPreComp*> eval_precomp_store;
 
   // TODO: some way to bulk generate alt triples (e.g. OT).
   const AltTriple* get_validated_alt_triple();
@@ -28,9 +30,11 @@ public:
       const size_t batch_size,
       const bool lazy = false, const bool do_fork = true)
   : DaBitStore(serverfd, server_num, NextPowerOfTwo(batch_size-1), lazy, do_fork)
-  , chk(new MultCheckPreComp(NextPowerOfTwo(batch_size-1)))
+  , true_batch_size(NextPowerOfTwo(batch_size-1))
   {
     fmpz_init(sigma);
+
+    eval_precomp_store[true_batch_size] = new MultCheckPreComp(true_batch_size);
 
     new_sigma();
   };
@@ -46,9 +50,13 @@ public:
 
   void batchValidate(const size_t N);
   void batchValidate() {
-    batchValidate(batch_size);
+    batchValidate(true_batch_size);
   };
   // TODO: batch validate max possible? NextPowerOfTwo(store size) / 2?
+
+  MultCheckPreComp* getPrecomp(const size_t N);
+
+  void printSizes();
 
   size_t numvalidated() {
     return dabit_store.size();

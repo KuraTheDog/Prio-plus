@@ -15,8 +15,9 @@ const size_t rand_adjust = 5;
 const bool do_fork = false;  // False for leaks debug
 const bool lazy = true;
 
-void multiServerRun(const int server_num, const int serverfd, const size_t N) {
-  ValidateCorrelatedStore store(serverfd, server_num, N, lazy, do_fork);
+void multiServerRun(const int server_num, const int serverfd,
+                    const size_t N_make, const size_t N) {
+  ValidateCorrelatedStore store(serverfd, server_num, N_make, lazy, do_fork);
 
   std::cout << "Setup " << server_num << std::endl;
   // Lazy pre-generate inputs
@@ -60,7 +61,7 @@ void multiServerRun(const int server_num, const int serverfd, const size_t N) {
   }
   std::cout << "Run " << server_num << std::endl;
 
-  store.batchValidate();
+  store.batchValidate(N);
 
   std::cout << "Assert " << server_num << ", Numvalidated = " << store.numvalidated() << std::endl;
 
@@ -77,7 +78,9 @@ void serverTest(const size_t N) {
   if (pid == 0) {
     int cli_sockfd = init_sender();
 
-    multiServerRun(0, cli_sockfd, N);
+    multiServerRun(0, cli_sockfd, N, N);
+    multiServerRun(0, cli_sockfd, N, N*2);
+    multiServerRun(0, cli_sockfd, N, N/2);
 
     close(cli_sockfd);
   } else {
@@ -89,7 +92,9 @@ void serverTest(const size_t N) {
       fmpz_randm(tmp, seed, Int_Modulus);
     fmpz_clear(tmp);
 
-    multiServerRun(1, newsockfd, N);
+    multiServerRun(1, newsockfd, N, N);
+    multiServerRun(1, newsockfd, N, N*2);
+    multiServerRun(1, newsockfd, N, N/2);
 
     close(newsockfd);
   }
