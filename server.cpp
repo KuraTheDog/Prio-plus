@@ -210,10 +210,10 @@ const bool* const validate_snips(const size_t N,
     for (unsigned int i = 0; i < N; i++)
       cor_share[i] = checker[i]->CorShareFn();
 
-    if (correlated_store->do_fork) pid = fork();
+    if (DO_FORK) pid = fork();
     if (pid == 0) {
         send_CorShare_batch(serverfd, cor_share, N);
-        if (correlated_store->do_fork) exit(EXIT_SUCCESS);
+        if (DO_FORK) exit(EXIT_SUCCESS);
     }
     CorShare** const cor_share_other = new CorShare*[N];
     for (unsigned int i = 0; i < N; i++)
@@ -226,22 +226,22 @@ const bool* const validate_snips(const size_t N,
         checker[i]->OutShare(valid_share[i], cor);
         delete cor;
     }
-    if (correlated_store->do_fork) waitpid(pid, &status, 0);
+    if (DO_FORK) waitpid(pid, &status, 0);
 
     // TODO: Can be simplified: one sends share, other sends if valid
-    if (correlated_store->do_fork) pid = fork();
-    if (pid == 0) {
+    if (server_num == 0) {
         send_fmpz_batch(serverfd, valid_share, N);
-        if (correlated_store->do_fork) exit(EXIT_SUCCESS);
-    }
-    fmpz_t* valid_share_other; new_fmpz_array(&valid_share_other, N);
-    recv_fmpz_batch(serverfd, valid_share_other, N);
-
-    for (unsigned int i = 0; i < N; i++) {
-        ans[i] = AddToZero(valid_share[i], valid_share_other[i]);
+        recv_bool_batch(serverfd, ans, N);
+    } else {
+        fmpz_t* valid_share_other; new_fmpz_array(&valid_share_other, N);
+        recv_fmpz_batch(serverfd, valid_share_other, N);
+        for (unsigned int i = 0; i < N; i++) {
+            ans[i] = AddToZero(valid_share[i], valid_share_other[i]);
+        }
+        send_bool_batch(serverfd, ans, N);
+        clear_fmpz_array(valid_share_other, N);
     }
     clear_fmpz_array(valid_share, N);
-    clear_fmpz_array(valid_share_other, N);
 
     for (unsigned int i = 0; i < N; i++) {
         delete cor_share[i];
@@ -251,8 +251,6 @@ const bool* const validate_snips(const size_t N,
     delete[] cor_share;
     delete[] cor_share_other;
     delete[] checker;
-
-    if (correlated_store->do_fork) waitpid(pid, &status, 0);
 
     std::cout << "snip circuit time: " << sec_from(start) << std::endl;
     return ans;
@@ -282,6 +280,7 @@ size_t accumulate(const size_t num_inputs,
     return num_valid;
 }
 
+// Note: since bits, uses specific bitsum_ot, rather than normal store stuff.
 returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
                    const int server_num, uint64_t& ans) {
     std::unordered_map<std::string, bool> share_map;
@@ -304,6 +303,9 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "receive time: " << sec_from(start) << std::endl;
     start = clock_start();
     auto start2 = clock_start();
+
+    // if (STORE_TYPE != ot)
+    //     ((DaBitStore*) correlated_store)->checkDaBits(total_inputs);
 
     int server_bytes = 0;
 
@@ -394,8 +396,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (STORE_TYPE == precompute)
-        ((PrecomputeStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits);
+    if (STORE_TYPE != ot)
+        ((DaBitStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits);
 
     start = clock_start();
     auto start2 = clock_start();
@@ -714,6 +716,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
     const uint64_t max_val = 1ULL << msg.num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
     const size_t nbits[2] = {msg.num_bits, msg.num_bits * 2};
+    const size_t num_dabits = 3;
 
     // Just for getting sizes
     const Circuit* const mock_circuit = CheckVar();
@@ -746,8 +749,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (STORE_TYPE == precompute)
-        ((PrecomputeStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * 3);
+    if (STORE_TYPE != ot)
+        ((DaBitStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
 
     start = clock_start();
 
@@ -934,6 +937,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     // std::cout << "num_x: " << num_x << std::endl;
     // std::cout << "num_quad: " << num_quad << std::endl;
     // std::cout << "num_fields: " << num_fields << std::endl;
+    const int num_dabits = degree * (degree + 2) - 2;
 
     // [x], y, [x2], [xy]
     typedef std::tuple <uint64_t*, uint64_t, uint64_t*, uint64_t*, ClientPacket*> sharetype;
@@ -998,10 +1002,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (STORE_TYPE == precompute) {
-        const int total_dabits = degree * (degree + 2) - 2;
-        ((PrecomputeStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * total_dabits);
-    }
+    if (STORE_TYPE != ot)
+        ((DaBitStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
 
     start = clock_start();
     auto start2 = clock_start();
@@ -1263,8 +1265,8 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (STORE_TYPE == precompute)
-        ((PrecomputeStore*) correlated_store)->checkDaBits(total_inputs * max_inp);
+    if (STORE_TYPE != ot)
+        ((DaBitStore*) correlated_store)->checkDaBits(total_inputs * max_inp);
 
     start = clock_start();
     auto start2 = clock_start();

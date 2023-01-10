@@ -91,7 +91,7 @@ void test_CheckLinReg() {
 
   std::cout << "out0 : "; fmpz_print(out0); std::cout << ", out1 : "; fmpz_print(out1); std::cout << std::endl;
 
-  std::cout << "Result : " << result << std::endl;
+  std::cout << "Result should be 1: " << result << std::endl;
 
 //   std::cout << "^v^v^ Shared validation: " << std::endl;
 //   fmpz_t tmp, rgr;
