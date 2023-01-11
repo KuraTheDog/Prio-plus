@@ -23,6 +23,7 @@ x_op_invalid: For testing/debugging, does a basic run with intentionally invalid
 #include <string>
 
 #include "circuit.h"
+#include "correlated.h"
 #include "hash.h"
 #include "net_share.h"
 #include "ot.h"
@@ -97,6 +98,58 @@ int send_to_server(const int server, const void* const buffer, const size_t n, c
     int ret = send(socket, buffer, n, flags);
     if (ret < 0) error_exit("Failed to send to server");
     return ret;
+}
+
+// Send n unvalidated dabits + alt triples to each server.
+int send_unvalidated(const size_t n) {
+    if (STORE_TYPE != validated) {
+        return 0;
+    }
+
+    // TODO: Normalize, or figure out the best way.
+    // Need a power of 2 final size, but if e.g. n = 3, hard to do.
+    // For now, just scale to next power of 2. Overkills. -1 since exclusive
+    const size_t N = NextPowerOfTwo(n-1);
+
+    [[maybe_unused]] auto start = clock_start();
+
+    int num_bytes = 0;
+    DaBit** const da0 = new DaBit*[N];
+    DaBit** const da1 = new DaBit*[N];
+    AltTriple** const trip0 = new AltTriple*[N];
+    AltTriple** const trip1 = new AltTriple*[N];
+
+    for (unsigned int i = 0; i < N; i++) {
+        da0[i] = new DaBit();
+        da1[i] = new DaBit();
+        makeLocalDaBit(da0[i], da1[i]);
+
+        trip0[i] = new AltTriple();
+        trip1[i] = new AltTriple();
+        NewAltTriples(trip0[i], trip1[i]);
+    }
+
+    num_bytes += send_DaBit_batch(sockfd0, da0, N);
+    num_bytes += send_DaBit_batch(sockfd1, da1, N);
+    num_bytes += send_AltTriple_batch(sockfd0, trip0, N);
+    num_bytes += send_AltTriple_batch(sockfd1, trip1, N);
+
+    for (unsigned int i = 0; i < N; i++) {
+        delete da0[i];
+        delete da1[i];
+        delete trip0[i];
+        delete trip1[i];
+    }
+    delete[] da0;
+    delete[] da1;
+    delete[] trip0;
+    delete[] trip1;
+
+    // std::cout << "unvalidated send:\t" << sec_from(start) << std::endl;
+    // std::cout << "sent " << N << " (originally " << n << ") unvalidated" << std::endl;
+    // std::cout << "unvalidated bytes per server: " << num_bytes / 2 << std::endl;
+
+    return num_bytes;
 }
 
 int bit_sum_helper(const std::string protocol, const size_t numreqs,
@@ -268,6 +321,7 @@ int int_sum_helper(const std::string protocol, const size_t numreqs,
     for (unsigned int i = 0; i < numreqs; i++) {
         num_bytes += send_to_server(0, &intshare0[i], sizeof(IntShare));
         num_bytes += send_to_server(1, &intshare1[i], sizeof(IntShare));
+        num_bytes += send_unvalidated(num_bits);
     }
     delete[] intshare0;
     delete[] intshare1;
@@ -362,6 +416,7 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
 
         send_to_server(0, &share0, sizeof(IntShare));
         send_to_server(1, &share1, sizeof(IntShare));
+        send_unvalidated(num_bits);
     }
 
     std::cout << "Ans : " << ans << std::endl;
@@ -819,6 +874,8 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
         num_bytes += send_ClientPacket(sockfd0, packet0[i], NMul);
         num_bytes += send_ClientPacket(sockfd1, packet1[i], NMul);
 
+        num_bytes += send_unvalidated(num_bits * 3);
+
         delete packet0[i];
         delete packet1[i];
     }
@@ -999,6 +1056,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
             fmpz_add_si(p1->triple->A, p1->triple->A, 1);
         send_ClientPacket(sockfd0, p0, NMul);
         send_ClientPacket(sockfd1, p1, NMul);
+        send_unvalidated(num_bits * 3);
         delete p0;
         delete p1;
     }
@@ -1029,6 +1087,7 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
     const size_t num_x = degree - 1;
     const size_t num_quad = num_x * (num_x + 1) / 2;
     const size_t num_fields = 2 * num_x + 1 + num_quad;
+    const size_t total_dabits = degree * (degree + 2) - 2;
 
     int num_bytes = 0;
 
@@ -1157,6 +1216,7 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
 
         num_bytes += send_ClientPacket(sockfd0, packet0[i], NMul);
         num_bytes += send_ClientPacket(sockfd1, packet1[i], NMul);
+        num_bytes += send_unvalidated(num_bits * total_dabits);
 
         delete[] linshare0[i].x_vals;
         delete[] linshare0[i].x2_vals;
@@ -1253,6 +1313,7 @@ void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
 
     const size_t num_x = degree - 1;
     const size_t num_quad = num_x * (num_x + 1) / 2;
+    const size_t total_dabits = degree * (degree + 2) - 2;
 
     uint64_t* const x_accum = new uint64_t[num_x + num_quad + 1];
     uint64_t* const y_accum = new uint64_t[num_x + 1];
@@ -1392,6 +1453,7 @@ void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
 
         send_ClientPacket(sockfd0, packet0[i], NMul);
         send_ClientPacket(sockfd1, packet1[i], NMul);
+        send_unvalidated(num_bits * total_dabits);
 
         delete[] linshare0[i].x_vals;
         delete[] linshare0[i].x2_vals;

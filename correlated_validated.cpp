@@ -94,6 +94,22 @@ void ValidateCorrelatedStore::addUnvalidated(
   unvalidated_alt_triple_store.push(trip);
 }
 
+void ValidateCorrelatedStore::queueUnvalidated(
+    const DaBit* const * dabits, const AltTriple* const * trips,
+    const std::string pk) {
+  unvalidated_pairs[pk] = {dabits, trips};
+}
+
+void ValidateCorrelatedStore::processUnvalidated(const std::string pk, const size_t n) {
+  pairtype lists = unvalidated_pairs[pk];
+  unvalidated_pairs.erase(pk);
+  for (unsigned int i = 0; i < n; i++) {
+    addUnvalidated(std::get<0>(lists)[i], std::get<1>(lists)[i]);
+  }
+  delete[] std::get<0>(lists);
+  delete[] std::get<1>(lists);
+}
+
 // TODO: Backup process if there is unvalidated.
 // Perhaps merge with Preocmpute store, to precompute only if necessary?
 
@@ -215,12 +231,16 @@ void ValidateCorrelatedStore::batchValidate(const size_t N) {
 }
 
 void ValidateCorrelatedStore::checkDaBits(const size_t n) {
-  std::cout << "CheckDaBits: " << n << std::endl;
   if (dabit_store.size() < n) {
-    // Does the smallest power of 2 >= n, to cover n.
     // BatchValidate currently handles the yelling if not enough.
-    // NextPowerOfTwo is not inclusive, so -1
-    batchValidate(NextPowerOfTwo(n - dabit_store.size() - 1));
+    // NextPowerOfTwo is not inclusive, so -1 or /2
+
+    // minimal approach: smallest needed, not as efficient
+    // const size_t needed = NextPowerOfTwo(n - dabit_store.size() - 1);
+
+    // largest approach: largest power of 2 < size (since exclusive)
+    const size_t largest = NextPowerOfTwo(unvalidated_dabit_store.size())/2;
+    batchValidate(largest);
   }
 }
 

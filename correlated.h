@@ -37,10 +37,13 @@ Pure OT based B2A, via intsum_ot
 enum StoreType {
   precompute,
   ot,
+  validated,
 };
 
 // Global for now. Can have client/server sync it or be a param file, but not necessary.
-const StoreType STORE_TYPE = precompute;
+// const StoreType STORE_TYPE = precompute;
+// const StoreType STORE_TYPE = ot;
+const StoreType STORE_TYPE = validated;
 
 
 class CorrelatedStore {

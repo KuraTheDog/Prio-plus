@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "correlated.h"
+#include "correlated_validated.h"
 #include "hash.h"
 #include "net_share.h"
 #include "ot.h"
@@ -143,6 +144,41 @@ MultCheckPreComp* getPrecomp(const size_t N) {
         pre = eval_precomp_store[N];
     }
     return pre;
+}
+
+int recv_unvalidated(const int clientfd, const std::string pk, const size_t n) {
+    if (STORE_TYPE != validated) {
+        return 0;
+    }
+
+    // Overkill? Can be more efficient in the future. See client for more.
+    const size_t N = NextPowerOfTwo(n-1);
+
+    int num_bytes = 0;
+
+    DaBit** const bits = new DaBit*[N];
+    AltTriple** const trips = new AltTriple*[N];
+    for (unsigned int i = 0; i < N; i++) {
+        bits[i] = new DaBit();
+        trips[i] = new AltTriple();
+    }
+
+    num_bytes += recv_DaBit_batch(clientfd, bits, N);
+    num_bytes += recv_AltTriple_batch(clientfd, trips, N);
+
+    ((ValidateCorrelatedStore*) correlated_store)->queueUnvalidated(bits, trips, pk);
+
+    // std::cout << "got " << N << " unvalidated in " << num_bytes << " bytes" << std::endl;
+
+    return num_bytes;
+}
+
+void process_unvalidated(const std::string pk, const size_t n) {
+    if (STORE_TYPE != validated) {
+        return;
+    }
+    const size_t N = NextPowerOfTwo(n-1);
+    ((ValidateCorrelatedStore*) correlated_store)->processUnvalidated(pk, N);
 }
 
 // Currently shares_2 and shares_p are flat num_shares*num_values array.
@@ -293,6 +329,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
     for (unsigned int i = 0; i < total_inputs; i++) {
         num_bytes += recv_in(clientfd, &share, sizeof(BitShare));
         const std::string pk(share.pk, share.pk + PK_LENGTH);
+        // recv_unvalidated(clientfd, 1, pk);
         if (share_map.find(pk) != share_map.end())
             continue;
         share_map[pk] = share.val;
@@ -390,13 +427,15 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
         share_map[pk] = share.val;
 
         // std::cout << "share[" << i << "] = " << share.val << std::endl;
+
+        num_bytes += recv_unvalidated(clientfd, pk, msg.num_bits);
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (STORE_TYPE != ot)
+    if (STORE_TYPE == precompute)
         ((DaBitStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits);
 
     start = clock_start();
@@ -413,8 +452,11 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
             server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             shares[i] = share.second;
             i++;
+
+            process_unvalidated(&share.first[0], msg.num_bits);
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
+        if (STORE_TYPE == validated) ((DaBitStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits);
         start2 = clock_start();
         fmpz_t* const shares_p = share_convert(num_inputs, 1, nbits, shares);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
@@ -450,8 +492,11 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
             if (!is_valid)
                 continue;
             shares[i] = share_map[pk];
+
+            process_unvalidated(pk, msg.num_bits);
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
+        if (STORE_TYPE == validated) ((DaBitStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits);
         start2 = clock_start();
         fmpz_t* const shares_p = share_convert(num_inputs, 1, nbits, shares);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
@@ -743,13 +788,15 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
             continue;
         }
         share_map[pk] = {share.val, share.val_squared, packet};
+
+        num_bytes += recv_unvalidated(clientfd, pk, msg.num_bits * num_dabits);
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (STORE_TYPE != ot)
+    if (STORE_TYPE == precompute)
         ((DaBitStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
 
     start = clock_start();
@@ -773,8 +820,11 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
             server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             pk_list[idx] = share.first;
             idx++;
+
+            process_unvalidated(&share.first[0], msg.num_bits * num_dabits);
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
+        if (STORE_TYPE == validated) ((DaBitStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -839,8 +889,11 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
             const std::string pk = get_pk(serverfd);
             pk_list[i] = pk;
             valid[i] = (share_map.find(pk) != share_map.end());
+
+            process_unvalidated(pk, msg.num_bits * num_dabits);
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
+        if (STORE_TYPE == validated) ((DaBitStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
         for (unsigned int i = 0; i < num_inputs; i++) {
             uint64_t val = 0, val2 = 0;
@@ -996,13 +1049,15 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         }
 
         share_map[pk] = {share.x_vals, share.y, share.x2_vals, share.xy_vals, packet};
+
+        num_bytes += recv_unvalidated(clientfd, pk, msg.num_bits * num_dabits);
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (STORE_TYPE != ot)
+    if (STORE_TYPE == precompute)
         ((DaBitStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
 
     start = clock_start();
@@ -1025,8 +1080,11 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             pk_list[idx] = share.first;
             idx++;
+
+            process_unvalidated(&share.first[0], msg.num_bits * num_dabits);
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
+        if (STORE_TYPE == validated) ((DaBitStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -1106,8 +1164,11 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             const std::string pk = get_pk(serverfd);
             pk_list[i] = pk;
             valid[i] = (share_map.find(pk) != share_map.end());
+
+            process_unvalidated(pk, msg.num_bits * num_dabits);
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
+        if (STORE_TYPE == validated) ((DaBitStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -1515,6 +1576,8 @@ int main(int argc, char** argv) {
         correlated_store = new PrecomputeStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE, DO_FORK);
     } else if (STORE_TYPE == ot) {
         correlated_store = new OTCorrelatedStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE, DO_FORK);
+    } else if (STORE_TYPE == validated) {
+        correlated_store = new ValidateCorrelatedStore(serverfd, server_num, CACHE_SIZE, LAZY_PRECOMPUTE, DO_FORK);
     } else {
         error_exit("Unknown store type");
     }

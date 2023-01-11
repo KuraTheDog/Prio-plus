@@ -21,6 +21,9 @@ class ValidateCorrelatedStore : public DaBitStore {
 
   std::unordered_map<size_t, MultCheckPreComp*> eval_precomp_store;
 
+  typedef std::tuple <const DaBit* const *, const AltTriple* const *> pairtype;
+  std::unordered_map<std::string, pairtype> unvalidated_pairs;
+
   // TODO: some way to bulk generate alt triples (e.g. OT).
   const AltTriple* get_validated_alt_triple();
 
@@ -45,6 +48,10 @@ public:
                             const bool* const use_validated);
 
   void addUnvalidated(const DaBit* const dabit, const AltTriple* const trip);
+  // If things are gotten out of order, accumulate based on pk
+  void queueUnvalidated(const DaBit* const * dabits, const AltTriple* const * trips,
+                        const std::string pk);
+  void processUnvalidated(const std::string pk, const size_t n);
 
   void checkDaBits(const size_t n = 0);
 
