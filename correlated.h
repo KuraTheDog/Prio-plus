@@ -22,7 +22,7 @@ It also waits for the child to finish before exiting or moving to a substep that
 #include <queue>
 
 #include "constants.h"
-#include "he_triples.h"
+// #include "he_triples.h"
 #include "ot.h"
 #include "share.h"
 
@@ -42,7 +42,7 @@ class CorrelatedStore {
   const bool lazy;
 
   // Arithmetic triple generator
-  ArithTripleGenerator* triple_gen = nullptr;
+  // ArithTripleGenerator* triple_gen = nullptr;
 
   std::queue<const DaBit* const > dabit_store;
   std::queue<const BooleanBeaverTriple* const > btriple_store;
@@ -81,8 +81,8 @@ public:
     if (lazy) {
       std::cout << "Doing fast but insecure dabit precomputes and Beaver Triples." << std::endl;
     } else if (fmpz_cmp_ui(Int_Modulus, 1ULL << 49) < 0) {
-      std::cout << "Using PALISADE SHE arith triples" << std::endl;
-      triple_gen = new ArithTripleGenerator(serverfd, server_num);
+      std::cout << "PALISADE SHE arith triples currently disabled. " << std::endl;
+      // triple_gen = new ArithTripleGenerator(serverfd, server_num);
     } else {
       std::cout << "Mod big, using slower arith triples" << std::endl;
     }

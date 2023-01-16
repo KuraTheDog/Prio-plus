@@ -1,3 +1,4 @@
+#undef NDEBUG
 #include <iostream>
 
 #include "utils_test_connect.h"
@@ -157,6 +158,7 @@ void test_abs_cmp(
 
       std::cout << i << ": |" << get_fsigned(v0, Int_Modulus) << (fmpz_is_one(larger[i]) ? "| < |" : "| > |") << get_fsigned(v1, Int_Modulus) << "|, \tactual: " << (actual ? "<" : ">") << std::endl;
       // std::cout << "(" << fmpz_get_ui(val0[i]) << " + " << fmpz_get_ui(val0_other[i]) << ") = " << get_fsigned(v0, Int_Modulus) << " vs " << get_fsigned(v1, Int_Modulus) << " = (" << fmpz_get_ui(val1[i]) << " + " << fmpz_get_ui(val1_other[i]) << ")\n";
+      assert(fmpz_is_one(larger[i]) == actual);
     }
     fmpz_clear(v0);
     fmpz_clear(v1);

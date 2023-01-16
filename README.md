@@ -24,7 +24,7 @@ Follow the links above to install the corresponding packages
 
 ### PALISADE Instructions
 
-For full install instructions, see [here](https://gitlab.com/palisade/palisade-release/-/wikis/Build-instructions).  
+For full install instructions, see [here](https://gitlab.com/palisade/palisade-release/-/wikis/Build-instructions).
 Currently, Palisade is built with default args (`cmake ..`).
 
 PALISADE encryption is used to generate arithmetic Beaver triples.

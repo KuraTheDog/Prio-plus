@@ -1542,6 +1542,7 @@ int heavy_helper(const std::string protocol, const size_t numreqs,
         freqshare0[i].arr = new bool[2 * b];
         freqshare1[i].arr = new bool[2 * b];
         prg.random_bool(freqshare0[i].arr, 2 * b);
+        memcpy(freqshare1[i].arr, freqshare0[i].arr, 2 * b);
         for (unsigned int j = 0; j < b; j++) {
             // just use standard basis, i.e. jth bit
             bool bucket = (real_val >> j) % 2;
@@ -1553,8 +1554,8 @@ int heavy_helper(const std::string protocol, const size_t numreqs,
 
             // [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
             // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
-            freqshare1[i].arr[j] = freqshare0[i].arr[j] ^ bucket;
-            freqshare1[i].arr[j + b] = freqshare0[i].arr[j + b] ^ h;
+            freqshare1[i].arr[j] ^= bucket;
+            freqshare1[i].arr[j + b] ^= h;
         }
 
         const std::string pk_s = make_pk(prg);
@@ -1611,6 +1612,7 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
 
     // seed for consistent hashes.
     flint_rand_t hash_seed; flint_randinit(hash_seed);
+    // TODO: 4-wise independent hashes? Need to double check they're needed
     HashStore hash_store(num_bits, num_bits, 2, hash_seed);
     // for (unsigned int i = 0; i < num_bits; i++)
     //     hash_store.print_hash(i);

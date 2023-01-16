@@ -5,15 +5,20 @@ set(CMAKE_CXX_STANDARD 11)
 
 # Needed to get openmp to work
 if(APPLE)
-      set(CMAKE_C_COMPILER "/usr/local/bin/gcc-11")
-      set(CMAKE_CXX_COMPILER "/usr/local/bin/g++-11")
+  # set(CMAKE_C_COMPILER "/opt/homebrew/Cellar/gcc/12.2.0/bin/g-12")
+  # set(CMAKE_CXX_COMPILER "/opt/homebrew/Cellar/gcc/12.2.0/bin/g++-12")
+  # set(CMAKE_C_COMPILER "/usr/local/bin/gcc-11")
+  # set(CMAKE_CXX_COMPILER "/usr/local/bin/g++-11")
+  # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Xpreprocessor")
+  # include_directories("/usr/local/include" "/usr/local/opt/llvm/include")
+  # link_directories("/usr/local/lib" "/usr/local/opt/llvm/lib")
 endif()
 
-if(NOT MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-else()
-  add_definitions(-D_WIN32_WINNT=0x600)
-endif()
+# if(NOT MSVC)
+#   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+# else()
+#   add_definitions(-D_WIN32_WINNT=0x600)
+# endif()
 
 # Find flint
 if(FLINT_INCLUDE_DIR AND FLINT_LIBRARIES)
@@ -36,34 +41,19 @@ include(${CMAKE_FOLDER}/cmake/emp-ot-config.cmake)
 include_directories(${EMP-OT_INCLUDE_DIRS})
 
 # Palisade
-find_package(OpenMP REQUIRED)
-find_package(Palisade)
-include_directories( ${OPENMP_INCLUDES} )
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PALISADE_CXX_FLAGS}" )
-include_directories( ${PALISADE_INCLUDE} )
-include_directories( ${PALISADE_INCLUDE}/third-party/include )
-include_directories( ${PALISADE_INCLUDE}/core )
-include_directories( ${PALISADE_INCLUDE}/pke )
-link_directories( ${PALISADE_LIBDIR} )
-link_directories( ${OPENMP_LIBRARIES} )
-# Non-static
-set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${PALISADE_EXE_LINKER_FLAGS}" )
-link_libraries( ${PALISADE_SHARED_LIBRARIES} )
-
-# Palisade
-find_package(OpenMP REQUIRED)
-find_package(Palisade)
-include_directories( ${OPENMP_INCLUDES} )
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PALISADE_CXX_FLAGS}" )
-include_directories( ${PALISADE_INCLUDE} )
-include_directories( ${PALISADE_INCLUDE}/third-party/include )
-include_directories( ${PALISADE_INCLUDE}/core )
-include_directories( ${PALISADE_INCLUDE}/pke )
-link_directories( ${PALISADE_LIBDIR} )
-link_directories( ${OPENMP_LIBRARIES} )
-# Non-static
-set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${PALISADE_EXE_LINKER_FLAGS}" )
-link_libraries( ${PALISADE_SHARED_LIBRARIES} )
+# find_package(Palisade)
+# set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PALISADE_CXX_FLAGS}" )
+# message("PALISADE_INCLUDE: ${PALISADE_INCLUDE}")
+# include_directories( ${OPENMP_INCLUDES} )
+# include_directories( ${PALISADE_INCLUDE} )
+# include_directories( ${PALISADE_INCLUDE}/third-party/include )
+# include_directories( ${PALISADE_INCLUDE}/core )
+# include_directories( ${PALISADE_INCLUDE}/pke )
+# link_directories( ${PALISADE_LIBDIR} )
+# link_directories( ${OPENMP_LIBRARIES} )
+# # Non-static
+# set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${PALISADE_EXE_LINKER_FLAGS}" )
+# link_libraries( ${PALISADE_SHARED_LIBRARIES} )
 
 foreach(_target
   server client
@@ -94,7 +84,7 @@ foreach(_target
   test_ot
   test_bits
   test_hash
-  test_he_triples
+  # test_he_triples
   test_heavy
 )
   set (test_SOURCE_FILES "test/${_target}.cpp")
@@ -116,7 +106,7 @@ foreach(_target
     set (test_SOURCE_FILES ${test_SOURCE_FILES} "hash.cpp")
   endif()
   if (_target IN_LIST test_he_triples)
-    set (test_SOURCE_FILES ${test_SOURCE_FILES} "he_triples.cpp")
+    # set (test_SOURCE_FILES ${test_SOURCE_FILES} "he_triples.cpp")
   endif()
   list(REMOVE_DUPLICATES test_SOURCE_FILES)
   # message(STATUS "${_target}: ${test_SOURCE_FILES}")

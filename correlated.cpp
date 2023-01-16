@@ -25,16 +25,16 @@ void CorrelatedStore::addTriples(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > triples_batch_size ? n : triples_batch_size);
   std::cout << "adding triples: " << num_to_make << std::endl;
-  if (triple_gen) {  // not null pointer
-    std::vector<BeaverTriple*> new_triples = triple_gen->generateTriples(num_to_make);
-    for (unsigned int i = 0; i < num_to_make; i++)
-      atriple_store.push(new_triples[i]);
-  } else {
-    std::cout << "Using lazy beaver triples" << std::endl;
-    for (unsigned int i = 0; i < num_to_make; i++) {
-      BeaverTriple* triple = generate_beaver_triple_lazy(serverfd, server_num);
-      atriple_store.push(triple);
-    }
+  // if (triple_gen) {  // not null pointer
+  //   std::vector<BeaverTriple*> new_triples = triple_gen->generateTriples(num_to_make);
+  //   for (unsigned int i = 0; i < num_to_make; i++)
+  //     atriple_store.push(new_triples[i]);
+  // } else {
+  std::cout << "Using lazy beaver triples" << std::endl;
+  for (unsigned int i = 0; i < num_to_make; i++) {
+    const BeaverTriple* const triple = generate_beaver_triple_lazy(serverfd, server_num);
+    atriple_store.push(triple);
+    // }
   }
   std::cout << "addTriples timing : " << sec_from(start) << std::endl;
 }
@@ -154,7 +154,7 @@ CorrelatedStore::~CorrelatedStore() {
     delete triple;
   }
   while (!atriple_store.empty()) {
-    BeaverTriple* triple = atriple_store.front();
+    const BeaverTriple* const triple = atriple_store.front();
     atriple_store.pop();
     delete triple;
   }
@@ -224,7 +224,7 @@ int CorrelatedStore::multiplyArithmeticShares(
   checkTriples(N, true);
 
   for (unsigned int i = 0; i < N; i++) {
-    BeaverTriple* triple = getTriple();
+    const BeaverTriple* const triple = getTriple();
 
     fmpz_sub(d[i], x[i], triple->A);  // [d] = [x] - [a]
     fmpz_mod(d[i], d[i], Int_Modulus);
@@ -310,7 +310,7 @@ int CorrelatedStore::addBinaryShares(const size_t N,
       idx++;
     }
 
-    const bool* const new_carry = new bool[idx];
+    bool* const new_carry = new bool[idx];
     sent_bytes += multiplyBoolShares(idx, xi, yi, new_carry);
 
     idx = 0;
@@ -473,7 +473,7 @@ int CorrelatedStore::heavy_convert(
   // then (x ^ x')(z + z')
   fmpz_t r; fmpz_init(r);
   fmpz_t z; fmpz_init(z);
-  fmpz_t tmp; fmpz_init(tmp);
+  fmpz_t rz; fmpz_init(rz);
   // Bucket 0 choices
   uint64_t* const data0 = new uint64_t[N * b];
   uint64_t* const data1 = new uint64_t[N * b];
@@ -507,15 +507,10 @@ int CorrelatedStore::heavy_convert(
       fmpz_sub(bucket0[j], bucket0[j], r);
       fmpz_mod(bucket0[j], bucket0[j], Int_Modulus);
       // r0 + xz and r0 + (1-x) z
-      fmpz_add(tmp, r, z);
-      fmpz_mod(tmp, tmp, Int_Modulus);
-      if (x[idx]) {
-        data0[idx] = fmpz_get_ui(r);
-        data1[idx] = fmpz_get_ui(tmp);
-      } else {
-        data0[idx] = fmpz_get_ui(tmp);
-        data1[idx] = fmpz_get_ui(r);
-      }
+      fmpz_add(rz, r, z);
+      fmpz_mod(rz, rz, Int_Modulus);
+      data0[idx] = fmpz_get_ui(x[idx] ? r : rz);
+      data1[idx] = fmpz_get_ui(x[idx] ? rz : r);
 
       // r1
       fmpz_randm(r, seed, Int_Modulus);
@@ -523,26 +518,21 @@ int CorrelatedStore::heavy_convert(
       fmpz_sub(bucket1[j], bucket1[j], r);
       fmpz_mod(bucket1[j], bucket1[j], Int_Modulus);
       // r1 + (1-x)z and r1 + xz
-      fmpz_add(tmp, r, z);
-      fmpz_mod(tmp, tmp, Int_Modulus);
-      if (x[idx]) {
-        data0_1[idx] = fmpz_get_ui(tmp);
-        data1_1[idx] = fmpz_get_ui(r);
-      } else {
-        data0_1[idx] = fmpz_get_ui(r);
-        data1_1[idx] = fmpz_get_ui(tmp);
-      }
+      fmpz_add(rz, r, z);
+      fmpz_mod(rz, rz, Int_Modulus);
+      data0[idx] = fmpz_get_ui(x[idx] ? rz : r);
+      data1[idx] = fmpz_get_ui(x[idx] ? r : rz);
     }
   }
 
   clear_fmpz_array(y_p, N * b);
   fmpz_clear(r);
   fmpz_clear(z);
-  fmpz_clear(tmp);
+  fmpz_clear(rz);
 
   // Step 3: OT swap
-  uint64_t* received = new uint64_t[N * b];
-  uint64_t* received_1 = new uint64_t[N * b];
+  uint64_t* const received = new uint64_t[N * b];
+  uint64_t* const received_1 = new uint64_t[N * b];
   pid_t pid = 0;
   int status = 0;
   // NOTE: OT forking currently seems bugged. Disable for now.
@@ -855,7 +845,7 @@ int CorrelatedStore::gen_rand_bitshare(const size_t N,
   bool* const valid = new bool[N];
   memset(valid, false, N * sizeof(bool));
   size_t num_invalid;
-  size_t log_num_invalid = 0;  // Just for logging
+  [[maybe_unused]] size_t log_num_invalid = 0;  // Just for logging
 
   pid_t pid = 0;
   int status = 0;
@@ -871,7 +861,7 @@ int CorrelatedStore::gen_rand_bitshare(const size_t N,
       fmpz_zero(r[i]);
       for (unsigned int j = 0; j < b; j++) {
         // Just need 2 numbers summing to 0 or 1, so bp. b2 not needed.
-        DaBit* dabit = getDaBit();
+        const DaBit* const dabit = getDaBit();
         fmpz_set(rB[i * b + j], dabit->bp);
         fmpz_addmul_ui(r[i], dabit->bp, 1ULL << j);
         fmpz_mod(r[i], r[i], Int_Modulus);
