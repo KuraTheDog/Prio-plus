@@ -520,8 +520,8 @@ int CorrelatedStore::heavy_convert(
       // r1 + (1-x)z and r1 + xz
       fmpz_add(rz, r, z);
       fmpz_mod(rz, rz, Int_Modulus);
-      data0[idx] = fmpz_get_ui(x[idx] ? rz : r);
-      data1[idx] = fmpz_get_ui(x[idx] ? r : rz);
+      data0_1[idx] = fmpz_get_ui(x[idx] ? rz : r);
+      data1_1[idx] = fmpz_get_ui(x[idx] ? r : rz);
     }
   }
 

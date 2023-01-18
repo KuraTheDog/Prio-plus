@@ -71,10 +71,10 @@ void testHeavyConvert(const int server_num, const int serverfd,
     for (unsigned int j = 0; j < nbits; j++) {
       fmpz_add(tmp, bucket0[j], bucket0_other[j]);
       fmpz_mod(tmp, tmp, Int_Modulus);
-      std::cout << "bucket0[" << j << "] total = " << fmpz_get_ui(tmp) << std::endl;
+      std::cout << "bucket0[" << j << "] total = " << get_fsigned(tmp, Int_Modulus) << std::endl;
       fmpz_add(tmp, bucket1[j], bucket1_other[j]);
       fmpz_mod(tmp, tmp, Int_Modulus);
-      std::cout << "bucket1[" << j << "] total = " << fmpz_get_ui(tmp) << std::endl;
+      std::cout << "bucket1[" << j << "] total = " << get_fsigned(tmp, Int_Modulus) << std::endl;
     }
     fmpz_clear(tmp);
     clear_fmpz_array(bucket0_other, nbits);
@@ -372,7 +372,7 @@ void runServerTest(const int server_num, const int serverfd) {
     fmpz_randm(tmp, seed, Int_Modulus);
   fmpz_clear(tmp);
 
-  // testHeavyConvert(server_num, serverfd, store);
+  testHeavyConvert(server_num, serverfd, store);
 
   // test_cmp_bit(server_num, serverfd, store);
 
