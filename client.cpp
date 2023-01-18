@@ -1573,8 +1573,7 @@ int heavy_helper(const std::string protocol, const size_t numreqs,
         // std::cout << "sending 0[" << i << "] = ";
         // for (unsigned int j = 0; j < 2 * num_bits; j++)
         //     std::cout << freqshare0[i].arr[j] << " ";
-        // std::cout << std::endl;
-        // std::cout << "sending 1[" << i << "] = ";
+        // std::cout << ", 1[" << i << "] = ";
         // for (unsigned int j = 0; j < 2 * num_bits; j++)
         //     std::cout << freqshare1[i].arr[j] << " ";
         // std::cout << std::endl;
@@ -1622,6 +1621,8 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
     num_bytes += send_to_server(1, &msg, sizeof(initMsg));
 
     // Send seed
+    // Will need to send seeds if use various bucket splitting.
+    // Currently per-bit splitting.
     // num_bytes += send_seed(sockfd0, hash_seed);
     // num_bytes += send_seed(sockfd1, hash_seed);
 
@@ -1639,7 +1640,7 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
             std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
     }
     delete[] count;
-
+    std::cout << "Total sent bytes: " << num_bytes << std::endl;
 }
 
 int main(int argc, char** argv) {

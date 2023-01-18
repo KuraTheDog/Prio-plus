@@ -157,7 +157,7 @@ fmpz_t* const share_convert(const size_t num_shares,  // # inputs
                             const uint64_t* const shares_2
                             ) {
     auto start = clock_start();
-    int sent_bytes = 0;
+    [[maybe_unused]] int sent_bytes = 0;
 
     fmpz_t* shares_p; new_fmpz_array(&shares_p, num_shares * num_values);
 

@@ -33,22 +33,23 @@ class HashStore {
   fmpz_t** coeff;
 
 public:
-  HashStore(const size_t d, const size_t l_bits, const size_t w_arg,
+  HashStore(const size_t num_hashes, const size_t input_bits, const size_t hash_range,
             flint_rand_t hash_seed_arg, const size_t independence = 2)
-  : d(d)
-  , l_bits(l_bits)
+  : d(num_hashes)
+  , l_bits(input_bits)
   , degree(independence - 1)
   {
-    fmpz_init(w); fmpz_set_ui(w, w_arg);
-    fmpz_init(l); fmpz_set_ui(l, 1ULL << l_bits);
+    fmpz_init_set_ui(w, hash_range);
+    fmpz_init_set_ui(l, 1ULL << l_bits);
     hash_seed[0] = hash_seed_arg[0];
 
+    // TODO: LOG2 (floor), double check if this gives floor vs ceiling.
     w_bits = 1;
-    size_t w_tmp = w_arg - 1;
+    size_t w_tmp = hash_range - 1;
     while(w_tmp >>= 1)
       w_bits++;
 
-    // std::cout << "Hash store d: " << d << ", l: 2^" << l_bits << " -> w: " << w_arg << " (" << w_bits << " bits)" << std::endl;
+    std::cout << "Hash store d: " << d << ", l: 2^" << l_bits << " -> w: " << hash_range << " (" << w_bits << " bits)" << std::endl;
 
     // We assume w <= L. w > L striaghtforward to do, but currently not needed
     if (fmpz_cmp(w, l) > 0) {
@@ -65,11 +66,7 @@ public:
     for (unsigned int i = 0; i < d; i++) {
       new_fmpz_array(&coeff[i], degree + 1);
       for (unsigned int j = 0; j <= degree; j++) {
-        if (j == 0) {
-          fmpz_randm(coeff[i][j], hash_seed, w);
-        } else {
-          fmpz_randm(coeff[i][j], hash_seed, l);
-        }
+        fmpz_randm(coeff[i][j], hash_seed, j == 0 ? w : l);
       }
     }
   }
