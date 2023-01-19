@@ -61,10 +61,14 @@ std::string make_pk(emp::PRG prg) {
     return pub_key_to_hex((uint64_t*)&b);
 }
 
+int send_pk(const int sockfd, const char* const pk) {
+    return send(sockfd, (void*)&(pk[0]), PK_LENGTH, 0);
+}
+
 int send_maxshare(const int server_num, const MaxShare& maxshare, const unsigned int B) {
     const int sock = (server_num == 0) ? sockfd0 : sockfd1;
 
-    int ret = send(sock, (void*)&(maxshare.pk[0]), PK_LENGTH, 0);
+    int ret = send_pk(sock, maxshare.pk);
     ret += send_uint64_batch(sock, maxshare.arr, B+1);
 
     return ret;
@@ -72,7 +76,7 @@ int send_maxshare(const int server_num, const MaxShare& maxshare, const unsigned
 
 int send_freqshare(const int server_num, const FreqShare& freqshare, const uint64_t n) {
     const int sock = (server_num == 0) ? sockfd0 : sockfd1;
-    int ret = send(sock, (void*)&(freqshare.pk[0]), PK_LENGTH, 0);
+    int ret = send_pk(sock, freqshare.pk);
     ret += send_bool_batch(sock, freqshare.arr, n);
     return ret;
 }
@@ -83,7 +87,7 @@ int send_linregshare(const int server_num, const LinRegShare& share,  const size
     const size_t num_x = degree - 1;
     const size_t num_quad = num_x * (num_x + 1) / 2;
 
-    int ret = send(sock, (void*)&(share.pk[0]), PK_LENGTH, 0);
+    int ret = send_pk(sock, share.pk);
 
     ret += send_uint64_batch(sock, share.x_vals, num_x);
     ret += send_uint64(sock, share.y);
@@ -98,6 +102,12 @@ int send_to_server(const int server, const void* const buffer, const size_t n, c
     const int socket = (server == 0 ? sockfd0 : sockfd1);
     int ret = send(socket, buffer, n, flags);
     if (ret < 0) error_exit("Failed to send to server");
+    return ret;
+}
+
+int send_seeds(const flint_rand_t hash_seed) {
+    int ret = send_seed(sockfd0, hash_seed);
+    ret += send_seed(sockfd1, hash_seed);
     return ret;
 }
 
@@ -1427,6 +1437,14 @@ void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
     delete[] c;
 }
 
+// Make, init to shares of 0
+void freq_init(bool*& arr0, bool*& arr1, const size_t share_size, emp::PRG& prg) {
+    arr0 = new bool[share_size];
+    arr1 = new bool[share_size];
+    prg.random_bool(arr0, share_size);
+    memcpy(arr1, arr0, share_size * sizeof(bool));
+}
+
 int freq_helper(const std::string protocol, const size_t numreqs,
                 uint64_t* counts, const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
@@ -1446,10 +1464,7 @@ int freq_helper(const std::string protocol, const size_t numreqs,
         // std::cout << "Value " << i << " = " << real_val << std::endl;
 
         // Same everywhere exept at real_val
-        freqshare0[i].arr = new bool[max_int];
-        prg.random_bool(freqshare0[i].arr, max_int);
-        freqshare1[i].arr = new bool[max_int];
-        memcpy(freqshare1[i].arr, freqshare0[i].arr, max_int * sizeof(bool));
+        freq_init(freqshare0[i].arr, freqshare1[i].arr, max_int, prg);
         freqshare1[i].arr[real_val] ^= 1;
 
         const std::string pk_s = make_pk(prg);
@@ -1539,10 +1554,7 @@ int heavy_helper(const std::string protocol, const size_t numreqs,
         count[real_val] += 1;
         // std::cout << "real_val: " << real_val << std::endl;
 
-        freqshare0[i].arr = new bool[2 * b];
-        freqshare1[i].arr = new bool[2 * b];
-        prg.random_bool(freqshare0[i].arr, 2 * b);
-        memcpy(freqshare1[i].arr, freqshare0[i].arr, 2 * b);
+        freq_init(freqshare0[i].arr, freqshare1[i].arr, 2 * b, prg);
         for (unsigned int j = 0; j < b; j++) {
             // just use standard basis, i.e. jth bit
             bool bucket = (real_val >> j) % 2;
@@ -1623,8 +1635,7 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
     // Send seed
     // Will need to send seeds if use various bucket splitting.
     // Currently per-bit splitting.
-    // num_bytes += send_seed(sockfd0, hash_seed);
-    // num_bytes += send_seed(sockfd1, hash_seed);
+    // num_bytes += send_seeds(hash_seed);
 
     if (CLIENT_BATCH) {
         num_bytes += heavy_helper(protocol, numreqs, hash_store, count);
