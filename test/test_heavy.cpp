@@ -35,11 +35,20 @@ void testHeavyConvert(const int server_num, const int serverfd,
   fmpz_t* bucket1; new_fmpz_array(&bucket1, nbits);
   bool* const valid = new bool[N]; memset(valid, 1, N);
 
+  int expected0[nbits]; memset(expected0, 0, nbits * sizeof(int));
+  int expected1[nbits]; memset(expected1, 0, nbits * sizeof(int));
   // Setup
   for (unsigned int j = 0; j < nbits; j++) {
     const bool bucket = j % 2;
     const bool hash  = (j >> 1) % 2;
-    std::cout << "bit " << j << " = bucket " << bucket << ", hash " << hash << std::endl;
+    // if (server_num == 0) {
+    //   std::cout << "bit " << j << " = bucket " << bucket << ", hash " << hash;
+    //   if (with_mask) std::cout << ", mask " << mask_eval(j);
+    //   std::cout << std::endl;
+    // }
+
+    (bucket ? expected1 : expected0)[j] = (hash ? -(int)N : N);
+    
 
     for (unsigned int i = 0; i < N; i++) {
       const size_t idx = i * nbits + j;
@@ -71,10 +80,16 @@ void testHeavyConvert(const int server_num, const int serverfd,
     for (unsigned int j = 0; j < nbits; j++) {
       fmpz_add(tmp, bucket0[j], bucket0_other[j]);
       fmpz_mod(tmp, tmp, Int_Modulus);
-      std::cout << "bucket0[" << j << "] total = " << get_fsigned(tmp, Int_Modulus) << std::endl;
+      std::cout << "bucket0[" << j << "] total = " << get_fsigned(tmp, Int_Modulus);
+      std::cout << ", \tvalue = " << expected0[j];
+      std::cout << std::endl;
+      assert(get_fsigned(tmp, Int_Modulus) == expected0[j]);
       fmpz_add(tmp, bucket1[j], bucket1_other[j]);
       fmpz_mod(tmp, tmp, Int_Modulus);
-      std::cout << "bucket1[" << j << "] total = " << get_fsigned(tmp, Int_Modulus) << std::endl;
+      std::cout << "bucket1[" << j << "] total = " << get_fsigned(tmp, Int_Modulus);
+      std::cout << ", \tvalue = " << expected1[j];
+      std::cout << std::endl;
+      assert(get_fsigned(tmp, Int_Modulus) == expected1[j]);
     }
     fmpz_clear(tmp);
     clear_fmpz_array(bucket0_other, nbits);

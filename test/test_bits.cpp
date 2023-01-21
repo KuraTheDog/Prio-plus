@@ -91,26 +91,29 @@ void test_multiplyArithmeticShares(const size_t N, const int server_num,
 
 void test_multiplyBoolArith(const size_t N, const int server_num,
     const int serverfd, CorrelatedStore* store) {
-  bool* const b = new bool[N];
-  fmpz_t* x; new_fmpz_array(&x, 2 * N);
+  bool* const b = new bool[4];
+  fmpz_t* x; new_fmpz_array(&x, N * 4);
 
+  // bit value: 0, 1, 1, 0
   if (server_num == 0) {
     b[0] = false; b[1] = false; b[2] = true; b[3] = true;
-    fmpz_set_si(x[0], 1); fmpz_set_si(x[1], 2); fmpz_set_si(x[2], 3); fmpz_set_si(x[3], 4);
-    fmpz_set_si(x[N], 5); fmpz_set_si(x[N+1], 6); fmpz_set_si(x[N+2], 7); fmpz_set_si(x[N+3], 8);
+    for (unsigned int i = 0; i < N*4; i++) {
+      fmpz_set_si(x[i], i+1);
+    }
   } else {
     b[0] = false; b[1] = true; b[2] = false; b[3] = true;
-    fmpz_set_si(x[0], 10); fmpz_set_si(x[1], 20); fmpz_set_si(x[2], 30); fmpz_set_si(x[3], 40);
-    fmpz_set_si(x[N], 50); fmpz_set_si(x[N+1], 60); fmpz_set_si(x[N+2], 70); fmpz_set_si(x[N+3], 80);
+    for (unsigned int i = 0; i < N*4; i++) {
+      fmpz_set_si(x[i], (i+1)*1000);
+    }
   }
 
-  fmpz_t* z; new_fmpz_array(&z, 2 * N);
-  store->multiplyBoolArith(N, 2, b, x, z);
+  fmpz_t* z; new_fmpz_array(&z, N * 4);
+  store->multiplyBoolArithFlat(N, 4, b, x, z);
 
   if (server_num == 0) {
-    fmpz_t* z_other; new_fmpz_array(&z_other, 2*N);
-    recv_fmpz_batch(serverfd, z_other, 2*N);
-    for (unsigned int i = 0; i < 2*N; i++) {
+    fmpz_t* z_other; new_fmpz_array(&z_other, N * 4);
+    recv_fmpz_batch(serverfd, z_other, N * 4);
+    for (unsigned int i = 0; i < N * 4; i++) {
       fmpz_add(z[i], z[i], z_other[i]);
       fmpz_mod(z[i], z[i], Int_Modulus);
 
@@ -118,22 +121,25 @@ void test_multiplyBoolArith(const size_t N, const int server_num,
     }
     clear_fmpz_array(z_other, N);
 
-    assert(fmpz_equal_ui(z[0], 0));
-    assert(fmpz_equal_ui(z[1], 22));
-    assert(fmpz_equal_ui(z[2], 33));
-    assert(fmpz_equal_ui(z[3], 0));
-
-    assert(fmpz_equal_ui(z[N], 0));
-    assert(fmpz_equal_ui(z[N+1], 66));
-    assert(fmpz_equal_ui(z[N+2], 77));
-    assert(fmpz_equal_ui(z[N+3], 0));
+    for (unsigned int j = 0; j < 4; j++) {
+      // std::cout << "bit: " << j << std::endl;
+      for (unsigned int i = 0; i < N; i++) {
+        const size_t idx = i * 4 + j;
+        // std::cout << "N = " << i << ", idx = " << idx << ": "; fmpz_print(z[idx]); std::cout << std::endl;
+        if (j == 0 or j == 3) {
+          assert(fmpz_equal_ui(z[idx], 0));
+        } else {
+          assert(fmpz_equal_ui(z[idx], (idx+1) * 1001));
+        }
+      }
+    }
   } else {
-    send_fmpz_batch(serverfd, z, 2 * N);
+    send_fmpz_batch(serverfd, z, N * 4);
   }
 
   delete[] b;
-  clear_fmpz_array(x, 2 * N);
-  clear_fmpz_array(z, 2 * N);
+  clear_fmpz_array(x, N * 4);
+  clear_fmpz_array(z, N * 4);
 }
 
 void test_addBinaryShares(const size_t N, const size_t* const nbits, const int server_num,

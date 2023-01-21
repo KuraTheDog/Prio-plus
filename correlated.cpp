@@ -276,7 +276,8 @@ int CorrelatedStore::multiplyArithmeticShares(
 }
 
 int CorrelatedStore::multiplyBoolArith(
-    const size_t N, const size_t M, const bool* const b, const fmpz_t* const x, fmpz_t* const z
+    const size_t N, const size_t B, const bool* const b, const fmpz_t* const x,
+    fmpz_t* const z, fmpz_t* const z_inv, const bool* const valid
 ) {
   int sent_bytes = 0;
   /* b0, b1 bits. x0, x1 values
@@ -284,47 +285,84 @@ int CorrelatedStore::multiplyBoolArith(
   Send (r, r + x), flip order on b0, select with b1.
   So receive r if b0 = b1, r + x if b0 != b1. => r + (b0 ^ b1) x
   */
-  uint64_t* const data0 = new uint64_t[N * M];
-  uint64_t* const data1 = new uint64_t[N * M];
-  bool* const b_stacked = new bool[N * M];
+  uint64_t* const data0 = new uint64_t[N * B];
+  uint64_t* const data1 = new uint64_t[N * B];
+  uint64_t* const data0_inv = z_inv ? new uint64_t[N * B] : nullptr;
+  uint64_t* const data1_inv = z_inv ? new uint64_t[N * B] : nullptr;
   fmpz_t r; fmpz_init(r);
   fmpz_t rx; fmpz_init(rx);
   for (unsigned int i = 0; i < N; i++) {
-    for (unsigned int j = 0; j < M; j++) {
-      const unsigned int idx = i + j * N;
+    if (valid && !valid[i]) continue;
+    for (unsigned int j = 0; j < B; j++) {
+      const unsigned int idx = i * B + j;
+
       fmpz_randm(r, seed, Int_Modulus);
-      // fmpz_set_si(r, 0);
+      // fmpz_set_ui(r, 100);
       fmpz_sub(z[idx], z[idx], r);
       fmpz_add(rx, r, x[idx]);
       fmpz_mod(rx, rx, Int_Modulus);
       // (r, r+x), swap if b
-      data0[idx] = fmpz_get_ui(b[i] ? rx : r);
-      data1[idx] = fmpz_get_ui(b[i] ? r : rx);
-      b_stacked[idx] = b[i];
+      data0[idx] = fmpz_get_ui(b[idx] ? rx : r);
+      data1[idx] = fmpz_get_ui(b[idx] ? r : rx);
+
+      if (z_inv) {
+        fmpz_randm(r, seed, Int_Modulus);
+        // fmpz_set_ui(r, 100);
+        fmpz_sub(z_inv[idx], z_inv[idx], r);
+        fmpz_add(rx, r, x[idx]);
+        fmpz_mod(rx, rx, Int_Modulus);
+        // (r+x, r), swap if b
+        data0_inv[idx] = fmpz_get_ui(b[idx] ? r : rx);
+        data1_inv[idx] = fmpz_get_ui(b[idx] ? rx : r);
+      }
     }
   }
   fmpz_clear(r);
   fmpz_clear(rx);
 
-  uint64_t* const received = new uint64_t[N*M];
+  uint64_t* const received = new uint64_t[N*B];
+  uint64_t* const received_inv = z_inv ? new uint64_t[N*B] : nullptr;
   // Fork stuff ignored for now.
   if (server_num == 0) {
-    sent_bytes += ot0->send(data0, data1, N*M);
-    sent_bytes += ot1->recv(received, b_stacked, N*M);
+    sent_bytes += ot0->send(data0, data1, N*B, data0_inv, data1_inv);
+    sent_bytes += ot1->recv(received, b, N*B, received_inv);
   } else {
-    sent_bytes += ot0->recv(received, b_stacked, N*M);
-    sent_bytes += ot1->send(data0, data1, N*M);
+    sent_bytes += ot0->recv(received, b, N*B, received_inv);
+    sent_bytes += ot1->send(data0, data1, N*B, data0_inv, data1_inv);
   }
   delete[] data0;
   delete[] data1;
-  delete[] b_stacked;
+  if (z_inv) {
+    delete[] data0_inv;
+    delete[] data1_inv;
+  }
 
-  for (unsigned int i = 0; i < N*M; i++) {
+  for (unsigned int i = 0; i < N*B; i++) {
     fmpz_add_ui(z[i], z[i], received[i]);
     fmpz_mod(z[i], z[i], Int_Modulus);
   }
   delete[] received;
+  if (z_inv) {
+    for (unsigned int i = 0; i < N*B; i++) {
+      fmpz_add_ui(z_inv[i], z_inv[i], received_inv[i]);
+      fmpz_mod(z_inv[i], z_inv[i], Int_Modulus);
+    }
+    delete[] received_inv;
+  }
 
+  return sent_bytes;
+}
+
+int CorrelatedStore::multiplyBoolArithFlat(
+    const size_t N, const size_t B, const bool* const b_flat, const fmpz_t* const x,
+    fmpz_t* const z, fmpz_t* const z_inv, const bool* const valid
+) {
+  bool* b = new bool[N * B];
+  for (unsigned int j = 0; j < B; j++)
+    for (unsigned int i = 0; i < N; i++)
+      b[i * B + j] = b_flat[j];
+  int sent_bytes = multiplyBoolArith(N, B, b, x, z, z_inv, valid);
+  delete[] b;
   return sent_bytes;
 }
 
@@ -524,114 +562,41 @@ int CorrelatedStore::heavy_convert(
   // Step 2: OT setup
   // z = 1 - 2y, as [z] = servernum - 2[y]
   // then (x ^ x')(z + z')
-  fmpz_t r; fmpz_init(r);
-  fmpz_t z; fmpz_init(z);
-  fmpz_t rz; fmpz_init(rz);
-  // Bucket 0 choices
-  uint64_t* const data0 = new uint64_t[N * b];
-  uint64_t* const data1 = new uint64_t[N * b];
-  // Bucket 1 choices
-  uint64_t* const data0_1 = new uint64_t[N * b];
-  uint64_t* const data1_1 = new uint64_t[N * b];
+  fmpz_t* z; new_fmpz_array(&z, N * b);
 
   // [ (r0, r1+z), (r0 + z, r1) ] based on x
   // [ (r0 + xz, r1 + !x z), (r0 + !x z, r1 + x z)]
   // [ (0, 0_1), (1, 1_1)]
   for (unsigned int i = 0; i < N; i++) {
-    if (!valid[i]) {
-      memset(&data0[i * b], 0, b * sizeof(uint64_t));
-      memset(&data0_1[i * b], 0, b * sizeof(uint64_t));
-      memset(&data1[i * b], 0, b * sizeof(uint64_t));
-      memset(&data1_1[i * b], 0, b * sizeof(uint64_t));
-      continue;
-    }
+    if (!valid[i]) continue;
 
     for (unsigned int j = 0; j < b; j++) {
       const size_t idx = i * b + j;
 
       // Build z = 1 - 2y, as [z] = servernum - 2[y]
-      fmpz_set_si(z, server_num);
-      fmpz_submul_si(z, y_p[idx], 2);
-      fmpz_mod(z, z, Int_Modulus);
-
-      // TODO: This is sort of multiplyBoolArith, except extra data.
-      // Also, note that x's impact swapped for second half
-
-      // r0
-      fmpz_randm(r, seed, Int_Modulus);
-      // fmpz_zero(r);
-      fmpz_sub(bucket0[j], bucket0[j], r);
-      fmpz_mod(bucket0[j], bucket0[j], Int_Modulus);
-      // r0 + xz and r0 + (1-x) z
-      fmpz_add(rz, r, z);
-      fmpz_mod(rz, rz, Int_Modulus);
-      data0[idx] = fmpz_get_ui(x[idx] ? r : rz);
-      data1[idx] = fmpz_get_ui(x[idx] ? rz : r);
-
-      // r1
-      fmpz_randm(r, seed, Int_Modulus);
-      // fmpz_zero(r);
-      fmpz_sub(bucket1[j], bucket1[j], r);
-      fmpz_mod(bucket1[j], bucket1[j], Int_Modulus);
-      // r1 + (1-x)z and r1 + xz
-      fmpz_add(rz, r, z);
-      fmpz_mod(rz, rz, Int_Modulus);
-      data0_1[idx] = fmpz_get_ui(x[idx] ? rz : r);
-      data1_1[idx] = fmpz_get_ui(x[idx] ? r : rz);
+      fmpz_set_si(z[idx], server_num);
+      fmpz_submul_si(z[idx], y_p[idx], 2);
+      fmpz_mod(z[idx], z[idx], Int_Modulus);
     }
   }
-
   clear_fmpz_array(y_p, N * b);
-  fmpz_clear(r);
-  fmpz_clear(z);
-  fmpz_clear(rz);
 
-  // Step 3: OT swap
-  uint64_t* const received = new uint64_t[N * b];
-  uint64_t* const received_1 = new uint64_t[N * b];
-  pid_t pid = 0;
-  int status = 0;
-  // NOTE: OT forking currently seems bugged. Disable for now.
-  // TODO: sent bytes of OT somehow, inside of fork send before exit
-  const bool do_ot_fork = false;
-  if (do_ot_fork) {
-    pid = fork();
-    if (pid == 0) {
-      (server_num == 0 ? ot0 : ot1)->send(data0, data1, N * b, data0_1, data1_1);
-      exit(EXIT_SUCCESS);
-    }
-    (server_num == 0 ? ot1 : ot0)->recv(received, x, N * b, received_1);
-  } else {
-    if (server_num == 0) {
-      sent_bytes += ot0->send(data0, data1, N * b, data0_1, data1_1);
-      sent_bytes += ot1->recv(received, x, N * b, received_1);
-    } else {
-      sent_bytes += ot0->recv(received, x, N * b, received_1);
-      sent_bytes += ot1->send(data0, data1, N * b, data0_1, data1_1);
-    }
-  }
-
-  // Step 4: Add to buckets
+  fmpz_t* buff0; new_fmpz_array(&buff0, N * b);
+  fmpz_t* buff1; new_fmpz_array(&buff1, N * b);
+  sent_bytes += multiplyBoolArith(N, b, x, z, buff1, buff0, valid);
+  clear_fmpz_array(z, N * b);
   for (unsigned int i = 0; i < N; i++) {
     for (unsigned int j = 0; j < b; j++) {
       const size_t idx = i * b + j;
-      fmpz_add_ui(bucket0[j], bucket0[j], received[idx]);
+      fmpz_add(bucket0[j], bucket0[j], buff0[idx]);
       fmpz_mod(bucket0[j], bucket0[j], Int_Modulus);
 
-      fmpz_add_ui(bucket1[j], bucket1[j], received_1[idx]);
+      fmpz_add(bucket1[j], bucket1[j], buff1[idx]);
       fmpz_mod(bucket1[j], bucket1[j], Int_Modulus);
     }
   }
-
-  delete[] data0;
-  delete[] data0_1;
-  delete[] data1;
-  delete[] data1_1;
-  delete[] received;
-  delete[] received_1;
-
-  if (do_ot_fork) waitpid(pid, &status, 0);
-
+  clear_fmpz_array(buff0, N * b);
+  clear_fmpz_array(buff1, N * b);
   return sent_bytes;
 }
 

@@ -115,11 +115,21 @@ public:
   int multiplyArithmeticShares(
     const size_t N, const fmpz_t* const x, const fmpz_t* const y,
     fmpz_t* const z);
-  // b is [N], x and z are [N * M]
-  // Grouped by N first, so [x0, ..., x(N-1)] for M=0
-  // So [x0, xN, x2N, ...] multiplied by b0.
+  // N inputs, each B bits large
+  // b, x, and z are [N * B]
+  // If z_inv (size N*B): Does a second set multiplied by 1-b instead.
+  //   maintains same rounds, just "larger" OT's
+  // If valid, it's a [N] array for which inputs are valid
   int multiplyBoolArith(
-    const size_t N, const size_t M, const bool* const b, const fmpz_t* const x, fmpz_t* const z);
+    const size_t N, const size_t B, const bool* const b, const fmpz_t* const x,
+    fmpz_t* const z, fmpz_t* const z_inv = nullptr, const bool* const valid = nullptr);
+  // b is [B] rather than [N * B]
+  // Grouped by B first, so [x0, ..., x(B-1)] for N=0
+  // So [x0, xB, x2B, ...] multiplied by b0.
+  // For B-wide masking, mainly
+  int multiplyBoolArithFlat(
+    const size_t N, const size_t B, const bool* const b_flat, const fmpz_t* const x,
+    fmpz_t* const z, fmpz_t* const z_inv = nullptr, const bool* const valid = nullptr);
 
   // x, y, z are [N][num_bits], ret is [N]
   // Treats x[i], y[i], z[i] as array of bits
