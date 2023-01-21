@@ -115,6 +115,11 @@ public:
   int multiplyArithmeticShares(
     const size_t N, const fmpz_t* const x, const fmpz_t* const y,
     fmpz_t* const z);
+  // b is [N], x and z are [N * M]
+  // Grouped by N first, so [x0, ..., x(N-1)] for M=0
+  // So [x0, xN, x2N, ...] multiplied by b0.
+  int multiplyBoolArith(
+    const size_t N, const size_t M, const bool* const b, const fmpz_t* const x, fmpz_t* const z);
 
   // x, y, z are [N][num_bits], ret is [N]
   // Treats x[i], y[i], z[i] as array of bits
@@ -136,6 +141,8 @@ public:
   // [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
   // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
   // N*b for x, y
+  // Index with i * b + j: (x0, ..., xb-1) for number 0. 
+  // Makes copying in new shares easier.
   // N valid, if invalid just contributes 0
   // b buckets each of 0, 1, accumulating as above
   int heavy_convert(const size_t N, const size_t b,

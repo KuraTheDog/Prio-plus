@@ -275,6 +275,59 @@ int CorrelatedStore::multiplyArithmeticShares(
   return sent_bytes;
 }
 
+int CorrelatedStore::multiplyBoolArith(
+    const size_t N, const size_t M, const bool* const b, const fmpz_t* const x, fmpz_t* const z
+) {
+  int sent_bytes = 0;
+  /* b0, b1 bits. x0, x1 values
+  want z0 + z1 = (b0 ^ b1) * (x0 + x1)
+  Send (r, r + x), flip order on b0, select with b1.
+  So receive r if b0 = b1, r + x if b0 != b1. => r + (b0 ^ b1) x
+  */
+  uint64_t* const data0 = new uint64_t[N * M];
+  uint64_t* const data1 = new uint64_t[N * M];
+  bool* const b_stacked = new bool[N * M];
+  fmpz_t r; fmpz_init(r);
+  fmpz_t rx; fmpz_init(rx);
+  for (unsigned int i = 0; i < N; i++) {
+    for (unsigned int j = 0; j < M; j++) {
+      const unsigned int idx = i + j * N;
+      fmpz_randm(r, seed, Int_Modulus);
+      // fmpz_set_si(r, 0);
+      fmpz_sub(z[idx], z[idx], r);
+      fmpz_add(rx, r, x[idx]);
+      fmpz_mod(rx, rx, Int_Modulus);
+      // (r, r+x), swap if b
+      data0[idx] = fmpz_get_ui(b[i] ? rx : r);
+      data1[idx] = fmpz_get_ui(b[i] ? r : rx);
+      b_stacked[idx] = b[i];
+    }
+  }
+  fmpz_clear(r);
+  fmpz_clear(rx);
+
+  uint64_t* const received = new uint64_t[N*M];
+  // Fork stuff ignored for now.
+  if (server_num == 0) {
+    sent_bytes += ot0->send(data0, data1, N*M);
+    sent_bytes += ot1->recv(received, b_stacked, N*M);
+  } else {
+    sent_bytes += ot0->recv(received, b_stacked, N*M);
+    sent_bytes += ot1->send(data0, data1, N*M);
+  }
+  delete[] data0;
+  delete[] data1;
+  delete[] b_stacked;
+
+  for (unsigned int i = 0; i < N*M; i++) {
+    fmpz_add_ui(z[i], z[i], received[i]);
+    fmpz_mod(z[i], z[i], Int_Modulus);
+  }
+  delete[] received;
+
+  return sent_bytes;
+}
+
 // c_{i+1} = c_i xor ((x_i xor c_i) and (y_i xor c_i))
 // output z_i = x_i xor y_i xor c_i
 // Unused
@@ -500,6 +553,9 @@ int CorrelatedStore::heavy_convert(
       fmpz_set_si(z, server_num);
       fmpz_submul_si(z, y_p[idx], 2);
       fmpz_mod(z, z, Int_Modulus);
+
+      // TODO: This is sort of multiplyBoolArith, except extra data.
+      // Also, note that x's impact swapped for second half
 
       // r0
       fmpz_randm(r, seed, Int_Modulus);
