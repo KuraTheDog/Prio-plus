@@ -155,10 +155,13 @@ public:
   // Makes copying in new shares easier.
   // N valid, if invalid just contributes 0
   // b buckets each of 0, 1, accumulating as above
+  // Mask: optional, size b. Bool shares of 0/1. Adds extra OT round.
+  //    share of 1 if normal, share of 0 makes it zero contribution.
   int heavy_convert(const size_t N, const size_t b,
                     const bool* const x, const bool* const y,
                     const bool* const valid,
-                    fmpz_t* const bucket0, fmpz_t* const bucket1);
+                    fmpz_t* const bucket0, fmpz_t* const bucket1,
+                    const bool* const mask = nullptr);
 
   // Using intsum_ot, multiple bits
   // TODO: shift mod to fmpz

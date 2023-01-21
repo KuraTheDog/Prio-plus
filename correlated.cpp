@@ -552,7 +552,8 @@ int CorrelatedStore::heavy_convert(
     const size_t N, const size_t b,
     const bool* const x, const bool* const y,
     const bool* const valid,
-    fmpz_t* const bucket0, fmpz_t* const bucket1) {
+    fmpz_t* const bucket0, fmpz_t* const bucket1,
+    const bool* const mask) {
   int sent_bytes = 0;
 
   // Step 1: convert y to arith shares
@@ -563,6 +564,7 @@ int CorrelatedStore::heavy_convert(
   // z = 1 - 2y, as [z] = servernum - 2[y]
   // then (x ^ x')(z + z')
   fmpz_t* z; new_fmpz_array(&z, N * b);
+  fmpz_t* z_masked; if (mask) new_fmpz_array(&z_masked, N * b);
 
   // [ (r0, r1+z), (r0 + z, r1) ] based on x
   // [ (r0 + xz, r1 + !x z), (r0 + !x z, r1 + x z)]
@@ -580,6 +582,13 @@ int CorrelatedStore::heavy_convert(
     }
   }
   clear_fmpz_array(y_p, N * b);
+
+  // OT multiply / mask with z * value
+  if (mask) {
+    sent_bytes += multiplyBoolArithFlat(N, b, mask, z, z_masked);
+    clear_fmpz_array(z, N * b);
+    z = z_masked;
+  }
 
   fmpz_t* buff0; new_fmpz_array(&buff0, N * b);
   fmpz_t* buff1; new_fmpz_array(&buff1, N * b);
