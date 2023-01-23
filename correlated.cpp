@@ -552,8 +552,7 @@ int CorrelatedStore::heavy_convert(
     const size_t N, const size_t b,
     const bool* const x, const bool* const y,
     const bool* const valid,
-    fmpz_t* const bucket0, fmpz_t* const bucket1,
-    const bool* const mask) {
+    fmpz_t* const bucket0, fmpz_t* const bucket1) {
   int sent_bytes = 0;
 
   // Step 1: convert y to arith shares
@@ -564,7 +563,6 @@ int CorrelatedStore::heavy_convert(
   // z = 1 - 2y, as [z] = servernum - 2[y]
   // then (x ^ x')(z + z')
   fmpz_t* z; new_fmpz_array(&z, N * b);
-  fmpz_t* z_masked; if (mask) new_fmpz_array(&z_masked, N * b);
 
   // [ (r0, r1+z), (r0 + z, r1) ] based on x
   // [ (r0 + xz, r1 + !x z), (r0 + !x z, r1 + x z)]
@@ -583,13 +581,6 @@ int CorrelatedStore::heavy_convert(
   }
   clear_fmpz_array(y_p, N * b);
 
-  // OT multiply / mask with z * value
-  if (mask) {
-    sent_bytes += multiplyBoolArithFlat(N, b, mask, z, z_masked);
-    clear_fmpz_array(z, N * b);
-    z = z_masked;
-  }
-
   fmpz_t* buff0; new_fmpz_array(&buff0, N * b);
   fmpz_t* buff1; new_fmpz_array(&buff1, N * b);
   sent_bytes += multiplyBoolArith(N, b, x, z, buff1, buff0, valid);
@@ -606,6 +597,74 @@ int CorrelatedStore::heavy_convert(
   }
   clear_fmpz_array(buff0, N * b);
   clear_fmpz_array(buff1, N * b);
+  return sent_bytes;
+}
+
+// N inputs, depth d, M substreams
+// |x| = |y| = N * d
+// |mask| = N * M
+// Valid size N
+// buckets size : M * d
+int CorrelatedStore::heavy_convert_mask(
+      const size_t N, const size_t d, const size_t M,
+      const bool* const x, const bool* const y, const bool* const mask,
+      const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1) {
+  int sent_bytes = 0;
+
+  fmpz_t* y_p; new_fmpz_array(&y_p, N * d);
+  sent_bytes += b2a_daBit_single(N * d, y, y_p);
+
+  fmpz_t* z_base; new_fmpz_array(&z_base, N * M * d);
+  bool* x_extended = new bool[N * M * d];
+  bool* mask_extended = new bool[N * M * d];
+
+  fmpz_t z; fmpz_init(z);
+
+  for (unsigned int i = 0; i < N; i++) {
+    if (!valid[i]) continue;
+    for (unsigned int j = 0; j < d; j++) {
+      const size_t xy_idx = i * d + j;
+      // Build z = 1 - 2y, as [z] = servernum - 2[y]
+      fmpz_set_si(z, server_num);
+      fmpz_submul_si(z, y_p[xy_idx], 2);
+      fmpz_mod(z, z, Int_Modulus);
+      for (unsigned int k = 0; k < M; k++) {
+        // std::cout << "  k = " << k;
+        const size_t idx = xy_idx * M + k;
+        fmpz_set(z_base[idx], z);
+        // x_extended[idx] = x[xy_idx];
+        // mask_extended[idx] = mask[i * M + k];
+      }
+      memset(&x_extended[xy_idx * M], x[xy_idx], M);
+      memcpy(&mask_extended[xy_idx * M], &mask[i * M], M);
+    }
+  }
+  clear_fmpz_array(y_p, N * d);
+  fmpz_clear(z);
+
+  fmpz_t* z_masked; new_fmpz_array(&z_masked, N * M * d);
+  sent_bytes += multiplyBoolArith(N, M * d, mask_extended, z_base, z_masked, nullptr, valid);
+  delete[] mask_extended;
+  clear_fmpz_array(z_base, N * M * d);
+
+  fmpz_t* buff0; new_fmpz_array(&buff0, N * M * d);
+  fmpz_t* buff1; new_fmpz_array(&buff1, N * M * d);
+  sent_bytes += multiplyBoolArith(N, M * d, x_extended, z_masked, buff1, buff0, valid);
+  delete[] x_extended;
+  clear_fmpz_array(z_masked, N * M * d);
+  for (unsigned int i = 0; i < N; i++) {
+    for (unsigned int j = 0; j < d * M; j++) {
+      const size_t idx = i * (d * M) + j;
+      fmpz_add(bucket0[j], bucket0[j], buff0[idx]);
+      fmpz_mod(bucket0[j], bucket0[j], Int_Modulus);
+
+      fmpz_add(bucket1[j], bucket1[j], buff1[idx]);
+      fmpz_mod(bucket1[j], bucket1[j], Int_Modulus);
+    }
+  }
+  clear_fmpz_array(buff0, N * M * d);
+  clear_fmpz_array(buff1, N * M * d);
+
   return sent_bytes;
 }
 

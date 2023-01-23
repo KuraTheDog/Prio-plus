@@ -158,8 +158,27 @@ public:
   int heavy_convert(const size_t N, const size_t b,
                     const bool* const x, const bool* const y,
                     const bool* const valid,
-                    fmpz_t* const bucket0, fmpz_t* const bucket1,
-                    const bool* const mask = nullptr);
+                    fmpz_t* const bucket0, fmpz_t* const bucket1);
+  // Original:
+  // N inputs, depth bits
+  // x, y size N * depth
+  // valid size N
+  // buckets size depth
+
+  // Q "parallel" runs of heavy_convert
+  // Can't fold in Q, since buckets is Q * B * d
+  // N inputs, Q copies, D depth, B substreams
+  // |x| = |y| = N * Q * D, inde
+  // |mask| = N * Q * M: Substream select
+  // Valid size N
+  // buckets size : Q * M * D
+  // Order:
+  //   x,y = [N=0 (over d), N=1 (over d), ...]
+  //   valid
+  int heavy_convert_mask(
+      const size_t N, const size_t D, const size_t M,
+      const bool* const x, const bool* const y, const bool* const mask,
+      const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1);
 
   // Using intsum_ot, multiple bits
   // TODO: shift mod to fmpz
