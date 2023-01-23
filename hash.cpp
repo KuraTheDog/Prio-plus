@@ -29,3 +29,8 @@ void HashStore::print_hash(const unsigned int i) const {
   }
   std::cout << std::endl;
 }
+
+void HashStore::print() const {
+  for (unsigned int i = 0; i < d; i++)
+    print_hash(i);
+}

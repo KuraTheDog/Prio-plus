@@ -117,6 +117,7 @@ public:
     fmpz_t* const z);
   // N inputs, each B bits large
   // b, x, and z are [N * B]
+  // Distinction of N vs B only comes in for the optional "valid" array.
   // If z_inv (size N*B): Does a second set multiplied by 1-b instead.
   //   maintains same rounds, just "larger" OT's
   // If valid, it's a [N] array for which inputs are valid
@@ -147,16 +148,13 @@ public:
   int b2a_daBit_multi(const size_t N, const size_t* const num_bits,
                       const fmpz_t* const x, fmpz_t* const xp);
 
-  // N inputs of b bits
+  // N inputs of b values
   // [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
   // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
-  // N*b for x, y
+  // |x| = |y| = N * b
   // Index with i * b + j: (x0, ..., xb-1) for number 0. 
   // Makes copying in new shares easier.
   // N valid, if invalid just contributes 0
-  // b buckets each of 0, 1, accumulating as above
-  // Mask: optional, size b. Bool shares of 0/1. Adds extra OT round.
-  //    share of 1 if normal, share of 0 makes it zero contribution.
   int heavy_convert(const size_t N, const size_t b,
                     const bool* const x, const bool* const y,
                     const bool* const valid,

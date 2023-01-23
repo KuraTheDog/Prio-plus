@@ -55,7 +55,7 @@ std::string pub_key_to_hex(const uint64_t* const key) {
     return ss.str();
 }
 
-std::string make_pk(emp::PRG prg) {
+std::string make_pk(emp::PRG& prg) {
     emp::block b;
     prg.random_block(&b, 1);
     return pub_key_to_hex((uint64_t*)&b);

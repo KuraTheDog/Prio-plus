@@ -83,6 +83,7 @@ public:
   // Run hash i on x, returning out
   void eval(const unsigned int i, const unsigned int x, fmpz_t out) const;
   void print_hash(const unsigned int i) const;
+  void print() const;
 };
 
 #endif

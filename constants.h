@@ -77,7 +77,7 @@ const int twoOrder = 19;
 // const int twoOrder = 19;
 
 extern fmpz_t Int_Modulus;        // Large prime modulus
-extern size_t nbits_mod;        // ceil(log_2 mod), # of bits to store modulus
+extern size_t nbits_mod;          // ceil(log_2 mod), # of bits to store modulus
 extern fmpz_t Int_Gen;            // Generates subgroup order 2^twoOrder in Zp
 extern flint_rand_t seed;         // Global random seed, for fmpz_randm, etc.
 
