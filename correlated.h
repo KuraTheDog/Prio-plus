@@ -166,17 +166,18 @@ public:
   // buckets size depth
 
   // Q "parallel" runs of heavy_convert
-  // Can't fold in Q, since buckets is Q * B * d
   // N inputs, Q copies, D depth, B substreams
-  // |x| = |y| = N * Q * D, inde
+  // |x| = |y| = N * Q * D
   // |mask| = N * Q * M: Substream select
   // Valid size N
   // buckets size : Q * M * D
-  // Order:
-  //   x,y = [N=0 (over d), N=1 (over d), ...]
-  //   valid
+  // Order: N, Q, M, D
+  //   x,y = [over N (over Q (over D))]
+  //   valid = over N
+  //   mask  = [over N (over Q (over M))]
+  //   buckets = [over Q (over M (over D))]
   int heavy_convert_mask(
-      const size_t N, const size_t D, const size_t M,
+      const size_t N, const size_t Q, const size_t M, const size_t D,
       const bool* const x, const bool* const y, const bool* const mask,
       const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1);
 

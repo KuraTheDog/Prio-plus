@@ -106,60 +106,72 @@ void test_HeavyConvert(const int server_num, const int serverfd,
 
 void test_HeavyConvertMask(const int server_num, const int serverfd,
     CorrelatedStore* store) {
-  const size_t N = 7;
-  const size_t d = 4;
-  const size_t M = 7;  // mask size
+  const size_t N = 8;
+  const size_t Q = 2;
+  const size_t M = 7;
+  const size_t D = 3;
+  // Q "parallel" runs of heavy_convert
   // N inputs, Q copies, D depth, B substreams
-  // |x| = |y| = N * Q * D, inde
+  // |x| = |y| = N * Q * D
   // |mask| = N * Q * M: Substream select
   // Valid size N
   // buckets size : Q * M * D
-  bool* const x = new bool[N * d];
-  bool* const y = new bool[N * d];
-  fmpz_t* bucket0; new_fmpz_array(&bucket0, M * d);
-  fmpz_t* bucket1; new_fmpz_array(&bucket1, M * d);
+  // Order: N, Q, M, D
+  //   x,y = [over N (over Q (over D))]
+  //   valid = over N
+  //   mask  = [over N (over Q (over M))]
+  //   buckets = [over Q (over M (over D))]
+  bool* const x = new bool[N * Q * D];
+  bool* const y = new bool[N * Q * D];
+  fmpz_t* bucket0; new_fmpz_array(&bucket0, Q * M * D);
+  fmpz_t* bucket1; new_fmpz_array(&bucket1, Q * M * D);
   bool* const valid = new bool[N]; memset(valid, true, N);
 
-  int expected0[M * d]; memset(expected0, 0, M * d * sizeof(int));
-  int expected1[M * d]; memset(expected1, 0, M * d * sizeof(int));
+  int expected0[Q * M * D]; memset(expected0, 0, Q * M * D * sizeof(int));
+  int expected1[Q * M * D]; memset(expected1, 0, Q * M * D * sizeof(int));
 
-  bool* mask = new bool[N * M];
+  bool* mask = new bool[N * Q * M];
 
-  auto mask_eval = [](int i, int k){return (i + k) % 3 == 0;};
+  auto mask_eval = [](int n, int m){return (n + m) % 3 == 0;};
 
   // Setup
-  for (unsigned int i = 0; i < N; i++) {
-    memset(&x[i * d], i % 2, d);
-    memset(&y[i * d], (i>>1) % 2, d);
-    memset(&mask[i * M], i % 2, M);
+  for (unsigned int n = 0; n < N; n++) {
+    memset(&x[n * (Q * D)], n % 2, Q * D);
+    memset(&y[n * (Q * D)], (n>>1) % 2, Q * D);
+    memset(&mask[n * (Q * M)], n % 2, Q * M);
     if (server_num == 1) {
-      for (unsigned int j = 0; j < d; j++) {
-        x[i * d + j] ^= j % 2;
-        y[i * d + j] ^= (j >> 1) % 2;
-        // std::cout << "bucket(" << i << ", " << j << ") = " << (j % 2) << std::endl;
-        // std::cout << "hash(" << i << ", " << j << ") = " << ((j >> 1)%2) << std::endl;
-      }
-      for (unsigned int k = 0; k < M; k++) {
-        mask[i * M + k] ^= mask_eval(i, k);
-        // std::cout << "mask(" << i << ", " << k << ") = " << mask_eval(i, k) << std::endl;
+      for (unsigned int q = 0; q < Q; q++) {
+        const size_t q_idx = n * Q + q;
+
+        for (unsigned int d = 0; d < D; d++) {
+          const size_t xy_idx = q_idx * D + d;
+          x[xy_idx] ^= (d + q) % 2;
+          y[xy_idx] ^= ((d>>1) + q) % 2;
+        }
+        for (unsigned int m = 0; m < M; m++) {
+          mask[q_idx * M + m] ^= mask_eval(n, m);
+        }
       }
     }
   }
 
   // Setup expected.
-  for (unsigned int j = 0; j < d; j++) {
-    for (unsigned int k = 0; k < M; k++) {
-      const size_t idx = j * M + k;
-      auto e = j % 2 ? expected1 : expected0;
-      e[idx] = ((-(int)k)%3<(N%3)) + N/3;
-      if ((j >> 1) % 2 == 1) e[idx] *= -1;
+  for (unsigned int q = 0; q < Q; q++) {
+    for (unsigned int d = 0; d < D; d++) {
+      for (unsigned int m = 0; m < M; m++) {
+        const size_t idx = (q * M + m) * D + d;
+        auto e = (d + q) % 2 ? expected1 : expected0;
+        // Silly force "proper" negative mod
+        e[idx] = ((3*M - m)%3<(N%3)) + N/3;
+        if (((d>>1) + q) % 2 == 1) e[idx] *= -1;
+      }
     }
   }
 
 
   // Run
   auto start = clock_start();
-  store->heavy_convert_mask(N, d, M, x, y, mask, valid, bucket0, bucket1);
+  store->heavy_convert_mask(N, Q, M, D, x, y, mask, valid, bucket0, bucket1);
   std::cout << "heavy mask convert timing : " << sec_from(start) << std::endl;
   delete[] x;
   delete[] y;
@@ -168,38 +180,40 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
 
   // Recombine / test
   if (server_num == 0) {
-    fmpz_t* bucket0_other; new_fmpz_array(&bucket0_other, M * d);
-    fmpz_t* bucket1_other; new_fmpz_array(&bucket1_other, M * d);
-    recv_fmpz_batch(serverfd, bucket0_other, M * d);
-    recv_fmpz_batch(serverfd, bucket1_other, M * d);
+    fmpz_t* bucket0_other; new_fmpz_array(&bucket0_other, Q * M * D);
+    fmpz_t* bucket1_other; new_fmpz_array(&bucket1_other, Q * M * D);
+    recv_fmpz_batch(serverfd, bucket0_other, Q * M * D);
+    recv_fmpz_batch(serverfd, bucket1_other, Q * M * D);
     fmpz_t tmp; fmpz_init(tmp);
-    for (unsigned int k = 0; k < M; k++) {
-      for (unsigned int j = 0; j < d; j++) {
-        const size_t idx = j * M + k;
-        fmpz_add(tmp, bucket0[idx], bucket0_other[idx]);
-        fmpz_mod(tmp, tmp, Int_Modulus);
-        // std::cout << "bucket0[" << k << ", " << j << "] = " << get_fsigned(tmp, Int_Modulus);
-        // std::cout << ", expected = " << expected0[idx];
-        // std::cout << std::endl;
-        assert(get_fsigned(tmp, Int_Modulus) == expected0[idx]);
+    for (unsigned int q = 0; q < Q ; q++) {
+      for (unsigned int m = 0; m < M; m++) {
+        for (unsigned int d = 0; d < D; d++) {
+          const size_t idx = (q * M + m) * D + d;
+          fmpz_add(tmp, bucket0[idx], bucket0_other[idx]);
+          fmpz_mod(tmp, tmp, Int_Modulus);
+          // std::cout << "bucket0[" << q << ", " << m << ", " << d << "] = " << get_fsigned(tmp, Int_Modulus);
+          // std::cout << ", expected = " << expected0[idx];
+          // std::cout << std::endl;
+          assert(get_fsigned(tmp, Int_Modulus) == expected0[idx]);
 
-        fmpz_add(tmp, bucket1[idx], bucket1_other[idx]);
-        fmpz_mod(tmp, tmp, Int_Modulus);
-        // std::cout << "bucket1[" << k << ", " << j << "] = " << get_fsigned(tmp, Int_Modulus);
-        // std::cout << ", expected = " << expected1[idx];
-        // std::cout << std::endl;
-        assert(get_fsigned(tmp, Int_Modulus) == expected1[idx]);
+          fmpz_add(tmp, bucket1[idx], bucket1_other[idx]);
+          fmpz_mod(tmp, tmp, Int_Modulus);
+          // std::cout << "bucket1[" << q << ", " << m << ", " << d << "] = " << get_fsigned(tmp, Int_Modulus);
+          // std::cout << ", expected = " << expected1[idx];
+          // std::cout << std::endl;
+          assert(get_fsigned(tmp, Int_Modulus) == expected1[idx]);
+        }
       }
     }
     fmpz_clear(tmp);
-    clear_fmpz_array(bucket0_other, M * d);
-    clear_fmpz_array(bucket1_other, M * d);
+    clear_fmpz_array(bucket0_other, Q * M * D);
+    clear_fmpz_array(bucket1_other, Q * M * D);
   } else {
-    send_fmpz_batch(serverfd, bucket0, M * d);
-    send_fmpz_batch(serverfd, bucket1, M * d);
+    send_fmpz_batch(serverfd, bucket0, Q * M * D);
+    send_fmpz_batch(serverfd, bucket1, Q * M * D);
   }
-  clear_fmpz_array(bucket0, M * d);
-  clear_fmpz_array(bucket1, M * d);
+  clear_fmpz_array(bucket0, Q * M * D);
+  clear_fmpz_array(bucket1, Q * M * D);
 }
 
 void test_abs_cmp(
