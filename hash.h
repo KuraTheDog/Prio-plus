@@ -25,6 +25,10 @@ For degree 1, efficient enough as is
 
 #include "fmpz_utils.h"
 
+extern "C" {
+    #include "flint/fmpz_mod_mat.h"
+}
+
 class HashStore {
 protected:
   const size_t num_hashes;
@@ -71,6 +75,38 @@ public:
 
   void eval(const unsigned int i, const unsigned int x, fmpz_t out) const;
   void print_hash(const unsigned int i) const;
+};
+
+class HashStoreBit : public HashStore {
+  // How big groups of hashes are that are all on the same value, for solving.
+  const size_t group_size;
+
+  // General "input dimension" = input_bits + 1
+  // Constant since otherwise h(0) = 0 always.
+  const size_t dim;
+  fmpz_mod_mat_t coeff;
+
+public:
+
+  // Default group size 0 -> num_hashes, aka 1 group.
+  HashStoreBit(
+      const size_t num_hashes, const size_t input_bits, const size_t hash_range,
+      flint_rand_t hash_seed_arg, const size_t group_size_arg = 0);
+
+  ~HashStoreBit() {
+    fmpz_mod_mat_clear(coeff);
+  };
+
+  void eval(const unsigned int i, const unsigned int x, fmpz_t out) const;
+  void print_hash(const unsigned int i) const;
+  void print_coeff() const {fmpz_mod_mat_print_pretty(coeff);}
+
+  // |values| = group_size
+  // Uses Group(group_num) of hashes.
+  // Uses first [dim] of the hashes and values to solve AX=B
+  // Uses extras [dim -> group size] for validation.
+  //   Returns number of INVALID checks. 0 is best
+  int solve(const unsigned int group_num, const fmpz_t* const values, unsigned int& ans) const;
 };
 
 #endif

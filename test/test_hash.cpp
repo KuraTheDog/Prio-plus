@@ -7,7 +7,7 @@
 
 const size_t input_bits = 3;
 const size_t output_range = 5;
-const size_t num_hashes = 3;
+const size_t num_hashes = 12;
 
 void run_hash(HashStore &store, unsigned int i) {
   fmpz_t out; fmpz_init(out);
@@ -46,26 +46,49 @@ void test_seed_sync() {
   store2.eval(1, 2, out2);
   assert(fmpz_equal(out1, out2));
 
-  std::cout << "First store" << std::endl;
-  for (unsigned int i = 0; i < num_hashes; i++) {
-    store.print_hash(i);
-    run_hash(store, i);
-  }
+  // std::cout << "First store" << std::endl;
+  // for (unsigned int i = 0; i < num_hashes; i++) {
+  //   store.print_hash(i);
+  //   run_hash(store, i);
+  // }
   // store.print();
 
   // std::cout << "Second store" << std::endl;
   // store2.print();
 }
 
-// void test_inverse() {
-//   flint_rand_t hash_seed;
-//   flint_randinit(hash_seed);
+void test_inverse() {
+  flint_rand_t hash_seed;
+  flint_randinit(hash_seed);
+  fmpz_t tmp; fmpz_init(tmp);
 
-//   HashStoreBit store(d, l_bits, w, hash_seed);
-// }
+  for (unsigned int i = 0; i < 5; i++)
+    fmpz_randbits(tmp, hash_seed, 1);
+
+  const size_t group_size = 6;  // must divide num_hashes, and be > input_bits+1
+  HashStoreBit store(num_hashes, input_bits, output_range, hash_seed, group_size);
+
+  // std::cout << "Coeff matrix: " << std::endl;
+  // store.print_coeff();
+
+  int x = 2;
+  // std::cout << "input is " << x << std::endl;
+  fmpz_t* values; new_fmpz_array(&values, group_size);
+  for (unsigned int i = 0; i < group_size; i++) {
+    store.eval(i, x, values[i]);
+    // store.print_hash(i);
+    // std::cout << "eval_" << i << "(" << x << ") = " << fmpz_get_ui(values[i]) << std::endl;
+  }
+
+  unsigned int ans;
+  int ret = store.solve(0, values, ans);
+  // std::cout << "Answer is " << ans << ", with " << ret << " invalid" << std::endl;
+  assert(ret == 0);
+  assert(ans == x);
+}
 
 int main(int argc, char** argv){
   test_seed_sync();
 
-  // test_inverse();
+  test_inverse();
 }
