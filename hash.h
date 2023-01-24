@@ -1,14 +1,18 @@
 /* Hash family manager
 
-Makes a set of d random k-wise indpeendent hashes via degree k-1 polynomials
+Makes num_hashes hashes [input_range] -> [output_range] (parameterized by bits).
+
+Poly:
+  k-wise independent via deg k-1 polynomials
+Makes a set of num_hashes random k-wise indepndent hashes via degree k-1 polynomials
 Takes in a seed, so that different stores can be synced.
 
 X-wise independent: degree x-1 polynomials
 
-Ideally, w is field (p^k), especially 2^k, for perfect pairwise.
-For efficiency, fine for w smaller and just have slightly imbalanced.
-Instead treats as though 2^k for next power of 2, then mod w.
-Does poly(x), take first k bits, then mod w
+Ideally, output_range is field (p^k), especially 2^k, for perfect pairwise.
+For efficiency, fine for output_range smaller and just have slightly imbalanced.
+Instead treats as though 2^k for next power of 2, then mod output_range.
+Does poly(x), take first k bits, then mod output_range
 
 Could be more efficient to use fmpz_t poly, but more work.
 For degree 1, efficient enough as is
@@ -23,12 +27,12 @@ For degree 1, efficient enough as is
 
 class HashStore {
 protected:
-  const size_t d;   // # hashes
-  const size_t l_bits;  // input bits
-  fmpz_t l;  // input range
-  fmpz_t w;  // hash range
-  size_t w_bits;  // # bits to store w
-  flint_rand_t hash_seed;  // synced seed for same random hashes
+  const size_t num_hashes;
+  const size_t input_bits;
+  fmpz_t input_range;
+  fmpz_t output_range;
+  const size_t output_bits;
+  flint_rand_t hash_seed;   // synced seed for consistent random hashes
 
 public:
 
@@ -37,8 +41,8 @@ public:
       flint_rand_t hash_seed_arg);
 
   ~HashStore() {
-    fmpz_clear(w);
-    fmpz_clear(l);
+    fmpz_clear(output_range);
+    fmpz_clear(input_range);
     flint_randclear(hash_seed);
   }
 
@@ -60,7 +64,7 @@ public:
       flint_rand_t hash_seed_arg, const size_t independence = 2);
 
   ~HashStorePoly() {
-    for (unsigned int i = 0; i < d; i++)
+    for (unsigned int i = 0; i < num_hashes; i++)
       clear_fmpz_array(coeff[i], degree + 1);
     delete[] coeff;
   }
