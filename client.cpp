@@ -1442,6 +1442,7 @@ void freq_init(bool*& arr0, bool*& arr1, const size_t share_size, emp::PRG& prg)
     arr0 = new bool[share_size];
     arr1 = new bool[share_size];
     prg.random_bool(arr0, share_size);
+    // memset(arr0, 0, share_size);
     memcpy(arr1, arr0, share_size * sizeof(bool));
 }
 
@@ -1654,6 +1655,183 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
     std::cout << "Total sent bytes: " << num_bytes << std::endl;
 }
 
+int multi_heavy_helper(const std::string protocol, const size_t numreqs,
+                       uint64_t* counts, const MultiHeavyConfig cfg,
+                       HashStore &hash_classify, HashStore &hash_split, HashStore &hash_value) {
+    auto start = clock_start();
+    int num_bytes = 0;
+    emp::PRG prg;
+
+    uint64_t real_val;
+    fmpz_t hashed; fmpz_init(hashed);
+
+    MultiFreqShare* const share0 = new MultiFreqShare[numreqs];
+    MultiFreqShare* const share1 = new MultiFreqShare[numreqs];
+    // Q sets of singleHeavy, each with Depth layers. (repeat across B)
+    const size_t share_size_sh = cfg.Q * cfg.SH_depth;
+    // For each Q, identify b (first hash)
+    const size_t share_size_mask = cfg.Q * cfg.B;
+    // Count-min
+    const size_t share_size_count = 1;
+    const size_t sizes[4] = {share_size_sh, share_size_sh, share_size_mask, share_size_count};
+
+    int current = 0; int count = 0;
+    for (unsigned int i = 0; i < numreqs; i++) {
+        real_val = current;
+        count++;
+        if (count > current) {
+            current++;
+            count = 0;
+        }
+        real_val = 0;
+        counts[real_val] ++;
+        if (i == 0) std::cout << "real_val: " << real_val << std::endl;
+
+        // sh_x, sh_y, mask, count
+        share0[i].arr = new bool*[4];
+        share1[i].arr = new bool*[4];
+        freq_init(share0[i].arr[0], share1[i].arr[0], sizes[0], prg);
+        freq_init(share0[i].arr[1], share1[i].arr[1], sizes[1], prg);
+        freq_init(share0[i].arr[2], share1[i].arr[2], sizes[2], prg);
+        freq_init(share0[i].arr[3], share1[i].arr[3], sizes[3], prg);
+        for (unsigned int q = 0; q < cfg.Q; q++) {
+            hash_classify.eval(q, real_val, hashed);
+            int b_val = fmpz_get_ui(hashed);
+            share1[i].arr[2][b_val] ^= 1;
+            // memset(share1[i].arr[2], 1, share_size_mask);
+
+            if (i == 0) std::cout << "substream[" << q << "] = " << b_val << std::endl;
+
+            int offset = q * cfg.SH_depth;
+            for (unsigned int d = 0; d < cfg.SH_depth; d++) {
+                hash_split.eval(offset + d, real_val, hashed);
+                bool bucket = fmpz_is_one(hashed);
+                hash_value.eval(offset + d, real_val, hashed);
+                // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
+                bool h = fmpz_is_one(hashed);
+                if (i == 0) std::cout << "  depth " << d << " bucket " << bucket << " value " << h << " (" << 1-2*h << ")" << std::endl;
+
+                share1[i].arr[0][offset + d] ^= bucket;
+                share1[i].arr[1][offset + d] ^= h;
+            }
+        }
+
+        // TODO: count-min
+
+
+
+        const std::string pk_s = make_pk(prg);
+        const char* const pk = pk_s.c_str();
+        memcpy(share0[i].pk, &pk[0], PK_LENGTH);
+        memcpy(share1[i].pk, &pk[0], PK_LENGTH);
+    }
+    fmpz_clear(hashed);
+
+    if (numreqs > 1)
+        std::cout << "batch make:\t" << sec_from(start) << std::endl;
+
+    for (unsigned int i = 0; i < numreqs; i++) {
+        num_bytes += send_pk(sockfd0, share0[i].pk);
+        num_bytes += send_pk(sockfd1, share1[i].pk);
+
+        for (unsigned int j = 0; j < 4; j++) {
+            num_bytes += send_bool_batch(sockfd0, share0[i].arr[j], sizes[j]);
+            num_bytes += send_bool_batch(sockfd1, share1[i].arr[j], sizes[j]);
+
+            if (i == 0) {
+                std::cout << "share0,1[" << i << ", " << j << "] = ";
+                for (unsigned int k = 0; k < sizes[j]; k++) {
+                    std::cout << share0[i].arr[j][k] << share1[i].arr[j][k] << " ";
+                }
+                std::cout << std::endl;
+            }
+
+            delete[] share0[i].arr[j];
+            delete[] share1[i].arr[j];
+        }
+        delete[] share0[i].arr;
+        delete[] share1[i].arr;
+    }
+
+    delete[] share0;
+    delete[] share1;
+
+    if (numreqs > 1)
+        std::cout << "batch send:\t" << sec_from(start) << std::endl;
+
+    return num_bytes;
+}
+
+void multi_heavy_op(const std::string protocol, const size_t numreqs) {
+    int num_bytes = 0;
+    uint64_t* count = new uint64_t[max_int];
+    memset(count, 0, max_int * sizeof(uint64_t));
+
+    initMsg msg;
+    msg.num_bits = num_bits;
+    msg.num_of_inputs = numreqs;
+    msg.max_inp = max_int;
+    msg.type = MULTI_HEAVY_OP;
+
+    // TODO: also take K/delta as options
+    const size_t K = 1;
+    const double delta = 0.1;
+    MultiHeavyConfig cfg(K, delta, num_bits);
+
+    cfg.print();
+
+    // Num hashes, input bits, output range
+    flint_rand_t hash_seed_classify; flint_randinit(hash_seed_classify);
+    flint_rand_t hash_seed_split; flint_randinit(hash_seed_split);
+    flint_rand_t hash_seed_value; flint_randinit(hash_seed_value);
+
+    // Which of the B SH subtreams it gets classified as
+    HashStore hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
+    // Split: each SH breakdown into the pairs, bucket 0 or 1. (original was by bits)
+    // Base Q*B*depth, but can repeat across B
+    // TODO: This should be easy to invert...?
+    HashStore hash_split(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_split);
+    // SingleHeavy +-1 values.
+    // Base Q*B*depth, but can repeat across B
+    HashStore hash_value(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_value);
+
+    std::cout << "classify: " << std::endl;
+    hash_classify.print();
+    std::cout << "split: " << std::endl;
+    hash_split.print();
+    std::cout << "value: " << std::endl;
+    hash_value.print();
+
+    num_bytes += send_to_server(0, &msg, sizeof(initMsg));
+    num_bytes += send_to_server(1, &msg, sizeof(initMsg));
+
+    // Send params? Countmin, K, delta are the core.
+    num_bytes += send_size(sockfd0, K);
+    num_bytes += send_size(sockfd1, K);
+    num_bytes += send_double(sockfd0, delta);
+    num_bytes += send_double(sockfd1, delta);
+
+    num_bytes += send_seeds(hash_seed_classify);
+    num_bytes += send_seeds(hash_seed_classify);
+    num_bytes += send_seeds(hash_seed_value);
+
+    if (CLIENT_BATCH) {
+        num_bytes += multi_heavy_helper(protocol, numreqs, count, cfg, hash_classify, hash_split, hash_value);
+    } else {
+        auto start = clock_start();
+        for (unsigned int i = 0; i < numreqs; i++)
+            num_bytes += multi_heavy_helper(protocol, 1, count, cfg, hash_classify, hash_split, hash_value);
+        std::cout << "make+send:\t" << sec_from(start) << std::endl;
+    }
+
+    for (unsigned int j = 0; j < max_int; j++) {
+        if (count[j] > t * numreqs / 2)
+            std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
+    }
+    delete[] count;
+    std::cout << "Total sent bytes: " << num_bytes << std::endl;
+}
+
 int main(int argc, char** argv) {
     if (argc < 4) {
         std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits (linreg_degree/heavy_t) " << endl;
@@ -1825,6 +2003,16 @@ int main(int argc, char** argv) {
         //     lin_reg_invalid(protocol, numreqs);
         // else
         heavy_op(protocol, numreqs);
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
+    }
+
+    else if(protocol == "MULTIHEAVY") {
+        std::cout << "Uploading all HEAVY shares: " << numreqs << std::endl;
+
+        // if (DEBUG_INVALID)
+        //     lin_reg_invalid(protocol, numreqs);
+        // else
+        multi_heavy_op(protocol, numreqs);
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
