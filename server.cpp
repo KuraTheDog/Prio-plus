@@ -1707,14 +1707,14 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     const size_t share_size_count = 1;
     const size_t num_sh = cfg.Q * cfg.B * cfg.SH_depth;
     // Which of the B SH instances it gets classified as
-    HashStore hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
+    HashStorePoly hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
     // Split: each SH breakdown into the pairs, bucket 0 or 1. (original was by bits)
     // Base Q*B*depth, but can repeat across B
     // TODO: This should be easy to invert...?
-    HashStore hash_split(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_split);
+    HashStorePoly hash_split(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_split);
     // SingleHeavy +-1 values.
     // Base Q*B*depth, but can repeat across B
-    HashStore hash_value(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_value);
+    HashStorePoly hash_value(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_value);
     // SH storage: Q instances of B SH, each SH_depth large.
     fmpz_t* bucket0; new_fmpz_array(&bucket0, num_sh);
     fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);

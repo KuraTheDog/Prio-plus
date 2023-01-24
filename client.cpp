@@ -1625,7 +1625,7 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
     // seed for consistent hashes.
     flint_rand_t hash_seed; flint_randinit(hash_seed);
     // TODO: 4-wise independent hashes? Need to double check they're needed
-    HashStore hash_store(num_bits, num_bits, 2, hash_seed);
+    HashStorePoly hash_store(num_bits, num_bits, 2, hash_seed);
     // for (unsigned int i = 0; i < num_bits; i++)
     //     hash_store.print_hash(i);
 
@@ -1657,7 +1657,7 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
 
 int multi_heavy_helper(const std::string protocol, const size_t numreqs,
                        uint64_t* counts, const MultiHeavyConfig cfg,
-                       HashStore &hash_classify, HashStore &hash_split, HashStore &hash_value) {
+                       HashStore& hash_classify, HashStore& hash_split, HashStore& hash_value) {
     auto start = clock_start();
     int num_bytes = 0;
     emp::PRG prg;
@@ -1786,14 +1786,14 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     flint_rand_t hash_seed_value; flint_randinit(hash_seed_value);
 
     // Which of the B SH subtreams it gets classified as
-    HashStore hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
+    HashStorePoly hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
     // Split: each SH breakdown into the pairs, bucket 0 or 1. (original was by bits)
     // Base Q*B*depth, but can repeat across B
-    // TODO: This should be easy to invert...?
-    HashStore hash_split(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_split);
+    // TODO: This should be easy to invert...? Should be HashStorebit (also type check)
+    HashStorePoly hash_split(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_split);
     // SingleHeavy +-1 values.
     // Base Q*B*depth, but can repeat across B
-    HashStore hash_value(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_value);
+    HashStorePoly hash_value(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_value);
 
     std::cout << "classify: " << std::endl;
     hash_classify.print();
