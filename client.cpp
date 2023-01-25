@@ -1657,7 +1657,7 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
 
 int multi_heavy_helper(const std::string protocol, const size_t numreqs,
                        uint64_t* counts, const MultiHeavyConfig cfg,
-                       HashStore& hash_classify, HashStore& hash_split, HashStore& hash_value) {
+                       HashStore& hash_classify, HashStoreBit& hash_split, HashStore& hash_value) {
     auto start = clock_start();
     int num_bytes = 0;
     emp::PRG prg;
@@ -1788,9 +1788,8 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     // Which of the B SH subtreams it gets classified as
     HashStorePoly hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
     // Split: each SH breakdown into the pairs, bucket 0 or 1. (original was by bits)
-    // Base Q*B*depth, but can repeat across B
-    // TODO: This should be easy to invert...? Should be HashStorebit (also type check)
-    HashStorePoly hash_split(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_split);
+    // Base Q*B*depth, but can repeat across B. Invertable.
+    HashStoreBit hash_split(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_split, cfg.SH_depth);
     // SingleHeavy +-1 values.
     // Base Q*B*depth, but can repeat across B
     HashStorePoly hash_value(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_value);
@@ -1812,7 +1811,7 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     num_bytes += send_double(sockfd1, delta);
 
     num_bytes += send_seeds(hash_seed_classify);
-    num_bytes += send_seeds(hash_seed_classify);
+    num_bytes += send_seeds(hash_seed_split);
     num_bytes += send_seeds(hash_seed_value);
 
     if (CLIENT_BATCH) {

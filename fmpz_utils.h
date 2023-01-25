@@ -23,6 +23,8 @@ void fmpz_from_block(fmpz_t x, const emp::block &b, const size_t n);
 
 // Assumes >M/2 is negative (x - M) mod M, otherwise x
 // Works best when M is sufficiently large compared to (true) values.
+// to_fsigned subtracts M in place if > M. get returns an int representation (for e.g. print)
+void to_fsigned(fmpz_t x, const fmpz_t M);
 int64_t get_fsigned(const fmpz_t x, const fmpz_t M);
 
 #endif

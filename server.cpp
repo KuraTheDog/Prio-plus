@@ -1709,9 +1709,8 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     // Which of the B SH instances it gets classified as
     HashStorePoly hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
     // Split: each SH breakdown into the pairs, bucket 0 or 1. (original was by bits)
-    // Base Q*B*depth, but can repeat across B
-    // TODO: This should be easy to invert...?
-    HashStorePoly hash_split(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_split);
+    // Base Q*B*depth, but can repeat across B. Invertible
+    HashStoreBit hash_split(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_split, cfg.SH_depth);
     // SingleHeavy +-1 values.
     // Base Q*B*depth, but can repeat across B
     HashStorePoly hash_value(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_value);
@@ -1895,23 +1894,51 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
             return RET_INVALID;
         }
 
-        std::cout << "(iter, stream, depth)" << std::endl;
-        for (unsigned int i = 0; i < num_sh; i++) {
-            fmpz_add(bucket0_other[i], bucket0_other[i], bucket0[i]);
-            fmpz_mod(bucket0_other[i], bucket0_other[i], Int_Modulus);
-            fmpz_add(bucket1_other[i], bucket1_other[i], bucket1[i]);
-            fmpz_mod(bucket1_other[i], bucket1_other[i], Int_Modulus);
-            unsigned int d = i % cfg.SH_depth;
-            unsigned int b = (i / cfg.SH_depth) % cfg.B;
-            unsigned int q = (i / (cfg.SH_depth * cfg.B)); 
-            std::cout << "Bucket[" << i << "] (" << q << ", " << b << ", " << d << ") = ";
-            std::cout << get_fsigned(bucket0_other[i], Int_Modulus);
-            std::cout << ", " << get_fsigned(bucket1_other[i], Int_Modulus) << std::endl;
+        // hash_split.print_coeff();
+
+        fmpz_t* values; new_fmpz_array(&values, cfg.SH_depth);
+        fmpz_t b0; fmpz_init(b0);
+        fmpz_t b1; fmpz_init(b1);
+        std::set<unsigned int> candidates;
+        for (unsigned int q = 0; q < cfg.Q; q++) {
+            for (unsigned int b = 0; b < cfg.B; b++) {
+                const size_t group_idx = q * cfg.B + b;
+                for (unsigned int d = 0; d < cfg.SH_depth; d++) {
+                    const size_t idx = group_idx * cfg.SH_depth + d;
+                    fmpz_add(b0, bucket0[idx], bucket0_other[idx]);
+                    fmpz_mod(b0, b0, Int_Modulus);
+                    to_fsigned(b0, Int_Modulus);
+                    fmpz_add(b1, bucket1[idx], bucket1_other[idx]);
+                    fmpz_mod(b1, b1, Int_Modulus);
+                    to_fsigned(b1, Int_Modulus);
+
+                    // If b0 + b1 < some threshold, then ignore?
+                    // Maybe e.g. b0 + b1 vs total / B (/ 2) ? (half of average?)
+                    // Or some absolute thing
+                    // Will be eliminated by large quantity, count-min, and validation anyways
+
+                    fmpz_set_ui(values[d], fmpz_cmpabs(b0, b1) < 0 ? 1 : 0);
+                    // std::cout << "Bucket[" << idx << "] (" << q << ", " << b << ", " << d << ") = ";
+                    // std::cout << get_fsigned(b0, Int_Modulus);
+                    // std::cout << ", " << get_fsigned(b1, Int_Modulus);
+                    // std::cout << "  : cmp abs = " << fmpz_cmpabs(b0, b1);
+                    // std::cout << ", value = " << fmpz_get_si(values[d]);
+                    // std::cout << std::endl;
+                }
+                unsigned int ans;
+                int bad_hashes = hash_split.solve(q, values, ans);
+                std::cout << "Found candidate " << ans << ", with " << bad_hashes << " invalid" << std::endl;
+                if (bad_hashes == 0) {
+                    candidates.insert(ans);
+                }
+            }
         }
 
-        // TODO: final SH eval with equation inversion.
-        // First do local cmp, with better nested iter. 
-        // Then need ot figure out inversion/solving hashes.
+        std::cout << "Candidates: ";
+        for (auto it = candidates.begin(); it!=candidates.end(); ++it) {
+            std::cout << ' ' << *it;
+        }
+        std::cout << std::endl;
 
         return RET_ANS;
     }
