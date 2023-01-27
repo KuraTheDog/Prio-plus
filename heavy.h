@@ -109,6 +109,9 @@ less than eps * total over actual with probability at least 1 - delta
 Main use is aggregating via shares, so counts is exposed to be copied into.
 Add is also generally unused, but kept for testing
 
+TODO: Check w * d < input range.
+Otherwise it's more space efficient to just to a normal frequency vector
+Can either warn or actually replace with frequency.
 */
 
 struct CountMin {
@@ -124,10 +127,7 @@ struct CountMin {
 
   // Seperate from constructor, so can be copied into instead
   void setStore(const size_t input_bits, flint_rand_t hash_seed_arg) {
-    // Enforce shrinking
-    unsigned int output_bits = LOG2(cfg.w);
-    unsigned int max_bits = input_bits < output_bits ? output_bits : input_bits;
-    store = new HashStorePoly(cfg.d, max_bits, cfg.w, hash_seed_arg, 2);
+    store = new HashStorePoly(cfg.d, input_bits, cfg.w, hash_seed_arg, 2);
   }
 
   // Seperate from constructor, so can be copied into instead

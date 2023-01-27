@@ -16,17 +16,8 @@ HashStore::HashStore(
   fmpz_init_set_ui(input_range, 1ULL << input_bits);
   hash_seed[0] = hash_seed_arg[0];
 
-  std::cout << "Made hash store num_hashes: " << num_hashes << ", input_range: 2^" << input_bits << " -> output_range: " << hash_range << " (" << output_bits << " bits)" << std::endl;
-
-  // We assume output_range <= input_range. output_range > input_range striaghtforward to do, but currently not needed
-  if (fmpz_cmp(output_range, input_range) > 0) {
-    std::cout << "Warning: currently only supports shrinking hashes (output_range <= input_range)" << std::endl;
-  }
-  // assume wd < input_range, else no space is saved and freq is easier
-  // fmpz_t wd; fmpz_init_set(wd, output_range); fmpz_mul_ui(wd, wd, num_hashes);
-  // if (fmpz_cmp(wd, input_range) >= 0) {
-  //   std::cout << "Warning: wd >= input_range, so no space saved vs standard frequency" << std::endl;
-  // }
+  std::cout << "Made hash store num_hashes: " << num_hashes << ", input_range: 2^" << input_bits;
+  std::cout << " -> output_range: " << hash_range << " (" << output_bits << " bits)" << std::endl;
 }
 
 void HashStore::print() const {
@@ -77,7 +68,8 @@ void HashStorePoly::eval(const unsigned int i, const unsigned int x, fmpz_t out)
     fmpz_mod(out, out, input_range);
   }
   // right shift, take first output_bits bits
-  fmpz_fdiv_q_2exp(out, out, input_bits - output_bits);
+  if (input_bits > output_bits)
+    fmpz_fdiv_q_2exp(out, out, input_bits - output_bits);
 
   fmpz_add(out, out, coeff[i][0]);
   fmpz_mod(out, out, output_range);
