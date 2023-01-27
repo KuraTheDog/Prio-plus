@@ -10,9 +10,11 @@
 #include <unordered_map>
 #include <string>
 #include <vector>
+#include <queue>
 
 #include "correlated.h"
 #include "hash.h"
+#include "heavy.h"
 #include "net_share.h"
 #include "ot.h"
 #include "types.h"
@@ -1694,9 +1696,11 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     flint_rand_t hash_seed_classify; flint_randinit(hash_seed_classify);
     flint_rand_t hash_seed_split; flint_randinit(hash_seed_split);
     flint_rand_t hash_seed_value; flint_randinit(hash_seed_value);
+    flint_rand_t hash_seed_count; flint_randinit(hash_seed_count);
     recv_seed(clientfd, hash_seed_classify);
     recv_seed(clientfd, hash_seed_split);
     recv_seed(clientfd, hash_seed_value);
+    recv_seed(clientfd, hash_seed_count);
 
     /* Init structures */
     // Q sets of singleHeavy, each with Depth layers. (repeat across B)
@@ -1704,7 +1708,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     // For each Q, identify b (first hash)
     const size_t share_size_mask = cfg.Q * cfg.B;
     // Count-min
-    const size_t share_size_count = 1;
+    const size_t share_size_count = cfg.countmin_cfg.d * cfg.countmin_cfg.w;
     const size_t num_sh = cfg.Q * cfg.B * cfg.SH_depth;
     // Which of the B SH instances it gets classified as
     HashStorePoly hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
@@ -1717,7 +1721,6 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     // SH storage: Q instances of B SH, each SH_depth large.
     fmpz_t* bucket0; new_fmpz_array(&bucket0, num_sh);
     fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);
-    // Countmin
 
     for (unsigned int i = 0; i < total_inputs; i++) {
         char pk_c[PK_LENGTH];
@@ -1793,29 +1796,28 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            if (valid[i]) {
-                bool* a; bool* b; bool* c; bool* d;
-                std::tie(a, b, c, d) = share_map[pk_list[i]];
-                memcpy(&shares_sh_x[i * share_size_sh], a, share_size_sh);
-                memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
-                memcpy(&shares_mask[i * share_size_mask], c, share_size_mask);
-                memcpy(&shares_count[i * share_size_count], d, share_size_count);
-                delete a;
-                delete b;
-                delete c;
-                delete d;
-            }
+            if (!valid[i]) continue;
+            bool* a; bool* b; bool* c; bool* d;
+            std::tie(a, b, c, d) = share_map[pk_list[i]];
+            memcpy(&shares_sh_x[i * share_size_sh], a, share_size_sh);
+            memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
+            memcpy(&shares_mask[i * share_size_mask], c, share_size_mask);
+            memcpy(&shares_count[i * share_size_count], d, share_size_count);
+            delete a;
+            delete b;
+            delete c;
+            delete d;
         }
-        // N inputs, Q copies, D depth, B substreams
-        // |x| = |y| = N * Q * D
-        // |mask| = N * Q * M: Substream select
-        // Valid size N
-        // buckets size : Q * M * D
-        // Order: N, Q, M, D
-        //   x,y = [over N (over Q (over D))]
-        //   valid = over N
-        //   mask  = [over N (over Q (over M))]
-        //   buckets = [over Q (over M (over D))]
+        // TODO: Freq validate count-min and mask
+        // Also compact in mask shares for a single conversion.
+        // Only need count-min for B2A though.
+        fmpz_t* count_shares_p; new_fmpz_array(&count_shares_p, num_inputs * share_size_count);
+        num_bytes += correlated_store->b2a_daBit_single(
+                num_inputs * share_size_count, shares_count, count_shares_p);
+
+        fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
+        num_bytes += accumulate(num_inputs, share_size_count, count_shares_p, valid, countmin_accum);
+
         num_bytes += correlated_store->heavy_convert_mask(
             num_inputs, cfg.Q, cfg.B, cfg.SH_depth, 
             shares_sh_x, shares_sh_y, shares_mask, 
@@ -1828,6 +1830,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         start2 = clock_start();
         num_bytes += send_fmpz_batch(serverfd, bucket0, num_sh);
         num_bytes += send_fmpz_batch(serverfd, bucket1, num_sh);
+        num_bytes += send_fmpz_batch(serverfd, countmin_accum, share_size_count);
 
         return RET_NO_ANS;
     } else {
@@ -1852,19 +1855,26 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            if (valid[i]) {
-                bool* a; bool* b; bool* c; bool* d;
-                std::tie(a, b, c, d) = share_map[pk_list[i]];
-                memcpy(&shares_sh_x[i * share_size_sh], a, share_size_sh);
-                memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
-                memcpy(&shares_mask[i * share_size_mask], c, share_size_mask);
-                memcpy(&shares_count[i * share_size_count], d, share_size_count);
-                delete a;
-                delete b;
-                delete c;
-                delete d;
-            }  // else ignorable garbage
+            if (!valid[i]) continue;
+            bool* a; bool* b; bool* c; bool* d;
+            std::tie(a, b, c, d) = share_map[pk_list[i]];
+            memcpy(&shares_sh_x[i * share_size_sh], a, share_size_sh);
+            memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
+            memcpy(&shares_mask[i * share_size_mask], c, share_size_mask);
+            memcpy(&shares_count[i * share_size_count], d, share_size_count);
+            delete a;
+            delete b;
+            delete c;
+            delete d;
         }
+
+        // TODO: Freq validate count-min and mask
+        fmpz_t* count_shares_p; new_fmpz_array(&count_shares_p, num_inputs * share_size_count);
+        num_bytes += correlated_store->b2a_daBit_single(
+                num_inputs * share_size_count, shares_count, count_shares_p);
+
+        fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
+        num_bytes += accumulate(num_inputs, share_size_count, count_shares_p, valid, countmin_accum);
 
         num_bytes += correlated_store->heavy_convert_mask(
             num_inputs, cfg.Q, cfg.B, cfg.SH_depth, 
@@ -1879,8 +1889,10 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
         fmpz_t* bucket0_other; new_fmpz_array(&bucket0_other, num_sh);
         fmpz_t* bucket1_other; new_fmpz_array(&bucket1_other, num_sh);
+        fmpz_t* count_other; new_fmpz_array(&count_other, share_size_count);
         recv_fmpz_batch(serverfd, bucket0_other, num_sh);
         recv_fmpz_batch(serverfd, bucket1_other, num_sh);
+        recv_fmpz_batch(serverfd, count_other, share_size_count);
 
         // Note: If doing joint count-min eval, either need to move this after, or also do valid check on the other side.
         size_t num_valid = 0;
@@ -1893,8 +1905,6 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
             delete[] valid;
             return RET_INVALID;
         }
-
-        // hash_split.print_coeff();
 
         fmpz_t* values; new_fmpz_array(&values, cfg.SH_depth);
         fmpz_t b0; fmpz_init(b0);
@@ -1919,26 +1929,53 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
                     fmpz_set_ui(values[d], fmpz_cmpabs(b0, b1) < 0 ? 1 : 0);
                     // std::cout << "Bucket[" << idx << "] (" << q << ", " << b << ", " << d << ") = ";
-                    // std::cout << get_fsigned(b0, Int_Modulus);
-                    // std::cout << ", " << get_fsigned(b1, Int_Modulus);
+                    // std::cout << get_fsigned(b0, Int_Modulus) << ", " << get_fsigned(b1, Int_Modulus);
                     // std::cout << "  : cmp abs = " << fmpz_cmpabs(b0, b1);
-                    // std::cout << ", value = " << fmpz_get_si(values[d]);
-                    // std::cout << std::endl;
+                    // std::cout << ", value = " << fmpz_get_si(values[d]) << "\n";
                 }
                 unsigned int ans;
                 int bad_hashes = hash_split.solve(q, values, ans);
-                std::cout << "Found candidate " << ans << ", with " << bad_hashes << " invalid" << std::endl;
+                std::cout << "Candidate[" << q << ", " << b << "] = ";
+                std::cout << ans << ", with " << bad_hashes << " invalid\n";
                 if (bad_hashes == 0) {
                     candidates.insert(ans);
                 }
             }
         }
 
-        std::cout << "Candidates: ";
-        for (auto it = candidates.begin(); it!=candidates.end(); ++it) {
-            std::cout << ' ' << *it;
+        // Query count-min
+        CountMin count_min(cfg.countmin_cfg);
+        count_min.setStore(num_bits, hash_seed_count);
+        count_min.init();
+
+        for (unsigned int i = 0; i < share_size_count; i++) {
+            fmpz_add(count_min.counts[i], countmin_accum[i], count_other[i]);
+            fmpz_mod(count_min.counts[i], count_min.counts[i], Int_Modulus);
         }
-        std::cout << std::endl;
+        // CountMin
+
+        std::cout << "combined countmin" << std::endl;
+        count_min.print();
+        // Priority queue?
+        // Size cap at total candidates, which is B * Q.
+        // So don't need to worry about discarding too-small items as more come in
+        std::priority_queue<std::pair<unsigned int, unsigned int>> frequencies;
+        for (auto it = candidates.begin(); it!=candidates.end(); ++it) {
+            unsigned int candidate = *it;
+            unsigned int freq = count_min.query(candidate);
+            frequencies.push(std::make_pair(freq, candidate));
+        }
+
+        std::cout << "Heavy items:" << std::endl;
+        while (!frequencies.empty()) {
+            auto next = frequencies.top();
+            if (next.first == 0) break;
+            std::cout << "\t value: " << next.second << "\t freq: " << next.first << std::endl;
+            frequencies.pop();
+        }
+
+
+
 
         return RET_ANS;
     }

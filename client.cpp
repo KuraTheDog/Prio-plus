@@ -24,6 +24,7 @@ x_op_invalid: For testing/debugging, does a basic run with intentionally invalid
 
 #include "circuit.h"
 #include "hash.h"
+#include "heavy.h"
 #include "net_share.h"
 #include "ot.h"
 #include "types.h"
@@ -1657,7 +1658,8 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
 
 int multi_heavy_helper(const std::string protocol, const size_t numreqs,
                        uint64_t* counts, const MultiHeavyConfig cfg,
-                       HashStore& hash_classify, HashStoreBit& hash_split, HashStore& hash_value) {
+                       HashStore& hash_classify, HashStoreBit& hash_split,
+                       HashStore& hash_value, CountMin& count_min) {
     auto start = clock_start();
     int num_bytes = 0;
     emp::PRG prg;
@@ -1672,20 +1674,23 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
     // For each Q, identify b (first hash)
     const size_t share_size_mask = cfg.Q * cfg.B;
     // Count-min
-    const size_t share_size_count = 1;
+    const size_t share_size_count = cfg.countmin_cfg.d * cfg.countmin_cfg.w;
     const size_t sizes[4] = {share_size_sh, share_size_sh, share_size_mask, share_size_count};
 
     int current = 0; int count = 0;
+    int mult = numreqs / (max_int * (max_int - 1) / 2) + 1;
+    [[maybe_unused]] int check_idx = 90;
     for (unsigned int i = 0; i < numreqs; i++) {
         real_val = current;
         count++;
-        if (count > current) {
+        if (count > current * mult) {
             current++;
             count = 0;
         }
-        real_val = 0;
+        real_val %= max_int;
+        // real_val = 3;
         counts[real_val] ++;
-        if (i == 0) std::cout << "real_val: " << real_val << std::endl;
+        if (i == check_idx) std::cout << "real_val: " << real_val << std::endl;
 
         // sh_x, sh_y, mask, count
         share0[i].arr = new bool*[4];
@@ -1697,10 +1702,9 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
         for (unsigned int q = 0; q < cfg.Q; q++) {
             hash_classify.eval(q, real_val, hashed);
             int b_val = fmpz_get_ui(hashed);
-            share1[i].arr[2][b_val] ^= 1;
-            // memset(share1[i].arr[2], 1, share_size_mask);
+            share1[i].arr[2][q * cfg.B + b_val] ^= 1;
 
-            if (i == 0) std::cout << "substream[" << q << "] = " << b_val << std::endl;
+            if (i == check_idx) std::cout << "substream[" << q << "] = " << b_val << std::endl;
 
             int offset = q * cfg.SH_depth;
             for (unsigned int d = 0; d < cfg.SH_depth; d++) {
@@ -1709,16 +1713,17 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
                 hash_value.eval(offset + d, real_val, hashed);
                 // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
                 bool h = fmpz_is_one(hashed);
-                if (i == 0) std::cout << "  depth " << d << " bucket " << bucket << " value " << h << " (" << 1-2*h << ")" << std::endl;
+                if (i == check_idx) std::cout << "  depth " << d << " bucket " << bucket << " value " << h << " (" << 1-2*h << ")" << std::endl;
 
                 share1[i].arr[0][offset + d] ^= bucket;
                 share1[i].arr[1][offset + d] ^= h;
             }
         }
 
-        // TODO: count-min
-
-
+        for (unsigned int d = 0; d < count_min.cfg.d; d++) {
+            count_min.store->eval(d, real_val, hashed);
+            share1[i].arr[3][d * count_min.cfg.w + fmpz_get_ui(hashed)] ^= 1;
+        }
 
         const std::string pk_s = make_pk(prg);
         const char* const pk = pk_s.c_str();
@@ -1738,7 +1743,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
             num_bytes += send_bool_batch(sockfd0, share0[i].arr[j], sizes[j]);
             num_bytes += send_bool_batch(sockfd1, share1[i].arr[j], sizes[j]);
 
-            if (i == 0) {
+            if (i == check_idx) {
                 std::cout << "share0,1[" << i << ", " << j << "] = ";
                 for (unsigned int k = 0; k < sizes[j]; k++) {
                     std::cout << share0[i].arr[j][k] << share1[i].arr[j][k] << " ";
@@ -1784,6 +1789,7 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     flint_rand_t hash_seed_classify; flint_randinit(hash_seed_classify);
     flint_rand_t hash_seed_split; flint_randinit(hash_seed_split);
     flint_rand_t hash_seed_value; flint_randinit(hash_seed_value);
+    flint_rand_t hash_seed_count; flint_randinit(hash_seed_count);
 
     // Which of the B SH subtreams it gets classified as
     HashStorePoly hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
@@ -1793,6 +1799,9 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     // SingleHeavy +-1 values.
     // Base Q*B*depth, but can repeat across B
     HashStorePoly hash_value(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_value);
+    // CountMin
+    CountMin count_min(cfg.countmin_cfg);
+    count_min.setStore(num_bits, hash_seed_count);
 
     std::cout << "classify: " << std::endl;
     hash_classify.print();
@@ -1804,7 +1813,7 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     num_bytes += send_to_server(0, &msg, sizeof(initMsg));
     num_bytes += send_to_server(1, &msg, sizeof(initMsg));
 
-    // Send params? Countmin, K, delta are the core.
+    // Send params. K, delta are the core.
     num_bytes += send_size(sockfd0, K);
     num_bytes += send_size(sockfd1, K);
     num_bytes += send_double(sockfd0, delta);
@@ -1813,18 +1822,21 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     num_bytes += send_seeds(hash_seed_classify);
     num_bytes += send_seeds(hash_seed_split);
     num_bytes += send_seeds(hash_seed_value);
+    num_bytes += send_seeds(hash_seed_count);
 
     if (CLIENT_BATCH) {
-        num_bytes += multi_heavy_helper(protocol, numreqs, count, cfg, hash_classify, hash_split, hash_value);
+        num_bytes += multi_heavy_helper(protocol, numreqs, count, cfg,
+            hash_classify, hash_split, hash_value, count_min);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            num_bytes += multi_heavy_helper(protocol, 1, count, cfg, hash_classify, hash_split, hash_value);
+            num_bytes += multi_heavy_helper(protocol, 1, count, cfg,
+                hash_classify, hash_split, hash_value, count_min);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
     for (unsigned int j = 0; j < max_int; j++) {
-        if (count[j] > t * numreqs / 2)
+        if (count[j] > 0.1 * numreqs / 2)
             std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
     }
     delete[] count;
