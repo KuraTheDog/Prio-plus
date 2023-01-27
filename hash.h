@@ -44,7 +44,7 @@ public:
       const size_t num_hashes, const size_t input_bits, const size_t hash_range,
       flint_rand_t hash_seed_arg);
 
-  ~HashStore() {
+  virtual ~HashStore() {
     fmpz_clear(output_range);
     fmpz_clear(input_range);
     flint_randclear(hash_seed);

@@ -52,8 +52,18 @@ HashStorePoly::HashStorePoly(
   // Also, it's not quite polynomial since shift magic.
   for (unsigned int i = 0; i < num_hashes; i++) {
     new_fmpz_array(&coeff[i], degree + 1);
-    for (unsigned int j = 0; j <= degree; j++) {
-      fmpz_randm(coeff[i][j], hash_seed, j == 0 ? output_range : input_range);
+    // Enforce not constant. Only really issue for small input ranges, and low degree
+    bool run = true;
+    while(run) {
+      for (unsigned int j = 0; j <= degree; j++) {
+        fmpz_randm(coeff[i][j], hash_seed, j == 0 ? output_range : input_range);
+      }
+      for (unsigned int j = 1; j <= degree; j++) {
+        if (not fmpz_is_zero(coeff[i][j])) {
+          run = false;
+          break;
+        }
+      }
     }
   }
 }
@@ -93,7 +103,7 @@ HashStoreBit::HashStoreBit(
 {
   const size_t num_groups = num_hashes / group_size;
 
-  std::cout << "  store: " << num_groups << " groups of size " << group_size << ", ";
+  std::cout << "  Bit store: " << num_groups << " groups of size " << group_size << ", ";
   std::cout << "  dim : " << dim << ", validate: " << group_size - dim << std::endl;
 
   if (num_hashes % group_size != 0) {
@@ -167,7 +177,8 @@ int HashStoreBit::solve(const unsigned int group_num, const fmpz_t* const values
   if (ret == 0) {
     // std::cout << "WARNING: Somehow couldn't solve." << std::endl;
     fmpz_mod_mat_clear(X);
-    return 99999;
+    // Case should not happen
+    return 100001;
   }
 
   // Extract
@@ -181,13 +192,15 @@ int HashStoreBit::solve(const unsigned int group_num, const fmpz_t* const values
     } else {
       // std::cout << "WARNING: Solution has non-bit value" << std::endl;
       fmpz_mod_mat_clear(X);
-      return 99999;
+      // Case likely because inconsistent in the first n+1.
+      return 100002;
     }
   }
   if (not fmpz_is_one(fmpz_mod_mat_entry(X, input_bits, 0))) {
     // std::cout << "WARNING: Solution has non-1 constant term" << std::endl;
     fmpz_mod_mat_clear(X);
-    return 99999;
+    // Inconsistent in first n+1, or pure empty.
+    return 100003;
   }
   fmpz_mod_mat_clear(X);
 
