@@ -4,6 +4,7 @@
 
 #include "../fmpz_utils.h"
 #include "../hash.h"
+#include "../heavy.h"
 
 const size_t input_bits = 3;
 const size_t output_range = 5;
@@ -87,8 +88,41 @@ void test_inverse() {
   assert(ans == x);
 }
 
+void test_countmin() {
+  flint_rand_t hash_seed;
+  flint_randinit(hash_seed);
+
+  // .1, .1 -> 3 hash range 28
+  // So input bits becomes 5
+  CountMinConfig cfg(0.1, 0.1);
+  cfg.print();
+
+  CountMin count(cfg);
+  count.init();
+  count.setStore(3, hash_seed);
+
+  // count.store->print();
+
+
+  // Small (1/w)^d chance of each full overlapping. so test not too large to amplify this.
+  unsigned int vals[3] = {1, 2, 3};
+  unsigned int counts[3] = {6, 2, 0};
+
+  for (unsigned int i = 0; i < 3; i++)
+    count.add(vals[i], counts[i]);
+
+  count.print();
+
+  for (unsigned int i = 0; i < 3; i++) {
+    int ans = count.query(vals[i]);
+    // std::cout << "query(" << vals[i] << ") = " << ans << ", vs acutal " << counts[i] << std::endl;
+    assert(ans == counts[i]);
+  }
+}
+
 int main(int argc, char** argv){
   test_seed_sync();
 
   test_inverse();
+  test_countmin();
 }
