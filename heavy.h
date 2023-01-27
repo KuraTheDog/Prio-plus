@@ -97,7 +97,7 @@ struct MultiHeavyConfig {
   }
 };
 
-/* 
+/*
 d x w counts struct.
 d hashes range [w]
 Add(x) -> counts[i, hash_i(x)] += 1 for each i in d

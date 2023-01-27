@@ -152,7 +152,7 @@ public:
   // [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
   // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
   // |x| = |y| = N * b
-  // Index with i * b + j: (x0, ..., xb-1) for number 0. 
+  // Index with i * b + j: (x0, ..., xb-1) for number 0.
   // Makes copying in new shares easier.
   // N valid, if invalid just contributes 0
   int heavy_convert(const size_t N, const size_t b,
@@ -184,7 +184,7 @@ public:
   // Using intsum_ot, multiple bits
   // TODO: shift mod to fmpz
   int b2a_ot(const size_t num_shares, const size_t num_values,
-             const size_t* const num_bits, 
+             const size_t* const num_bits,
              const fmpz_t* const x, fmpz_t* const xp,
              const size_t mod = 0);
 
