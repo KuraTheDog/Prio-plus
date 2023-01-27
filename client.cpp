@@ -1679,7 +1679,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
 
     int current = 0; int count = 0;
     int mult = numreqs / (max_int * (max_int - 1) / 2) + 1;
-    [[maybe_unused]] int check_idx = 90;
+    [[maybe_unused]] int check_idx = -1;
     for (unsigned int i = 0; i < numreqs; i++) {
         real_val = current;
         count++;
@@ -1779,7 +1779,7 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     msg.type = MULTI_HEAVY_OP;
 
     // TODO: also take K/delta as options
-    const size_t K = 1;
+    const size_t K = 2;
     const double delta = 0.1;
     MultiHeavyConfig cfg(K, delta, num_bits);
 
