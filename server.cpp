@@ -1868,6 +1868,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
         clear_fmpz_array(shares_p, num_inputs * (share_size_count + share_size_mask));
 
+        start3 = clock_start();
         num_bytes += correlated_store->heavy_convert_mask(
             num_inputs, cfg.Q, cfg.B, cfg.SH_depth,
             shares_sh_x, shares_sh_y, shares_mask,
@@ -1876,6 +1877,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         delete[] shares_sh_x;
         delete[] shares_sh_y;
         delete[] shares_mask;
+        std::cout << "heavy_convert time: " << sec_from(start3) << std::endl;
         std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "compute bytes sent: " << num_bytes << std::endl;
@@ -1997,6 +1999,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
         clear_fmpz_array(shares_p, num_inputs * (share_size_count + share_size_mask));
 
+        start3 = clock_start();
         num_bytes += correlated_store->heavy_convert_mask(
             num_inputs, cfg.Q, cfg.B, cfg.SH_depth,
             shares_sh_x, shares_sh_y, shares_mask,
@@ -2004,6 +2007,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         delete[] shares_sh_x;
         delete[] shares_sh_y;
         delete[] shares_mask;
+        std::cout << "heavy_convert time: " << sec_from(start3) << std::endl;
         std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "compute bytes sent: " << num_bytes << std::endl;

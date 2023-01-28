@@ -1779,8 +1779,12 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     msg.type = MULTI_HEAVY_OP;
 
     // TODO: also take K/delta as options
-    const size_t K = 2;
-    const double delta = 0.1;
+    if (t <= 0 or t > 1) {
+        error_exit("Should provide delta (0,1] after bits");
+    }
+
+    const size_t K = linreg_degree;  // Default 2. Reuse for now.
+    const double delta = t;
     MultiHeavyConfig cfg(K, delta, num_bits);
 
     cfg.print();
@@ -1803,12 +1807,12 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     CountMin count_min(cfg.countmin_cfg);
     count_min.setStore(num_bits, hash_seed_count);
 
-    std::cout << "classify: " << std::endl;
-    hash_classify.print();
-    std::cout << "split: " << std::endl;
-    hash_split.print();
-    std::cout << "value: " << std::endl;
-    hash_value.print();
+    // std::cout << "classify: " << std::endl;
+    // hash_classify.print();
+    // std::cout << "split: " << std::endl;
+    // hash_split.print();
+    // std::cout << "value: " << std::endl;
+    // hash_value.print();
 
     num_bytes += send_to_server(0, &msg, sizeof(initMsg));
     num_bytes += send_to_server(1, &msg, sizeof(initMsg));
@@ -1835,9 +1839,13 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
-    for (unsigned int j = 0; j < max_int; j++) {
-        if (count[j] > 0.1 * numreqs / 2)
+    unsigned int num_printed = 0;
+    for (unsigned int j = max_int-1; j > 0; j--) {
+        if (count[j] > 1) {
             std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
+            num_printed++;
+        }
+        if (num_printed > 15) break;
     }
     delete[] count;
     std::cout << "Total sent bytes: " << num_bytes << std::endl;
@@ -1864,7 +1872,7 @@ int main(int argc, char** argv) {
             error_exit("Num bits is too large. Int math is done mod 2^64.");
     }
 
-    if (argc == 7) {
+    if (argc >= 7) {
         double arg7 = atof(argv[6]);
         std::cout << "arg7: " << arg7 << std::endl;
         if (arg7 >= 2) {
@@ -1872,9 +1880,14 @@ int main(int argc, char** argv) {
             std::cout << "linreg degree: " << linreg_degree << std::endl;
         } else if (arg7 <= 1 and arg7 > 0) {
             t = arg7;
-            std::cout << "heavy threshold: " << t << std::endl;
+            std::cout << "threshold: " << t << std::endl;
         } else
-            error_exit("Linreg Degree must be >= 2 or heavy_t in (0,1)");
+            error_exit("Linreg Degree must be >= 2 or threshold in (0,1)");
+    }
+
+    if (argc >= 8) {
+        // Re-use for now.
+        linreg_degree = atoi(argv[7]);
     }
 
     // Set up server connections
