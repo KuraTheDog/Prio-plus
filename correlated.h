@@ -181,7 +181,7 @@ public:
   //   buckets = [over Q (over M (over D))]
   int heavy_convert_mask(
       const size_t N, const size_t Q, const size_t M, const size_t D,
-      const bool* const x, const bool* const y, const bool* const mask,
+      const bool* const x, const fmpz_t* const y_p, const bool* const mask,
       const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1);
 
   // Using intsum_ot, multiple bits

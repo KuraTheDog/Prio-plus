@@ -608,9 +608,6 @@ int CorrelatedStore::heavy_convert_mask(
 
   auto start = clock_start();
 
-  fmpz_t* y_p; new_fmpz_array(&y_p, N * Q * D);
-  sent_bytes += b2a_daBit_single(N * Q * D, y, y_p);
-
   fmpz_t* z_base; new_fmpz_array(&z_base, N * Q * M * D);
   bool* x_extended = new bool[N * Q * M * D];
   bool* mask_extended = new bool[N * Q * M * D];
@@ -640,9 +637,6 @@ int CorrelatedStore::heavy_convert_mask(
       }
     }
   }
-  std::cout << "  init time: " << sec_from(start) << "\n"; start = clock_start();
-
-  clear_fmpz_array(y_p, N * Q * D);
   fmpz_clear(z);
 
   fmpz_t* z_masked; new_fmpz_array(&z_masked, N * Q * M * D);

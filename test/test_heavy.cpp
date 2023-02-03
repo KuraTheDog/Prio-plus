@@ -154,6 +154,8 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
       }
     }
   }
+  fmpz_t* y_p; new_fmpz_array(&y_p, N * Q * D);
+  store->b2a_daBit_single(N * Q * D, y, y_p);
 
   // Setup expected.
   for (unsigned int q = 0; q < Q; q++) {
@@ -171,12 +173,13 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
 
   // Run
   auto start = clock_start();
-  store->heavy_convert_mask(N, Q, M, D, x, y, mask, valid, bucket0, bucket1);
+  store->heavy_convert_mask(N, Q, M, D, x, y_p, mask, valid, bucket0, bucket1);
   std::cout << "heavy mask convert timing : " << sec_from(start) << std::endl;
   delete[] x;
   delete[] y;
   delete[] mask;
   delete[] valid;
+  clear_fmpz_array(y_p, N * Q * D);
 
   // Recombine / test
   if (server_num == 0) {

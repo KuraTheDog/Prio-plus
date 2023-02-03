@@ -1193,8 +1193,6 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
 }
 
 void lin_reg(const std::string protocol, const size_t numreqs) {
-    if (num_bits > 31)
-        error_exit("Num bits is too large. x^2 > 2^64.");
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
         std::cout << "Modulus should be at least " << (2 * num_bits + LOG2(numreqs)) << " bits" << std::endl;
         error_exit("Int Modulus too small");
@@ -1766,6 +1764,11 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
 }
 
 void multi_heavy_op(const std::string protocol, const size_t numreqs) {
+    if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
+        std::cout << "Modulus should be at least " << (2 * num_bits + LOG2(numreqs)) << " bits" << std::endl;
+        error_exit("Int Modulus too small");
+    }
+
     int num_bytes = 0;
     uint64_t* count = new uint64_t[max_int];
     memset(count, 0, max_int * sizeof(uint64_t));

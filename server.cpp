@@ -246,7 +246,6 @@ const bool* const validate_snips(const size_t N,
     }
     if (DO_FORK) waitpid(pid, &status, 0);
 
-    // TODO: Can be simplified: one sends share, other sends if valid
     if (DO_FORK) pid = fork();
     if (pid == 0) {
         send_fmpz_batch(serverfd, valid_share, N);
@@ -1807,12 +1806,17 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
         auto start3 = clock_start();
 
-        const size_t convert_size = num_inputs * (share_size_count + share_size_mask);
+        // Single round all B2A: count, mask, y
+        const size_t convert_size = num_inputs * (
+            share_size_count + share_size_sh + share_size_mask);
         fmpz_t* shares_p; new_fmpz_array(&shares_p, convert_size);
-        bool* shares_2 = new bool[num_inputs * (share_size_count + share_size_mask)];
+        bool* shares_2 = new bool[convert_size];
         memcpy(shares_2, shares_count, num_inputs * share_size_count);
-        memcpy(&shares_2[num_inputs * share_size_count], shares_mask,
-                num_inputs * share_size_mask);
+        memcpy(&shares_2[num_inputs * (share_size_count)],
+                shares_mask, num_inputs * share_size_mask);
+        const size_t share_y_offset = num_inputs * (share_size_count + share_size_mask);
+        memcpy(&shares_2[share_y_offset], shares_sh_y, num_inputs * share_size_sh);
+        delete[] shares_sh_y;
         delete[] shares_count;
         num_bytes += correlated_store->b2a_daBit_single(convert_size, shares_2, shares_p);
         // We use first part of shares_p as the countmin shares.
@@ -1874,16 +1878,15 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
         fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
         accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
-        clear_fmpz_array(shares_p, num_inputs * (share_size_count + share_size_mask));
 
         start3 = clock_start();
         num_bytes += correlated_store->heavy_convert_mask(
             num_inputs, cfg.Q, cfg.B, cfg.SH_depth,
-            shares_sh_x, shares_sh_y, shares_mask,
+            shares_sh_x, &shares_p[share_y_offset], shares_mask,
             valid, bucket0, bucket1);
+        clear_fmpz_array(shares_p, num_inputs * (share_size_count + share_size_mask));
         delete[] valid;
         delete[] shares_sh_x;
-        delete[] shares_sh_y;
         delete[] shares_mask;
         std::cout << "heavy_convert time: " << sec_from(start3) << std::endl;
         std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
@@ -1939,12 +1942,17 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
         auto start3 = clock_start();
 
-        const size_t convert_size = num_inputs * (share_size_count + share_size_mask);
+        // Single round all B2A: count, mask, y
+        const size_t convert_size = num_inputs * (
+            share_size_count + share_size_sh + share_size_mask);
         fmpz_t* shares_p; new_fmpz_array(&shares_p, convert_size);
-        bool* shares_2 = new bool[num_inputs * (share_size_count + share_size_mask)];
+        bool* shares_2 = new bool[convert_size];
         memcpy(shares_2, shares_count, num_inputs * share_size_count);
-        memcpy(&shares_2[num_inputs * share_size_count], shares_mask,
-                num_inputs * share_size_mask);
+        memcpy(&shares_2[num_inputs * (share_size_count)],
+                shares_mask, num_inputs * share_size_mask);
+        const size_t share_y_offset = num_inputs * (share_size_count + share_size_mask);
+        memcpy(&shares_2[share_y_offset], shares_sh_y, num_inputs * share_size_sh);
+        delete[] shares_sh_y;
         delete[] shares_count;
         num_bytes += correlated_store->b2a_daBit_single(convert_size, shares_2, shares_p);
         // We just use first part of shares_p as the countmin shares.
@@ -2007,15 +2015,14 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
         fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
         accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
-        clear_fmpz_array(shares_p, num_inputs * (share_size_count + share_size_mask));
 
         start3 = clock_start();
         num_bytes += correlated_store->heavy_convert_mask(
             num_inputs, cfg.Q, cfg.B, cfg.SH_depth,
-            shares_sh_x, shares_sh_y, shares_mask,
+            shares_sh_x, &shares_p[share_y_offset], shares_mask,
             valid, bucket0, bucket1);
+        clear_fmpz_array(shares_p, num_inputs * (share_size_count + share_size_mask));
         delete[] shares_sh_x;
-        delete[] shares_sh_y;
         delete[] shares_mask;
         std::cout << "heavy_convert time: " << sec_from(start3) << std::endl;
         std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
