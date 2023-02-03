@@ -412,9 +412,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (USE_OT_B2A == false) {
+    if (USE_OT_B2A == false)
         correlated_store->checkDaBits(total_inputs * msg.num_bits);
-    }
 
     start = clock_start();
     auto start2 = clock_start();
@@ -1284,7 +1283,8 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    correlated_store->checkDaBits(total_inputs * max_inp);
+    if (USE_OT_B2A == false)
+        correlated_store->checkDaBits(total_inputs * max_inp);
 
     start = clock_start();
     auto start2 = clock_start();
@@ -1529,7 +1529,8 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
     // Check OT too?
-    correlated_store->checkDaBits(total_inputs * 2 * b);
+    if (USE_OT_B2A == false)
+        correlated_store->checkDaBits(total_inputs * 2 * b);
 
     start = clock_start();
     auto start2 = clock_start();
@@ -1685,7 +1686,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     typedef std::tuple <bool*, bool*, bool*, bool*> sharetype;
     std::unordered_map<std::string, sharetype> share_map;
 
-    int num_bytes = 0;
+    int64_t num_bytes = 0;
     const size_t num_bits = msg.num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
 
@@ -1753,7 +1754,13 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    // TODO: Check_dabits
+    // For each pair of buckets, do 1 B2A. 
+    // All of count-min. Also all of mask for validation
+    std::cout << "Inital dabit check" << std::endl;
+    if (USE_OT_B2A == false)
+        correlated_store->checkDaBits(total_inputs * 
+            (share_size_sh + share_size_count + share_size_mask));
+
 
 
     /* Stages:
@@ -2100,7 +2107,10 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         }
 
         std::cout << "Heavy items:" << std::endl;
-        while (!frequencies.empty()) {
+        // Just print top 2K, for wiggle room etc.
+        for (unsigned int i = 0; i < 2 * K; i++) {
+        // while (!frequencies.empty()) {
+            if (frequencies.empty()) break;
             auto next = frequencies.top();
             if (next.first == 0) break;
             std::cout << "\t value: " << next.second << "\t freq: " << next.first << std::endl;
