@@ -606,6 +606,8 @@ int CorrelatedStore::heavy_convert_mask(
       const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1) {
   int sent_bytes = 0;
 
+  auto start = clock_start();
+
   fmpz_t* y_p; new_fmpz_array(&y_p, N * Q * D);
   sent_bytes += b2a_daBit_single(N * Q * D, y, y_p);
 
@@ -638,6 +640,7 @@ int CorrelatedStore::heavy_convert_mask(
       }
     }
   }
+  std::cout << "  init time: " << sec_from(start) << "\n"; start = clock_start();
 
   clear_fmpz_array(y_p, N * Q * D);
   fmpz_clear(z);
@@ -646,12 +649,14 @@ int CorrelatedStore::heavy_convert_mask(
   sent_bytes += multiplyBoolArith(N, Q * M * D, mask_extended, z_base, z_masked, nullptr, valid);
   delete[] mask_extended;
   clear_fmpz_array(z_base, N * Q * M * D);
+  std::cout << "  mul 1 time: " << sec_from(start) << "\n"; start = clock_start();
 
   fmpz_t* buff0; new_fmpz_array(&buff0, N * Q * M * D);
   fmpz_t* buff1; new_fmpz_array(&buff1, N * Q * M * D);
   sent_bytes += multiplyBoolArith(N, Q * M * D, x_extended, z_masked, buff1, buff0, valid);
   delete[] x_extended;
   clear_fmpz_array(z_masked, N * Q * M * D);
+  std::cout << "  mul 2 time: " << sec_from(start) << "\n"; start = clock_start();
 
   // for (unsigned int i = 0; i < 1 + 0 * N * Q * M * D; i++) {
   //   std::cout << "x_ext[" << i << "]_" << server_num << " = " << x_extended[i] << std::endl;
@@ -999,7 +1004,7 @@ int CorrelatedStore::gen_rand_bitshare(const size_t N,
     // Get r_lt_p in clear
     if (do_fork) pid = fork();
     if (pid == 0) {
-      sent_bytes += send_fmpz_batch(serverfd, r_lt_p, num_invalid);
+      send_fmpz_batch(serverfd, r_lt_p, num_invalid);
       if (do_fork) exit(EXIT_SUCCESS);
     }
     sent_bytes += recv_fmpz_batch(serverfd, r_lt_p_other, num_invalid);

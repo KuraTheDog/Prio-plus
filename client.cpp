@@ -1520,8 +1520,8 @@ void freq_op(const std::string protocol, const size_t numreqs) {
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
-    for (unsigned int j = 0; j < max_int && j < 256; j++)
-        std::cout << " Freq(" << j << ") = " << count[j] << std::endl;
+    for (unsigned int j = 0; j < max_int && j < 32; j++)
+        std::cout << " Freq(" << j << ") = " << count[j] << "\n";
     delete[] count;
     std::cout << "Total sent bytes: " << num_bytes << std::endl;
 }
