@@ -59,7 +59,7 @@ HashStorePoly::HashStorePoly(
   }
 }
 
-void HashStorePoly::eval(const unsigned int i, const unsigned int x, fmpz_t out) const {
+void HashStorePoly::eval(const unsigned int i, const uint64_t x, fmpz_t out) const {
   fmpz_zero(out);
   // f -> x(f + c_j)
   for (unsigned int j = degree; j > 0; j--) {
@@ -128,7 +128,7 @@ HashStoreBit::HashStoreBit(
   }
 }
 
-void HashStoreBit::eval(const unsigned int i, const unsigned int x, fmpz_t out) const {
+void HashStoreBit::eval(const unsigned int i, const uint64_t x, fmpz_t out) const {
   fmpz_zero(out);
   for (unsigned int j = 0; j < input_bits; j++) {
     // if (fmpz_tstbit(x, j)) {
@@ -150,7 +150,7 @@ void HashStoreBit::print_hash(const unsigned int i) const {
   std::cout << std::endl;
 }
 
-int HashStoreBit::solve(const unsigned int group_num, const fmpz_t* const values, unsigned int& ans) const {
+int HashStoreBit::solve(const unsigned int group_num, const fmpz_t* const values, uint64_t& ans) const {
   const size_t start = group_num * group_size;
 
   // Init

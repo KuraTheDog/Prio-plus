@@ -965,6 +965,8 @@ int CorrelatedStore::gen_rand_bitshare(const size_t N,
   while (true) {
     num_invalid = 0;
 
+    checkDaBits(N * b);
+
     // Compute new (if not valid)
     for (unsigned int i = 0; i < N; i++) {
       if (valid[i])

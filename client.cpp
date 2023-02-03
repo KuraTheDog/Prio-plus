@@ -851,8 +851,6 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
 }
 
 void var_op(const std::string protocol, const size_t numreqs) {
-    if (num_bits > 31)
-        error_exit("Num bits is too large. x^2 > 2^64.");
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
         std::cout << "Modulus should be at least " << (2 * num_bits + LOG2(numreqs)) << " bits" << std::endl;
         error_exit("Int Modulus too small");
@@ -1667,7 +1665,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
 
     const uint64_t support = 10000;
     const double exponent = 1.003;
-    ZipF distribution(support, exponent);
+    ZipF distribution(support < max_int ? support : max_int, exponent);
 
     uint64_t real_val;
     fmpz_t hashed; fmpz_init(hashed);
@@ -1853,6 +1851,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    init_constants();
+
     const int numreqs = atoi(argv[1]);  // Number of simulated clients
     const int port0 = atoi(argv[2]);
     const int port1 = atoi(argv[3]);
@@ -1864,8 +1864,8 @@ int main(int argc, char** argv) {
         std::cout << "num bits: " << num_bits << std::endl;
         max_int = 1ULL << num_bits;
         std::cout << "max int: " << max_int << std::endl;
-        if (num_bits > 63)
-            error_exit("Num bits is too large. Int math is done mod 2^64.");
+        if (num_bits > nbits_mod)
+            error_exit("Num bits is too large");
     }
 
     if (argc >= 7) {
@@ -1918,8 +1918,6 @@ int main(int argc, char** argv) {
     std::cout << "Connecting to server 1" << std::endl;
     if (connect(sockfd1, (sockaddr*)&server1, sizeof(server1)) < 0)
         error_exit("Can't connect to server1");
-
-    init_constants();
 
     auto start = clock_start();
     if (protocol == "BITSUM") {

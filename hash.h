@@ -51,7 +51,7 @@ public:
   }
 
   // Run hash i on x, returning out
-  virtual void eval(const unsigned int i, const unsigned int x, fmpz_t out) const = 0;
+  virtual void eval(const unsigned int i, const uint64_t x, fmpz_t out) const = 0;
   virtual void print_hash(const unsigned int i) const = 0;
   void print() const;
 };
@@ -73,7 +73,7 @@ public:
     delete[] coeff;
   }
 
-  void eval(const unsigned int i, const unsigned int x, fmpz_t out) const;
+  void eval(const unsigned int i, const uint64_t x, fmpz_t out) const;
   void print_hash(const unsigned int i) const;
 };
 
@@ -97,7 +97,7 @@ public:
     fmpz_mod_mat_clear(coeff);
   };
 
-  void eval(const unsigned int i, const unsigned int x, fmpz_t out) const;
+  void eval(const unsigned int i, const uint64_t x, fmpz_t out) const;
   void print_hash(const unsigned int i) const;
   void print_coeff() const {fmpz_mod_mat_print_pretty(coeff);}
 
@@ -106,7 +106,7 @@ public:
   // Uses first [dim] of the hashes and values to solve AX=B
   // Uses extras [dim -> group size] for validation.
   //   Returns number of INVALID checks. 0 is best
-  int solve(const unsigned int group_num, const fmpz_t* const values, unsigned int& ans) const;
+  int solve(const unsigned int group_num, const fmpz_t* const values, uint64_t& ans) const;
 };
 
 #endif

@@ -80,11 +80,14 @@ public:
   {
     if (lazy) {
       std::cout << "Doing fast but insecure dabit precomputes and Beaver Triples." << std::endl;
-    } else if (fmpz_cmp_ui(Int_Modulus, 1ULL << 49) < 0) {
-      std::cout << "PALISADE SHE arith triples currently disabled. " << std::endl;
+    } else if (nbits_mod >= 49) {
+      std::cout << "PALISADE SHE arith triples currently disabled, modulus too large. " << std::endl;
       // triple_gen = new ArithTripleGenerator(serverfd, server_num);
     } else {
       std::cout << "Mod big, using slower arith triples" << std::endl;
+    }
+    if (nbits_mod > 64) {
+      std::cout << "WARNING: MultiplyBoolArith will not work, modulus > 64 bits." << std::endl; 
     }
   }
 

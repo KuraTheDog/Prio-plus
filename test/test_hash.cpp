@@ -81,7 +81,7 @@ void test_inverse() {
     // std::cout << "eval_" << i << "(" << x << ") = " << fmpz_get_ui(values[i]) << std::endl;
   }
 
-  unsigned int ans;
+  uint64_t ans;
   int ret = store.solve(0, values, ans);
   // std::cout << "Answer is " << ans << ", with " << ret << " invalid" << std::endl;
   assert(ret == 0);
@@ -105,7 +105,7 @@ void test_countmin() {
 
 
   // Small (1/w)^d chance of each full overlapping. so test not too large to amplify this.
-  unsigned int vals[3] = {1, 2, 3};
+  uint64_t vals[3] = {1, 2, 3};
   unsigned int counts[3] = {6, 2, 0};
 
   for (unsigned int i = 0; i < 3; i++)

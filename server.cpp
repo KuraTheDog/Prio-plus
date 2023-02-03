@@ -2045,7 +2045,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         fmpz_t* values; new_fmpz_array(&values, cfg.SH_depth);
         fmpz_t b0; fmpz_init(b0);
         fmpz_t b1; fmpz_init(b1);
-        std::set<unsigned int> candidates;
+        std::set<int64_t> candidates;
         for (unsigned int q = 0; q < cfg.Q; q++) {
             for (unsigned int b = 0; b < cfg.B; b++) {
                 const size_t group_idx = q * cfg.B + b;
@@ -2069,7 +2069,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
                     // std::cout << "  : cmp abs = " << fmpz_cmpabs(b0, b1);
                     // std::cout << ", value = " << fmpz_get_si(values[d]) << "\n";
                 }
-                unsigned int ans;
+                uint64_t ans;
                 int bad_hashes = hash_split.solve(q, values, ans);
                 // std::cout << "Candidate[" << q << ", " << b << "] = ";
                 // std::cout << ans << ", with " << bad_hashes << " invalid\n";
@@ -2101,10 +2101,10 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         // Priority queue?
         // Size cap at total candidates, which is B * Q.
         // So don't need to worry about discarding too-small items as more come in
-        std::priority_queue<std::pair<unsigned int, unsigned int>> frequencies;
+        std::priority_queue<std::pair<uint64_t, uint64_t>> frequencies;
         for (auto it = candidates.begin(); it!=candidates.end(); ++it) {
-            unsigned int candidate = *it;
-            unsigned int freq = count_min.query(candidate);
+            uint64_t candidate = *it;
+            uint64_t freq = count_min.query(candidate);
             frequencies.push(std::make_pair(freq, candidate));
         }
 
