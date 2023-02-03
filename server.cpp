@@ -2003,7 +2003,6 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         delete[] parity_other;
         clear_fmpz_array(sums, cfg.Q + cfg.countmin_cfg.d);
         clear_fmpz_array(sums_other, cfg.Q + cfg.countmin_cfg.d);
-        num_bytes += send_bool(serverfd, all_valid);
         if (all_valid) {
             memset(valid, true, num_inputs);
         } else {
