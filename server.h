@@ -197,7 +197,7 @@ struct Checker {
     }
 
     ~Checker() {
-        flint_randclear(seed);
+        if (same_runtime) flint_randclear(snips_seed);
         clear_fmpz_array(pointsF, N + 1);
         clear_fmpz_array(pointsG, N + 1);
         clear_fmpz_array(pointsH, 2 * (N + 1));
