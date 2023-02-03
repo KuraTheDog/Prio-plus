@@ -42,23 +42,18 @@ struct MultiHeavyConfig {
   // Threshold K. find top K
   // Delta: Failure (0.05)
   // Q = log_2(1/delta) copies of single-heavy
-  // C: Return among top CK. small > 2 + (2/K ln(1/delta))^(1/3), e.g. 10
-  // C' >= 1, < (C-(2/K ln(1/delta))^(1/3)) / 2 : min random subset size
-  // R = layers. "log n", but I think 1 works.
-  // B = hash range, (CK)^2 / (2 ln 2)
-  // Also should have B < input size
+  // B = hash range, (C)^2 / (2 ln 2)
+  // Also should have B < input size, else more efficient to just do freq
   // Countmin parameters
+  // TODO: Find weakest epsilon, based on "threshold gap"
 
   // root values. The rest can be derived from these
   const size_t K;
   const double delta;
-  const unsigned int delta_inv; // = (unsigned int) floor(1/delta);
-  const size_t Q; // = LOG2(delta_inv);
-  const size_t C_prime = 1;
-  const size_t C = 2 * C_prime + 1;  // +1 fine for delta >= 0.00034
-  const size_t R = 1;  // Currently not implemented
-  const double twoln2 = 1.3862943611198906188;
-  const size_t B; // = ceil((C * K) * (C * K) / twoln2);
+  const unsigned int delta_inv;
+  const size_t Q;
+  const double twoln2inv = 0.721347520444481703679962340500946;  // 1 / (2 ln 2)
+  const size_t B;
 
   // Q parallel iterations.
   // Each splits input into B substreams.
@@ -76,10 +71,10 @@ struct MultiHeavyConfig {
   , delta_inv((unsigned int) floor(1/delta))
   , Q(LOG2(delta_inv))
   // , Q(2)
-  , B(ceil((C * K) * (C * K) / twoln2))
+  , B(ceil(K * K * twoln2inv))
   // , B(5)
   , num_bits(num_bits)
-  , SH_depth(num_bits + 2)
+  , SH_depth(num_bits + 1)
   , countmin_cfg(CountMinConfig(delta, delta))
   {}
 
@@ -88,8 +83,6 @@ struct MultiHeavyConfig {
       std::cout << "\tK = # heavy target: " << K << std::endl;
       std::cout << "\tdelta = max failure: " << delta << std::endl;
       std::cout << "\tQ = # SH : " << Q << std::endl;
-      std::cout << "\tC = among top CK: " << C << std::endl;
-      std::cout << "\tR = # SH layers: " << R << std::endl;
       std::cout << "\tB = substream hash range: " << B << std::endl;
       std::cout << "\tnum_bits: " << num_bits << std::endl;
       std::cout << "\tSH depth: " << SH_depth << std::endl;

@@ -1800,9 +1800,9 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     // Split: each SH breakdown into the pairs, bucket 0 or 1. (original was by bits)
     // Base Q*B*depth, but can repeat across B. Invertable.
     HashStoreBit hash_split(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_split, cfg.SH_depth);
-    // SingleHeavy +-1 values.
+    // SingleHeavy +-1 values. 4-wize independent
     // Base Q*B*depth, but can repeat across B
-    HashStorePoly hash_value(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_value);
+    HashStorePoly hash_value(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_value, 4);
     // CountMin
     CountMin count_min(cfg.countmin_cfg);
     count_min.setStore(num_bits, hash_seed_count);
