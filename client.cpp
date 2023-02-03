@@ -29,6 +29,7 @@ x_op_invalid: For testing/debugging, does a basic run with intentionally invalid
 #include "ot.h"
 #include "types.h"
 #include "utils.h"
+#include "zipf.h"
 
 // #define SERVER0_IP "52.87.230.64"
 // #define SERVER1_IP "54.213.189.18"
@@ -1664,6 +1665,10 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
     int num_bytes = 0;
     emp::PRG prg;
 
+    const uint64_t support = 10000;
+    const double exponent = 1.003;
+    ZipF distribution(support, exponent);
+
     uint64_t real_val;
     fmpz_t hashed; fmpz_init(hashed);
 
@@ -1677,16 +1682,11 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
     const size_t share_size_count = cfg.countmin_cfg.d * cfg.countmin_cfg.w;
     const size_t sizes[4] = {share_size_sh, share_size_sh, share_size_mask, share_size_count};
 
-    int current = 0; int count = 0;
-    int mult = numreqs / (max_int * (max_int - 1) / 2) + 1;
-    [[maybe_unused]] int check_idx = -1;
+    // Set to print index
+    const int check_idx = -1;
     for (unsigned int i = 0; i < numreqs; i++) {
-        real_val = current;
-        count++;
-        if (count > current * mult) {
-            current++;
-            count = 0;
-        }
+
+        real_val = distribution.sample();
         real_val %= max_int;
         // real_val = 3;
         counts[real_val] ++;
@@ -1839,13 +1839,9 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
-    unsigned int num_printed = 0;
-    for (unsigned int j = max_int-1; j > 0; j--) {
-        if (count[j] > 1) {
-            std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
-            num_printed++;
-        }
-        if (num_printed > 15) break;
+    for (unsigned int j = 0; j < 2 * K; j++) {
+        if (j >= max_int) break;
+        std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
     }
     delete[] count;
     std::cout << "Total sent bytes: " << num_bytes << std::endl;
