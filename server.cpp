@@ -1741,14 +1741,12 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    // For each pair of buckets, do 1 B2A. 
+    // For each pair of buckets, do 1 B2A.
     // All of count-min. Also all of mask for validation
     std::cout << "Inital dabit check" << std::endl;
     if (USE_OT_B2A == false)
-        correlated_store->checkDaBits(total_inputs * 
+        correlated_store->checkDaBits(total_inputs *
             (share_size_sh + share_size_count + share_size_mask));
-
-
 
     /* Stages:
     Validate each b (share_mask) is frequency vector. With B2A to check sum to 1
@@ -1808,7 +1806,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
         // Single round all B2A: count, mask, y
         const size_t convert_size = num_inputs * (
-            share_size_count + share_size_sh + share_size_mask);
+            share_size_count + share_size_mask + share_size_sh);
         fmpz_t* shares_p; new_fmpz_array(&shares_p, convert_size);
         bool* shares_2 = new bool[convert_size];
         memcpy(shares_2, shares_count, num_inputs * share_size_count);
@@ -1944,7 +1942,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
         // Single round all B2A: count, mask, y
         const size_t convert_size = num_inputs * (
-            share_size_count + share_size_sh + share_size_mask);
+            share_size_count + share_size_mask + share_size_sh);
         fmpz_t* shares_p; new_fmpz_array(&shares_p, convert_size);
         bool* shares_2 = new bool[convert_size];
         memcpy(shares_2, shares_count, num_inputs * share_size_count);
@@ -2104,6 +2102,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
         std::cout << "combined countmin" << std::endl;
         // count_min.print();
+
         // Priority queue?
         // Size cap at total candidates, which is B * Q.
         // So don't need to worry about discarding too-small items as more come in

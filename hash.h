@@ -68,8 +68,9 @@ public:
       flint_rand_t hash_seed_arg, const size_t independence = 2);
 
   ~HashStorePoly() {
-    for (unsigned int i = 0; i < num_hashes; i++)
-      clear_fmpz_array(coeff[i], degree + 1);
+    if (output_bits > 0)
+      for (unsigned int i = 0; i < num_hashes; i++)
+        clear_fmpz_array(coeff[i], degree + 1);
     delete[] coeff;
   }
 

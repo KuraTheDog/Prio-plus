@@ -25,7 +25,6 @@ class ZipF {
   // std::vector<unsigned int> const values;
 
   // Sum 1/n^exponent from 1 to support
-  // = 
   double compute_normalizer(const uint64_t support, const double exponent) {
     double ans = 0.0;
     for (uint64_t i = 1; i <= support; i++) {
@@ -34,7 +33,7 @@ class ZipF {
     return 1.0 / ans;
   }
 
-public: 
+public:
 
   ZipF(const uint64_t support, const double exponent)
   : support(support)

@@ -10,7 +10,7 @@ extern "C" {
 };
 
 // Note: also array is initialized to 0.
-void new_fmpz_array(fmpz_t** arr, const size_t N);
+void new_fmpz_array(fmpz_t** const arr, const size_t N);
 
 void clear_fmpz_array(fmpz_t* arr, const size_t N);
 

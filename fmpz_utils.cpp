@@ -14,10 +14,11 @@ void new_fmpz_array(fmpz_t** const arr, const size_t N) {
   *arr = out;
 }
 
-void clear_fmpz_array(fmpz_t* const arr, const size_t N) {
+void clear_fmpz_array(fmpz_t* arr, const size_t N) {
   for (unsigned int i = 0; i < N; i++)
     fmpz_clear(arr[i]);
   free(arr);
+  arr = nullptr;
 }
 
 void copy_fmpz_array(fmpz_t* const dest, const fmpz_t* const src, const size_t N) {

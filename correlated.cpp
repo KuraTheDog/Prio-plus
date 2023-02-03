@@ -323,6 +323,7 @@ int CorrelatedStore::multiplyBoolArith(
   uint64_t* const received = new uint64_t[N*B];
   uint64_t* const received_inv = z_inv ? new uint64_t[N*B] : nullptr;
   // Fork stuff ignored for now.
+  // std::cout << "\tmultBoolARith OT size: " << (N*B) << std::endl;
   if (server_num == 0) {
     sent_bytes += ot0->send(data0, data1, N*B, data0_inv, data1_inv);
     sent_bytes += ot1->recv(received, b, N*B, received_inv);
@@ -423,6 +424,24 @@ int CorrelatedStore::addBinaryShares(const size_t N,
 
 int CorrelatedStore::b2a_daBit_single(const size_t N, const bool* const x,
                                       fmpz_t* const xp) {
+  // // // Short circuit super lazy online conversion.
+  // if (server_num == 0) {
+  //   send_bool_batch(serverfd, x, N);
+  //   for (unsigned int i = 0; i < N; i++) {
+  //     // std::cout << "convert[" << i << "] sending" << x[i] << "\n";
+  //     fmpz_zero(xp[i]);
+  //   }
+  // } else {
+  //   bool* x_other = new bool[N];
+  //   recv_bool_batch(serverfd, x_other, N);
+  //   for (unsigned int i = 0; i < N; i++) {
+  //     // std::cout << "convert[" << i << "] " << x[i] << " ^ " << x_other[i];
+  //     // std::cout << " -> " << (x[i] ^ x_other[i]) << "\n";
+  //     fmpz_set_ui(xp[i], x[i] ^ x_other[i]);
+  //   }
+  // }
+  // return 1;
+
   int sent_bytes = 0;
   checkDaBits(N);
 
@@ -602,7 +621,7 @@ int CorrelatedStore::heavy_convert(
 
 int CorrelatedStore::heavy_convert_mask(
       const size_t N, const size_t Q, const size_t M, const size_t D,
-      const bool* const x, const bool* const y, const bool* const mask,
+      const bool* const x, const fmpz_t* const y_p, const bool* const mask,
       const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1) {
   int sent_bytes = 0;
 

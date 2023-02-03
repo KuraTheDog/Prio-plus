@@ -1662,7 +1662,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
     emp::PRG prg;
 
     const uint64_t support = 10000;
-    const double exponent = 1.003;
+    const double exponent = 1.03;
     ZipF distribution(support < max_int ? support : max_int, exponent);
 
     uint64_t real_val;
@@ -1718,6 +1718,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
 
         for (unsigned int d = 0; d < count_min.cfg.d; d++) {
             count_min.store->eval(d, real_val, hashed);
+            if (i == check_idx) std::cout << "  count[" << d << "] = " << fmpz_get_ui(hashed) << std::endl;
             share1[i].arr[3][d * count_min.cfg.w + fmpz_get_ui(hashed)] ^= 1;
         }
 
@@ -1815,19 +1816,19 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     // std::cout << "value: " << std::endl;
     // hash_value.print();
 
-    num_bytes += send_to_server(0, &msg, sizeof(initMsg));
-    num_bytes += send_to_server(1, &msg, sizeof(initMsg));
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
 
     // Send params. K, delta are the core.
-    num_bytes += send_size(sockfd0, K);
-    num_bytes += send_size(sockfd1, K);
-    num_bytes += send_double(sockfd0, delta);
-    num_bytes += send_double(sockfd1, delta);
+    send_size(sockfd0, K);
+    send_size(sockfd1, K);
+    send_double(sockfd0, delta);
+    send_double(sockfd1, delta);
 
-    num_bytes += send_seeds(hash_seed_classify);
-    num_bytes += send_seeds(hash_seed_split);
-    num_bytes += send_seeds(hash_seed_value);
-    num_bytes += send_seeds(hash_seed_count);
+    send_seeds(hash_seed_classify);
+    send_seeds(hash_seed_split);
+    send_seeds(hash_seed_value);
+    send_seeds(hash_seed_count);
 
     if (CLIENT_BATCH) {
         num_bytes += multi_heavy_helper(protocol, numreqs, count, cfg,

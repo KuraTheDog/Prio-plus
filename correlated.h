@@ -87,7 +87,7 @@ public:
       std::cout << "Mod big, using slower arith triples" << std::endl;
     }
     if (nbits_mod > 64) {
-      std::cout << "WARNING: MultiplyBoolArith will not work, modulus > 64 bits." << std::endl; 
+      std::cout << "WARNING: MultiplyBoolArith will not work, modulus > 64 bits." << std::endl;
     }
   }
 

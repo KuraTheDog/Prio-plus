@@ -10,7 +10,7 @@ HashStore::HashStore(
     flint_rand_t hash_seed_arg)
 : num_hashes(num_hashes)
 , input_bits(input_bits)
-, output_bits(LOG2(hash_range - 1))
+, output_bits(hash_range > 1 ? LOG2(hash_range - 1) : 0)
 {
   fmpz_init_set_ui(output_range, hash_range);
   fmpz_init_set_ui(input_range, 1ULL << input_bits);
@@ -41,6 +41,8 @@ HashStorePoly::HashStorePoly(
   // But constant term should be fine, since it's a final addition of pure random.
   // We also just want "good enough" distribution.
   // Also, it's not quite polynomial since shift magic.
+  std::cout << "  Poly store degree: " << degree << std::endl;
+  if (output_bits == 0) return;
   for (unsigned int i = 0; i < num_hashes; i++) {
     new_fmpz_array(&coeff[i], degree + 1);
     // Enforce not constant. Only really issue for small input ranges, and low degree
@@ -61,6 +63,7 @@ HashStorePoly::HashStorePoly(
 
 void HashStorePoly::eval(const unsigned int i, const uint64_t x, fmpz_t out) const {
   fmpz_zero(out);
+  if (output_bits == 0) return;
   // f -> x(f + c_j)
   for (unsigned int j = degree; j > 0; j--) {
     fmpz_add(out, out, coeff[i][j]);
@@ -77,6 +80,10 @@ void HashStorePoly::eval(const unsigned int i, const uint64_t x, fmpz_t out) con
 
 void HashStorePoly::print_hash(const unsigned int i) const {
   std::cout << "Hash " << i << ": ";
+  if (output_bits == 0) {
+    std::cout << "0" << std::endl;
+    return;
+  }
   for (unsigned int j = 0; j <= degree; j++) {
     fmpz_print(coeff[i][j]);
     if (j > 0) std::cout << " x";
