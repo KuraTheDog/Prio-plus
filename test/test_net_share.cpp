@@ -134,7 +134,7 @@ void run_sender(int sockfd) {
     // std::cout << "send X \tsize: " << n << " \tpoly: ";
     // fmpz_mod_poly_print_pretty(f, "x"); std::cout << std::endl;
 
-    flint_rand_t this_seed;
+    flint_rand_t this_seed; flint_randinit(this_seed);
     n = send_seed(sockfd, this_seed);
     std::cout << "send seed \tsize: " << n << " \tnext random: ";
     fmpz_randm(number, this_seed, Int_Modulus);
@@ -253,7 +253,7 @@ void run_receiver(int sockfd) {
     // std::cout << "recv X \tsize: " << n << " \tpoly: ";
     // fmpz_mod_poly_print_pretty(f, "x"); std::cout << std::endl;
 
-    flint_rand_t this_seed;
+    flint_rand_t this_seed; flint_randinit(this_seed);
     // offset from default seed
     fmpz_randm(number, this_seed, Int_Modulus);
     fmpz_randm(number, this_seed, Int_Modulus);

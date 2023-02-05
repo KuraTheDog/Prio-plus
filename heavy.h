@@ -164,7 +164,7 @@ struct CountMin {
       return -1;
     }
 
-    int min_count = -1;
+    unsigned int min_count = UINT_MAX;
 
     fmpz_t out; fmpz_init(out);
 
@@ -173,7 +173,7 @@ struct CountMin {
       unsigned int hx = fmpz_get_ui(out);
       unsigned int freq = fmpz_get_ui(counts[i * cfg.w + hx]);
       // std::cout << "h_" << i << "(" << x << ") = " << hx << ", freq = " << freq << std::endl;
-      if (min_count == -1 or freq < ((unsigned int) min_count)) {
+      if (freq < min_count) {
         min_count = freq;
       }
     }

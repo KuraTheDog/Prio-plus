@@ -133,6 +133,8 @@ struct CheckerPreComp {
 
 // Common (synced) randomness between all checkers on both servers
 // Could also be static member, but then syncing is harder
+// If on the same runtime, instead uses constant values,
+// so that them sharing a seed doesn't cause desync.
 extern flint_rand_t snips_seed;
 flint_rand_t snips_seed;
 void syncSnipSeeds(const int serverfd, const int server_num) {
@@ -179,10 +181,6 @@ struct Checker {
     , N(NextPowerOfTwo(n))
     , same_runtime(same_runtime)
     {
-        if (same_runtime) {
-            std::cout << "DEBUG: using fixed checker randomness since same runtime" << std::endl;
-            flint_randinit(snips_seed);
-        }
 
         new_fmpz_array(&pointsF, N + 1);
         new_fmpz_array(&pointsG, N + 1);
@@ -197,7 +195,6 @@ struct Checker {
     }
 
     ~Checker() {
-        if (same_runtime) flint_randclear(snips_seed);
         clear_fmpz_array(pointsF, N + 1);
         clear_fmpz_array(pointsG, N + 1);
         clear_fmpz_array(pointsH, 2 * (N + 1));
@@ -301,9 +298,11 @@ struct Checker {
         fmpz_t tmp; fmpz_init(tmp);
 
         for (unsigned int i = 0; i < len; i++) {
-            fmpz_randm(tmp, snips_seed, Int_Modulus);
-            if (same_runtime)
+            if (!same_runtime) {
+                fmpz_randm(tmp, snips_seed, Int_Modulus);
+            } else {
                 fmpz_set_ui(tmp, 1);
+            }
             fmpz_mul(tmp, tmp, arr[i]);
             fmpz_mod(tmp, tmp, Int_Modulus);
 

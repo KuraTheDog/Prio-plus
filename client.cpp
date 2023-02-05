@@ -1679,7 +1679,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
     const size_t sizes[4] = {share_size_sh, share_size_sh, share_size_mask, share_size_count};
 
     // Set to print index
-    const int check_idx = -1;
+    const unsigned int check_idx = UINT_MAX;
     for (unsigned int i = 0; i < numreqs; i++) {
 
         real_val = distribution.sample();
