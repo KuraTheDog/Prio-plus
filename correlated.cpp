@@ -619,11 +619,39 @@ int CorrelatedStore::heavy_convert(
   return sent_bytes;
 }
 
+const unsigned int HEAVY_BATCH_SIZE_BASE = 1200000;
+
 int CorrelatedStore::heavy_convert_mask(
       const size_t N, const size_t Q, const size_t M, const size_t D,
       const bool* const x, const fmpz_t* const y_p, const bool* const mask,
       const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1) {
   int sent_bytes = 0;
+
+  const size_t heavy_batch_size = HEAVY_BATCH_SIZE_BASE / (Q * M * D);
+
+  if (N > heavy_batch_size) {
+    std::cout << "heavy convert total: " << N << ", heavy batch size: " << heavy_batch_size << std::endl;
+    size_t num_processed = 0;
+    size_t batch_idx = 0;
+    size_t num_batches = ceil(1.0 * N / heavy_batch_size);
+    while (num_processed < N) {
+      const size_t num_remaining = N - num_processed;
+      const size_t this_batch_size = num_remaining < heavy_batch_size ? num_remaining : heavy_batch_size;
+      batch_idx++;
+      std::cout << "Starting heavy batch: " << batch_idx << " / " << num_batches << std::endl;
+
+      sent_bytes += heavy_convert_mask(this_batch_size, Q, M, D,
+        &x[num_processed * Q * D],
+        &y_p[num_processed * Q * D],
+        &mask[num_processed * Q * M],
+        &valid[num_processed], bucket0, bucket1
+      );
+
+      num_processed += this_batch_size;
+    }
+
+    return sent_bytes;
+  }
 
   auto start = clock_start();
 
