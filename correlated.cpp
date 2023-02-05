@@ -13,7 +13,7 @@ void CorrelatedStore::addBoolTriples(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > batch_size ? n : batch_size);
   std::cout << "adding booltriples: " << num_to_make << std::endl;
-  std::queue<const BooleanBeaverTriple* const> new_triples = gen_boolean_beaver_triples(server_num, num_to_make, ot0, ot1);
+  std::queue<const BooleanBeaverTriple*> new_triples = gen_boolean_beaver_triples(server_num, num_to_make, ot0, ot1);
   for (unsigned int i = 0; i < num_to_make; i++) {
     btriple_store.push(new_triples.front());
     new_triples.pop();

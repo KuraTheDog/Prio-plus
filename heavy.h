@@ -173,7 +173,7 @@ struct CountMin {
       unsigned int hx = fmpz_get_ui(out);
       unsigned int freq = fmpz_get_ui(counts[i * cfg.w + hx]);
       // std::cout << "h_" << i << "(" << x << ") = " << hx << ", freq = " << freq << std::endl;
-      if (min_count == -1 or freq < min_count) {
+      if (min_count == -1 or freq < ((unsigned int) min_count)) {
         min_count = freq;
       }
     }

@@ -44,9 +44,9 @@ class CorrelatedStore {
   // Arithmetic triple generator
   // ArithTripleGenerator* triple_gen = nullptr;
 
-  std::queue<const DaBit* const > dabit_store;
-  std::queue<const BooleanBeaverTriple* const > btriple_store;
-  std::queue<const BeaverTriple* const> atriple_store;
+  std::queue<const DaBit*> dabit_store;
+  std::queue<const BooleanBeaverTriple*> btriple_store;
+  std::queue<const BeaverTriple*> atriple_store;
 
   // return N new daBits
   const DaBit* const * const generateDaBit(const size_t N);

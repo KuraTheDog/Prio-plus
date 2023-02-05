@@ -72,7 +72,7 @@ void test_inverse() {
   // std::cout << "Coeff matrix: " << std::endl;
   // store.print_coeff();
 
-  int x = 2;
+  unsigned int x = 2;
   // std::cout << "input is " << x << std::endl;
   fmpz_t* values; new_fmpz_array(&values, group_size);
   for (unsigned int i = 0; i < group_size; i++) {
@@ -114,7 +114,7 @@ void test_countmin() {
   count.print();
 
   for (unsigned int i = 0; i < 3; i++) {
-    int ans = count.query(vals[i]);
+    unsigned int ans = count.query(vals[i]);
     // std::cout << "query(" << vals[i] << ") = " << ans << ", vs acutal " << counts[i] << std::endl;
     assert(ans == counts[i]);
   }
