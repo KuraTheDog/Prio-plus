@@ -83,6 +83,8 @@ void run_server1(const size_t m) {
   ot0->recv(data, c, 2, data_1);
   std::cout << "got data = " << data[0] << ", " << data[1] << std::endl;
   std::cout << "got data_1 = " << data_1[0] << ", " << data_1[1] << std::endl;
+  delete[] data;
+  delete[] data_1;
 
   const bool bitshares[1] = {m % 2 ? true : false};
   std::cout << "bit share1[0] = " << bitshares[0] << std::endl;

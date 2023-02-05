@@ -1088,7 +1088,7 @@ int CorrelatedStore::LSB(const size_t N, const fmpz_t* const x,
   // [x0] = [c < r] + (c0 ^ r0) + 2 [c < r] (c0 ^ r0)
   // 3.1: c0 ^ r0 = ([r0] if c0 = 0, 1 - [r0] if c0 = 1
   fmpz_t* cr; new_fmpz_array(&cr, N);
-  fmpz_t adj; fmpz_set_ui(adj, server_num);  // "1" is just once
+  fmpz_t adj; fmpz_init_set_ui(adj, server_num);  // "1" is just once
   for (unsigned int i = 0; i < N; i++) {
     fmpz_set(cr[i], rB[i * b]);  // Just get r0 from bitwise shares
     if (fmpz_tstbit(c[i], 0) == 1) {  // 1 - cr
