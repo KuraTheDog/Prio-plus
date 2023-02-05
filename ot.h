@@ -51,7 +51,7 @@ const uint64_t* const * const intsum_ot_receiver(
     const size_t* const num_bits, const size_t num_shares, const size_t num_values,
     const size_t mod = 0);
 
-std::queue<const BooleanBeaverTriple* const> gen_boolean_beaver_triples(
+std::queue<const BooleanBeaverTriple*> gen_boolean_beaver_triples(
     const int server_num, const unsigned int m,
     OT_Wrapper* const ot0, OT_Wrapper* const ot1);
 

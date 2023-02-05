@@ -35,8 +35,8 @@ class CorrelatedStore {
   // If lazy, does fast but insecure offline.
   const bool lazy;
 
-  std::queue<const DaBit* const> dabit_store;
-  std::queue<const BooleanBeaverTriple* const> btriple_store;
+  std::queue<const DaBit*> dabit_store;
+  std::queue<const BooleanBeaverTriple*> btriple_store;
 
   // return N new daBits
   const DaBit* const * const generateDaBit(const size_t N);

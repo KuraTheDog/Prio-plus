@@ -218,11 +218,11 @@ const uint64_t* const * const intsum_ot_receiver(
 }
 
 // Ref : https://crypto.stackexchange.com/questions/41651/what-are-the-ways-to-generate-beaver-triples-for-multiplication-gate
-std::queue<const BooleanBeaverTriple* const> gen_boolean_beaver_triples(
+std::queue<const BooleanBeaverTriple*> gen_boolean_beaver_triples(
         const int server_num, const unsigned int m,
         OT_Wrapper* const ot0, OT_Wrapper* const ot1){
     emp::PRG prg;
-    std::queue<const BooleanBeaverTriple* const> ans;
+    std::queue<const BooleanBeaverTriple*> ans;
     bool* const x = new bool[m];
     bool* const y = new bool[m];
     bool* const z = new bool[m];
