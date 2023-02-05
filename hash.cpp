@@ -41,7 +41,7 @@ HashStorePoly::HashStorePoly(
   // But constant term should be fine, since it's a final addition of pure random.
   // We also just want "good enough" distribution.
   // Also, it's not quite polynomial since shift magic.
-  std::cout << "  Poly store degree: " << degree << std::endl;
+  // std::cout << "  Poly store degree: " << degree << std::endl;
   if (output_bits == 0) return;
   for (unsigned int i = 0; i < num_hashes; i++) {
     new_fmpz_array(&coeff[i], degree + 1);

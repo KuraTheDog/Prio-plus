@@ -70,7 +70,7 @@ struct MultiHeavyConfig {
   , delta(delta)
   , delta_inv((unsigned int) floor(1/delta))
   , Q(LOG2(delta_inv))
-  , B(K * ln2_inv)
+  , B(ceil(K * ln2_inv))
   , num_bits(num_bits)
   , SH_depth(num_bits + 1)
   , countmin_cfg(CountMinConfig(delta, eps ? eps : delta))

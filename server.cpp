@@ -2104,7 +2104,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         clear_fmpz_array(countmin_accum, share_size_count);
         clear_fmpz_array(count_other, share_size_count);
 
-        std::cout << "combined countmin" << std::endl;
+        // std::cout << "combined countmin" << std::endl;
         // count_min.print();
 
         // Priority queue?
