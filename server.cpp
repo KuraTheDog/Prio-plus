@@ -1817,14 +1817,12 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         memcpy(&shares_2[share_y_offset], shares_sh_y, num_inputs * share_size_sh);
         delete[] shares_sh_y;
         delete[] shares_count;
-        std::cout << "pre dabit convert num_bytes: " << num_bytes << std::endl;
         num_bytes += correlated_store->b2a_daBit_single(convert_size, shares_2, shares_p);
         // We use first part of shares_p as the countmin shares.
 
         // Freq check. Batch across all inputs
         // count: num * d entries size w
         // mask: num * Q entries size mask
-        std::cout << "pre freq check num_bytes: " << num_bytes << std::endl;
         bool* parity = new bool[cfg.Q + cfg.countmin_cfg.d];
         fmpz_t* sums; new_fmpz_array(&sums, cfg.Q + cfg.countmin_cfg.d);
         idx = 0;
@@ -1881,7 +1879,6 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
 
         start3 = clock_start();
-        std::cout << "pre heavy num_bytes: " << num_bytes << std::endl;
         num_bytes += correlated_store->heavy_convert_mask(
             num_inputs, cfg.Q, cfg.B, cfg.SH_depth,
             shares_sh_x, &shares_p[share_y_offset], shares_mask,

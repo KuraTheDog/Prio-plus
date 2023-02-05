@@ -55,6 +55,9 @@ include_directories(${EMP-OT_INCLUDE_DIRS})
 # set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${PALISADE_EXE_LINKER_FLAGS}" )
 # link_libraries( ${PALISADE_SHARED_LIBRARIES} )
 
+# # For debugging
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
+
 foreach(_target
   server client
 )

@@ -1665,6 +1665,8 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
     const double exponent = 1.1;
     ZipF distribution(support < max_int ? support : max_int, exponent);
 
+    const size_t count_size = (2*cfg.K) > 10 ? (2*cfg.K) : 10;
+
     uint64_t real_val;
     fmpz_t hashed; fmpz_init(hashed);
 
@@ -1685,7 +1687,8 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
         real_val = distribution.sample();
         real_val %= max_int;
         // real_val = 3;
-        counts[real_val] ++;
+        if (real_val <= count_size)
+            counts[real_val] ++;
         if (i == check_idx) std::cout << "real_val: " << real_val << std::endl;
 
         // sh_x, sh_y, mask, count
@@ -1771,8 +1774,9 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     }
 
     int num_bytes = 0;
-    uint64_t* count = new uint64_t[max_int];
-    memset(count, 0, max_int * sizeof(uint64_t));
+    const size_t count_size = (2*linreg_degree) > 10 ? (2*linreg_degree) : 10;
+    uint64_t* count = new uint64_t[count_size + 1];
+    memset(count, 0, (count_size + 1) * sizeof(uint64_t));
 
     initMsg msg;
     msg.num_bits = num_bits;
@@ -1844,7 +1848,7 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
-    for (unsigned int j = 0; j < 2 * K; j++) {
+    for (unsigned int j = 0; j <= count_size; j++) {
         if (j >= max_int) break;
         std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
     }

@@ -424,25 +424,26 @@ int CorrelatedStore::addBinaryShares(const size_t N,
 
 int CorrelatedStore::b2a_daBit_single(const size_t N, const bool* const x,
                                       fmpz_t* const xp) {
+  int sent_bytes = 0;
+
   // // // Short circuit super lazy online conversion.
   // if (server_num == 0) {
-  //   send_bool_batch(serverfd, x, N);
+  //   sent_bytes += send_bool_batch(serverfd, x, N);
   //   for (unsigned int i = 0; i < N; i++) {
   //     // std::cout << "convert[" << i << "] sending" << x[i] << "\n";
   //     fmpz_zero(xp[i]);
   //   }
   // } else {
   //   bool* x_other = new bool[N];
-  //   recv_bool_batch(serverfd, x_other, N);
+  //   sent_bytes += recv_bool_batch(serverfd, x_other, N);
   //   for (unsigned int i = 0; i < N; i++) {
   //     // std::cout << "convert[" << i << "] " << x[i] << " ^ " << x_other[i];
   //     // std::cout << " -> " << (x[i] ^ x_other[i]) << "\n";
   //     fmpz_set_ui(xp[i], x[i] ^ x_other[i]);
   //   }
   // }
-  // return 1;
+  // return sent_bytes;
 
-  int sent_bytes = 0;
   checkDaBits(N);
 
   bool* const v_this = new bool[N];
