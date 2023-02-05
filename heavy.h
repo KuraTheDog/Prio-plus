@@ -52,7 +52,7 @@ struct MultiHeavyConfig {
   const double delta;
   const unsigned int delta_inv;
   const size_t Q;
-  const double twoln2inv = 0.721347520444481703679962340500946;  // 1 / (2 ln 2)
+  const double ln2_inv = 1.44269504;  // 1 / (ln 2)
   const size_t B;
 
   // Q parallel iterations.
@@ -65,17 +65,15 @@ struct MultiHeavyConfig {
 
   const CountMinConfig countmin_cfg;
 
-  MultiHeavyConfig(size_t K, double delta, size_t num_bits)
+  MultiHeavyConfig(size_t K, double delta, size_t num_bits, double eps = 0)
   : K(K)
   , delta(delta)
   , delta_inv((unsigned int) floor(1/delta))
   , Q(LOG2(delta_inv))
-  // , Q(2)
-  , B(ceil(K * K * twoln2inv))
-  // , B(5)
+  , B(K * ln2_inv)
   , num_bits(num_bits)
   , SH_depth(num_bits + 1)
-  , countmin_cfg(CountMinConfig(delta, delta))
+  , countmin_cfg(CountMinConfig(delta, eps ? eps : delta))
   {}
 
   void print() const {

@@ -1662,7 +1662,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
     emp::PRG prg;
 
     const uint64_t support = 10000;
-    const double exponent = 1.03;
+    const double exponent = 1.1;
     ZipF distribution(support < max_int ? support : max_int, exponent);
 
     uint64_t real_val;
@@ -1787,7 +1787,8 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
 
     const size_t K = linreg_degree;  // Default 2. Reuse for now.
     const double delta = t;
-    MultiHeavyConfig cfg(K, delta, num_bits);
+    const double eps = 0.01;  // TODO: Param
+    MultiHeavyConfig cfg(K, delta, num_bits, eps);
 
     cfg.print();
 
@@ -1824,6 +1825,8 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     send_size(sockfd1, K);
     send_double(sockfd0, delta);
     send_double(sockfd1, delta);
+    send_double(sockfd0, eps);
+    send_double(sockfd1, eps);
 
     send_seeds(hash_seed_classify);
     send_seeds(hash_seed_split);
