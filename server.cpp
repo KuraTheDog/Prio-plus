@@ -218,9 +218,9 @@ const bool* const validate_snips(const size_t N,
         checker[i] = new Checker(circuit[i], server_num, packet[i], pre,
                                  &shares_p[i * num_inputs]);
 
-    CorShare** const cor_share = new CorShare*[N];
+    Cor** const cor = new Cor*[N];
     for (unsigned int i = 0; i < N; i++)
-      cor_share[i] = checker[i]->CorShareFn();
+      cor[i] = checker[i]->CorFn();
 
     if (correlated_store->do_fork) pid = fork();
     if (pid == 0) {

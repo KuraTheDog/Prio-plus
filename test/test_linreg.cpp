@@ -81,8 +81,8 @@ void test_CheckLinReg() {
 
   Checker* checker_1 = new Checker(linreg_circuit1, 1, p1, pre1, inp1, true);
 
-  auto corshare0 = checker_0->CorShareFn();
-  auto corshare1 = checker_1->CorShareFn();
+  auto corshare0 = checker_0->CorFn();
+  auto corshare1 = checker_1->CorFn();
 
   Cor* cor0 = new Cor(corshare0, corshare1);
   Cor* cor1 = new Cor(corshare0, corshare1);

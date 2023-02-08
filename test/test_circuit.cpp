@@ -81,8 +81,8 @@ void test_CheckVar() {
 
   std::cout << "checkers made" << std::endl;
 
-  auto corshare0 = checker_0->CorShareFn();
-  auto corshare1 = checker_1->CorShareFn();
+  auto corshare0 = checker_0->CorFn();
+  auto corshare1 = checker_1->CorFn();
 
   std::cout << "corshares made" << std::endl;
 

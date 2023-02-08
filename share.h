@@ -6,8 +6,7 @@
 // For fmpz types
 #include "fmpz_utils.h"
 
-struct CorShare;
-
+// For checker's triples
 struct Cor {
     fmpz_t D;
     fmpz_t E;
@@ -17,27 +16,11 @@ struct Cor {
         fmpz_init(E);
     }
 
-    Cor(const CorShare* const x, const CorShare* const y);
+    Cor(const Cor* const x, const Cor* const y);
 
     ~Cor(){
         fmpz_clear(D);
         fmpz_clear(E);
-    }
-};
-
-// Combine with Cor?
-struct CorShare {
-    fmpz_t shareD;
-    fmpz_t shareE;
-
-    CorShare(){
-        fmpz_init(shareD);
-        fmpz_init(shareE);
-    }
-
-    ~CorShare(){
-        fmpz_clear(shareD);
-        fmpz_clear(shareE);
     }
 };
 

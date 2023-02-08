@@ -94,15 +94,11 @@ int recv_seed(const int sockfd, flint_rand_t x);
 
 /* Share functions */
 
-// Unused
 int send_Cor(const int sockfd, const Cor* const x);
 int recv_Cor(const int sockfd, Cor* const x);
 
-int send_CorShare(const int sockfd, const CorShare* const x);
-int recv_CorShare(const int sockfd, CorShare* const x);
-
-int send_CorShare_batch(const int sockfd, const CorShare* const * const x, const size_t n);
-int recv_CorShare_batch(const int sockfd, CorShare* const * const x, const size_t n);
+int send_Cor_batch(const int sockfd, const Cor* const * const x, const size_t n);
+int recv_Cor_batch(const int sockfd, Cor* const * const x, const size_t n);
 
 int send_ClientPacket(const int sockfd, const ClientPacket* const x,
                       const size_t NMul);

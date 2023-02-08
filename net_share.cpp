@@ -305,58 +305,32 @@ int recv_Cor(const int sockfd, Cor* const x) {
     return total;
 }
 
-int send_CorShare(const int sockfd, const CorShare* const x) {
-    int total = 0, ret;
-    ret = send_fmpz(sockfd, x->shareD);
-    if (ret <= 0) return ret; else total += ret;
-    ret = send_fmpz(sockfd, x->shareE);
-    if (ret <= 0) return ret; else total += ret;
-    return total;
+int send_Cor_batch(const int sockfd, const Cor* const * const x, const size_t n) {
+    fmpz_t* buff; new_fmpz_array(&buff, 2 * n);
+
+    for (unsigned int i = 0; i < n; i++) {
+        fmpz_set(buff[i], x[i]->D);
+        fmpz_set(buff[i + n], x[i]->E);
+    }
+
+    int ret = send_fmpz_batch(sockfd, buff, 2 * n);
+
+    clear_fmpz_array(buff, 2 * n);
+    return ret;
 }
 
-int recv_CorShare(const int sockfd, CorShare* const x) {
-    int total = 0, ret;
-    ret = recv_fmpz(sockfd, x->shareD);
-    if (ret <= 0) return ret; else total += ret;
-    ret = recv_fmpz(sockfd, x->shareE);
-    if (ret <= 0) return ret; else total += ret;
-    return total;
-}
+int recv_Cor_batch(const int sockfd, Cor* const * const x, const size_t n) {
+    fmpz_t* buff; new_fmpz_array(&buff, 2 * n);
 
-int send_CorShare_batch(const int sockfd, const CorShare* const * const x, const size_t n) {
-    int total = 0, ret;
-    fmpz_t* buf; new_fmpz_array(&buf, n);
+    for (unsigned int i = 0; i < n; i++) {
+        fmpz_set(x[i]->D, buff[i]);
+        fmpz_set(x[i]->E, buff[i]);
+    }
 
-    for (unsigned int i = 0; i < n; i++)
-        fmpz_set(buf[i], x[i]->shareD);
-    ret = send_fmpz_batch(sockfd, buf, n);
-    if (ret <= 0) return ret; else total += ret;
+    int ret = recv_fmpz_batch(sockfd, buff, 2 * n);
 
-    for (unsigned int i = 0; i < n; i++)
-        fmpz_set(buf[i], x[i]->shareE);
-    ret = send_fmpz_batch(sockfd, buf, n);
-    if (ret <= 0) return ret; else total += ret;
-
-    clear_fmpz_array(buf, n);
-    return total;
-}
-
-int recv_CorShare_batch(const int sockfd, CorShare* const * const x, const size_t n) {
-    int total = 0, ret;
-    fmpz_t* buf; new_fmpz_array(&buf, n);
-
-    ret = recv_fmpz_batch(sockfd, buf, n);
-    if (ret <= 0) return ret; else total += ret;
-    for (unsigned int i = 0; i < n; i++)
-        fmpz_set(x[i]->shareD, buf[i]);
-
-    ret = recv_fmpz_batch(sockfd, buf, n);
-    if (ret <= 0) return ret; else total += ret;
-    for (unsigned int i = 0; i < n; i++)
-        fmpz_set(x[i]->shareE, buf[i]);
-
-    clear_fmpz_array(buf, n);
-    return total;
+    clear_fmpz_array(buff, 2 * n);
+    return ret;
 }
 
 int send_ClientPacket(const int sockfd, const ClientPacket* const x,
