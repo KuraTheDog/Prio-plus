@@ -28,6 +28,15 @@ include(${CMAKE_FOLDER}/cmake/emp-tool-config.cmake)
 include(${CMAKE_FOLDER}/cmake/emp-ot-config.cmake)
 include_directories(${EMP-OT_INCLUDE_DIRS})
 
+# # For debugging
+set(VALGRIND_TEST FALSE)
+if(VALGRIND_TEST)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -g")
+  message(STATUS "DEBUG: Running with debug flags for valgrind testing")
+endif()
+
+
 foreach(_target
   server client
 )

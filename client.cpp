@@ -1512,6 +1512,8 @@ int main(int argc, char** argv) {
         return 1;
     }
 
+    init_constants();
+
     const int numreqs = atoi(argv[1]);  // Number of simulated clients
     const int port0 = atoi(argv[2]);
     const int port1 = atoi(argv[3]);
@@ -1566,8 +1568,6 @@ int main(int argc, char** argv) {
     std::cout << "Connecting to server 1" << std::endl;
     if (connect(sockfd1, (sockaddr*)&server1, sizeof(server1)) < 0)
         error_exit("Can't connect to server1");
-
-    init_constants();
 
     auto start = clock_start();
     if (protocol == "BITSUM") {

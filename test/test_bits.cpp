@@ -18,6 +18,8 @@ const bool lazy = false;
 void test_multiplyBoolShares(const size_t N, const int server_num, const int serverfd, CorrelatedStore* store) {
   bool* const x = new bool[N];
   bool* const y = new bool[N];
+  memset(x, 0, N * sizeof(bool));
+  memset(y, 0, N * sizeof(bool));
   if (server_num == 0) {
     x[0] = true; x[1] = false;
     y[0] = false; y[1] = true;
@@ -51,11 +53,10 @@ void test_addBinaryShares(const size_t N, const size_t* const nbits, const int s
     x[i] = new bool[nbits[i]];
     y[i] = new bool[nbits[i]];
     z[i] = new bool[nbits[i]];
+    memset(x[i], 0, nbits[i] * sizeof(bool));
+    memset(y[i], 0, nbits[i] * sizeof(bool));
+    memset(z[i], 0, nbits[i] * sizeof(bool));
   }
-  memset(x[0], 0, nbits[0]);
-  memset(x[1], 0, nbits[1]);
-  memset(y[0], 0, nbits[0]);
-  memset(y[1], 0, nbits[1]);
 
   if (server_num == 0) {
     x[0][0] = 1; x[0][1] = 0; x[0][2] = 1;  // 3
@@ -128,6 +129,7 @@ void test_addBinaryShares(const size_t N, const size_t* const nbits, const int s
 
 void test_b2a_daBit_single(const size_t N, const int server_num, const int serverfd, CorrelatedStore* store) {
   bool* x = new bool[N];
+  memset(x, 0, N * sizeof(bool));
   if (server_num == 0) {
     x[0] = true; x[1] = false;
   } else {
