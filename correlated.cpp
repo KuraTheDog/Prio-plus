@@ -122,46 +122,28 @@ const bool* const CorrelatedStore::multiplyBoolShares(
     const size_t N, const bool* const x, const bool* const y) {
   bool* const z = new bool[N];
 
-  bool* const d_this = new bool[N];
-  bool* const e_this = new bool[N];
+  bool* de = new bool[2 * N];
 
   checkBoolTriples(N);
   for (unsigned int i = 0; i < N; i++) {
     const BooleanBeaverTriple* const triple = getBoolTriple();
-    d_this[i] = x[i] ^ triple->a;
-    e_this[i] = y[i] ^ triple->b;
+    de[i] = x[i] ^ triple->a;
+    de[i + N] = y[i] ^ triple->b;
     z[i] = triple->c;
     delete triple;
   }
-  pid_t pid = 0;
-  int status = 0;
-  if (do_fork) pid = fork();
-  if (pid == 0) {
-    send_bool_batch(serverfd, d_this, N);
-    send_bool_batch(serverfd, e_this, N);
-
-    if (do_fork) exit(EXIT_SUCCESS);
-  }
-
-  bool* d_other = new bool[N];
-  bool* e_other = new bool[N];
-  recv_bool_batch(serverfd, d_other, N);
-  recv_bool_batch(serverfd, e_other, N);
+  swap_bool_batch(serverfd, de, 2 * N);
 
   for (unsigned int i = 0; i < N; i++) {
-    bool d = d_this[i] ^ d_other[i];
-    bool e = e_this[i] ^ e_other[i];
+    bool d = de[i];
+    bool e = de[i + N];
     z[i] ^= (x[i] and e) ^ (y[i] and d);
     if (server_num == 0)
       z[i] ^= (d and e);
   }
 
-  delete[] d_this;
-  delete[] e_this;
-  delete[] d_other;
-  delete[] e_other;
+  delete[] de;
 
-  if (do_fork) waitpid(pid, &status, 0);
   return z;
 }
 
@@ -221,44 +203,30 @@ fmpz_t* const CorrelatedStore::b2a_daBit_single(const size_t N, const bool* cons
 
   checkDaBits(N);
 
-  bool* const v_this = new bool[N];
+  bool* const v = new bool[N];
   for (unsigned int i = 0; i < N; i++) {
     const DaBit* const dabit = getDaBit();
-    v_this[i] = x[i] ^ dabit->b2;
+    v[i] = x[i] ^ dabit->b2;
 
     fmpz_set(xp[i], dabit->bp);
     // consume the daBit
     delete dabit;
   }
 
-  pid_t pid = 0;
-  int status = 0;
-  if (do_fork) pid = fork();
-  if (pid == 0) {
-    send_bool_batch(serverfd, v_this, N);
-
-    if (do_fork) exit(EXIT_SUCCESS);
-  }
-  bool* const v_other = new bool[N];
-  recv_bool_batch(serverfd, v_other, N);
+  swap_bool_batch(serverfd, v, N);
 
   for (unsigned int i = 0; i < N; i++) {
-    const bool v = v_this[i] ^ v_other[i];
-
     // [x]_p = v + [b]_p - 2 v [b]_p. Note v only added for one server.
     // So since server_num in {0, 1}, we add it when v = 1
     // Currently, [x]_p is holding [b]_p, which is what we want for v = 0
-    if (v) {  // If v = 1, then [x]_p = (0/1) - [b]_p
+    if (v[i]) {  // If v = 1, then [x]_p = (0/1) - [b]_p
       fmpz_neg(xp[i], xp[i]);
       fmpz_add_ui(xp[i], xp[i], server_num);
       fmpz_mod(xp[i], xp[i], Int_Modulus);
     }
   }
 
-  delete[] v_this;
-  delete[] v_other;
-
-  if (do_fork) waitpid(pid, &status, 0);
+  delete[] v;
 
   return xp;
 }

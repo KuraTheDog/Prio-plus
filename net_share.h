@@ -5,7 +5,15 @@ Also has htonl/ntohl wrappers for sending various int-like types.
 
 See test/test_net_share.cpp for a full example.
 
-Returns total bytes sent on success, or first fail return of an internal step (typically 0 or negative)
+Returns total bytes sent on success,
+  or first fail return of an internal step (typically 0 or negative)
+
+Swap:
+  Both send [x]. Sets [x] = [this.x] "+" [recieved other x]
+  For bool, "+" is bitwise XOR. For arith, is modular sum
+  Return is sent_bytes (which should be received bytes. Complains if not).
+
+  TODO: threading integration.
 */
 
 #ifndef NET_SHARE_H
@@ -52,6 +60,7 @@ int recv_bool(const int sockfd, bool& x);
 // Versus 1 bool at a time takes up a whole byte per bool
 int send_bool_batch(const int sockfd, const bool* const x, const size_t n);
 int recv_bool_batch(const int sockfd, bool* const x, const size_t n);
+int swap_bool_batch(const int sockfd, bool* const x, const size_t n);
 
 // Unused
 int send_int(const int sockfd, const int x);
@@ -88,6 +97,7 @@ int recv_fmpz(const int sockfd, fmpz_t x);
 
 int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n);
 int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n);
+int swap_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n);
 
 int send_seed(const int sockfd, const flint_rand_t x);
 int recv_seed(const int sockfd, flint_rand_t x);
@@ -99,6 +109,7 @@ int recv_Cor(const int sockfd, Cor* const x);
 
 int send_Cor_batch(const int sockfd, const Cor* const * const x, const size_t n);
 int recv_Cor_batch(const int sockfd, Cor* const * const x, const size_t n);
+int swap_Cor_batch(const int sockfd, Cor* const * const x, const size_t n);
 
 int send_ClientPacket(const int sockfd, const ClientPacket* const x,
                       const size_t NMul);

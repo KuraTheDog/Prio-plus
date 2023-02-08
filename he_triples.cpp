@@ -20,17 +20,13 @@ template <class T>
 T* ArithTripleGenerator::serializedSwap(const size_t num_batches, const T* mine) const {
   pid_t pid = 0;
   int status = 0;
-  if (do_fork) pid = fork();
-  if (pid == 0) {
-    for (unsigned int i = 0; i < num_batches; i++) {
-      std::string s;
-      std::stringstream ss;
-      Serial::Serialize(mine[i], ss, SerType::BINARY);
-      s = ss.str();
-      send_string(serverfd, s);
-    }
-
-    if (do_fork) exit(EXIT_SUCCESS);
+  // TODO: Thread out this send.
+  for (unsigned int i = 0; i < num_batches; i++) {
+    std::string s;
+    std::stringstream ss;
+    Serial::Serialize(mine[i], ss, SerType::BINARY);
+    s = ss.str();
+    send_string(serverfd, s);
   }
 
   T* other = new T[num_batches];
@@ -43,13 +39,11 @@ T* ArithTripleGenerator::serializedSwap(const size_t num_batches, const T* mine)
     Serial::Deserialize(other[i], ss2, SerType::BINARY);
   }
 
-  if (do_fork) waitpid(pid, &status, 0);
   return other;
 }
 
-ArithTripleGenerator::ArithTripleGenerator(const int serverfd, const int server_num, const unsigned int random_offset, const bool do_fork)
+ArithTripleGenerator::ArithTripleGenerator(const int serverfd, const int server_num, const unsigned int random_offset)
 : serverfd(serverfd)
-, do_fork(do_fork)
 {
   if (fmpz_cmp_ui(Int_Modulus, 1ULL << 60) > 0) {
     perror("ERROR: PALISADE based triples don't support Int_Modulus >60 bits");

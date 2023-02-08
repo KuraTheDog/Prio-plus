@@ -13,8 +13,6 @@ New batches are build either as it runs out, or by calling maybeUpdate
 For now, only uses DaBits for b2a Share conversion.
 boolean beaver triples are supported as they are straightforward, but not currently made.
 
-Due to send buffers potentially filling up, it forks out a child to do sending, while parent receives
-It also waits for the child to finish before exiting or moving to a substep that will send, to stay synced
 */
 
 #include <emp-ot/emp-ot.h>
@@ -51,21 +49,16 @@ class CorrelatedStore {
 
 public:
 
-  // True to work correctly on large batches, and faster
-  // False to do debugging
-  const bool do_fork;
-
   CorrelatedStore(const int serverfd, const int idx,
                   OT_Wrapper* const ot0, OT_Wrapper* const ot1,
                   const size_t batch_size,
-                  const bool lazy = false, const bool do_fork = true)
+                  const bool lazy = false)
   : batch_size(batch_size)
   , server_num(idx)
   , serverfd(serverfd)
   , lazy(lazy)
   , ot0(ot0)
   , ot1(ot1)
-  , do_fork(do_fork)
   {
     if (lazy) {
       std::cout << "Doing fast but insecure dabit precomputes." << std::endl;

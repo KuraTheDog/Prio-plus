@@ -206,9 +206,6 @@ const bool* const validate_snips(const size_t N,
     bool* const ans = new bool[N];
 
     const size_t NumRoots = NextPowerOfTwo(circuit[0]->NumMulGates());
-    pid_t pid = 0;
-    int status = 0;
-
     init_roots(NumRoots);
 
     Checker** const checker = new Checker*[N];
@@ -222,49 +219,23 @@ const bool* const validate_snips(const size_t N,
     for (unsigned int i = 0; i < N; i++)
       cor[i] = checker[i]->CorFn();
 
-    if (correlated_store->do_fork) pid = fork();
-    if (pid == 0) {
-        send_CorShare_batch(serverfd, cor_share, N);
-        if (correlated_store->do_fork) exit(EXIT_SUCCESS);
-    }
-    CorShare** const cor_share_other = new CorShare*[N];
-    for (unsigned int i = 0; i < N; i++)
-        cor_share_other[i] = new CorShare();
-    recv_CorShare_batch(serverfd, cor_share_other, N);
+    swap_Cor_batch(serverfd, cor, N);
 
     fmpz_t* valid_share; new_fmpz_array(&valid_share, N);
     for (unsigned int i = 0; i < N; i++) {
-        const Cor* const cor = new Cor(cor_share[i], cor_share_other[i]);
-        checker[i]->OutShare(valid_share[i], cor);
-        delete cor;
-    }
-    if (correlated_store->do_fork) waitpid(pid, &status, 0);
-
-    // TODO: Can be simplified: one sends share, other sends if valid
-    if (correlated_store->do_fork) pid = fork();
-    if (pid == 0) {
-        send_fmpz_batch(serverfd, valid_share, N);
-        if (correlated_store->do_fork) exit(EXIT_SUCCESS);
-    }
-    fmpz_t* valid_share_other; new_fmpz_array(&valid_share_other, N);
-    recv_fmpz_batch(serverfd, valid_share_other, N);
-
-    for (unsigned int i = 0; i < N; i++) {
-        ans[i] = AddToZero(valid_share[i], valid_share_other[i]);
-    }
-    clear_fmpz_array(valid_share, N);
-    clear_fmpz_array(valid_share_other, N);
-
-    for (unsigned int i = 0; i < N; i++) {
-        delete cor_share[i];
-        delete cor_share_other[i];
+        checker[i]->OutShare(valid_share[i], cor[i]);
+        delete cor[i];
         delete checker[i];
     }
-    delete[] cor_share;
-    delete[] cor_share_other;
+    delete[] cor;
     delete[] checker;
 
-    if (correlated_store->do_fork) waitpid(pid, &status, 0);
+    swap_fmpz_batch(serverfd, valid_share, N);
+
+    for (unsigned int i = 0; i < N; i++) {
+        ans[i] = fmpz_is_zero(valid_share[i]);
+    }
+    clear_fmpz_array(valid_share, N);
 
     std::cout << "snip circuit time: " << sec_from(start) << std::endl;
     return ans;
@@ -1521,7 +1492,7 @@ int main(int argc, char** argv) {
     ot0 = new OT_Wrapper(server_num == 0 ? nullptr : SERVER0_IP, 60051);
     ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
 
-    correlated_store = new CorrelatedStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE, true);
+    correlated_store = new CorrelatedStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE);
 
     int sockfd, newsockfd;
     sockaddr_in addr;

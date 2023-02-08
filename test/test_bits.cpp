@@ -12,7 +12,6 @@ const size_t batch_size = 10000; // flexible
 const size_t N = 20;           // Must be >= 2
 
 const size_t num_bits = 3;     // Must be >= 3
-const bool do_fork = true;     // false to do leaks testing
 const bool lazy = false;
 
 void test_multiplyBoolShares(const size_t N, const int server_num, const int serverfd, CorrelatedStore* store) {
@@ -239,7 +238,7 @@ void test_b2a_ot(const size_t N, const size_t* const nbits, const int server_num
 void runServerTest(const int server_num, const int serverfd) {
   OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : "127.0.0.1", 60051);
   OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : "127.0.0.1", 60052);
-  CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, ot0, ot1, batch_size, lazy, do_fork);
+  CorrelatedStore* store = new CorrelatedStore(serverfd, server_num, ot0, ot1, batch_size, lazy);
 
   store->maybeUpdate();
 
@@ -256,13 +255,11 @@ void runServerTest(const int server_num, const int serverfd) {
     std::cout << "iteration: " << i << std::endl;
     start = clock_start();
 
-    /* Unused
     test_multiplyBoolShares(N, server_num, serverfd, store);
     std::cout << "mul bool timing : " << sec_from(start) << std::endl; start = clock_start();
 
     test_addBinaryShares(N, bits_arr, server_num, serverfd, store);
-    std::cout << "add bin timing : " << sec_from(start) << std::endl; start = clock_start();
-    */
+    std::cout << "add bin timing : " << sec_from(start) << std::endl; start = clock_start();    
 
     test_b2a_daBit_single(N, server_num, serverfd, store);
     std::cout << "b2a da single timing : " << sec_from(start) << std::endl; start = clock_start();
