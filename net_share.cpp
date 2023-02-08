@@ -18,11 +18,11 @@
 
 /* Core functions */
 
-int recv_in(const int sockfd, void* const buf, const size_t len) {
+int recv_in(const int sockfd, void* const buff, const size_t len) {
     unsigned int bytes_read = 0, tmp;
-    char* const bufptr = (char*) buf;
+    char* const buffptr = (char*) buff;
     while (bytes_read < len) {
-        tmp = recv(sockfd, bufptr + bytes_read, len - bytes_read, 0);
+        tmp = recv(sockfd, buffptr + bytes_read, len - bytes_read, 0);
         if (tmp <= 0) return tmp; else bytes_read += tmp;
     }
     return bytes_read;
@@ -38,31 +38,31 @@ int recv_bool(const int sockfd, bool& x) {
 
 int send_bool_batch(const int sockfd, const bool* const x, const size_t n) {
     const size_t len = (n+7) / 8;  // Number of bytes to hold n, aka ceil(n/8)
-    char* const buf = new char[len];
+    char* const buff = new char[len];
 
-    memset(buf, 0, sizeof(char) * len);
+    memset(buff, 0, sizeof(char) * len);
 
     for (unsigned int i = 0; i < n; i++)
         if (x[i])
-            buf[i / 8] ^= (1 << (i % 8));
+            buff[i / 8] ^= (1 << (i % 8));
 
-    int ret = send(sockfd, buf, len, 0);
+    int ret = send(sockfd, buff, len, 0);
 
-    delete[] buf;
+    delete[] buff;
 
     return ret;
 }
 
 int recv_bool_batch(const int sockfd, bool* const x, const size_t n) {
     const size_t len = (n+7) / 8;
-    char* const buf = new char[len];
+    char* const buff = new char[len];
 
-    int ret = recv_in(sockfd, buf, len);
+    int ret = recv_in(sockfd, buff, len);
 
     for (unsigned int i = 0; i < n; i++)
-        x[i] = (buf[i/8] & (1 << (i % 8)));
+        x[i] = (buff[i/8] & (1 << (i % 8)));
 
-    delete[] buf;
+    delete[] buff;
 
     return ret;
 }
@@ -168,11 +168,11 @@ int recv_string(const int sockfd, std::string& x) {
     size_t len;
     ret = recv_size(sockfd, len);
     if (ret <= 0) return ret; else total += ret;
-    char* const buf = new char[len];
-    ret = recv_in(sockfd, buf, len);
+    char* const buff = new char[len];
+    ret = recv_in(sockfd, buff, len);
     if (ret <= 0) return ret; else total += ret;
-    x.assign(&buf[0], len);
-    delete[] buf;
+    x.assign(&buff[0], len);
+    delete[] buff;
     return total;
 }
 
@@ -187,9 +187,9 @@ int send_fmpz(const int sockfd, const fmpz_t x) {
         if (ret <= 0) return ret; else total += ret;
     }
 
-    ulong buf[len];
-    fmpz_get_ui_array(buf, len, x);
-    ret = send_ulong_batch(sockfd, buf, len);
+    ulong buff[len];
+    fmpz_get_ui_array(buff, len, x);
+    ret = send_ulong_batch(sockfd, buff, len);
     if (ret <= 0) return ret; else total += ret;
 
     return total;
@@ -210,11 +210,11 @@ int recv_fmpz(const int sockfd, fmpz_t x) {
         fmpz_set_ui(x, 0);
         return total;
     }
-    ulong buf[len];
-    ret = recv_ulong_batch(sockfd, buf, len);
+    ulong buff[len];
+    ret = recv_ulong_batch(sockfd, buff, len);
     if (ret <= 0) return ret; else total += ret;
 
-    fmpz_set_ui_array(x, buf, len);
+    fmpz_set_ui_array(x, buff, len);
 
     return total;
 }
@@ -238,11 +238,11 @@ int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n) {
     }
 
     size_t len = fmpz_size(Int_Modulus);
-    ulong buf[len * n];
+    ulong buff[len * n];
     for (unsigned int i = 0; i < n; i++)
-        fmpz_get_ui_array(&buf[i * len], len, x[i]);
+        fmpz_get_ui_array(&buff[i * len], len, x[i]);
 
-    ret = send_ulong_batch(sockfd, buf, len * n);
+    ret = send_ulong_batch(sockfd, buff, len * n);
     if (ret <= 0) return ret; else total += ret;
     return total;
 }
@@ -267,12 +267,12 @@ int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n) {
     }
 
     size_t len = fmpz_size(Int_Modulus);
-    ulong buf[len * n];
-    ret = recv_ulong_batch(sockfd, buf, len * n);
+    ulong buff[len * n];
+    ret = recv_ulong_batch(sockfd, buff, len * n);
     if (ret <= 0) return ret; else total += ret;
 
     for (unsigned int i = 0; i < n; i++)
-        fmpz_set_ui_array(x[i], &buf[i * len], len);
+        fmpz_set_ui_array(x[i], &buff[i * len], len);
     return total;
 }
 
@@ -434,16 +434,16 @@ int recv_BeaverTripleShare(const int sockfd, BeaverTripleShare* const x) {
 }
 
 int send_BooleanBeaverTriple(const int sockfd, const BooleanBeaverTriple* const x) {
-    bool buf[3] = {x->a, x->b, x->c};
-    return send_bool_batch(sockfd, buf, 3);
+    bool buff[3] = {x->a, x->b, x->c};
+    return send_bool_batch(sockfd, buff, 3);
 }
 
 int recv_BooleanBeaverTriple(const int sockfd, BooleanBeaverTriple* const x) {
-    bool buf[3];
-    int ret = recv_bool_batch(sockfd, buf, 3);
-    x->a = buf[0];
-    x->b = buf[1];
-    x->c = buf[2];
+    bool buff[3];
+    int ret = recv_bool_batch(sockfd, buff, 3);
+    x->a = buff[0];
+    x->b = buff[1];
+    x->c = buff[2];
     return ret;
 }
 
