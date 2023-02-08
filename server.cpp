@@ -469,7 +469,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
         start2 = clock_start();
 
         server_bytes += send_bool_batch(serverfd, valid, num_inputs);
-        
+
         fmpz_t* a; new_fmpz_array(&a, 1);
         size_t num_valid = accumulate(num_inputs, 1, shares_p, valid, a);
         clear_fmpz_array(shares_p, num_inputs);
@@ -1301,7 +1301,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         shares_p = correlated_store->b2a_daBit_single(num_inputs * max_inp, shares);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
-        
+
         bool* const valid = new bool[num_inputs];
         fmpz_t* sums; new_fmpz_array(&sums, num_inputs);
         bool total_parity = 0;

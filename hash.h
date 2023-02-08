@@ -10,7 +10,7 @@ Ideally, w is field (p^k), especially 2^k, for perfect pairwise.
 For efficiency, fine for w smaller and just have slightly imbalanced. Instead treats as though 2^k for next power of 2, then mod w.
 Does poly(x), take first k bits, then mod w
 
-Could be more efficient to use fmpz_t poly, but more work. 
+Could be more efficient to use fmpz_t poly, but more work.
 For degree 1, efficient enough as is
 */
 
@@ -22,17 +22,17 @@ For degree 1, efficient enough as is
 #include "fmpz_utils.h"
 
 class HashStore {
-  const size_t d;   // # hashes
-  const size_t l_bits;  // input bits
-  fmpz_t l;  // input range
-  fmpz_t w;  // hash range
-  size_t w_bits;  // # bits to store w
-  const size_t degree;  // degree+1 -wise independent. 
-  flint_rand_t hash_seed;  // synced seed for same random hashes
+  const size_t d;         // # hashes
+  const size_t l_bits;    // input bits
+  fmpz_t l;               // input range
+  fmpz_t w;               // hash range
+  size_t w_bits;          // # bits to store w
+  const size_t degree;    // degree+1 -wise independent.
+  flint_rand_t hash_seed; // synced seed for same random hashes
 
   fmpz_t** coeff;
 
-public: 
+public:
   HashStore(const size_t d, const size_t l_bits, const size_t w_arg,
             flint_rand_t hash_seed_arg, const size_t independence = 2)
   : d(d)

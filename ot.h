@@ -43,8 +43,8 @@ uint64_t bitsum_ot_receiver(
 // bits: length of value j
 // Does not accumulate
 const uint64_t* const * const intsum_ot_sender(
-    OT_Wrapper* const ot, const uint64_t* const * const shares, const bool* const valid, 
-    const size_t* const num_bits, const size_t num_shares, const size_t num_values, 
+    OT_Wrapper* const ot, const uint64_t* const * const shares, const bool* const valid,
+    const size_t* const num_bits, const size_t num_shares, const size_t num_values,
     const size_t mod = 0);
 const uint64_t* const * const intsum_ot_receiver(
     OT_Wrapper* const ot, const uint64_t* const * const shares,

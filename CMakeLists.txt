@@ -40,8 +40,9 @@ endif()
 foreach(_target
   server client
 )
-  add_executable(${_target} "${_target}.cpp" 
-                 "constants.cpp" "ot.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp" "correlated.cpp" "hash.cpp"
+  add_executable(${_target} "${_target}.cpp"
+                 "constants.cpp" "ot.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp"
+                 "correlated.cpp" "hash.cpp"
                  "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c"
                  )
   target_link_libraries(${_target}
@@ -69,7 +70,7 @@ foreach(_target
   set (test_SOURCE_FILES "test/${_target}.cpp")
   set (test_SOURCE_FILES ${test_SOURCE_FILES} "constants.cpp" "fmpz_utils.cpp")
   if (_target IN_LIST test_poly)
-    set (test_SOURCE_FILES ${test_SOURCE_FILES} 
+    set (test_SOURCE_FILES ${test_SOURCE_FILES}
          "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c")
   endif()
   if (_target IN_LIST test_share)
