@@ -71,6 +71,7 @@ void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {
     fmpz_t bit;
     fmpz_init(bit);
     fmpz_randm(bit, seed, two);
+    fmpz_clear(two);
 
     // random r
     /*
@@ -95,7 +96,6 @@ void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {
     // 1 xor (b - r) mod 2 = (1 + b - r) mod 2, true if (b-r) even
     bit1->b2 = fmpz_is_even(bit1->bp);
 
-    fmpz_clear(two);
     fmpz_clear(bit);
 }
 
