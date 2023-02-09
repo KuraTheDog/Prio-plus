@@ -7,6 +7,18 @@ extern "C" {
   #include "flint/fmpz.h"
 };
 
+void init_set_fmpz_readonly(fmpz_t x, const fmpz_t in) {
+  mpz_t z; mpz_init(z);
+  fmpz_get_mpz(z, in);
+  fmpz_init_set_readonly(x, z);
+  mpz_clear(z);
+
+  // Maybe more efficient, loses const. We don't do this enough to care.
+  // Based on documentation.
+  // fmpz_init_set_readonly(x, _fmpz_promote_val(in));
+  // _fmpz_demote_val(in);
+}
+
 void new_fmpz_array(fmpz_t** const arr, const size_t N) {
   fmpz_t* const out = (fmpz_t*) malloc(N * sizeof(fmpz_t));
   for (unsigned int i = 0; i < N; i++)

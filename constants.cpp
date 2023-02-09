@@ -11,10 +11,15 @@ fmpz_t *roots = nullptr, *invroots = nullptr, *roots2 = nullptr;
 size_t num_roots;
 
 void init_constants() {
-    fmpz_init(Int_Modulus);
-    fmpz_set_str(Int_Modulus,Int_Modulus_str.c_str(),16);
-    fmpz_init(Int_Gen);
-    fmpz_set_str(Int_Gen,Int_Gen_str.c_str(),16);
+    fmpz_t tmp; fmpz_init(tmp);
+
+    fmpz_set_str(tmp, Int_Modulus_str.c_str(), 16);
+    init_set_fmpz_readonly(Int_Modulus, tmp);
+
+    fmpz_set_str(tmp, Int_Gen_str.c_str(), 16);
+    init_set_fmpz_readonly(Int_Gen, tmp);
+
+    fmpz_clear(tmp);
 
     std::cout << "Init constants: " << std::endl;
     std::cout << "  Int_Modulus = "; fmpz_print(Int_Modulus); std::cout << std::endl;
@@ -25,8 +30,8 @@ void init_constants() {
 
 void clear_constants() {
     flint_randclear(seed);
-    fmpz_clear(Int_Modulus);
-    fmpz_clear(Int_Gen);
+    fmpz_clear_readonly(Int_Modulus);
+    fmpz_clear_readonly(Int_Gen);
 }
 
 void init_roots(const size_t N) {

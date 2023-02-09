@@ -9,6 +9,8 @@ extern "C" {
   #include "flint/fmpz.h"
 };
 
+void init_set_fmpz_readonly(fmpz_t x, const fmpz_t in);
+
 void new_fmpz_array(fmpz_t** arr, const size_t N);
 
 void clear_fmpz_array(fmpz_t* arr, const size_t N);
