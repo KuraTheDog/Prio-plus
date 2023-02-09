@@ -73,8 +73,14 @@ int swap_bool_batch(const int sockfd, bool* const x, const size_t n) {
 
     bool* buff = new bool[n];
 
-    sent_bytes += send_bool_batch(sockfd, x, n);
-    recv_bytes += recv_bool_batch(sockfd, buff, n);
+    std::thread t_send([sockfd, x, n, &sent_bytes]() {
+        sent_bytes += send_bool_batch(sockfd, x, n);
+    });
+    std::thread t_recv([sockfd, &buff, n, &recv_bytes]() {
+        recv_bytes += recv_bool_batch(sockfd, buff, n);
+    });
+    t_send.join();
+    t_recv.join();
 
     for (unsigned int i = 0; i < n; i++)
         x[i] ^= buff[i];
@@ -304,8 +310,14 @@ int swap_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n) {
 
     fmpz_t* buff; new_fmpz_array(&buff, n);
 
-    sent_bytes += send_fmpz_batch(sockfd, x, n);
-    recv_bytes += recv_fmpz_batch(sockfd, buff, n);
+    std::thread t_send([sockfd, x, n, &sent_bytes]() {
+        sent_bytes += send_fmpz_batch(sockfd, x, n);
+    });
+    std::thread t_recv([sockfd, &buff, n, &recv_bytes]() {
+        recv_bytes += recv_fmpz_batch(sockfd, buff, n);
+    });
+    t_send.join();
+    t_recv.join();
 
     for (unsigned int i = 0; i < n; i++) {
         fmpz_add(x[i], x[i], buff[i]);

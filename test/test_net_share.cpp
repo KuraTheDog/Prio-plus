@@ -271,8 +271,27 @@ void run_receiver(int sockfd) {
     fmpz_clear(number);
 }
 
+void test_swap(int sockfd, int idx, size_t N) {
+    std::cout << "Player " << idx << " running swap test size " << N << std::endl;
+    bool* buff = new bool[N];
+    memset(buff, idx, N * sizeof(bool));
+
+    int bytes = swap_bool_batch(sockfd, buff, N);
+    std::cout << "bytes: " << bytes << std::endl;
+
+    assert(buff[0] == 1);
+    assert(buff[N - 1] == 1);
+
+    delete[] buff;
+}
+
 int main(int argc, char** argv) {
     init_constants();
+
+    int N = 15000000;
+    if (argc >= 2) {
+        N = atoi(argv[1]);
+    }
 
     /* set up receiver */
     int sockfd = init_receiver();
@@ -281,8 +300,13 @@ int main(int argc, char** argv) {
     pid_t pid = fork();
     if (pid == 0) {
         int cli_sockfd = init_sender();
+
         // sleep();
+
         run_sender(cli_sockfd);
+
+        test_swap(cli_sockfd, 0, N);
+
         close(cli_sockfd);
     } else if (pid > 0) {
         /* Do receiver handling */
@@ -290,11 +314,14 @@ int main(int argc, char** argv) {
 
         run_receiver(newsockfd);
 
+        test_swap(newsockfd, 1, N);
+
         close(newsockfd);
         close(sockfd);
     } else {
         error_exit("Failed to fork");
     }
 
+    clear_constants();
     return 0;
 }
