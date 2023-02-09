@@ -294,11 +294,8 @@ int main(int argc, char** argv) {
     }
 
     /* set up receiver */
-    int sockfd = init_receiver();
 
-    /* Launch child to do sending */
-    pid_t pid = fork();
-    if (pid == 0) {
+    std::thread t0([&]() {
         int cli_sockfd = init_sender();
 
         // sleep();
@@ -308,8 +305,10 @@ int main(int argc, char** argv) {
         test_swap(cli_sockfd, 0, N);
 
         close(cli_sockfd);
-    } else if (pid > 0) {
-        /* Do receiver handling */
+    });
+
+    std::thread t1([&]() {
+        int sockfd = init_receiver();
         int newsockfd = accept_receiver(sockfd);
 
         run_receiver(newsockfd);
@@ -318,9 +317,10 @@ int main(int argc, char** argv) {
 
         close(newsockfd);
         close(sockfd);
-    } else {
-        error_exit("Failed to fork");
-    }
+    });
+
+    t0.join();
+    t1.join();
 
     clear_constants();
     return 0;

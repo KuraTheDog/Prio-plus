@@ -100,13 +100,10 @@ int main(int argc, char** argv){
 
   init_constants();
 
-  pid_t pid = fork();
-
-  if (pid == 0) {
-    run_server0(m);
-  } else {
-    run_server1(m);
-  }
+  std::thread t0([m](){run_server0(m);});
+  std::thread t1([m](){run_server1(m);});
+  t0.join();
+  t1.join();
 
   clear_constants();
 

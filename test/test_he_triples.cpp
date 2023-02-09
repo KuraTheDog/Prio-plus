@@ -253,18 +253,21 @@ void runServerTest(const int server_num, const int serverfd, const size_t N) {
 }
 
 void serverTest(const size_t N) {
-  int sockfd = init_receiver();
 
-  if (fork() == 0) {
+  std::thread t0([&]() {
     int cli_sockfd = init_sender();
     runServerTest(0, cli_sockfd, N);
     close(cli_sockfd);
-  } else {
+  });
+  std::thread t1([&]() {
+    int sockfd = init_receiver();
     int newsockfd = accept_receiver(sockfd);
     runServerTest(1, newsockfd, N);
     close(newsockfd);
-  }
-  close(sockfd);
+    close(sockfd);
+  });
+  t0.join();
+  t1.join();
 }
 
 

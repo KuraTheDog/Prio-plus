@@ -18,26 +18,29 @@
 // Sends a serializable T mine, receives sent T other.
 template <class T>
 T* ArithTripleGenerator::serializedSwap(const size_t num_batches, const T* mine) const {
-  pid_t pid = 0;
-  int status = 0;
-  // TODO: Thread out this send.
-  for (unsigned int i = 0; i < num_batches; i++) {
-    std::string s;
-    std::stringstream ss;
-    Serial::Serialize(mine[i], ss, SerType::BINARY);
-    s = ss.str();
-    send_string(serverfd, s);
-  }
-
   T* other = new T[num_batches];
-  for (unsigned int i = 0; i < num_batches; i++) {
-    std::string s2;
-    std::stringstream ss2;
-    recv_string(serverfd, s2);
-    ss2 << s2;
-    ss2.flush();
-    Serial::Deserialize(other[i], ss2, SerType::BINARY);
-  }
+
+  std::thread t_send([num_batches, serverfd, mine]() {
+    for (unsigned int i = 0; i < num_batches; i++) {
+      std::string s;
+      std::stringstream ss;
+      Serial::Serialize(mine[i], ss, SerType::BINARY);
+      s = ss.str();
+      send_string(serverfd, s);
+    }
+  });
+  std::thread t_recv([num_batches, serverfd, &other]() {
+    for (unsigned int i = 0; i < num_batches; i++) {
+      std::string s2;
+      std::stringstream ss2;
+      recv_string(serverfd, s2);
+      ss2 << s2;
+      ss2.flush();
+      Serial::Deserialize(other[i], ss2, SerType::BINARY);
+    }
+  });
+  t_send.join();
+  t_recv.join();
 
   return other;
 }
