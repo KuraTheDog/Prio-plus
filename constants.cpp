@@ -5,7 +5,9 @@
 #include "fmpz_utils.h"
 
 fmpz_t Int_Modulus;
+fmpz_mod_ctx_t mod_ctx;
 fmpz_t Int_Gen;
+size_t mod_size;
 flint_rand_t seed;
 fmpz_t *roots = nullptr, *invroots = nullptr, *roots2 = nullptr;
 size_t num_roots;
@@ -15,6 +17,10 @@ void init_constants() {
 
     fmpz_set_str(tmp, Int_Modulus_str.c_str(), 16);
     init_set_fmpz_readonly(Int_Modulus, tmp);
+
+    fmpz_mod_ctx_init(mod_ctx, Int_Modulus);
+
+    mod_size = fmpz_size(Int_Modulus);
 
     fmpz_set_str(tmp, Int_Gen_str.c_str(), 16);
     init_set_fmpz_readonly(Int_Gen, tmp);
@@ -31,6 +37,7 @@ void init_constants() {
 void clear_constants() {
     flint_randclear(seed);
     fmpz_clear_readonly(Int_Modulus);
+    fmpz_mod_ctx_clear(mod_ctx);
     fmpz_clear_readonly(Int_Gen);
 }
 
@@ -56,7 +63,7 @@ void init_roots(const size_t N) {
     fmpz_init(ginv_);   // Inverse of g_
     fmpz_init(ghalf_);  // g_^(step/2), for 2N roots.
 
-    fmpz_invmod(ginv_,Int_Gen,Int_Modulus);
+    fmpz_mod_inv(ginv_, Int_Gen, mod_ctx);
 
     /*
     N = 2^k, so stepsize = 2^(Ord - k).
@@ -71,16 +78,12 @@ void init_roots(const size_t N) {
     fmpz_set_ui(roots2[0], 1);
 
     for (unsigned int i = 1; i < N; i++) {
-        fmpz_mul(roots[i],roots[i-1],g_);
-        fmpz_mul(invroots[i],invroots[i-1],ginv_);
-
-        fmpz_mod(roots[i],roots[i],Int_Modulus);
-        fmpz_mod(invroots[i],invroots[i],Int_Modulus);
+        fmpz_mod_mul(roots[i], roots[i-1], g_, mod_ctx);
+        fmpz_mod_mul(invroots[i], invroots[i-1], ginv_, mod_ctx);
     }
 
     for (unsigned int i = 1; i < 2 * N; i++) {
-        fmpz_mul(roots2[i], roots2[i-1], ghalf_);
-        fmpz_mod(roots2[i], roots2[i], Int_Modulus);
+        fmpz_mod_mul(roots2[i], roots2[i-1], ghalf_, mod_ctx);
     }
 
     fmpz_clear(g_);

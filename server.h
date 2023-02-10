@@ -231,22 +231,18 @@ struct Checker {
         // set evals
         pre->xN->Eval(pointsF, evalF);
         pre->xN->Eval(pointsG, evalG);
-        fmpz_mul(evalG, evalG, pre->x);
-        fmpz_mod(evalG, evalG, Int_Modulus);
+        fmpz_mod_mul(evalG, evalG, pre->x, mod_ctx);
         pre->x2N->Eval(pointsH, evalH);
-        fmpz_mul(evalH, evalH, pre->x);
-        fmpz_mod(evalH, evalH, Int_Modulus);
+        fmpz_mod_mul(evalH, evalH, pre->x, mod_ctx);
     }
 
     Cor* CorFn() {
         // std::cout << "CorFn" << std::endl;
         Cor* const out = new Cor();
 
-        fmpz_sub(out->D, evalF, req->triple_share->shareA);
-        fmpz_mod(out->D, out->D, Int_Modulus);
+        fmpz_mod_sub(out->D, evalF, req->triple_share->shareA, mod_ctx);
 
-        fmpz_sub(out->E, evalG, req->triple_share->shareB);
-        fmpz_mod(out->E, out->E, Int_Modulus);
+        fmpz_mod_sub(out->E, evalG, req->triple_share->shareB, mod_ctx);
 
         return out;
     }
@@ -255,29 +251,17 @@ struct Checker {
         fmpz_t mulCheck;
         fmpz_t term;
 
-        fmpz_init(mulCheck);
+        fmpz_init_set_ui(mulCheck, 0);
         fmpz_init(term);
 
         if (server_num == 0) {
-            fmpz_mul(mulCheck, corIn->D, corIn->E);
-            fmpz_mod(mulCheck, mulCheck, Int_Modulus);
+            fmpz_mod_mul(mulCheck, corIn->D, corIn->E, mod_ctx);
         }
 
-        fmpz_mul(term, corIn->D, req->triple_share->shareB);
-        fmpz_mod(term, term, Int_Modulus);
-        fmpz_add(mulCheck, mulCheck, term);
-        fmpz_mod(mulCheck, mulCheck, Int_Modulus);
-
-        fmpz_mul(term, corIn->E, req->triple_share->shareA);
-        fmpz_mod(term, term, Int_Modulus);
-        fmpz_add(mulCheck, mulCheck, term);
-        fmpz_mod(mulCheck, mulCheck, Int_Modulus);
-
-        fmpz_add(mulCheck, mulCheck, req->triple_share->shareC);
-        fmpz_mod(mulCheck, mulCheck, Int_Modulus);
-
-        fmpz_sub(mulCheck, mulCheck, evalH);
-        fmpz_mod(mulCheck, mulCheck, Int_Modulus);
+        fmpz_mod_addmul(mulCheck, corIn->D, req->triple_share->shareB, mod_ctx);
+        fmpz_mod_addmul(mulCheck, corIn->E, req->triple_share->shareA, mod_ctx);
+        fmpz_mod_add(mulCheck, mulCheck, req->triple_share->shareC, mod_ctx);
+        fmpz_mod_sub(mulCheck, mulCheck, evalH, mod_ctx);
 
         fmpz_t* arr;
         const size_t num_zero_gates = ckt->result_zero.size();
@@ -297,30 +281,24 @@ struct Checker {
     }
 
     void randSum(fmpz_t out, const fmpz_t* const arr, const size_t len) const {
-        fmpz_t tmp; fmpz_init(tmp);
+        fmpz_t r; fmpz_init(r);
 
         for (unsigned int i = 0; i < len; i++) {
             if (!same_runtime) {
-                fmpz_randm(tmp, snips_seed, Int_Modulus);
+                fmpz_randm(r, snips_seed, Int_Modulus);
             } else {
-                fmpz_set_ui(tmp, 1);
+                fmpz_set_ui(r, 1);
             }
-            fmpz_mul(tmp, tmp, arr[i]);
-            fmpz_mod(tmp, tmp, Int_Modulus);
-
-            fmpz_add(out, out, tmp);
+            fmpz_mod_addmul(out, r, arr[i], mod_ctx);
         }
 
-        fmpz_mod(out, out, Int_Modulus);
-
-        fmpz_clear(tmp);
+        fmpz_clear(r);
     }
 };
 
 bool AddToZero(const fmpz_t x, const fmpz_t y) {
     fmpz_t sum; fmpz_init(sum);
-    fmpz_add(sum, x, y);
-    fmpz_mod(sum, sum, Int_Modulus);
+    fmpz_mod_add(sum, x, y, mod_ctx);
     bool ans = fmpz_is_zero(sum);
     fmpz_clear(sum);
     return ans;

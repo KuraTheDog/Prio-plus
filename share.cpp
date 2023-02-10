@@ -17,16 +17,12 @@ unsigned int NextPowerOfTwo(const unsigned int n) {
 
 void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B) {
     fmpz_randm(A, seed, Int_Modulus);
-    fmpz_sub(B, val, A);
-    fmpz_mod(B, B, Int_Modulus);
+    fmpz_mod_sub(B, val, A, mod_ctx);
 }
 
 Cor::Cor(const Cor* const x, const Cor* const y) : Cor() {
-    fmpz_add(D, x->D, y->D);
-    fmpz_mod(D, D, Int_Modulus);
-
-    fmpz_add(E, x->E, y->E);
-    fmpz_mod(E, E, Int_Modulus);
+    fmpz_mod_add(D, x->D, y->D, mod_ctx);
+    fmpz_mod_add(E, x->E, y->E, mod_ctx);
 }
 
 // Unused?
@@ -49,8 +45,7 @@ const BeaverTriple* const NewBeaverTriple() {
 
     fmpz_randm(out->A, seed, Int_Modulus);
     fmpz_randm(out->B, seed, Int_Modulus);
-    fmpz_mul(out->C, out->A, out->B);
-    fmpz_mod(out->C, out->C, Int_Modulus);
+    fmpz_mod_mul(out->C, out->A, out->B, mod_ctx);
 
     return out;
 }
@@ -84,11 +79,10 @@ void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {
     fmpz_t adjust; fmpz_init_set(adjust, bit); fmpz_add_si(adjust, adjust, 1);
     fmpz_sub(adjust_mod, adjust_mod, adjust);
     fmpz_randm(bit0->bp, seed, adjust_mod);
-    fmpz_add(bit0->bp, bit0->bp, adjust);
+    fmpz_mod_add(bit0->bp, bit0->bp, adjust, mod_ctx);
 
     // b - r
-    fmpz_sub(bit1->bp, bit, bit0->bp);
-    fmpz_mod(bit1->bp, bit1->bp, Int_Modulus);
+    fmpz_mod_sub(bit1->bp, bit, bit0->bp, mod_ctx);
 
     // r mod 2. true if odd.
     bit0->b2 = fmpz_is_odd(bit0->bp);
@@ -116,13 +110,10 @@ void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n) {
         ebit0->b[i] = bit0->b2;
         ebit1->b[i] = bit1->b2;
 
-        fmpz_addmul(ebit0->r, pow, bit0->bp);
-        fmpz_mod(ebit0->r, ebit0->r, Int_Modulus);
-        fmpz_addmul(ebit1->r, pow, bit1->bp);
-        fmpz_mod(ebit1->r, ebit1->r, Int_Modulus);
+        fmpz_mod_addmul(ebit0->r, pow, bit0->bp, mod_ctx);
+        fmpz_mod_addmul(ebit1->r, pow, bit1->bp, mod_ctx);
 
-        fmpz_mul_si(pow, pow, 2);
-        fmpz_mod(pow, pow, Int_Modulus);
+        fmpz_mod_mul_si(pow, pow, 2, mod_ctx);
     }
     fmpz_clear(pow);
     delete bit0;

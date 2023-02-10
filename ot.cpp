@@ -334,15 +334,13 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, O
         fmpz_mod(r1, r1, Int_Modulus);
 
         // d = r0 - r1 + b, and swap
-        fmpz_sub(d, r0, r1);
-        fmpz_add(d, d, triple->B);
-        fmpz_mod(d, d, Int_Modulus);
+        fmpz_mod_sub(d, r0, r1, mod_ctx);
+        fmpz_mod_add(d, d, triple->B, mod_ctx);
         send_fmpz(serverfd, d);
 
-        fmpz_addmul(q, r0, pow); // r0
-        fmpz_mod(q, q, Int_Modulus);
+        fmpz_mod_addmul(q, r0, pow, mod_ctx); // r0
 
-        fmpz_mul_ui(pow, pow, 2);
+        fmpz_mod_mul_ui(pow, pow, 2, mod_ctx);
     }
 
     fmpz_set_si(pow, 1);  // 2^i
@@ -358,23 +356,20 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, O
         // t = s + ai d' = r0' + ai b'
         fmpz_set(ti, s);
         if (a_arr[i]) {
-            fmpz_add(ti, ti, d);
-            fmpz_mod(ti, ti, Int_Modulus);
+            fmpz_mod_add(ti, ti, d, mod_ctx);
         }
 
-        fmpz_addmul(t, ti, pow); // r0' + ai b'
-        fmpz_mod(t, t, Int_Modulus);
+        fmpz_mod_addmul(t, ti, pow, mod_ctx); // r0' + ai b'
 
-        fmpz_mul_ui(pow, pow, 2);
+        fmpz_mod_mul_ui(pow, pow, 2, mod_ctx);
     }
 
     // So t - q' = a b', and vice versa
 
     // c = a * b + t - q
-    fmpz_mul(triple->C, triple->A, triple->B);
-    fmpz_add(triple->C, triple->C, t);
-    fmpz_sub(triple->C, triple->C, q);
-    fmpz_mod(triple->C, triple->C, Int_Modulus);
+    fmpz_mod_mul(triple->C, triple->A, triple->B, mod_ctx);
+    fmpz_mod_add(triple->C, triple->C, t, mod_ctx);
+    fmpz_mod_sub(triple->C, triple->C, q, mod_ctx);
 
     return triple;
 }
@@ -395,10 +390,9 @@ const BeaverTriple* const generate_beaver_triple_lazy(
 
         fmpz_add(other_triple->C, triple->A, other_triple->A);
         fmpz_t tmp; fmpz_init(tmp);
-        fmpz_add(tmp, triple->B, other_triple->B);
-        fmpz_mul(other_triple->C, other_triple->C, tmp);
-        fmpz_sub(other_triple->C, other_triple->C, triple->C);
-        fmpz_mod(other_triple->C, other_triple->C, Int_Modulus);
+        fmpz_mod_add(tmp, triple->B, other_triple->B, mod_ctx);
+        fmpz_mod_mul(other_triple->C, other_triple->C, tmp, mod_ctx);
+        fmpz_mod_sub(other_triple->C, other_triple->C, triple->C, mod_ctx);
 
         send_BeaverTriple(serverfd, other_triple);
 

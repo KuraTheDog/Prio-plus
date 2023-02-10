@@ -220,9 +220,8 @@ fmpz_t* const CorrelatedStore::b2a_daBit_single(const size_t N, const bool* cons
     // So since server_num in {0, 1}, we add it when v = 1
     // Currently, [x]_p is holding [b]_p, which is what we want for v = 0
     if (v[i]) {  // If v = 1, then [x]_p = (0/1) - [b]_p
-      fmpz_neg(xp[i], xp[i]);
-      fmpz_add_ui(xp[i], xp[i], server_num);
-      fmpz_mod(xp[i], xp[i], Int_Modulus);
+      fmpz_mod_neg(xp[i], xp[i], mod_ctx);
+      fmpz_mod_add_ui(xp[i], xp[i], server_num, mod_ctx);
     }
   }
 
@@ -255,8 +254,7 @@ fmpz_t* const CorrelatedStore::b2a_daBit_multi(
   for (unsigned int i = 0; i < N; i++) {
     fmpz_set_ui(xp[i], 0);
     for (unsigned int j = 0; j < num_bits[i]; j++) {
-      fmpz_addmul_ui(xp[i], tmp_xp[j + offset], (1ULL << j));
-      fmpz_mod(xp[i], xp[i], Int_Modulus);
+      fmpz_mod_addmul_ui(xp[i], tmp_xp[j + offset], (1ULL << j), mod_ctx);
     }
     offset += num_bits[i];
   }

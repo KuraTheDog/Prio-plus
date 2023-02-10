@@ -8,6 +8,7 @@
 extern "C" {
   #include "flint/flint.h"
   #include "flint/fmpz.h"
+  #include "flint/fmpz_mod.h"
 };
 
 /*
@@ -73,8 +74,10 @@ const int twoOrder = 19;
 // const int twoOrder = 19;
 
 extern fmpz_t Int_Modulus;        // Large prime modulus
+extern fmpz_mod_ctx_t mod_ctx;    // Modulus context
 extern fmpz_t Int_Gen;            // Generates subgroup order 2^twoOrder in Zp
 extern flint_rand_t seed;         // Global random seed, for fmpz_randm, etc.
+extern size_t mod_size;           // for net share, fmpz_size(Int_Modulus);
 
 /* Nth roots of unity, used for FFT.
    over 2^twoOrder.

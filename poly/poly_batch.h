@@ -7,6 +7,7 @@
 Most things disabled.
 Flint mod poly stuff now passes around a ctx. Needs a rework to integrate.
 Only kept for now for things used by poly_once.
+TODO: Could be interesting passing around ctx rather than modulus?
 */
 
 struct tree_s {

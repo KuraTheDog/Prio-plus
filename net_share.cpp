@@ -208,7 +208,7 @@ int send_fmpz(const int sockfd, const fmpz_t x) {
     int total = 0, ret;
     size_t len;
     if (FIXED_FMPZ_SIZE) {
-        len = fmpz_size(Int_Modulus);
+        len = mod_size;
     } else {
         len = fmpz_size(x);
         ret = send_size(sockfd, len);
@@ -228,7 +228,7 @@ int recv_fmpz(const int sockfd, fmpz_t x) {
     size_t len;
 
     if (FIXED_FMPZ_SIZE) {
-        len = fmpz_size(Int_Modulus);
+        len = mod_size;
     } else {
         ret = recv_size(sockfd, len);
         if (ret <= 0) return ret; else total += ret;
@@ -265,7 +265,7 @@ int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n) {
         return total;
     }
 
-    size_t len = fmpz_size(Int_Modulus);
+    size_t len = mod_size;
     ulong buff[len * n];
     for (unsigned int i = 0; i < n; i++)
         fmpz_get_ui_array(&buff[i * len], len, x[i]);
@@ -294,7 +294,7 @@ int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n) {
         return total;
     }
 
-    size_t len = fmpz_size(Int_Modulus);
+    size_t len = mod_size;
     ulong buff[len * n];
     ret = recv_ulong_batch(sockfd, buff, len * n);
     if (ret <= 0) return ret; else total += ret;
@@ -320,8 +320,7 @@ int swap_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n) {
     t_recv.join();
 
     for (unsigned int i = 0; i < n; i++) {
-        fmpz_add(x[i], x[i], buff[i]);
-        fmpz_mod(x[i], x[i], Int_Modulus);
+        fmpz_mod_add(x[i], x[i], buff[i], mod_ctx);
     }
 
     if (sent_bytes != recv_bytes) {

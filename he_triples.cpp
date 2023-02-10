@@ -146,12 +146,9 @@ std::vector<BeaverTriple*> ArithTripleGenerator::generateTriples(const size_t n)
       fmpz_set_si(triple->A, a[i][j]);
       fmpz_set_si(triple->B, b[i][j]);
       // c = ab + d + e
-      fmpz_set_si(triple->C, a[i][j]);
-      fmpz_mul_si(triple->C, triple->C, b[i][j]);
-      fmpz_mod(triple->C, triple->C, Int_Modulus);
-      fmpz_add_si(triple->C, triple->C, d[i][j]);
-      fmpz_add_si(triple->C, triple->C, e[j]);
-      fmpz_mod(triple->C, triple->C, Int_Modulus);
+      fmpz_mod_mul(triple->C, triple->A, triple->B, mod_ctx);
+      fmpz_mod_add_si(triple->C, triple->C, d[i][j], mod_ctx);
+      fmpz_mod_add_si(triple->C, triple->C, e[j], mod_ctx);
 
       res.push_back(triple);
     }

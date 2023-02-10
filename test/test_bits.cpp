@@ -141,13 +141,11 @@ void test_b2a_daBit_single(const size_t N, const int server_num, const int serve
     fmpz_t tmp; fmpz_init(tmp);
 
     recv_fmpz(serverfd, tmp);
-    fmpz_add(tmp, tmp, xp[0]);
-    fmpz_mod(tmp, tmp, Int_Modulus);
+    fmpz_mod_add(tmp, tmp, xp[0], mod_ctx);
     assert(fmpz_equal_ui(tmp, 0));  // 1 ^ 1 = 0
 
     recv_fmpz(serverfd, tmp);
-    fmpz_add(tmp, tmp, xp[1]);
-    fmpz_mod(tmp, tmp, Int_Modulus);
+    fmpz_mod_add(tmp, tmp, xp[1], mod_ctx);
     assert(fmpz_equal_ui(tmp, 1));  // 0 ^ 1 = 1
 
     fmpz_clear(tmp);
@@ -179,13 +177,11 @@ void test_b2a_multi(const size_t N, const size_t* const nbits, const int server_
     fmpz_t tmp; fmpz_init(tmp);
 
     recv_fmpz(serverfd, tmp);
-    fmpz_add(tmp, tmp, xp[0]);
-    fmpz_mod(tmp, tmp, Int_Modulus);
+    fmpz_mod_add(tmp, tmp, xp[0], mod_ctx);
     assert(fmpz_equal_ui(tmp, 5));  // 3 ^ 6 = 5
 
     recv_fmpz(serverfd, tmp);
-    fmpz_add(tmp, tmp, xp[1]);
-    fmpz_mod(tmp, tmp, Int_Modulus);
+    fmpz_mod_add(tmp, tmp, xp[1], mod_ctx);
     assert(fmpz_equal_ui(tmp, 1));  // 5 ^ 4 = 1
 
     fmpz_clear(tmp);
@@ -216,13 +212,11 @@ void test_b2a_ot(const size_t N, const size_t* const nbits, const int server_num
     fmpz_t tmp; fmpz_init(tmp);
 
     recv_fmpz(serverfd, tmp);
-    fmpz_add(tmp, tmp, xp[0]);
-    fmpz_mod(tmp, tmp, Int_Modulus);
+    fmpz_mod_add(tmp, tmp, xp[0], mod_ctx);
     assert(fmpz_equal_ui(tmp, 5));  // 3 ^ 6 = 5
 
     recv_fmpz(serverfd, tmp);
-    fmpz_add(tmp, tmp, xp[1]);
-    fmpz_mod(tmp, tmp, Int_Modulus);
+    fmpz_mod_add(tmp, tmp, xp[1], mod_ctx);
     assert(fmpz_equal_ui(tmp, 1));  // 5 ^ 4 = 1
 
     fmpz_clear(tmp);

@@ -256,8 +256,7 @@ size_t accumulate(const size_t num_inputs,
         if (!valid[i])
             continue;
         for (unsigned int j = 0; j < num_values; j++) {
-            fmpz_add(ans[j], ans[j], shares_p[i * num_values + j]);
-            fmpz_mod(ans[j], ans[j], Int_Modulus);
+            fmpz_mod_add(ans[j], ans[j], shares_p[i * num_values + j], mod_ctx);
         }
         num_valid++;
     }
@@ -458,8 +457,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
             return RET_INVALID;
         }
 
-        fmpz_add(b, b, a[0]);
-        fmpz_mod(b, b, Int_Modulus);
+        fmpz_mod_add(b, b, a[0], mod_ctx);
         clear_fmpz_array(a, 1);
         ans = fmpz_get_ui(b);
         fmpz_clear(b);
@@ -881,8 +879,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
             return RET_INVALID;
         }
 
-        fmpz_add(b, b, a[0]); fmpz_mod(b, b, Int_Modulus);
-        fmpz_add(b2, b2, a[1]); fmpz_mod(b2, b2, Int_Modulus);
+        fmpz_mod_add(b, b, a[0], mod_ctx);
+        fmpz_mod_add(b2, b2, a[1], mod_ctx);
 
         const double ex = fmpz_get_d(b) / num_valid;
         const double ex2 = fmpz_get_d(b2) / num_valid;
@@ -1163,25 +1161,21 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         x_accum[0] = num_valid;
         for (unsigned int j = 0; j < num_x; j++) {
             recv_fmpz(serverfd, b);
-            fmpz_add(b, b, a[j]);
-            fmpz_mod(b, b, Int_Modulus);
+            fmpz_mod_add(b, b, a[j], mod_ctx);
             x_accum[1 + j] = fmpz_get_si(b);
         }
         recv_fmpz(serverfd, b);
-        fmpz_add(b, b, a[num_x]);
-        fmpz_mod(b, b, Int_Modulus);
+        fmpz_mod_add(b, b, a[num_x], mod_ctx);
         y_accum[0] = fmpz_get_si(b);
 
         for (unsigned int j = 0; j < num_quad; j++) {
             recv_fmpz(serverfd, b);
-            fmpz_add(b, b, a[degree + j]);
-            fmpz_mod(b, b, Int_Modulus);
+            fmpz_mod_add(b, b, a[degree + j], mod_ctx);
             x_accum[1 + num_x + j] = fmpz_get_si(b);
         }
         for (unsigned int j = 0; j < num_x; j++) {
             recv_fmpz(serverfd, b);
-            fmpz_add(b, b, a[degree + num_quad + j]);
-            fmpz_mod(b, b, Int_Modulus);
+            fmpz_mod_add(b, b, a[degree + num_quad + j], mod_ctx);
             y_accum[1 + j] = fmpz_get_si(b);
         }
 
@@ -1283,12 +1277,10 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
                 // std::cout << "share_p[" << i << ", " << j << "] = ";
                 // fmpz_print(shares_p[i * max_inp + j]); std::cout << std::endl;
 
-                fmpz_add(sums[i], sums[i], shares_p[i * max_inp + j]);
-                fmpz_mod(sums[i], sums[i], Int_Modulus);
+                fmpz_mod_add(sums[i], sums[i], shares_p[i * max_inp + j], mod_ctx);
                 total_parity ^= shares[i * max_inp + j];
             }
-            fmpz_add(sum, sum, sums[i]);
-            fmpz_mod(sum, sum, Int_Modulus);
+            fmpz_mod_add(sum, sum, sums[i], mod_ctx);
         }
         // Batch check.
         num_bytes += send_bool(serverfd, total_parity);
@@ -1362,12 +1354,10 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
                 // fmpz_print(shares_p[i * max_inp + j]); std::cout << std::endl;
 
                 parity[i] ^= shares[i * max_inp + j];
-                fmpz_add(sums[i], sums[i], shares_p[i * max_inp + j]);
-                fmpz_mod(sums[i], sums[i], Int_Modulus);
+                fmpz_mod_add(sums[i], sums[i], shares_p[i * max_inp + j], mod_ctx);
             }
             total_parity ^= parity[i];
-            fmpz_add(sum, sum, sums[i]);
-            fmpz_mod(sum, sum, Int_Modulus);
+            fmpz_mod_add(sum, sum, sums[i], mod_ctx);
         }
         // batch check
         bool total_parity_other;
@@ -1377,8 +1367,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         bool all_valid = false;
         all_valid = (total_parity ^ total_parity_other) == (total_inputs % 2);
         if (all_valid) {
-            fmpz_add(sum, sum, sum_other);
-            fmpz_mod(sum, sum, Int_Modulus);
+            fmpz_mod_add(sum, sum, sum_other, mod_ctx);
             all_valid = fmpz_equal_ui(sum, total_inputs);
         }
         num_bytes += send_bool(serverfd, all_valid);
@@ -1398,8 +1387,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
                     valid[i] = false;
                     continue;
                 }
-                fmpz_add(sums[i], sums[i], sums_other[i]);
-                fmpz_mod(sums[i], sums[i], Int_Modulus);
+                fmpz_mod_add(sums[i], sums[i], sums_other[i], mod_ctx);
                 if (!fmpz_is_one(sums[i]))
                     valid[i] = false;
             }
@@ -1438,8 +1426,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
 
         // Sum accumulates
         for (unsigned int j = 0; j < max_inp; j++) {
-            fmpz_add(a[j], a[j], b[j]);
-            fmpz_mod(a[j], a[j], Int_Modulus);
+            fmpz_mod_add(a[j], a[j], b[j], mod_ctx);
         }
         clear_fmpz_array(b, max_inp);
         // output

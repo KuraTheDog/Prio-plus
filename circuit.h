@@ -45,8 +45,8 @@ struct Gate {
 Gate* const MulByNegOne(Gate* const gate) {
     Gate* const out = new Gate(Gate_MulConst, gate);
 
-    fmpz_set_si(out->Constant, -1);
-    fmpz_mod(out->Constant, out->Constant, Int_Modulus);
+    fmpz_one(out->Constant);
+    fmpz_mod_neg(out->Constant, out->Constant, mod_ctx);
 
     return out;
 }
@@ -99,32 +99,28 @@ struct Circuit {
                 // fmpz_print(gates[i]->WireValue); std::cout << std::endl;
                 break;
             case Gate_Add:
-                fmpz_add(gates[i]->WireValue, gates[i]->ParentL->WireValue, gates[i]->ParentR->WireValue);
-                fmpz_mod(gates[i]->WireValue, gates[i]->WireValue, Int_Modulus);
+                fmpz_mod_add(gates[i]->WireValue, gates[i]->ParentL->WireValue, gates[i]->ParentR->WireValue, mod_ctx);
                 // std::cout << "  EVAL Add \tGate " << i << "  -  ";
                 // fmpz_print(gates[i]->ParentL->WireValue); std::cout << ", ";
                 // fmpz_print(gates[i]->ParentR->WireValue); std::cout << " -> ";
                 // fmpz_print(gates[i]->WireValue); std::cout << std::endl;
                 break;
             case Gate_Mul:
-                fmpz_mul(gates[i]->WireValue, gates[i]->ParentL->WireValue, gates[i]->ParentR->WireValue);
-                fmpz_mod(gates[i]->WireValue, gates[i]->WireValue, Int_Modulus);
+                fmpz_mod_mul(gates[i]->WireValue, gates[i]->ParentL->WireValue, gates[i]->ParentR->WireValue, mod_ctx);
                 // std::cout << "  EVAL Mul \tGate " << i << "  -  ";
                 // fmpz_print(gates[i]->ParentL->WireValue); std::cout << ", ";
                 // fmpz_print(gates[i]->ParentR->WireValue); std::cout << " -> ";
                 // fmpz_print(gates[i]->WireValue); std::cout << std::endl;
                 break;
             case Gate_AddConst:
-                fmpz_add(gates[i]->WireValue, gates[i]->ParentL->WireValue, gates[i]->Constant);
-                fmpz_mod(gates[i]->WireValue, gates[i]->WireValue, Int_Modulus);
+                fmpz_mod_add(gates[i]->WireValue, gates[i]->ParentL->WireValue, gates[i]->Constant, mod_ctx);
                 // std::cout << "  EVAL add con \tGate " << i << "  -  ";
                 // fmpz_print(gates[i]->ParentL->WireValue); std::cout << ", const ";
                 // fmpz_print(gates[i]->Constant); std::cout << " -> ";
                 // fmpz_print(gates[i]->WireValue); std::cout << std::endl;
                 break;
             case Gate_MulConst:
-                fmpz_mul(gates[i]->WireValue, gates[i]->ParentL->WireValue, gates[i]->Constant);
-                fmpz_mod(gates[i]->WireValue, gates[i]->WireValue, Int_Modulus);
+                fmpz_mod_mul(gates[i]->WireValue, gates[i]->ParentL->WireValue, gates[i]->Constant, mod_ctx);
                 // std::cout << "  EVAL mul con \tGate " << i << "  -  ";
                 // fmpz_print(gates[i]->ParentL->WireValue); std::cout << ", const ";
                 // fmpz_print(gates[i]->Constant); std::cout << " -> ";
@@ -167,8 +163,7 @@ struct Circuit {
                 inp_idx++;
                 break;
             case Gate_Add:
-                fmpz_add(gate->WireValue, gate->ParentL->WireValue, gate->ParentR->WireValue);
-                fmpz_mod(gate->WireValue, gate->WireValue, Int_Modulus);
+                fmpz_mod_add(gate->WireValue, gate->ParentL->WireValue, gate->ParentR->WireValue, mod_ctx);
                 break;
             case Gate_Mul:
                 fmpz_set(gate->WireValue, p->MulShares[mul_idx]);
@@ -176,14 +171,12 @@ struct Circuit {
                 break;
             case Gate_AddConst:
                 if (server_num == 0)
-                    fmpz_add(gate->WireValue, gate->ParentL->WireValue, gate->Constant);
+                    fmpz_mod_add(gate->WireValue, gate->ParentL->WireValue, gate->Constant, mod_ctx);
                 else
                     fmpz_set(gate->WireValue, gate->ParentL->WireValue);
-                fmpz_mod(gate->WireValue, gate->WireValue, Int_Modulus);
                 break;
             case Gate_MulConst:
-                fmpz_mul(gate->WireValue, gate->ParentL->WireValue, gate->Constant);
-                fmpz_mod(gate->WireValue, gate->WireValue, Int_Modulus);
+                fmpz_mod_mul(gate->WireValue, gate->ParentL->WireValue, gate->Constant, mod_ctx);
                 break;
             default:
                 break;

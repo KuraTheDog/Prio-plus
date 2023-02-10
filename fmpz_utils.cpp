@@ -52,3 +52,22 @@ void fmpz_from_block(fmpz_t x, const emp::block &b, const size_t n) {
     if ((1ULL << i) & (*((uint64_t*)&b)))
       fmpz_setbit(x, i);
 }
+
+void fmpz_mod_mul_si(fmpz_t a, const fmpz_t b, const slong c, const fmpz_mod_ctx_t ctx) {
+  fmpz_mul_si(a, b, c);
+  fmpz_mod(a, a, ctx->n);
+}
+
+void fmpz_mod_addmul(fmpz_t a, const fmpz_t b, const fmpz_t c, const fmpz_mod_ctx_t ctx) {
+  fmpz_t t; fmpz_init(t);
+  fmpz_mod_mul(t, b, c, ctx);
+  fmpz_mod_add(a, a, t, ctx);
+  fmpz_clear(t);
+}
+
+void fmpz_mod_addmul_ui(fmpz_t a, const fmpz_t b, const ulong c, const fmpz_mod_ctx_t ctx) {
+  fmpz_t t; fmpz_init(t);
+  fmpz_mod_mul_ui(t, b, c, ctx);
+  fmpz_mod_add(a, a, t, ctx);
+  fmpz_clear(t);
+}
