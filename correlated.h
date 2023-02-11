@@ -71,7 +71,7 @@ public:
   const BooleanBeaverTriple* const getBoolTriple();
   const DaBit* const getDaBit();
 
-  void printSizes();
+  void printSizes() const;
   // Precompute if not enough.
   void maybeUpdate();
 

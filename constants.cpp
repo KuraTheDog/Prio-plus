@@ -27,10 +27,11 @@ void init_constants() {
 
     fmpz_clear(tmp);
 
-    std::cout << "Init constants: " << std::endl;
-    std::cout << "  Int_Modulus = "; fmpz_print(Int_Modulus); std::cout << std::endl;
-    std::cout << "  Int_Gen = "; fmpz_print(Int_Gen); std::cout << std::endl;
+    std::cout << "Init constants:\n";
+    std::cout << "  Int_Modulus = "; fmpz_print(Int_Modulus); std::cout << "\n";
+    std::cout << "  Int_Gen = "; fmpz_print(Int_Gen); std::cout << "\n";
     std::cout << "  twoOrder = " << twoOrder << std::endl;
+
     flint_randinit(seed);
 }
 

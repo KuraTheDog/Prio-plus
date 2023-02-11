@@ -113,18 +113,18 @@ struct ClientPacket {
     }
 
     void print() const {
-        std::cout << " NMul = " << NMul << std::endl;
-        std::cout << " N = " << N << std::endl;
+        std::cout << " NMul = " << NMul << "\n";
+        std::cout << " N = " << N << "\n";
         std::cout << " MulShares = {";
         for (unsigned int i = 0; i < NMul; i++) {
             if (i > 0)
                 std::cout << ", ";
             fmpz_print(MulShares[i]);
         }
-        std::cout << "}" << std::endl;
-        std::cout << " f0_s = "; fmpz_print(f0_s); std::cout << std::endl;
-        std::cout << " g0_s = "; fmpz_print(g0_s); std::cout << std::endl;
-        std::cout << " h0_s = "; fmpz_print(h0_s); std::cout << std::endl;
+        std::cout << "}\n";
+        std::cout << " f0_s = "; fmpz_print(f0_s); std::cout << "\n";
+        std::cout << " g0_s = "; fmpz_print(g0_s); std::cout << "\n";
+        std::cout << " h0_s = "; fmpz_print(h0_s); std::cout << "\n";
         std::cout << " h_points = {";
         for (unsigned int i = 0; i < N; i++) {
             if (i > 0)
@@ -134,14 +134,6 @@ struct ClientPacket {
         std::cout << "}" << std::endl;
     }
 };
-
-// Unused?
-/*
-struct ClientSubmission {
-    fmpz_t* vals;
-    BeaverTripleShare triple;
-};
-*/
 
 struct DaBit {
     fmpz_t bp;   // [b]_p, mod p
@@ -156,13 +148,13 @@ struct DaBit {
     }
 
     void print() const {
-        std::cout << " [b]_p = "; fmpz_print(bp); std::cout << std::endl;
+        std::cout << " [b]_p = "; fmpz_print(bp); std::cout << "\n";
         std::cout << " [b]_2 = " << b2 << std::endl;
     }
 };
 
 // Deprecated. Multiple DaBits use less rounds
-struct EdaBit {
+struct [[deprecated("Multiple Dabits requires less rounds")]] EdaBit {
     fmpz_t r;        // [r]_p
     const size_t n;  // number of bits, length of b
     bool* b;         // {[b]_2}
@@ -189,10 +181,10 @@ struct EdaBit {
     }
 
     void print() const {
-        std::cout << " r = "; fmpz_print(r); std::cout << std::endl;
+        std::cout << " r = " << fmpz_get_ui(r) << "\n";
         fmpz_t x; fmpz_init(x);
         fmpz_from_bool_array(x, b, n);
-        std::cout << " b = "; fmpz_print(x); std::cout << std::endl;
+        std::cout << " b = "  << fmpz_get_ui(x) << std::endl;
         fmpz_clear(x);
     }
 };
@@ -206,6 +198,6 @@ void BeaverTripleShares(const BeaverTriple* const inp,
                         BeaverTripleShare* const out1);
 
 void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1);
-void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n);
+[[deprecated]] void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n);
 
 #endif

@@ -116,15 +116,15 @@ void run_sender(int sockfd) {
     fmpz_print(packet2->f0_s); std::cout << std::endl;
     delete packet2;
 
-    size_t edasize = 8;
-    EdaBit* b0 = new EdaBit(edasize);
-    EdaBit* b1 = new EdaBit(edasize);
-    makeLocalEdaBit(b0, b1, edasize);
-    n = send_EdaBit(sockfd, b0, edasize);
-    std::cout << "send EdaBit " << edasize << " \tsize: " << n << std::endl;
-    b0->print();
-    delete b0;
-    delete b1;
+    // size_t edasize = 8;
+    // EdaBit* b0 = new EdaBit(edasize);
+    // EdaBit* b1 = new EdaBit(edasize);
+    // makeLocalEdaBit(b0, b1, edasize);
+    // n = send_EdaBit(sockfd, b0, edasize);
+    // std::cout << "send EdaBit " << edasize << " \tsize: " << n << std::endl;
+    // b0->print();
+    // delete b0;
+    // delete b1;
 
     // Poly
     // fmpz_set_ui(number, 100);
@@ -241,12 +241,12 @@ void run_receiver(int sockfd) {
     fmpz_print(packet2->f0_s); std::cout << std::endl;
     delete packet2;
 
-    size_t edasize = 8;
-    EdaBit* b0 = new EdaBit(edasize);
-    n = recv_EdaBit(sockfd, b0, edasize);
-    std::cout << "recv EdaBit " << edasize << " \tsize: " << n << std::endl;
-    b0->print();
-    delete b0;
+    // size_t edasize = 8;
+    // EdaBit* b0 = new EdaBit(edasize);
+    // n = recv_EdaBit(sockfd, b0, edasize);
+    // std::cout << "recv EdaBit " << edasize << " \tsize: " << n << std::endl;
+    // b0->print();
+    // delete b0;
 
     // fmpz_set_ui(number, 100);
     // fmpz_mod_poly_t f; fmpz_mod_poly_init(f, number);
@@ -292,8 +292,6 @@ int main(int argc, char** argv) {
     if (argc >= 2) {
         N = atoi(argv[1]);
     }
-
-    /* set up receiver */
 
     std::thread t0([&]() {
         int cli_sockfd = init_sender();

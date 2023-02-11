@@ -139,10 +139,6 @@ void syncSnipSeeds(const int serverfd, const int server_num) {
     flint_randinit(snips_seed);
     fmpz_t tmp; fmpz_init(tmp);
 
-    // fmpz_randm(tmp, snips_seed, Int_Modulus);
-    // std::cout << "server " << server_num << " snips sync: next rand: ";
-    // fmpz_print(tmp); std::cout << std::endl;
-
     if (server_num == 0)
         send_seed(serverfd, snips_seed);
     else
@@ -236,12 +232,11 @@ struct Checker {
         fmpz_mod_mul(evalH, evalH, pre->x, mod_ctx);
     }
 
-    Cor* CorFn() {
+    Cor* CorFn() const {
         // std::cout << "CorFn" << std::endl;
         Cor* const out = new Cor();
 
         fmpz_mod_sub(out->D, evalF, req->triple_share->shareA, mod_ctx);
-
         fmpz_mod_sub(out->E, evalG, req->triple_share->shareB, mod_ctx);
 
         return out;

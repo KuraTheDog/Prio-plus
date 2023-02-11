@@ -241,6 +241,12 @@ const bool* const validate_snips(const size_t N,
     return ans;
 }
 
+/*
+shares_p: size inp X values, set across (all vals for inp0, then inp1, etc.)
+valid: size inp, if false ignore corresponding shares
+ans: size values, has modular sum of valid shares
+returns number of valid.
+*/
 size_t accumulate(const size_t num_inputs,
                   const size_t num_values,
                   const fmpz_t* const shares_p,

@@ -79,8 +79,8 @@ const DaBit* const CorrelatedStore::getDaBit() {
   return ans;
 }
 
-void CorrelatedStore::printSizes() {
-  std::cout << "Current store sizes:" << std::endl;
+void CorrelatedStore::printSizes() const {
+  std::cout << "Current store sizes:\n";
   std::cout << " Dabits: " << dabit_store.size() << std::endl;
   // std::cout << " Bool  Triples: " << btriple_store.size() << std::endl;
 }
