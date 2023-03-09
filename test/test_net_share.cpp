@@ -262,7 +262,7 @@ void run_receiver(int sockfd) {
     std::cout << "recv seed \tsize: " << n << " \tnext random: ";
     fmpz_randm(number, this_seed, Int_Modulus);
     fmpz_print(number); std::cout << std::endl;
-        flint_randclear(this_seed);
+    flint_randclear(this_seed);
 
     n = recv_fmpz(sockfd, number);
     std::cout << "recv fmpz \tsize: " << n << " \tval: ";

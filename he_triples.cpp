@@ -1,5 +1,3 @@
-// Deprecated and unused
-
 #include "he_triples.h"
 
 #include <sys/wait.h>
@@ -10,7 +8,7 @@
 #include "ciphertext-ser.h"
 #include "pubkeylp-ser.h"
 #include "scheme/bfvrns/bfvrns-ser.h"
-#include "utils/serialize-binary.h"
+#include "utils/serial.h"
 
 #include "net_share.h"
 #include "share.h"
@@ -64,6 +62,9 @@ ArithTripleGenerator::ArithTripleGenerator(const int serverfd, const int server_
   sk = keyPair.secretKey;
   cc->EvalMultKeyGen(sk);
 
+  // Seed and set up random ints
+  std::random_device rd;
+  std::mt19937 gen(rd());
   std::uniform_int_distribution<int64_t> index_dist{0, plaintextModulus - 1};
   random_int = std::bind(index_dist, generator);
 

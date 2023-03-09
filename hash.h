@@ -1,14 +1,18 @@
 /* Hash family manager
 
-Makes a set of d random k-wise indpeendent hashes via degree k-1 polynomials
+Makes num_hashes hashes [input_range] -> [output_range] (parameterized by bits).
+
+Poly:
+  k-wise independent via deg k-1 polynomials
+Makes a set of num_hashes random k-wise indepndent hashes via degree k-1 polynomials
 Takes in a seed, so that different stores can be synced.
 
 X-wise independent: degree x-1 polynomials
-We just need 2 (pairwise) for count-min.
 
-Ideally, w is field (p^k), especially 2^k, for perfect pairwise.
-For efficiency, fine for w smaller and just have slightly imbalanced. Instead treats as though 2^k for next power of 2, then mod w.
-Does poly(x), take first k bits, then mod w
+Ideally, output_range is field (p^k), especially 2^k, for perfect pairwise.
+For efficiency, fine for output_range smaller and just have slightly imbalanced.
+Instead treats as though 2^k for next power of 2, then mod output_range.
+Does poly(x), take first k bits, then mod output_range
 
 Could be more efficient to use fmpz_t poly, but more work.
 For degree 1, efficient enough as is
@@ -21,72 +25,89 @@ For degree 1, efficient enough as is
 
 #include "fmpz_utils.h"
 
-class HashStore {
-  const size_t d;         // # hashes
-  const size_t l_bits;    // input bits
-  fmpz_t l;               // input range
-  fmpz_t w;               // hash range
-  size_t w_bits;          // # bits to store w
-  const size_t degree;    // degree+1 -wise independent.
-  flint_rand_t hash_seed; // synced seed for same random hashes
+extern "C" {
+    #include "flint/fmpz_mod_mat.h"
+}
 
-  fmpz_t** coeff;
+class HashStore {
+protected:
+  const size_t num_hashes;
+  const size_t input_bits;
+  fmpz_t input_range;
+  fmpz_t output_range;
+  const size_t output_bits;
+  flint_rand_t hash_seed;   // synced seed for consistent random hashes
 
 public:
-  HashStore(const size_t d, const size_t l_bits, const size_t w_arg,
-            flint_rand_t hash_seed_arg, const size_t independence = 2)
-  : d(d)
-  , l_bits(l_bits)
-  , degree(independence - 1)
-  {
-    fmpz_init(w); fmpz_set_ui(w, w_arg);
-    fmpz_init(l); fmpz_set_ui(l, 1ULL << l_bits);
-    hash_seed[0] = hash_seed_arg[0];
 
-    w_bits = 1;
-    size_t w_tmp = w_arg - 1;
-    while(w_tmp >>= 1)
-      w_bits++;
+  HashStore(
+      const size_t num_hashes, const size_t input_bits, const size_t hash_range,
+      flint_rand_t hash_seed_arg);
 
-    // std::cout << "Hash store d: " << d << ", l: 2^" << l_bits << " -> w: " << w_arg << " (" << w_bits << " bits)" << std::endl;
-
-    // TODO: sanity checks:
-    // We assume w <= L. w > L striaghtforward to do, but currently not needed
-    if (fmpz_cmp(w, l) > 0) {
-      std::cout << "Warning: currently only supports shrinking hashes (w <= L)" << std::endl;
-    }
-    // assume wd < L, else no space is saved and freq is easier
-    fmpz_t wd; fmpz_init_set(wd, w); fmpz_mul_ui(wd, wd, d);
-    if (fmpz_cmp(wd, l) >= 0) {
-      std::cout << "Warning: wd >= L, so no space saved vs standard frequency" << std::endl;
-    }
-
-    coeff = new fmpz_t*[d];
-    // Constant term can be mod w, rather than mod L
-    for (unsigned int i = 0; i < d; i++) {
-      new_fmpz_array(&coeff[i], degree + 1);
-      for (unsigned int j = 0; j <= degree; j++) {
-        if (j == 0) {
-          fmpz_randm(coeff[i][j], hash_seed, w);
-        } else {
-          fmpz_randm(coeff[i][j], hash_seed, l);
-        }
-      }
-    }
-  }
-
-  ~HashStore() {
-    fmpz_clear(w);
-    fmpz_clear(l);
+  virtual ~HashStore() {
+    fmpz_clear(output_range);
+    fmpz_clear(input_range);
     flint_randclear(hash_seed);
-    for (unsigned int i = 0; i < d; i++)
-      clear_fmpz_array(coeff[i], degree + 1);
-    delete[] coeff;
   }
 
   // Run hash i on x, returning out
-  void eval(const unsigned int i, const unsigned int x, fmpz_t out) const;
+  virtual void eval(const unsigned int i, const uint64_t x, fmpz_t out) const = 0;
+  virtual void print_hash(const unsigned int i) const = 0;
+  void print() const;
+};
+
+class HashStorePoly : public HashStore {
+  const size_t degree;  // degree+1 -wise independent.
+
+  fmpz_t** const coeff;
+
+public:
+
+  HashStorePoly(
+      const size_t num_hashes, const size_t input_bits, const size_t hash_range,
+      flint_rand_t hash_seed_arg, const size_t independence = 2);
+
+  ~HashStorePoly() {
+    if (output_bits > 0)
+      for (unsigned int i = 0; i < num_hashes; i++)
+        clear_fmpz_array(coeff[i], degree + 1);
+    delete[] coeff;
+  }
+
+  void eval(const unsigned int i, const uint64_t x, fmpz_t out) const;
   void print_hash(const unsigned int i) const;
+};
+
+class HashStoreBit : public HashStore {
+  // How big groups of hashes are that are all on the same value, for solving.
+  const size_t group_size;
+
+  // General "input dimension" = input_bits + 1
+  // Constant since otherwise h(0) = 0 always.
+  const size_t dim;
+  fmpz_mod_mat_t coeff;
+
+public:
+
+  // Default group size 0 -> num_hashes, aka 1 group.
+  HashStoreBit(
+      const size_t num_hashes, const size_t input_bits, const size_t hash_range,
+      flint_rand_t hash_seed_arg, const size_t group_size_arg = 0);
+
+  ~HashStoreBit() {
+    fmpz_mod_mat_clear(coeff);
+  };
+
+  void eval(const unsigned int i, const uint64_t x, fmpz_t out) const;
+  void print_hash(const unsigned int i) const;
+  void print_coeff() const {fmpz_mod_mat_print_pretty(coeff);}
+
+  // |values| = group_size
+  // Uses Group(group_num) of hashes.
+  // Uses first [dim] of the hashes and values to solve AX=B
+  // Uses extras [dim -> group size] for validation.
+  //   Returns number of INVALID checks. 0 is best
+  int solve(const unsigned int group_num, const fmpz_t* const values, uint64_t& ans) const;
 };
 
 #endif

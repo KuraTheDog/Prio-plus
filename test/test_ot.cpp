@@ -24,6 +24,14 @@ void run_server0(const size_t m) {
   // Bitsum OT
   const bool valid[1] = {true};
 
+  std::cout << "Testing basic send/recv" << std::endl;
+  uint64_t data0[2] = {10, 20};
+  uint64_t data0_1[2] = {11, 21};
+  uint64_t data1[2] = {1000, 2000};
+  uint64_t data1_1[2] = {1001, 2001};
+  ot0->send(data0, data1, 2, data0_1, data1_1);
+
+
   std::cout << "Testing bit OT convert" << std::endl;
   const bool bitshares[1] = {(m / 2) % 2 ? true : false};
   std::cout << "bit share0[0] = " << bitshares[0] << std::endl;
@@ -32,7 +40,7 @@ void run_server0(const size_t m) {
   recv_uint64(cli_sockfd, b);
   std::cout << "bit have a = " << a << std::endl;
   std::cout << "bit got  b = " << b << std::endl;
-  std::cout << "bit ans: " << a + b << std::endl;
+  std::cout << "bit ans: " << a + b << " mod " << MOD << std::endl;
 
   // Intsum OT
 
@@ -49,7 +57,7 @@ void run_server0(const size_t m) {
   recv_uint64(cli_sockfd, b);
   std::cout << "int have a = " << int_a[0][0] << std::endl;
   std::cout << "int got  b = " << b << std::endl;
-  std::cout << "int ans: " << int_a[0][0] + b << std::endl;
+  std::cout << "int ans: " << int_a[0][0] + b << " mod " << MOD << std::endl;
   delete[] int_a[0];
   delete[] int_a;
 
@@ -68,6 +76,15 @@ void run_server1(const size_t m) {
 
   OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : SERVER0_IP, 60051);
   OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
+
+  uint64_t* data = new uint64_t[2];
+  uint64_t* data_1 = new uint64_t[2];
+  bool c[2] = {false, true};
+  ot0->recv(data, c, 2, data_1);
+  std::cout << "got data = " << data[0] << ", " << data[1] << std::endl;
+  std::cout << "got data_1 = " << data_1[0] << ", " << data_1[1] << std::endl;
+  delete[] data;
+  delete[] data_1;
 
   const bool bitshares[1] = {m % 2 ? true : false};
   std::cout << "bit share1[0] = " << bitshares[0] << std::endl;

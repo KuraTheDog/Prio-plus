@@ -40,6 +40,12 @@ struct FreqShare {
     bool* arr;  // Could theoretically be compacted
 };
 
+// Multiple frequency arrays of varying lengths.
+struct MultiFreqShare {
+    char pk[PK_LENGTH];
+    bool** arr;
+};
+
 enum messageType {
     NONE_OP,
     BIT_SUM,
@@ -52,6 +58,8 @@ enum messageType {
     STDDEV_OP,
     LINREG_OP,
     FREQ_OP,
+    HEAVY_OP,
+    MULTI_HEAVY_OP,
 };
 
 struct initMsg {
