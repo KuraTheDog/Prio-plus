@@ -184,7 +184,7 @@ struct CountMin {
   void print() {
     for (unsigned int i = 0; i < cfg.d; i++) {
       for (unsigned int j = 0; j < cfg.w; j++) {
-        unsigned int x = fmpz_get_ui(counts[i * cfg.w + j]);
+        uint64_t x = fmpz_get_ui(counts[i * cfg.w + j]);
         if (x)
           std::cout << x << " ";
         else

@@ -10,7 +10,7 @@ HashStore::HashStore(
     flint_rand_t hash_seed_arg)
 : num_hashes(num_hashes)
 , input_bits(input_bits)
-, output_bits(hash_range > 1 ? LOG2(hash_range - 1) : 0)
+, output_bits(LOG2(hash_range))
 {
   fmpz_init_set_ui(output_range, hash_range);
   fmpz_init_set_ui(input_range, 1ULL << input_bits);
