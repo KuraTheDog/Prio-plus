@@ -61,19 +61,22 @@ Smaller k' may work, so differnet a may be required.
 
 // Below here doesn't work with PALISADE triples
 
-// const std::string Int_Modulus_str = "80000000080001";  // 55 bit modulus
-// const std::string Int_Gen_str = "4359077260C2D6";      // 3^(p-1 / 2^19)
-// const int twoOrder = 19;
-
-const std::string Int_Modulus_str = "8000000000080001";  // 63 bit modulus
-const std::string Int_Gen_str = "22855fdf11374225";      // 965081^(p-1 / 2^19)
+const std::string Int_Modulus_str = "80000000080001";  // 56 bit modulus
+const std::string Int_Gen_str = "4359077260C2D6";      // 3^(p-1 / 2^19)
 const int twoOrder = 19;
 
-// const std::string Int_Modulus_str = "8000000000000000080001";  // 87 bit modulus
+// Below, garble starts breaking down.
+// At the very least, revealing things starts getting harder, since it needs bits+1
+
+// const std::string Int_Modulus_str = "8000000000080001";  // 64 bit modulus
+// const std::string Int_Gen_str = "22855fdf11374225";      // 965081^(p-1 / 2^19)
+// const int twoOrder = 19;
+
+// const std::string Int_Modulus_str = "8000000000000000080001";  // 88 bit modulus
 // const std::string Int_Gen_str = "2597c14f48d5b65ed8dcca";      // 17567 ^ (p-1 / 2^19)
 // const int twoOrder = 19;
 
-// const std::string Int_Modulus_str = "80000000000000000000080001";  // 102 bit modulus
+// const std::string Int_Modulus_str = "80000000000000000000080001";  // 104 bit modulus
 // const std::string Int_Gen_str = "71a9f9595f292cfd55e4c5254e";
 // const int twoOrder = 19;
 
