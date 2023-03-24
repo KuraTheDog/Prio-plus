@@ -13,6 +13,7 @@ if(APPLE)
   # include_directories("/usr/local/include" "/usr/local/opt/llvm/include")
   # link_directories("/usr/local/lib" "/usr/local/opt/llvm/lib")
 endif()
+link_directories("/usr/local/lib")
 
 # if(NOT MSVC)
 #   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -38,7 +39,8 @@ message(STATUS "CMAKE_FOLDER: ${CMAKE_FOLDER}")
 include(${CMAKE_FOLDER}/cmake/emp-base.cmake)
 include(${CMAKE_FOLDER}/cmake/emp-tool-config.cmake)
 include(${CMAKE_FOLDER}/cmake/emp-ot-config.cmake)
-include_directories(${EMP-OT_INCLUDE_DIRS})
+include(${CMAKE_FOLDER}/cmake/emp-sh2pc-config.cmake)
+include_directories(${EMP-SH2PC_INCLUDE_DIRS})
 
 # Palisade
 # find_package(Palisade)
@@ -127,5 +129,6 @@ foreach(_target
     ${Boost_LIBRARIES}
     ${GMP_LIBRARIES}
     ${FLINT_LIBRARIES}
+    ${EMP-SH2PC_LIBRARIES}
   )
 endforeach()
