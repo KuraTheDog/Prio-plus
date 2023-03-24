@@ -71,7 +71,7 @@ foreach(_target
 )
   add_executable(${_target} "${_target}.cpp"
                  "constants.cpp" "ot.cpp" "fmpz_utils.cpp" "share.cpp" "net_share.cpp"
-                 "correlated.cpp" "hash.cpp"
+                 "correlated.cpp" "hash.cpp" "eval_heavy.cpp"
                  # "heavy_triples.cpp"
                  "poly/fft.c" "poly/poly_once.c" "poly/poly_batch.c"
                  )
@@ -80,12 +80,14 @@ foreach(_target
     ${Boost_LIBRARIES}
     ${GMP_LIBRARIES}
     ${FLINT_LIBRARIES}
+    ${EMP-SH2PC_LIBRARIES}
   )
 endforeach()
 
 set(test_poly "test_circuit" "test_linreg")
 set(test_correlated "test_ot" "test_bits" "test_heavy")
-set(test_hash "test_hash")
+set(test_garble "test_garble")
+set(test_hash "test_hash" ${test_garble})
 set(test_he_triples "test_he_triples" ${test_correlated})
 # stuff that sends shares
 set(test_net_share "test_net_share" ${test_poly} ${test_correlated} ${test_he_triples})
@@ -99,6 +101,7 @@ foreach(_target
   test_hash
   # test_he_triples
   test_heavy
+  test_garble
 )
   set (test_SOURCE_FILES "test/${_target}.cpp")
   set (test_SOURCE_FILES ${test_SOURCE_FILES} "constants.cpp" "fmpz_utils.cpp")
@@ -120,6 +123,9 @@ foreach(_target
   endif()
   if (_target IN_LIST test_he_triples)
     # set (test_SOURCE_FILES ${test_SOURCE_FILES} "he_triples.cpp")
+  endif()
+  if (_target IN_LIST test_garble)
+    set (test_SOURCE_FILES ${test_SOURCE_FILES} "eval_heavy.cpp")
   endif()
   list(REMOVE_DUPLICATES test_SOURCE_FILES)
   # message(STATUS "${_target}: ${test_SOURCE_FILES}")

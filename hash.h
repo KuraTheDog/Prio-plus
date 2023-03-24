@@ -54,6 +54,10 @@ public:
   virtual void eval(const unsigned int i, const uint64_t x, fmpz_t out) const = 0;
   virtual void print_hash(const unsigned int i) const = 0;
   void print() const;
+
+  size_t get_input_bits() const {
+    return input_bits;
+  };
 };
 
 class HashStorePoly : public HashStore {
@@ -76,6 +80,10 @@ public:
 
   void eval(const unsigned int i, const uint64_t x, fmpz_t out) const;
   void print_hash(const unsigned int i) const;
+
+  uint64_t get_coeff(const size_t i, const size_t j) const {
+    return fmpz_get_ui(coeff[i][j]);
+  }
 };
 
 class HashStoreBit : public HashStore {
