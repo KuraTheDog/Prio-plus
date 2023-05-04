@@ -20,6 +20,7 @@ For share conversion
 struct OT_Wrapper {
   emp::NetIO* const io;
   emp::IKNP<emp::NetIO>* const ot;
+  const bool malicious;  // Default true. Stored for printing.
 
   // Communication costs (computed via monitoring network traffic)
   // Is bytes sent, since receiver also sends.
@@ -29,7 +30,7 @@ struct OT_Wrapper {
   const size_t bytes_recver_per_block = 2048;
   const size_t bytes_recver_block_size = 128;
 
-  OT_Wrapper(const char* const address, const int port);
+  OT_Wrapper(const char* const address, const int port, const bool malicious = true);
   ~OT_Wrapper();
 
   // OT send/recv 64 bit data = datab selected from (data0, data) using b

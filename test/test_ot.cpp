@@ -41,6 +41,7 @@ void run_server0(const size_t m) {
   std::cout << "bit have a = " << a << std::endl;
   std::cout << "bit got  b = " << b << std::endl;
   std::cout << "bit ans: " << a + b << " mod " << MOD << std::endl;
+  std::cout << "Expected bit sum: " << MOD + m % 4 << "\n";
 
   // Intsum OT
 
@@ -58,6 +59,7 @@ void run_server0(const size_t m) {
   std::cout << "int have a = " << int_a[0][0] << std::endl;
   std::cout << "int got  b = " << b << std::endl;
   std::cout << "int ans: " << int_a[0][0] + b << " mod " << MOD << std::endl;
+  std::cout << "Expected int sum: " << MOD + m << std::endl;
   delete[] int_a[0];
   delete[] int_a;
 
@@ -114,6 +116,7 @@ int main(int argc, char** argv){
   if(argc >= 2){
     m = atoi(argv[1]);
   }
+  std::cout << "Input: " << m << "\n";
 
   init_constants();
 
