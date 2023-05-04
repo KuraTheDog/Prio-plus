@@ -133,6 +133,8 @@ struct CheckerPreComp {
 
 // Common (synced) randomness between all checkers on both servers
 // Could also be static member, but then syncing is harder
+// If on the same runtime, instead uses constant values,
+// so that them sharing a seed doesn't cause desync.
 extern flint_rand_t snips_seed;
 flint_rand_t snips_seed;
 void syncSnipSeeds(const int serverfd, const int server_num) {
@@ -192,7 +194,6 @@ struct Checker {
     }
 
     ~Checker() {
-        if (same_runtime) flint_randclear(snips_seed);
         clear_fmpz_array(pointsF, N + 1);
         clear_fmpz_array(pointsG, N + 1);
         clear_fmpz_array(pointsH, 2 * (N + 1));

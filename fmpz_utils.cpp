@@ -28,10 +28,11 @@ void new_fmpz_array(fmpz_t** const arr, const size_t N) {
   *arr = out;
 }
 
-void clear_fmpz_array(fmpz_t* const arr, const size_t N) {
+void clear_fmpz_array(fmpz_t* arr, const size_t N) {
   for (unsigned int i = 0; i < N; i++)
     fmpz_clear(arr[i]);
   free(arr);
+  arr = nullptr;
 }
 
 void copy_fmpz_array(fmpz_t* const dest, const fmpz_t* const src, const size_t N) {
@@ -67,9 +68,40 @@ void fmpz_mod_addmul(fmpz_t a, const fmpz_t b, const fmpz_t c, const fmpz_mod_ct
   fmpz_clear(t);
 }
 
+void fmpz_mod_submul(fmpz_t a, const fmpz_t b, const fmpz_t c, const fmpz_mod_ctx_t ctx) {
+  fmpz_t t; fmpz_init(t);
+  fmpz_mod_mul(t, b, c, ctx);
+  fmpz_mod_sub(a, a, t, ctx);
+  fmpz_clear(t);
+}
+
 void fmpz_mod_addmul_ui(fmpz_t a, const fmpz_t b, const ulong c, const fmpz_mod_ctx_t ctx) {
   fmpz_t t; fmpz_init(t);
   fmpz_mod_mul_ui(t, b, c, ctx);
   fmpz_mod_add(a, a, t, ctx);
   fmpz_clear(t);
+}
+
+void fmpz_mod_submul_ui(fmpz_t a, const fmpz_t b, const ulong c, const fmpz_mod_ctx_t ctx) {
+  fmpz_t t; fmpz_init(t);
+  fmpz_mod_mul_ui(t, b, c, ctx);
+  fmpz_mod_sub(a, a, t, ctx);
+  fmpz_clear(t);
+}
+
+void to_fsigned(fmpz_t x, const fmpz_t M) {
+  fmpz_t half; fmpz_init(half);
+  fmpz_cdiv_q_ui(half, M, 2);
+  if (fmpz_cmp(x, half) > 0) {  // > N/2, negative
+    fmpz_sub(x, x, M);
+  }
+  fmpz_clear(half);
+}
+
+int64_t get_fsigned(const fmpz_t x, const fmpz_t M) {
+  fmpz_t tmp; fmpz_init_set(tmp, x);
+  to_fsigned(tmp, M);
+  int64_t ans = fmpz_get_si(tmp);
+  fmpz_clear(tmp);
+  return ans;
 }

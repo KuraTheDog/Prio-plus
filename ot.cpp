@@ -6,9 +6,10 @@
 
 #if OT_TYPE == EMP_IKNP
 
-OT_Wrapper::OT_Wrapper(const char* address, const int port)
+OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool malicious)
 : io(new emp::NetIO(address, port, true))
-, ot(new emp::IKNP<emp::NetIO>(io))
+, ot(new emp::IKNP<emp::NetIO>(io, malicious))
+, malicious(malicious)
 {}
 
 OT_Wrapper::~OT_Wrapper() {
@@ -16,14 +17,16 @@ OT_Wrapper::~OT_Wrapper() {
     delete io;
 }
 
-void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
-                      const size_t length) {
+int OT_Wrapper::send(
+        const uint64_t* const data0, const uint64_t* const data1,
+        const size_t length,
+        const uint64_t* const data0_1, const uint64_t* const data1_1) {
     emp::block* const block0 = new emp::block[length];
     emp::block* const block1 = new emp::block[length];
 
     for (unsigned int i = 0; i < length; i++) {
-        block0[i] = emp::makeBlock(0, data0[i]);
-        block1[i] = emp::makeBlock(0, data1[i]);
+        block0[i] = emp::makeBlock(data0_1 ? data0_1[i] : 0, data0[i]);
+        block1[i] = emp::makeBlock(data1_1 ? data1_1[i] : 0, data1[i]);
         // std::cout << "Send[" << i << "] = (" << data0[i] << ", " << data1[i] << ")\n";
     }
 
@@ -33,20 +36,31 @@ void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
 
     delete[] block0;
     delete[] block1;
+
+    return bytes_sender_start + bytes_sender_per * length;
 }
 
-void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) {
+int OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length,
+                     uint64_t* const data_1) {
     emp::block* const block = new emp::block[length];
     io->sync();
     ot->recv(block, b, length);
     io->flush();
 
+    uint64_t* ans;
+
     for (unsigned int i = 0; i < length; i++) {
-        data[i] = *(uint64_t*)&block[i];
+        ans = (uint64_t*)&block[i];
+        data[i] = ans[0];
+        if (data_1 != nullptr)
+            data_1[i] = ans[1];
         // std::cout << "Recv[" << i << "][" << b[i] << "] = " << data[i] << std::endl;
     }
 
     delete[] block;
+
+    return bytes_recver_per_block * ((length / bytes_recver_block_size)
+                                     + (length % bytes_recver_block_size != 0));
 }
 
 #else
@@ -381,7 +395,7 @@ const BeaverTriple* const generate_beaver_triple_lazy(
     BeaverTriple* const triple = new BeaverTriple();
 
     if (server_num == 0) {
-        BeaverTriple* other_triple = new BeaverTriple();
+        BeaverTriple* const other_triple = new BeaverTriple();
         fmpz_randm(triple->A, seed, Int_Modulus);
         fmpz_randm(triple->B, seed, Int_Modulus);
         fmpz_randm(triple->C, seed, Int_Modulus);

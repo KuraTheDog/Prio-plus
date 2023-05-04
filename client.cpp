@@ -24,10 +24,12 @@ x_op_invalid: For testing/debugging, does a basic run with intentionally invalid
 
 #include "circuit.h"
 #include "hash.h"
+#include "heavy.h"
 #include "net_share.h"
 #include "ot.h"
 #include "types.h"
 #include "utils.h"
+#include "zipf.h"
 
 // #define SERVER0_IP "52.87.230.64"
 // #define SERVER1_IP "54.213.189.18"
@@ -43,6 +45,8 @@ x_op_invalid: For testing/debugging, does a basic run with intentionally invalid
 uint32_t num_bits;
 uint64_t max_int;
 uint32_t linreg_degree = 2;
+// heavy threshold
+double t = -1;
 
 int sockfd0, sockfd1;
 
@@ -53,16 +57,20 @@ std::string pub_key_to_hex(const uint64_t* const key) {
     return ss.str();
 }
 
-std::string make_pk(emp::PRG prg) {
+std::string make_pk(emp::PRG& prg) {
     emp::block b;
     prg.random_block(&b, 1);
     return pub_key_to_hex((uint64_t*)&b);
 }
 
+int send_pk(const int sockfd, const char* const pk) {
+    return send(sockfd, (void*)&(pk[0]), PK_LENGTH, 0);
+}
+
 int send_maxshare(const int server_num, const MaxShare& maxshare, const unsigned int B) {
     const int sock = (server_num == 0) ? sockfd0 : sockfd1;
 
-    int ret = send(sock, (void*)&(maxshare.pk[0]), PK_LENGTH, 0);
+    int ret = send_pk(sock, maxshare.pk);
     ret += send_uint64_batch(sock, maxshare.arr, B+1);
 
     return ret;
@@ -70,7 +78,7 @@ int send_maxshare(const int server_num, const MaxShare& maxshare, const unsigned
 
 int send_freqshare(const int server_num, const FreqShare& freqshare, const uint64_t n) {
     const int sock = (server_num == 0) ? sockfd0 : sockfd1;
-    int ret = send(sock, (void*)&(freqshare.pk[0]), PK_LENGTH, 0);
+    int ret = send_pk(sock, freqshare.pk);
     ret += send_bool_batch(sock, freqshare.arr, n);
     return ret;
 }
@@ -81,7 +89,7 @@ int send_linregshare(const int server_num, const LinRegShare& share,  const size
     const size_t num_x = degree - 1;
     const size_t num_quad = num_x * (num_x + 1) / 2;
 
-    int ret = send(sock, (void*)&(share.pk[0]), PK_LENGTH, 0);
+    int ret = send_pk(sock, share.pk);
 
     ret += send_uint64_batch(sock, share.x_vals, num_x);
     ret += send_uint64(sock, share.y);
@@ -96,6 +104,12 @@ int send_to_server(const int server, const void* const buffer, const size_t n, c
     const int socket = (server == 0 ? sockfd0 : sockfd1);
     int ret = send(socket, buffer, n, flags);
     if (ret < 0) error_exit("Failed to send to server");
+    return ret;
+}
+
+int send_seeds(const flint_rand_t hash_seed) {
+    int ret = send_seed(sockfd0, hash_seed);
+    ret += send_seed(sockfd1, hash_seed);
     return ret;
 }
 
@@ -837,8 +851,6 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
 }
 
 void var_op(const std::string protocol, const size_t numreqs) {
-    if (num_bits > 31)
-        error_exit("Num bits is too large. x^2 > 2^64.");
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
         std::cout << "Modulus should be at least " << (2 * num_bits + LOG2(numreqs)) << " bits" << std::endl;
         error_exit("Int Modulus too small");
@@ -1181,8 +1193,6 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
 }
 
 void lin_reg(const std::string protocol, const size_t numreqs) {
-    if (num_bits > 31)
-        error_exit("Num bits is too large. x^2 > 2^64.");
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
         std::cout << "Modulus should be at least " << (2 * num_bits + LOG2(numreqs)) << " bits" << std::endl;
         error_exit("Int Modulus too small");
@@ -1425,6 +1435,15 @@ void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
     delete[] c;
 }
 
+// Make, init to shares of 0
+void freq_init(bool*& arr0, bool*& arr1, const size_t share_size, emp::PRG& prg) {
+    arr0 = new bool[share_size];
+    arr1 = new bool[share_size];
+    prg.random_bool(arr0, share_size);
+    // memset(arr0, 0, share_size);
+    memcpy(arr1, arr0, share_size * sizeof(bool));
+}
+
 int freq_helper(const std::string protocol, const size_t numreqs,
                 uint64_t* counts, const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
@@ -1444,10 +1463,7 @@ int freq_helper(const std::string protocol, const size_t numreqs,
         // std::cout << "Value " << i << " = " << real_val << std::endl;
 
         // Same everywhere exept at real_val
-        freqshare0[i].arr = new bool[max_int];
-        prg.random_bool(freqshare0[i].arr, max_int);
-        freqshare1[i].arr = new bool[max_int];
-        memcpy(freqshare1[i].arr, freqshare0[i].arr, max_int * sizeof(bool));
+        freq_init(freqshare0[i].arr, freqshare1[i].arr, max_int, prg);
         freqshare1[i].arr[real_val] ^= 1;
 
         const std::string pk_s = make_pk(prg);
@@ -1500,15 +1516,349 @@ void freq_op(const std::string protocol, const size_t numreqs) {
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
-    for (unsigned int j = 0; j < max_int && j < 256; j++)
-        std::cout << " Freq(" << j << ") = " << count[j] << std::endl;
+    for (unsigned int j = 0; j < max_int && j < 32; j++)
+        std::cout << " Freq(" << j << ") = " << count[j] << "\n";
+    delete[] count;
+    std::cout << "Total sent bytes: " << num_bytes << std::endl;
+}
+
+int heavy_helper(const std::string protocol, const size_t numreqs,
+                 HashStore& hash_store, uint64_t* count) {
+    auto start = clock_start();
+    int num_bytes = 0;
+    const size_t b = num_bits;
+
+    emp::PRG prg;
+    uint64_t real_val;
+    fmpz_t hashed; fmpz_init(hashed);
+
+    // Pick a random value to be heavy
+    uint64_t heavy;
+    prg.random_data(&heavy, sizeof(uint64_t));
+    heavy %= max_int;
+    std::cout << "Fixed heavy value: " << heavy << std::endl;
+
+    // bools per bucket, so can reuse freqShare
+    // Stacked, so arr is (all x, all y)
+    FreqShare* const freqshare0 = new FreqShare[numreqs];
+    FreqShare* const freqshare1 = new FreqShare[numreqs];
+    for (unsigned int i = 0; i < numreqs; i++) {
+        if (i <= t * numreqs) {  // first t fraction
+            real_val = heavy;
+        } else {
+            prg.random_data(&real_val, sizeof(uint64_t));
+            real_val %= max_int;
+        }
+        // real_val = 3;
+        count[real_val] += 1;
+        // std::cout << "real_val: " << real_val << std::endl;
+
+        freq_init(freqshare0[i].arr, freqshare1[i].arr, 2 * b, prg);
+        for (unsigned int j = 0; j < b; j++) {
+            // just use standard basis, i.e. jth bit
+            bool bucket = (real_val >> j) % 2;
+            // get bucket value (0/1 rather than +- 1)
+            hash_store.eval(j, real_val, hashed);
+            // instead test if hashed is 1 using fmpz.
+            bool h = fmpz_is_one(hashed);
+            // std::cout << "number " << i << " = " << real_val << ", bit " << j << " bucket " << bucket << " with value " << h << " (" << (h == 1 ? -1 : 1) << ")" << std::endl;
+
+            // [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
+            // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
+            freqshare1[i].arr[j] ^= bucket;
+            freqshare1[i].arr[j + b] ^= h;
+        }
+
+        const std::string pk_s = make_pk(prg);
+        const char* const pk = pk_s.c_str();
+        memcpy(freqshare0[i].pk, &pk[0], PK_LENGTH);
+        memcpy(freqshare1[i].pk, &pk[0], PK_LENGTH);
+    }
+    fmpz_clear(hashed);
+
+    if (numreqs > 1)
+        std::cout << "batch make:\t" << sec_from(start) << std::endl;
+
+    start = clock_start();
+    for (unsigned int i = 0; i < numreqs; i++) {
+        // std::cout << "sending 0[" << i << "] = ";
+        // for (unsigned int j = 0; j < 2 * num_bits; j++)
+        //     std::cout << freqshare0[i].arr[j] << " ";
+        // std::cout << ", 1[" << i << "] = ";
+        // for (unsigned int j = 0; j < 2 * num_bits; j++)
+        //     std::cout << freqshare1[i].arr[j] << " ";
+        // std::cout << std::endl;
+        num_bytes += send_freqshare(0, freqshare0[i], 2 * num_bits);
+        num_bytes += send_freqshare(1, freqshare1[i], 2 * num_bits);
+
+        delete[] freqshare0[i].arr;
+        delete[] freqshare1[i].arr;
+    }
+
+    delete[] freqshare0;
+    delete[] freqshare1;
+
+    if (numreqs > 1)
+        std::cout << "batch send:\t" << sec_from(start) << std::endl;
+
+    return num_bytes;
+}
+
+void heavy_op(const std::string protocol, const size_t numreqs) {
+    int num_bytes = 0;
+    initMsg msg;
+    msg.num_bits = num_bits;
+    msg.num_of_inputs = numreqs;
+    msg.max_inp = max_int;
+    msg.type = HEAVY_OP;
+
+    if (t <= 0 or t > 1) {
+        error_exit("Should provide threshold (0,1] after bits");
+    }
+
+    // track answers
+    uint64_t* count = new uint64_t[max_int];
+    memset(count, 0, max_int * sizeof(uint64_t));
+
+    // seed for consistent hashes.
+    flint_rand_t hash_seed; flint_randinit(hash_seed);
+    // TODO: 4-wise independent hashes? Need to double check they're needed
+    HashStorePoly hash_store(num_bits, num_bits, 2, hash_seed);
+    // for (unsigned int i = 0; i < num_bits; i++)
+    //     hash_store.print_hash(i);
+
+    // Send initMsg
+    num_bytes += send_to_server(0, &msg, sizeof(initMsg));
+    num_bytes += send_to_server(1, &msg, sizeof(initMsg));
+
+    // Send seed
+    // Will need to send seeds if use various bucket splitting.
+    // Currently per-bit splitting.
+    // num_bytes += send_seeds(hash_seed);
+
+    if (CLIENT_BATCH) {
+        num_bytes += heavy_helper(protocol, numreqs, hash_store, count);
+    } else {
+        auto start = clock_start();
+        for (unsigned int i = 0; i < numreqs; i++)
+            num_bytes += heavy_helper(protocol, 1, hash_store, count);
+        std::cout << "make+send:\t" << sec_from(start) << std::endl;
+    }
+
+    for (unsigned int j = 0; j < max_int; j++) {
+        if (count[j] > t * numreqs / 2)
+            std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
+    }
+    delete[] count;
+    std::cout << "Total sent bytes: " << num_bytes << std::endl;
+}
+
+int multi_heavy_helper(const std::string protocol, const size_t numreqs,
+                       uint64_t* counts, const MultiHeavyConfig cfg,
+                       HashStore& hash_classify, HashStoreBit& hash_split,
+                       HashStore& hash_value, CountMin& count_min) {
+    auto start = clock_start();
+    int num_bytes = 0;
+    emp::PRG prg;
+
+    const uint64_t support = 10000;
+    const double exponent = 1.1;
+    ZipF distribution(support < max_int ? support : max_int, exponent);
+
+    const size_t count_size = (2*cfg.K) > 10 ? (2*cfg.K) : 10;
+
+    uint64_t real_val;
+    fmpz_t hashed; fmpz_init(hashed);
+
+    MultiFreqShare* const share0 = new MultiFreqShare[numreqs];
+    MultiFreqShare* const share1 = new MultiFreqShare[numreqs];
+    // Q sets of singleHeavy, each with Depth layers. (repeat across B)
+    const size_t share_size_sh = cfg.Q * cfg.SH_depth;
+    // For each Q, identify b (first hash)
+    const size_t share_size_mask = cfg.Q * cfg.B;
+    // Count-min
+    const size_t share_size_count = cfg.countmin_cfg.d * cfg.countmin_cfg.w;
+    const size_t sizes[4] = {share_size_sh, share_size_sh, share_size_mask, share_size_count};
+
+    // Set to print index
+    const unsigned int check_idx = UINT_MAX;
+    for (unsigned int i = 0; i < numreqs; i++) {
+
+        real_val = distribution.sample();
+        real_val %= max_int;
+        // real_val = 3;
+        if (real_val <= count_size)
+            counts[real_val] ++;
+        if (i == check_idx) std::cout << "real_val: " << real_val << std::endl;
+
+        // sh_x, sh_y, mask, count
+        share0[i].arr = new bool*[4];
+        share1[i].arr = new bool*[4];
+        freq_init(share0[i].arr[0], share1[i].arr[0], sizes[0], prg);
+        freq_init(share0[i].arr[1], share1[i].arr[1], sizes[1], prg);
+        freq_init(share0[i].arr[2], share1[i].arr[2], sizes[2], prg);
+        freq_init(share0[i].arr[3], share1[i].arr[3], sizes[3], prg);
+        for (unsigned int q = 0; q < cfg.Q; q++) {
+            hash_classify.eval(q, real_val, hashed);
+            int b_val = fmpz_get_ui(hashed);
+            share1[i].arr[2][q * cfg.B + b_val] ^= 1;
+
+            if (i == check_idx) std::cout << "substream[" << q << "] = " << b_val << std::endl;
+
+            int offset = q * cfg.SH_depth;
+            for (unsigned int d = 0; d < cfg.SH_depth; d++) {
+                hash_split.eval(offset + d, real_val, hashed);
+                bool bucket = fmpz_is_one(hashed);
+                hash_value.eval(offset + d, real_val, hashed);
+                // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
+                bool h = fmpz_is_one(hashed);
+                if (i == check_idx) std::cout << "  depth " << d << " bucket " << bucket << " value " << h << " (" << 1-2*h << ")" << std::endl;
+
+                share1[i].arr[0][offset + d] ^= bucket;
+                share1[i].arr[1][offset + d] ^= h;
+            }
+        }
+
+        for (unsigned int d = 0; d < count_min.cfg.d; d++) {
+            count_min.store->eval(d, real_val, hashed);
+            if (i == check_idx) std::cout << "  count[" << d << "] = " << fmpz_get_ui(hashed) << std::endl;
+            share1[i].arr[3][d * count_min.cfg.w + fmpz_get_ui(hashed)] ^= 1;
+        }
+
+        const std::string pk_s = make_pk(prg);
+        const char* const pk = pk_s.c_str();
+        memcpy(share0[i].pk, &pk[0], PK_LENGTH);
+        memcpy(share1[i].pk, &pk[0], PK_LENGTH);
+    }
+    fmpz_clear(hashed);
+
+    if (numreqs > 1)
+        std::cout << "batch make:\t" << sec_from(start) << std::endl;
+
+    for (unsigned int i = 0; i < numreqs; i++) {
+        num_bytes += send_pk(sockfd0, share0[i].pk);
+        num_bytes += send_pk(sockfd1, share1[i].pk);
+
+        for (unsigned int j = 0; j < 4; j++) {
+            num_bytes += send_bool_batch(sockfd0, share0[i].arr[j], sizes[j]);
+            num_bytes += send_bool_batch(sockfd1, share1[i].arr[j], sizes[j]);
+
+            if (i == check_idx) {
+                std::cout << "share0,1[" << i << ", " << j << "] = ";
+                for (unsigned int k = 0; k < sizes[j]; k++) {
+                    std::cout << share0[i].arr[j][k] << share1[i].arr[j][k] << " ";
+                }
+                std::cout << std::endl;
+            }
+
+            delete[] share0[i].arr[j];
+            delete[] share1[i].arr[j];
+        }
+        delete[] share0[i].arr;
+        delete[] share1[i].arr;
+    }
+
+    delete[] share0;
+    delete[] share1;
+
+    if (numreqs > 1)
+        std::cout << "batch send:\t" << sec_from(start) << std::endl;
+
+    return num_bytes;
+}
+
+void multi_heavy_op(const std::string protocol, const size_t numreqs) {
+    if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
+        std::cout << "Modulus should be at least " << (2 * num_bits + LOG2(numreqs)) << " bits" << std::endl;
+        error_exit("Int Modulus too small");
+    }
+
+    int num_bytes = 0;
+    const size_t count_size = (2*linreg_degree) > 10 ? (2*linreg_degree) : 10;
+    uint64_t* count = new uint64_t[count_size + 1];
+    memset(count, 0, (count_size + 1) * sizeof(uint64_t));
+
+    initMsg msg;
+    msg.num_bits = num_bits;
+    msg.num_of_inputs = numreqs;
+    msg.max_inp = max_int;
+    msg.type = MULTI_HEAVY_OP;
+
+    // TODO: also take K/delta as options
+    if (t <= 0 or t > 1) {
+        error_exit("Should provide delta (0,1] after bits");
+    }
+
+    const size_t K = linreg_degree;  // Default 2. Reuse for now.
+    const double delta = t;
+    const double eps = 0.01;  // TODO: Param
+    MultiHeavyConfig cfg(K, delta, num_bits, eps);
+
+    cfg.print();
+
+    // Num hashes, input bits, output range
+    flint_rand_t hash_seed_classify; flint_randinit(hash_seed_classify);
+    flint_rand_t hash_seed_split; flint_randinit(hash_seed_split);
+    flint_rand_t hash_seed_value; flint_randinit(hash_seed_value);
+    flint_rand_t hash_seed_count; flint_randinit(hash_seed_count);
+
+    // Which of the B SH subtreams it gets classified as
+    HashStorePoly hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
+    // Split: each SH breakdown into the pairs, bucket 0 or 1. (original was by bits)
+    // Base Q*B*depth, but can repeat across B. Invertable.
+    HashStoreBit hash_split(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_split, cfg.SH_depth);
+    // SingleHeavy +-1 values. 4-wize independent
+    // Base Q*B*depth, but can repeat across B
+    HashStorePoly hash_value(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_value, 4);
+    // CountMin
+    CountMin count_min(cfg.countmin_cfg);
+    count_min.setStore(num_bits, hash_seed_count);
+
+    // std::cout << "classify: " << std::endl;
+    // hash_classify.print();
+    // std::cout << "split: " << std::endl;
+    // hash_split.print();
+    // std::cout << "value: " << std::endl;
+    // hash_value.print();
+
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
+
+    // Send params. K, delta are the core.
+    send_size(sockfd0, K);
+    send_size(sockfd1, K);
+    send_double(sockfd0, delta);
+    send_double(sockfd1, delta);
+    send_double(sockfd0, eps);
+    send_double(sockfd1, eps);
+
+    send_seeds(hash_seed_classify);
+    send_seeds(hash_seed_split);
+    send_seeds(hash_seed_value);
+    send_seeds(hash_seed_count);
+
+    if (CLIENT_BATCH) {
+        num_bytes += multi_heavy_helper(protocol, numreqs, count, cfg,
+            hash_classify, hash_split, hash_value, count_min);
+    } else {
+        auto start = clock_start();
+        for (unsigned int i = 0; i < numreqs; i++)
+            num_bytes += multi_heavy_helper(protocol, 1, count, cfg,
+                hash_classify, hash_split, hash_value, count_min);
+        std::cout << "make+send:\t" << sec_from(start) << std::endl;
+    }
+
+    for (unsigned int j = 0; j <= count_size; j++) {
+        if (j >= max_int) break;
+        std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
+    }
     delete[] count;
     std::cout << "Total sent bytes: " << num_bytes << std::endl;
 }
 
 int main(int argc, char** argv) {
     if (argc < 4) {
-        std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits linreg_degree " << endl;
+        std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits (linreg_degree/heavy_t) " << endl;
         return 1;
     }
 
@@ -1525,15 +1875,26 @@ int main(int argc, char** argv) {
         std::cout << "num bits: " << num_bits << std::endl;
         max_int = 1ULL << num_bits;
         std::cout << "max int: " << max_int << std::endl;
-        if (num_bits > 63)
-            error_exit("Num bits is too large. Int math is done mod 2^64.");
+        if (num_bits > nbits_mod)
+            error_exit("Num bits is too large");
     }
 
-    if (argc == 7) {
-        linreg_degree = atoi(argv[6]);
-        std::cout << "linreg degree: " << num_bits << std::endl;
-        if (linreg_degree < 2)
-            error_exit("Linreg Degree must be >= 2");
+    if (argc >= 7) {
+        double arg7 = atof(argv[6]);
+        std::cout << "arg7: " << arg7 << std::endl;
+        if (arg7 >= 2) {
+            linreg_degree = (int)arg7;
+            std::cout << "linreg degree: " << linreg_degree << std::endl;
+        } else if (arg7 <= 1 and arg7 > 0) {
+            t = arg7;
+            std::cout << "threshold: " << t << std::endl;
+        } else
+            error_exit("Linreg Degree must be >= 2 or threshold in (0,1)");
+    }
+
+    if (argc >= 8) {
+        // Re-use for now.
+        linreg_degree = atoi(argv[7]);
     }
 
     // Set up server connections
@@ -1661,6 +2022,26 @@ int main(int argc, char** argv) {
         //     lin_reg_invalid(protocol, numreqs);
         // else
         freq_op(protocol, numreqs);
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
+    }
+
+    else if(protocol == "HEAVY") {
+        std::cout << "Uploading all HEAVY shares: " << numreqs << std::endl;
+
+        // if (DEBUG_INVALID)
+        //     lin_reg_invalid(protocol, numreqs);
+        // else
+        heavy_op(protocol, numreqs);
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
+    }
+
+    else if(protocol == "MULTIHEAVY") {
+        std::cout << "Uploading all HEAVY shares: " << numreqs << std::endl;
+
+        // if (DEBUG_INVALID)
+        //     lin_reg_invalid(protocol, numreqs);
+        // else
+        multi_heavy_op(protocol, numreqs);
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
