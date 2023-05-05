@@ -125,9 +125,6 @@ int recv_ClientPacket(const int sockfd, ClientPacket* const x,
 int send_BeaverTriple(const int sockfd, const BeaverTriple* const x);
 int recv_BeaverTriple(const int sockfd, BeaverTriple* const x);
 
-int send_BeaverTripleShare(const int sockfd, const BeaverTripleShare* const x);
-int recv_BeaverTripleShare(const int sockfd, BeaverTripleShare* const x);
-
 // Unused
 int send_BooleanBeaverTriple(const int sockfd, const BooleanBeaverTriple* const x);
 int recv_BooleanBeaverTriple(const int sockfd, BooleanBeaverTriple* const x);

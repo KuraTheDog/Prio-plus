@@ -237,8 +237,8 @@ struct Checker {
         // std::cout << "CorFn" << std::endl;
         Cor* const out = new Cor();
 
-        fmpz_mod_sub(out->D, evalF, req->triple_share->shareA, mod_ctx);
-        fmpz_mod_sub(out->E, evalG, req->triple_share->shareB, mod_ctx);
+        fmpz_mod_sub(out->D, evalF, req->triple->A, mod_ctx);
+        fmpz_mod_sub(out->E, evalG, req->triple->B, mod_ctx);
 
         return out;
     }
@@ -254,9 +254,9 @@ struct Checker {
             fmpz_mod_mul(mulCheck, corIn->D, corIn->E, mod_ctx);
         }
 
-        fmpz_mod_addmul(mulCheck, corIn->D, req->triple_share->shareB, mod_ctx);
-        fmpz_mod_addmul(mulCheck, corIn->E, req->triple_share->shareA, mod_ctx);
-        fmpz_mod_add(mulCheck, mulCheck, req->triple_share->shareC, mod_ctx);
+        fmpz_mod_addmul(mulCheck, corIn->D, req->triple->B, mod_ctx);
+        fmpz_mod_addmul(mulCheck, corIn->E, req->triple->A, mod_ctx);
+        fmpz_mod_add(mulCheck, mulCheck, req->triple->C, mod_ctx);
         fmpz_mod_sub(mulCheck, mulCheck, evalH, mod_ctx);
 
         fmpz_t* arr;

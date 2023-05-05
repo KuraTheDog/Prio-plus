@@ -346,34 +346,39 @@ int recv_seed(const int sockfd, flint_rand_t x) {
 
 int send_Cor(const int sockfd, const Cor* const x) {
     int total = 0, ret;
-    ret = send_fmpz(sockfd, x->D);
+    fmpz_t* buff; new_fmpz_array(&buff, 2);
+    fmpz_set(buff[0], x->D);
+    fmpz_set(buff[1], x->E);
+    ret = send_fmpz_batch(sockfd, buff, 2);
     if (ret <= 0) return ret; else total += ret;
-    ret = send_fmpz(sockfd, x->E);
-    if (ret <= 0) return ret; else total += ret;
+    clear_fmpz_array(buff, 2);
     return total;
 }
 
 int recv_Cor(const int sockfd, Cor* const x) {
     int total = 0, ret;
-    ret = recv_fmpz(sockfd, x->D);
+    fmpz_t* buff; new_fmpz_array(&buff, 2);
+    ret = recv_fmpz_batch(sockfd, buff, 2);
     if (ret <= 0) return ret; else total += ret;
-    ret = recv_fmpz(sockfd, x->E);
-    if (ret <= 0) return ret; else total += ret;
+    fmpz_set(x->D, buff[0]);
+    fmpz_set(x->E, buff[1]);
+    clear_fmpz_array(buff, 2);
     return total;
 }
 
 int send_Cor_batch(const int sockfd, const Cor* const * const x, const size_t n) {
+    int total = 0, ret;
     fmpz_t* buff; new_fmpz_array(&buff, 2 * n);
 
     for (unsigned int i = 0; i < n; i++) {
         fmpz_set(buff[i], x[i]->D);
         fmpz_set(buff[i + n], x[i]->E);
     }
-
-    int ret = send_fmpz_batch(sockfd, buff, 2 * n);
+    ret = send_fmpz_batch(sockfd, buff, 2 * n);
+    if (ret <= 0) return ret; else total += ret;
 
     clear_fmpz_array(buff, 2 * n);
-    return ret;
+    return total;
 }
 
 int recv_Cor_batch(const int sockfd, Cor* const * const x, const size_t n) {
@@ -381,7 +386,7 @@ int recv_Cor_batch(const int sockfd, Cor* const * const x, const size_t n) {
 
     for (unsigned int i = 0; i < n; i++) {
         fmpz_set(x[i]->D, buff[i]);
-        fmpz_set(x[i]->E, buff[i]);
+        fmpz_set(x[i]->E, buff[i + n]);
     }
 
     int ret = recv_fmpz_batch(sockfd, buff, 2 * n);
@@ -410,27 +415,24 @@ int send_ClientPacket(const int sockfd, const ClientPacket* const x,
                       const size_t NMul) {
     int total = 0, ret;
     const size_t N = NextPowerOfTwo(NMul);
+    const size_t len = NMul + N + 3 + 3;
+    fmpz_t* buff; new_fmpz_array(&buff, len);
 
-    for (unsigned int i = 0; i < NMul; i++) {
-        ret = send_fmpz(sockfd, x->MulShares[i]);
-        if (ret <= 0) return ret; else total += ret;
-    }
+    for (unsigned int i = 0; i < NMul; i++)
+        fmpz_set(buff[i], x->MulShares[i]);
+    for (unsigned int i = 0; i < N; i++)
+        fmpz_set(buff[NMul + i], x->h_points[i]);
+    fmpz_set(buff[NMul+N], x->f0_s);
+    fmpz_set(buff[NMul+N+1], x->g0_s);
+    fmpz_set(buff[NMul+N+2], x->h0_s);
+    fmpz_set(buff[NMul+N+3], x->triple->A);
+    fmpz_set(buff[NMul+N+4], x->triple->B);
+    fmpz_set(buff[NMul+N+5], x->triple->C);
 
-    ret = send_fmpz(sockfd, x->f0_s);
-    if (ret <= 0) return ret; else total += ret;
-    ret = send_fmpz(sockfd, x->g0_s);
-    if (ret <= 0) return ret; else total += ret;
-    ret = send_fmpz(sockfd, x->h0_s);
-    if (ret <= 0) return ret; else total += ret;
-
-    for (unsigned int i = 0; i < N; i++) {
-        ret = send_fmpz(sockfd, x->h_points[i]);
-        if (ret <= 0) return ret; else total += ret;
-    }
-
-    ret = send_BeaverTripleShare(sockfd, x->triple_share);
+    ret = send_fmpz_batch(sockfd, buff, len);
     if (ret <= 0) return ret; else total += ret;
 
+    clear_fmpz_array(buff, len);
     return total;
 }
 
@@ -438,71 +440,48 @@ int recv_ClientPacket(const int sockfd, ClientPacket* const x,
                       const size_t NMul) {
     int total = 0, ret;
     const size_t N = NextPowerOfTwo(NMul);
+    const size_t len = NMul + N + 3 + 3;
+    fmpz_t* buff; new_fmpz_array(&buff, len);
 
-    for (unsigned int i = 0; i < NMul; i++) {
-        ret = recv_fmpz(sockfd, x->MulShares[i]);
-        if (ret <= 0) return ret; else total += ret;
-    }
-
-    ret = recv_fmpz(sockfd, x->f0_s);
-    if (ret <= 0) return ret; else total += ret;
-    ret = recv_fmpz(sockfd, x->g0_s);
-    if (ret <= 0) return ret; else total += ret;
-    ret = recv_fmpz(sockfd, x->h0_s);
+    ret = recv_fmpz_batch(sockfd, buff, len);
     if (ret <= 0) return ret; else total += ret;
 
-    for (unsigned int i = 0; i < N; i++) {
-        ret = recv_fmpz(sockfd, x->h_points[i]);
-        if (ret <= 0) return ret; else total += ret;
-    }
+    for (unsigned int i = 0; i < NMul; i++)
+        fmpz_set(x->MulShares[i], buff[i]);
+    for (unsigned int i = 0; i < N; i++)
+        fmpz_set(x->h_points[i], buff[NMul + i]);
+    fmpz_set(x->f0_s, buff[NMul+N]);
+    fmpz_set(x->g0_s, buff[NMul+N+1]);
+    fmpz_set(x->h0_s, buff[NMul+N+2]);
+    fmpz_set(x->triple->A, buff[NMul+N+3]);
+    fmpz_set(x->triple->B, buff[NMul+N+4]);
+    fmpz_set(x->triple->C, buff[NMul+N+5]);
 
-    ret = recv_BeaverTripleShare(sockfd, x->triple_share);
-    if (ret <= 0) return ret; else total += ret;
-
+    clear_fmpz_array(buff, len);
     return total;
 }
 
 int send_BeaverTriple(const int sockfd, const BeaverTriple* const x) {
     int total = 0, ret;
-    ret = send_fmpz(sockfd, x->A);
+    fmpz_t* buff; new_fmpz_array(&buff, 3);
+    fmpz_set(buff[0], x->A);
+    fmpz_set(buff[1], x->B);
+    fmpz_set(buff[2], x->C);
+    ret = send_fmpz_batch(sockfd, buff, 3);
     if (ret <= 0) return ret; else total += ret;
-    ret = send_fmpz(sockfd, x->B);
-    if (ret <= 0) return ret; else total += ret;
-    ret = send_fmpz(sockfd, x->C);
-    if (ret <= 0) return ret; else total += ret;
+    clear_fmpz_array(buff, 3);
     return total;
 }
 
 int recv_BeaverTriple(const int sockfd, BeaverTriple* const x) {
     int total = 0, ret;
-    ret = recv_fmpz(sockfd, x->A);
+    fmpz_t* buff; new_fmpz_array(&buff, 3);
+    ret = recv_fmpz_batch(sockfd, buff, 3);
     if (ret <= 0) return ret; else total += ret;
-    ret = recv_fmpz(sockfd, x->B);
-    if (ret <= 0) return ret; else total += ret;
-    ret = recv_fmpz(sockfd, x->C);
-    if (ret <= 0) return ret; else total += ret;
-    return total;
-}
-
-int send_BeaverTripleShare(const int sockfd, const BeaverTripleShare* const x) {
-    int total = 0, ret;
-    ret = send_fmpz(sockfd, x->shareA);
-    if (ret <= 0) return ret; else total += ret;
-    ret = send_fmpz(sockfd, x->shareB);
-    if (ret <= 0) return ret; else total += ret;
-    ret = send_fmpz(sockfd, x->shareC);
-    if (ret <= 0) return ret; else total += ret;
-    return total;
-}
-
-int recv_BeaverTripleShare(const int sockfd, BeaverTripleShare* const x) {
-    int total = 0, ret;
-    ret = recv_fmpz(sockfd, x->shareA);
-    if (ret <= 0) return ret; else total += ret;
-    ret = recv_fmpz(sockfd, x->shareB);
-    if (ret <= 0) return ret; else total += ret;
-    ret = recv_fmpz(sockfd, x->shareC);
-    if (ret <= 0) return ret; else total += ret;
+    fmpz_set(x->A, buff[0]);
+    fmpz_set(x->B, buff[1]);
+    fmpz_set(x->C, buff[2]);
+    clear_fmpz_array(buff, 3);
     return total;
 }
 

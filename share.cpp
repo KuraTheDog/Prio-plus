@@ -25,22 +25,18 @@ Cor::Cor(const Cor* const x, const Cor* const y) : Cor() {
     fmpz_mod_add(E, x->E, y->E, mod_ctx);
 }
 
-const BeaverTriple* const NewBeaverTriple() {
-    BeaverTriple* const out = new BeaverTriple();
-
-    fmpz_randm(out->A, seed, Int_Modulus);
-    fmpz_randm(out->B, seed, Int_Modulus);
-    fmpz_mod_mul(out->C, out->A, out->B, mod_ctx);
-
-    return out;
-}
-
-void BeaverTripleShares(const BeaverTriple* const inp,
-                        BeaverTripleShare* const out0,
-                        BeaverTripleShare* const out1) {
-    SplitShare(inp->A, out0->shareA, out1->shareA);
-    SplitShare(inp->B, out0->shareB, out1->shareB);
-    SplitShare(inp->C, out0->shareC, out1->shareC);
+void NewBeaverTriples(BeaverTriple* const out0, BeaverTriple* const out1) {
+    fmpz_randm(out0->A, seed, Int_Modulus);
+    fmpz_randm(out1->A, seed, Int_Modulus);
+    fmpz_randm(out0->B, seed, Int_Modulus);
+    fmpz_randm(out1->B, seed, Int_Modulus);
+    fmpz_randm(out0->C, seed, Int_Modulus);
+    // (a + a)(b + b) = c + c
+    fmpz_t tmp; fmpz_init(tmp);
+    fmpz_mod_add(out1->C, out0->A, out1->A, mod_ctx);
+    fmpz_mod_add(tmp, out0->B, out1->B, mod_ctx);
+    fmpz_mod_mul(out1->C, out1->C, tmp, mod_ctx);
+    fmpz_mod_sub(out1->C, out1->C, out0->C, mod_ctx);
 }
 
 void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {
