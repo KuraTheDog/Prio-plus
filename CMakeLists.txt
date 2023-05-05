@@ -85,12 +85,13 @@ foreach(_target
 endforeach()
 
 set(test_poly "test_circuit" "test_linreg")
-set(test_correlated "test_ot" "test_bits" "test_heavy")
+set(test_correlated "test_bits" "test_heavy")
+set(test_ot "test_ot" ${test_correlated})
 set(test_garble "test_garble")
 set(test_hash "test_hash" ${test_garble})
 set(test_he_triples "test_he_triples" ${test_correlated})
 # stuff that sends shares
-set(test_net_share "test_net_share" ${test_poly} ${test_correlated} ${test_he_triples})
+set(test_net_share "test_net_share" ${test_poly} ${test_ot} ${test_he_triples})
 set(test_share "test_share" ${test_net_share})
 foreach(_target
   test_net_share
@@ -116,7 +117,10 @@ foreach(_target
     set (test_SOURCE_FILES ${test_SOURCE_FILES} "net_share.cpp")
   endif()
   if (_target IN_LIST test_correlated)
-    set (test_SOURCE_FILES ${test_SOURCE_FILES} "correlated.cpp" "ot.cpp")
+    set (test_SOURCE_FILES ${test_SOURCE_FILES} "correlated.cpp")
+  endif()
+  if (_target IN_LIST test_ot)
+    set (test_SOURCE_FILES ${test_SOURCE_FILES} "ot.cpp")
   endif()
   if (_target IN_LIST test_hash)
     set (test_SOURCE_FILES ${test_SOURCE_FILES} "hash.cpp")
