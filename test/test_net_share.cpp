@@ -94,7 +94,8 @@ void run_sender(int sockfd) {
     std::cout << "send btriple \tsize: " << n << " \tvals: " << btrip->a << ", " << btrip->b << ", " << btrip->c << std::endl;
     delete btrip;
 
-    const BeaverTriple* const trip = NewBeaverTriple();
+    BeaverTriple* const trip = new BeaverTriple();
+    NewBeaverTriples(trip, trip);
     n = send_BeaverTriple(sockfd, trip);
     std::cout << "send triple \tsize: " << n << " \tvals: ";
     fmpz_print(trip->A); std::cout << ", ";

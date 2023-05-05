@@ -94,6 +94,7 @@ set(test_he_triples "test_he_triples" ${test_correlated})
 set(test_net_share "test_net_share" ${test_poly} ${test_ot} ${test_he_triples})
 set(test_share "test_share" ${test_net_share})
 foreach(_target
+  test_share
   test_net_share
   test_circuit
   test_linreg
