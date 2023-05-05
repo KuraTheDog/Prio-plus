@@ -26,7 +26,3 @@ void clear_constants() {
     fmpz_clear(Int_Modulus);
     fmpz_clear(Int_Gen);
 }
-
-// TODO: Look into fmpz_mod_ctx_t. Allows things like mod_mult in one line
-// Could possibly be more optimized by e.g. integer mult then mod. Esp with powers.
-

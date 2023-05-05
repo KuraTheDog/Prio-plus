@@ -24,21 +24,6 @@ Cor::Cor(const CorShare* const x, const CorShare* const y) : Cor() {
     fmpz_mod(E, E, Int_Modulus);
 }
 
-// Unused
-/*
-void SplitShareXor(const fmpz_t val, fmpz_t A, fmpz_t B, const int num_bits) {
-    // num_bits < 32
-    uint64_t mod = 1L << num_bits;
-
-    fmpz_t max_val;
-    fmpz_init(max_val);
-    fmpz_set_ui(max_val, mod);
-    fmpz_randm(A, seed, max_val);
-    fmpz_xor(B, A, val);
-    fmpz_clear(max_val);
-}
-*/
-
 void NewBeaverTriples(BeaverTriple* const out0, BeaverTriple* const out1) {
     fmpz_randm(out0->A, seed, Int_Modulus);
     fmpz_randm(out1->A, seed, Int_Modulus);

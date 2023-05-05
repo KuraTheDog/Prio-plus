@@ -18,11 +18,11 @@
 
 /* Core functions */
 
-int recv_in(const int sockfd, void* const buf, const size_t len) {
+int recv_in(const int sockfd, void* const buff, const size_t len) {
     unsigned int bytes_read = 0, tmp;
-    char* const bufptr = (char*) buf;
+    char* const buffptr = (char*) buff;
     while (bytes_read < len) {
-        tmp = recv(sockfd, bufptr + bytes_read, len - bytes_read, 0);
+        tmp = recv(sockfd, buffptr + bytes_read, len - bytes_read, 0);
         if (tmp <= 0) return tmp; else bytes_read += tmp;
     }
     return bytes_read;
@@ -38,31 +38,31 @@ int recv_bool(const int sockfd, bool& x) {
 
 int send_bool_batch(const int sockfd, const bool* const x, const size_t n) {
     const size_t len = (n+7) / 8;  // Number of bytes to hold n, aka ceil(n/8)
-    char* const buf = new char[len];
+    char* const buff = new char[len];
 
-    memset(buf, 0, sizeof(char) * len);
+    memset(buff, 0, sizeof(char) * len);
 
     for (unsigned int i = 0; i < n; i++)
         if (x[i])
-            buf[i / 8] ^= (1 << (i % 8));
+            buff[i / 8] ^= (1ULL << (i % 8));
 
-    int ret = send(sockfd, buf, len, 0);
+    int ret = send(sockfd, buff, len, 0);
 
-    delete[] buf;
+    delete[] buff;
 
     return ret;
 }
 
 int recv_bool_batch(const int sockfd, bool* const x, const size_t n) {
     const size_t len = (n+7) / 8;
-    char* const buf = new char[len];
+    char* const buff = new char[len];
 
-    int ret = recv_in(sockfd, buf, len);
+    int ret = recv_in(sockfd, buff, len);
 
     for (unsigned int i = 0; i < n; i++)
-        x[i] = (buf[i/8] & (1 << (i % 8)));
+        x[i] = (buff[i/8] & (1ULL << (i % 8)));
 
-    delete[] buf;
+    delete[] buff;
 
     return ret;
 }
@@ -168,11 +168,11 @@ int recv_string(const int sockfd, std::string& x) {
     size_t len;
     ret = recv_size(sockfd, len);
     if (ret <= 0) return ret; else total += ret;
-    char* const buf = new char[len];
-    ret = recv_in(sockfd, buf, len);
+    char* const buff = new char[len];
+    ret = recv_in(sockfd, buff, len);
     if (ret <= 0) return ret; else total += ret;
-    x.assign(&buf[0], len);
-    delete[] buf;
+    x.assign(&buff[0], len);
+    delete[] buff;
     return total;
 }
 
@@ -187,9 +187,9 @@ int send_fmpz(const int sockfd, const fmpz_t x) {
         if (ret <= 0) return ret; else total += ret;
     }
 
-    ulong buf[len];
-    fmpz_get_ui_array(buf, len, x);
-    ret = send_ulong_batch(sockfd, buf, len);
+    ulong buff[len];
+    fmpz_get_ui_array(buff, len, x);
+    ret = send_ulong_batch(sockfd, buff, len);
     if (ret <= 0) return ret; else total += ret;
 
     return total;
@@ -210,11 +210,11 @@ int recv_fmpz(const int sockfd, fmpz_t x) {
         fmpz_set_ui(x, 0);
         return total;
     }
-    ulong buf[len];
-    ret = recv_ulong_batch(sockfd, buf, len);
+    ulong buff[len];
+    ret = recv_ulong_batch(sockfd, buff, len);
     if (ret <= 0) return ret; else total += ret;
 
-    fmpz_set_ui_array(x, buf, len);
+    fmpz_set_ui_array(x, buff, len);
 
     return total;
 }
@@ -238,11 +238,11 @@ int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n) {
     }
 
     size_t len = fmpz_size(Int_Modulus);
-    ulong buf[len * n];
+    ulong buff[len * n];
     for (unsigned int i = 0; i < n; i++)
-        fmpz_get_ui_array(&buf[i * len], len, x[i]);
+        fmpz_get_ui_array(&buff[i * len], len, x[i]);
 
-    ret = send_ulong_batch(sockfd, buf, len * n);
+    ret = send_ulong_batch(sockfd, buff, len * n);
     if (ret <= 0) return ret; else total += ret;
     return total;
 }
@@ -267,12 +267,12 @@ int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n) {
     }
 
     size_t len = fmpz_size(Int_Modulus);
-    ulong buf[len * n];
-    ret = recv_ulong_batch(sockfd, buf, len * n);
+    ulong buff[len * n];
+    ret = recv_ulong_batch(sockfd, buff, len * n);
     if (ret <= 0) return ret; else total += ret;
 
     for (unsigned int i = 0; i < n; i++)
-        fmpz_set_ui_array(x[i], &buf[i * len], len);
+        fmpz_set_ui_array(x[i], &buff[i * len], len);
     return total;
 }
 
@@ -289,77 +289,77 @@ int recv_seed(const int sockfd, flint_rand_t x) {
 
 int send_Cor(const int sockfd, const Cor* const x) {
     int total = 0, ret;
-    fmpz_t* buf; new_fmpz_array(&buf, 2);
-    fmpz_set(buf[0], x->D);
-    fmpz_set(buf[1], x->E);
-    ret = send_fmpz_batch(sockfd, buf, 2);
+    fmpz_t* buff; new_fmpz_array(&buff, 2);
+    fmpz_set(buff[0], x->D);
+    fmpz_set(buff[1], x->E);
+    ret = send_fmpz_batch(sockfd, buff, 2);
     if (ret <= 0) return ret; else total += ret;
-    clear_fmpz_array(buf, 2);
+    clear_fmpz_array(buff, 2);
     return total;
 }
 
 int recv_Cor(const int sockfd, Cor* const x) {
     int total = 0, ret;
-    fmpz_t* buf; new_fmpz_array(&buf, 2);
-    ret = recv_fmpz_batch(sockfd, buf, 2);
+    fmpz_t* buff; new_fmpz_array(&buff, 2);
+    ret = recv_fmpz_batch(sockfd, buff, 2);
     if (ret <= 0) return ret; else total += ret;
-    fmpz_set(x->D, buf[0]);
-    fmpz_set(x->E, buf[1]);
-    clear_fmpz_array(buf, 2);
+    fmpz_set(x->D, buff[0]);
+    fmpz_set(x->E, buff[1]);
+    clear_fmpz_array(buff, 2);
     return total;
 }
 
 int send_CorShare(const int sockfd, const CorShare* const x) {
     int total = 0, ret;
-    fmpz_t* buf; new_fmpz_array(&buf, 2);
-    fmpz_set(buf[0], x->shareD);
-    fmpz_set(buf[1], x->shareE);
-    ret = send_fmpz_batch(sockfd, buf, 2);
+    fmpz_t* buff; new_fmpz_array(&buff, 2);
+    fmpz_set(buff[0], x->shareD);
+    fmpz_set(buff[1], x->shareE);
+    ret = send_fmpz_batch(sockfd, buff, 2);
     if (ret <= 0) return ret; else total += ret;
-    clear_fmpz_array(buf, 2);
+    clear_fmpz_array(buff, 2);
     return total;
 }
 
 int recv_CorShare(const int sockfd, CorShare* const x) {
     int total = 0, ret;
-    fmpz_t* buf; new_fmpz_array(&buf, 2);
-    ret = recv_fmpz_batch(sockfd, buf, 2);
+    fmpz_t* buff; new_fmpz_array(&buff, 2);
+    ret = recv_fmpz_batch(sockfd, buff, 2);
     if (ret <= 0) return ret; else total += ret;
-    fmpz_set(x->shareD, buf[0]);
-    fmpz_set(x->shareE, buf[1]);
-    clear_fmpz_array(buf, 2);
+    fmpz_set(x->shareD, buff[0]);
+    fmpz_set(x->shareE, buff[1]);
+    clear_fmpz_array(buff, 2);
     return total;
 }
 
 int send_CorShare_batch(const int sockfd, const CorShare* const * const x, const size_t n) {
     int total = 0, ret;
-    fmpz_t* buf; new_fmpz_array(&buf, 2 * n);
+    fmpz_t* buff; new_fmpz_array(&buff, 2 * n);
 
     for (unsigned int i = 0; i < n; i++) {
-        fmpz_set(buf[2*i], x[i]->shareD);
-        fmpz_set(buf[2*i+1], x[i]->shareE);
+        fmpz_set(buff[2*i], x[i]->shareD);
+        fmpz_set(buff[2*i+1], x[i]->shareE);
     }
 
-    ret = send_fmpz_batch(sockfd, buf, 2 * n);
+    ret = send_fmpz_batch(sockfd, buff, 2 * n);
     if (ret <= 0) return ret; else total += ret;
 
-    clear_fmpz_array(buf, 2 * n);
+    clear_fmpz_array(buff, 2 * n);
     return total;
 }
 
 int recv_CorShare_batch(const int sockfd, CorShare* const * const x, const size_t n) {
     int total = 0, ret;
-    fmpz_t* buf; new_fmpz_array(&buf, 2 * n);
+    fmpz_t* buff; new_fmpz_array(&buff, 2 * n);
 
-    ret = recv_fmpz_batch(sockfd, buf, 2 * n);
+    ret = recv_fmpz_batch(sockfd, buff, 2 * n);
     if (ret <= 0) return ret; else total += ret;
 
     for (unsigned int i = 0; i < n; i++) {
-        fmpz_set(x[i]->shareD, buf[2*i]);
-        fmpz_set(x[i]->shareE, buf[2*i+1]);
+        fmpz_set(x[i]->shareD, buff[2*i]);
+        fmpz_set(x[i]->shareE, buff[2*i+1]);
     }
 
-    clear_fmpz_array(buf, n);
+    clear_fmpz_array(buff, n);
     return total;
 }
 
@@ -368,25 +368,25 @@ int send_ClientPacket(const int sockfd, const ClientPacket* const x,
     int total = 0, ret;
     const size_t N = NextPowerOfTwo(NMul);
     const size_t len = NMul + N + 3 + 3;
-    fmpz_t* buf; new_fmpz_array(&buf, len);
+    fmpz_t* buff; new_fmpz_array(&buff, len);
 
     for (unsigned int i = 0; i < NMul; i++)
-        fmpz_set(buf[i], x->MulShares[i]);
+        fmpz_set(buff[i], x->MulShares[i]);
 
     for (unsigned int i = 0; i < N; i++)
-        fmpz_set(buf[NMul + i], x->h_points[i]);
+        fmpz_set(buff[NMul + i], x->h_points[i]);
 
-    fmpz_set(buf[NMul+N], x->f0_s);
-    fmpz_set(buf[NMul+N+1], x->g0_s);
-    fmpz_set(buf[NMul+N+2], x->h0_s);
-    fmpz_set(buf[NMul+N+3], x->triple->A);
-    fmpz_set(buf[NMul+N+4], x->triple->B);
-    fmpz_set(buf[NMul+N+5], x->triple->C);
+    fmpz_set(buff[NMul+N], x->f0_s);
+    fmpz_set(buff[NMul+N+1], x->g0_s);
+    fmpz_set(buff[NMul+N+2], x->h0_s);
+    fmpz_set(buff[NMul+N+3], x->triple->A);
+    fmpz_set(buff[NMul+N+4], x->triple->B);
+    fmpz_set(buff[NMul+N+5], x->triple->C);
 
-    ret = send_fmpz_batch(sockfd, buf, len);
+    ret = send_fmpz_batch(sockfd, buff, len);
     if (ret <= 0) return ret; else total += ret;
 
-    clear_fmpz_array(buf, len);
+    clear_fmpz_array(buff, len);
     return total;
 }
 
@@ -395,117 +395,117 @@ int recv_ClientPacket(const int sockfd, ClientPacket* const x,
     int total = 0, ret;
     const size_t N = NextPowerOfTwo(NMul);
     const size_t len = NMul + N + 3 + 3;
-    fmpz_t* buf; new_fmpz_array(&buf, len);
+    fmpz_t* buff; new_fmpz_array(&buff, len);
 
-    ret = recv_fmpz_batch(sockfd, buf, len);
+    ret = recv_fmpz_batch(sockfd, buff, len);
     if (ret <= 0) return ret; else total += ret;
 
     for (unsigned int i = 0; i < NMul; i++)
-        fmpz_set(x->MulShares[i], buf[i]);
+        fmpz_set(x->MulShares[i], buff[i]);
 
     for (unsigned int i = 0; i < N; i++)
-        fmpz_set(x->h_points[i], buf[NMul + i]);
+        fmpz_set(x->h_points[i], buff[NMul + i]);
 
-    fmpz_set(x->f0_s, buf[NMul+N]);
-    fmpz_set(x->g0_s, buf[NMul+N+1]);
-    fmpz_set(x->h0_s, buf[NMul+N+2]);
-    fmpz_set(x->triple->A, buf[NMul+N+3]);
-    fmpz_set(x->triple->B, buf[NMul+N+4]);
-    fmpz_set(x->triple->C, buf[NMul+N+5]);
+    fmpz_set(x->f0_s, buff[NMul+N]);
+    fmpz_set(x->g0_s, buff[NMul+N+1]);
+    fmpz_set(x->h0_s, buff[NMul+N+2]);
+    fmpz_set(x->triple->A, buff[NMul+N+3]);
+    fmpz_set(x->triple->B, buff[NMul+N+4]);
+    fmpz_set(x->triple->C, buff[NMul+N+5]);
 
-    clear_fmpz_array(buf, len);
+    clear_fmpz_array(buff, len);
     return total;
 }
 
 int send_BeaverTriple(const int sockfd, const BeaverTriple* const x) {
     int total = 0, ret;
-    fmpz_t* buf; new_fmpz_array(&buf, 3);
-    fmpz_set(buf[0], x->A);
-    fmpz_set(buf[1], x->B);
-    fmpz_set(buf[2], x->C);
-    ret = send_fmpz_batch(sockfd, buf, 3);
+    fmpz_t* buff; new_fmpz_array(&buff, 3);
+    fmpz_set(buff[0], x->A);
+    fmpz_set(buff[1], x->B);
+    fmpz_set(buff[2], x->C);
+    ret = send_fmpz_batch(sockfd, buff, 3);
     if (ret <= 0) return ret; else total += ret;
-    clear_fmpz_array(buf, 3);
+    clear_fmpz_array(buff, 3);
     return total;
 }
 
 int recv_BeaverTriple(const int sockfd, BeaverTriple* const x) {
     int total = 0, ret;
-    fmpz_t* buf; new_fmpz_array(&buf, 3);
-    ret = recv_fmpz_batch(sockfd, buf, 3);
+    fmpz_t* buff; new_fmpz_array(&buff, 3);
+    ret = recv_fmpz_batch(sockfd, buff, 3);
     if (ret <= 0) return ret; else total += ret;
-    fmpz_set(x->A, buf[0]);
-    fmpz_set(x->B, buf[1]);
-    fmpz_set(x->C, buf[2]);
-    clear_fmpz_array(buf, 3);
+    fmpz_set(x->A, buff[0]);
+    fmpz_set(x->B, buff[1]);
+    fmpz_set(x->C, buff[2]);
+    clear_fmpz_array(buff, 3);
     return total;
 }
 
 int send_BooleanBeaverTriple(const int sockfd, const BooleanBeaverTriple* const x) {
-    bool buf[3] = {x->a, x->b, x->c};
-    return send_bool_batch(sockfd, buf, 3);
+    bool buff[3] = {x->a, x->b, x->c};
+    return send_bool_batch(sockfd, buff, 3);
 }
 
 int recv_BooleanBeaverTriple(const int sockfd, BooleanBeaverTriple* const x) {
-    bool buf[3];
-    int ret = recv_bool_batch(sockfd, buf, 3);
-    x->a = buf[0];
-    x->b = buf[1];
-    x->c = buf[2];
+    bool buff[3];
+    int ret = recv_bool_batch(sockfd, buff, 3);
+    x->a = buff[0];
+    x->b = buff[1];
+    x->c = buff[2];
     return ret;
 }
 
 int send_AltTriple(const int sockfd, const AltTriple* const x) {
     int total = 0, ret;
-    fmpz_t* buf; new_fmpz_array(&buf, 2);
-    fmpz_set(buf[0], x->AB);
-    fmpz_set(buf[1], x->C);
-    ret = send_fmpz_batch(sockfd, buf, 2);
+    fmpz_t* buff; new_fmpz_array(&buff, 2);
+    fmpz_set(buff[0], x->AB);
+    fmpz_set(buff[1], x->C);
+    ret = send_fmpz_batch(sockfd, buff, 2);
     if (ret <= 0) return ret; else total += ret;
-    clear_fmpz_array(buf, 2);
+    clear_fmpz_array(buff, 2);
     return total;
 }
 
 int recv_AltTriple(const int sockfd, AltTriple* const x) {
     int total = 0, ret;
-    fmpz_t* buf; new_fmpz_array(&buf, 2);
-    ret = recv_fmpz_batch(sockfd, buf, 2);
+    fmpz_t* buff; new_fmpz_array(&buff, 2);
+    ret = recv_fmpz_batch(sockfd, buff, 2);
     if (ret <= 0) return ret; else total += ret;
-    fmpz_set(x->AB, buf[0]);
-    fmpz_set(x->C, buf[1]);
-    clear_fmpz_array(buf, 2);
+    fmpz_set(x->AB, buff[0]);
+    fmpz_set(x->C, buff[1]);
+    clear_fmpz_array(buff, 2);
     return total;
 }
 
 int send_AltTriple_batch(const int sockfd, const AltTriple* const * const x, const size_t n) {
     int total = 0, ret;
-    fmpz_t* buf; new_fmpz_array(&buf, 2 * n);
+    fmpz_t* buff; new_fmpz_array(&buff, 2 * n);
 
     for (unsigned int i = 0; i < n; i++) {
-        fmpz_set(buf[2*i], x[i]->AB);
-        fmpz_set(buf[2*i+1], x[i]->C);
+        fmpz_set(buff[2*i], x[i]->AB);
+        fmpz_set(buff[2*i+1], x[i]->C);
     }
 
-    ret = send_fmpz_batch(sockfd, buf, 2 * n);
+    ret = send_fmpz_batch(sockfd, buff, 2 * n);
     if (ret <= 0) return ret; else total += ret;
 
-    clear_fmpz_array(buf, 2 * n);
+    clear_fmpz_array(buff, 2 * n);
     return total;
 }
 
 int recv_AltTriple_batch(const int sockfd, AltTriple* const * const x, const size_t n) {
     int total = 0, ret;
-    fmpz_t* buf; new_fmpz_array(&buf, 2 * n);
+    fmpz_t* buff; new_fmpz_array(&buff, 2 * n);
 
-    ret = recv_fmpz_batch(sockfd, buf, 2 * n);
+    ret = recv_fmpz_batch(sockfd, buff, 2 * n);
     if (ret <= 0) return ret; else total += ret;
 
     for (unsigned int i = 0; i < n; i++) {
-        fmpz_set(x[i]->AB, buf[2*i]);
-        fmpz_set(x[i]->C, buf[2*i+1]);
+        fmpz_set(x[i]->AB, buff[2*i]);
+        fmpz_set(x[i]->C, buff[2*i+1]);
     }
 
-    clear_fmpz_array(buf, 2 * n);
+    clear_fmpz_array(buff, 2 * n);
     return total;
 }
 
