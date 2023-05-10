@@ -14,12 +14,26 @@ Some of this code, such as the fast polynomial operations, is directly based on 
 
 1. [Flint 2.7.0+](https://flintlib.org)
 2. [emp-ot](https://github.com/emp-toolkit/emp-ot)
+3. [PALISADE](https://gitlab.com/palisade/palisade-release)
 
 # Getting Started
 
 ## Install dependencies
 
 Follow the links above to install the corresponding packages
+
+### EMP Instructions
+
+Uses EMP OT and SH2PC. 
+Install via `python install.py --deps --tool --ot --sh2pc` to install all relevant packages.
+(May need to run `install_name_tool -id '/usr/local/lib/libemp-tool.dylib' /usr/local/lib/libemp-tool.dylib` to get linkages to work, at least on MAC). 
+
+### PALISADE Instructions
+
+For full install instructions, see [here](https://gitlab.com/palisade/palisade-release/-/wikis/Build-instructions).
+Currently, Palisade is built with default args (`cmake ..`).
+
+PALISADE encryption is used to generate arithmetic Beaver triples.
 
 ## Build Prio+
 

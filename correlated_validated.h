@@ -5,13 +5,18 @@
 #include "interp.h"
 #include "utils.h"
 
-class ValidateCorrelatedStore : public DaBitStore {
+class ValidateCorrelatedStore : public PrecomputeStore {
   fmpz_t sigma;
   size_t sigma_uses;
   void check_sigma();  // Call before using sigma. Not return to avoid extra copy.
   void new_sigma();
 
   const size_t true_batch_size;
+
+  // TODO: merge behavior with precomputed stores
+  // Pre: for batch validate
+  // unval: recieved
+  // val: for computation
 
   std::queue<const DaBit* const> unvalidated_dabit_store;
 
@@ -21,6 +26,7 @@ class ValidateCorrelatedStore : public DaBitStore {
 
   std::unordered_map<size_t, MultCheckPreComp*> eval_precomp_store;
 
+  // TODO: consider moving this to normal precompute, and just not using it.
   typedef std::tuple <const DaBit* const *, const AltTriple* const *> pairtype;
   std::unordered_map<std::string, pairtype> unvalidated_pairs;
 
@@ -30,9 +36,10 @@ class ValidateCorrelatedStore : public DaBitStore {
 // Batch size must be power of two. NextPowerOfTwo is not inclusive, so -1 to make it so.
 public:
   ValidateCorrelatedStore(const int serverfd, const int server_num,
+      OT_Wrapper* const ot0, OT_Wrapper* const ot1,
       const size_t batch_size,
-      const bool lazy = false, const bool do_fork = true)
-  : DaBitStore(serverfd, server_num, NextPowerOfTwo(batch_size-1), lazy, do_fork)
+      const bool lazy = false)
+  : PrecomputeStore(serverfd, server_num, ot0, ot1, NextPowerOfTwo(batch_size-1), lazy)
   , true_batch_size(NextPowerOfTwo(batch_size-1))
   {
     fmpz_init(sigma);
@@ -44,20 +51,27 @@ public:
 
   ~ValidateCorrelatedStore();
 
-  fmpz_t* multiplyAltShares(const size_t N, const fmpz_t* const x,
-                            const bool* const use_validated);
+  // [z] = x_this * x_other
+  // uses a (un)validated alt triple
+  int multiplyAltShares(const size_t N, const fmpz_t* const x, fmpz_t* const z,
+                        const bool* const use_validated);
 
+  // Add unvalidated correlated to queue
   void addUnvalidated(const DaBit* const dabit, const AltTriple* const trip);
-  // If things are gotten out of order, accumulate based on pk
+  // Queue up paired unvalidated.
+  // Done this way in case data is out of order, had sync issues just using basic add
+  // accumulate based on pk, so that it's done with the same "owner"
   void queueUnvalidated(const DaBit* const * dabits, const AltTriple* const * trips,
                         const std::string pk);
+  // add up all unvalidated corresponding to pk
   void processUnvalidated(const std::string pk, const size_t n);
 
   void checkDaBits(const size_t n = 0);
+  // void checkTriples(const size_t n = 0);
 
-  void batchValidate(const size_t N);
-  void batchValidate() {
-    batchValidate(true_batch_size);
+  int batchValidate(const size_t N);
+  int batchValidate() {
+    return batchValidate(true_batch_size);
   };
   // TODO: batch validate max possible? NextPowerOfTwo(store size) / 2?
 

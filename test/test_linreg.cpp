@@ -74,8 +74,8 @@ void test_CheckLinReg() {
 
   Checker* checker_1 = new Checker(linreg_circuit1, 1, p1, pre1, inp1, true);
 
-  auto corshare0 = checker_0->CorShareFn();
-  auto corshare1 = checker_1->CorShareFn();
+  auto corshare0 = checker_0->CorFn();
+  auto corshare1 = checker_1->CorFn();
 
   Cor* cor0 = new Cor(corshare0, corshare1);
   Cor* cor1 = new Cor(corshare0, corshare1);
@@ -94,23 +94,19 @@ void test_CheckLinReg() {
   assert(result == 1);
   std::cout << "Result : " << std::boolalpha << result << std::endl;
 
-//   std::cout << "^v^v^ Shared validation: " << std::endl;
-//   fmpz_t tmp, rgr;
-//   fmpz_init(rgr);
-//   fmpz_init(tmp);
-//   fmpz_add(tmp, checker_0->evalF, checker_1->evalF);
-//   fmpz_mod(tmp, tmp, Int_Modulus);
-//   std::cout << "f(r) = "; fmpz_print(tmp); std::cout << std::endl;
-//   fmpz_add(rgr, checker_0->evalG, checker_1->evalG);
-//   fmpz_mod(rgr, rgr, Int_Modulus);
-//   std::cout << "r * g(r) = "; fmpz_print(rgr); std::cout << std::endl;
-//   fmpz_mul(tmp, tmp, rgr);
-//   fmpz_mod(tmp, tmp, Int_Modulus);
-//   std::cout << "r * f(r) * g(r) = "; fmpz_print(tmp); std::cout << std::endl;
+  std::cout << "^v^v^ Shared validation: " << std::endl;
+  fmpz_t tmp, rgr;
+  fmpz_init(rgr);
+  fmpz_init(tmp);
+  fmpz_mod_add(tmp, checker_0->evalF, checker_1->evalF, mod_ctx);
+  std::cout << "f(r) = "; fmpz_print(tmp); std::cout << std::endl;
+  fmpz_mod_add(rgr, checker_0->evalG, checker_1->evalG, mod_ctx);
+  std::cout << "r * g(r) = "; fmpz_print(rgr); std::cout << std::endl;
+  fmpz_mod_mul(tmp, tmp, rgr, mod_ctx);
+  std::cout << "r * f(r) * g(r) = "; fmpz_print(tmp); std::cout << std::endl;
 
-//   fmpz_add(tmp, checker_0->evalH, checker_1->evalH);
-//   fmpz_mod(tmp, tmp, Int_Modulus);
-//   std::cout << "r * h(r) = "; fmpz_print(tmp); std::cout << std::endl;
+  fmpz_mod_add(tmp, checker_0->evalH, checker_1->evalH, mod_ctx);
+  std::cout << "r * h(r) = "; fmpz_print(tmp); std::cout << std::endl;
 
   fmpz_clear(out0);
   fmpz_clear(out1);

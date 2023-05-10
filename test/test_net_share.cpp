@@ -117,15 +117,15 @@ void run_sender(int sockfd) {
     fmpz_print(packet2->f0_s); std::cout << std::endl;
     delete packet2;
 
-    size_t edasize = 8;
-    EdaBit* b0 = new EdaBit(edasize);
-    EdaBit* b1 = new EdaBit(edasize);
-    makeLocalEdaBit(b0, b1, edasize);
-    n = send_EdaBit(sockfd, b0, edasize);
-    std::cout << "send EdaBit " << edasize << " \tsize: " << n << std::endl;
-    b0->print();
-    delete b0;
-    delete b1;
+    // size_t edasize = 8;
+    // EdaBit* b0 = new EdaBit(edasize);
+    // EdaBit* b1 = new EdaBit(edasize);
+    // makeLocalEdaBit(b0, b1, edasize);
+    // n = send_EdaBit(sockfd, b0, edasize);
+    // std::cout << "send EdaBit " << edasize << " \tsize: " << n << std::endl;
+    // b0->print();
+    // delete b0;
+    // delete b1;
 
     // Poly
     // fmpz_set_ui(number, 100);
@@ -135,11 +135,12 @@ void run_sender(int sockfd) {
     // std::cout << "send X \tsize: " << n << " \tpoly: ";
     // fmpz_mod_poly_print_pretty(f, "x"); std::cout << std::endl;
 
-    flint_rand_t this_seed;
+    flint_rand_t this_seed; flint_randinit(this_seed);
     n = send_seed(sockfd, this_seed);
     std::cout << "send seed \tsize: " << n << " \tnext random: ";
     fmpz_randm(number, this_seed, Int_Modulus);
     fmpz_print(number); std::cout << std::endl;
+    flint_randclear(this_seed);
 
     // Sanity: sending numbers still works
     fmpz_set_d(number, 54321);
@@ -241,12 +242,12 @@ void run_receiver(int sockfd) {
     fmpz_print(packet2->f0_s); std::cout << std::endl;
     delete packet2;
 
-    size_t edasize = 8;
-    EdaBit* b0 = new EdaBit(edasize);
-    n = recv_EdaBit(sockfd, b0, edasize);
-    std::cout << "recv EdaBit " << edasize << " \tsize: " << n << std::endl;
-    b0->print();
-    delete b0;
+    // size_t edasize = 8;
+    // EdaBit* b0 = new EdaBit(edasize);
+    // n = recv_EdaBit(sockfd, b0, edasize);
+    // std::cout << "recv EdaBit " << edasize << " \tsize: " << n << std::endl;
+    // b0->print();
+    // delete b0;
 
     // fmpz_set_ui(number, 100);
     // fmpz_mod_poly_t f; fmpz_mod_poly_init(f, number);
@@ -254,7 +255,7 @@ void run_receiver(int sockfd) {
     // std::cout << "recv X \tsize: " << n << " \tpoly: ";
     // fmpz_mod_poly_print_pretty(f, "x"); std::cout << std::endl;
 
-    flint_rand_t this_seed;
+    flint_rand_t this_seed; flint_randinit(this_seed);
     // offset from default seed
     fmpz_randm(number, this_seed, Int_Modulus);
     fmpz_randm(number, this_seed, Int_Modulus);
@@ -262,6 +263,7 @@ void run_receiver(int sockfd) {
     std::cout << "recv seed \tsize: " << n << " \tnext random: ";
     fmpz_randm(number, this_seed, Int_Modulus);
     fmpz_print(number); std::cout << std::endl;
+    flint_randclear(this_seed);
 
     n = recv_fmpz(sockfd, number);
     std::cout << "recv fmpz \tsize: " << n << " \tval: ";
@@ -270,30 +272,55 @@ void run_receiver(int sockfd) {
     fmpz_clear(number);
 }
 
+void test_swap(int sockfd, int idx, size_t N) {
+    std::cout << "Player " << idx << " running swap test size " << N << std::endl;
+    bool* buff = new bool[N];
+    memset(buff, idx, N * sizeof(bool));
+
+    int bytes = swap_bool_batch(sockfd, buff, N);
+    std::cout << "bytes: " << bytes << std::endl;
+
+    assert(buff[0] == 1);
+    assert(buff[N - 1] == 1);
+
+    delete[] buff;
+}
+
 int main(int argc, char** argv) {
     init_constants();
 
-    /* set up receiver */
-    int sockfd = init_receiver();
+    int N = 15000000;
+    if (argc >= 2) {
+        N = atoi(argv[1]);
+    }
 
-    /* Launch child to do sending */
-    pid_t pid = fork();
-    if (pid == 0) {
+    std::thread t0([&]() {
         int cli_sockfd = init_sender();
+
         // sleep();
+
         run_sender(cli_sockfd);
+
+        test_swap(cli_sockfd, 0, N);
+
         close(cli_sockfd);
-    } else if (pid > 0) {
-        /* Do receiver handling */
+    });
+
+    std::thread t1([&]() {
+        int sockfd = init_receiver();
         int newsockfd = accept_receiver(sockfd);
 
         run_receiver(newsockfd);
 
+        test_swap(newsockfd, 1, N);
+
         close(newsockfd);
         close(sockfd);
-    } else {
-        error_exit("Failed to fork");
-    }
+    });
 
+    t0.join();
+    t1.join();
+
+    clear_constants();
     return 0;
 }

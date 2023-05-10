@@ -25,4 +25,3 @@ def find_gen(p, exp2):
             for e in range(exp):
                 r = power_mod(r, base, p)
         if is_gen(p, r, exp2): return r
-

@@ -6,9 +6,10 @@
 
 #if OT_TYPE == EMP_IKNP
 
-OT_Wrapper::OT_Wrapper(const char* address, const int port)
+OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool malicious)
 : io(new emp::NetIO(address, port, true))
-, ot(new emp::IKNP<emp::NetIO>(io))
+, ot(new emp::IKNP<emp::NetIO>(io, malicious))
+, malicious(malicious)
 {}
 
 OT_Wrapper::~OT_Wrapper() {
@@ -16,14 +17,16 @@ OT_Wrapper::~OT_Wrapper() {
     delete io;
 }
 
-void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
-                      const size_t length) {
+int OT_Wrapper::send(
+        const uint64_t* const data0, const uint64_t* const data1,
+        const size_t length,
+        const uint64_t* const data0_1, const uint64_t* const data1_1) {
     emp::block* const block0 = new emp::block[length];
     emp::block* const block1 = new emp::block[length];
 
     for (unsigned int i = 0; i < length; i++) {
-        block0[i] = emp::makeBlock(0, data0[i]);
-        block1[i] = emp::makeBlock(0, data1[i]);
+        block0[i] = emp::makeBlock(data0_1 ? data0_1[i] : 0, data0[i]);
+        block1[i] = emp::makeBlock(data1_1 ? data1_1[i] : 0, data1[i]);
         // std::cout << "Send[" << i << "] = (" << data0[i] << ", " << data1[i] << ")\n";
     }
 
@@ -33,20 +36,31 @@ void OT_Wrapper::send(const uint64_t* const data0, const uint64_t* const data1,
 
     delete[] block0;
     delete[] block1;
+
+    return bytes_sender_start + bytes_sender_per * length;
 }
 
-void OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length) {
+int OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length,
+                     uint64_t* const data_1) {
     emp::block* const block = new emp::block[length];
     io->sync();
     ot->recv(block, b, length);
     io->flush();
 
+    uint64_t* ans;
+
     for (unsigned int i = 0; i < length; i++) {
-        data[i] = *(uint64_t*)&block[i];
+        ans = (uint64_t*)&block[i];
+        data[i] = ans[0];
+        if (data_1 != nullptr)
+            data_1[i] = ans[1];
         // std::cout << "Recv[" << i << "][" << b[i] << "] = " << data[i] << std::endl;
     }
 
     delete[] block;
+
+    return bytes_recver_per_block * ((length / bytes_recver_block_size)
+                                     + (length % bytes_recver_block_size != 0));
 }
 
 #else
@@ -218,11 +232,11 @@ const uint64_t* const * const intsum_ot_receiver(
 }
 
 // Ref : https://crypto.stackexchange.com/questions/41651/what-are-the-ways-to-generate-beaver-triples-for-multiplication-gate
-std::queue<const BooleanBeaverTriple* const> gen_boolean_beaver_triples(
+std::queue<const BooleanBeaverTriple*> gen_boolean_beaver_triples(
         const int server_num, const unsigned int m,
         OT_Wrapper* const ot0, OT_Wrapper* const ot1){
     emp::PRG prg;
-    std::queue<const BooleanBeaverTriple* const> ans;
+    std::queue<const BooleanBeaverTriple*> ans;
     bool* const x = new bool[m];
     bool* const y = new bool[m];
     bool* const z = new bool[m];
@@ -334,15 +348,13 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, O
         fmpz_mod(r1, r1, Int_Modulus);
 
         // d = r0 - r1 + b, and swap
-        fmpz_sub(d, r0, r1);
-        fmpz_add(d, d, triple->B);
-        fmpz_mod(d, d, Int_Modulus);
+        fmpz_mod_sub(d, r0, r1, mod_ctx);
+        fmpz_mod_add(d, d, triple->B, mod_ctx);
         send_fmpz(serverfd, d);
 
-        fmpz_addmul(q, r0, pow); // r0
-        fmpz_mod(q, q, Int_Modulus);
+        fmpz_mod_addmul(q, r0, pow, mod_ctx); // r0
 
-        fmpz_mul_ui(pow, pow, 2);
+        fmpz_mod_mul_ui(pow, pow, 2, mod_ctx);
     }
 
     fmpz_set_si(pow, 1);  // 2^i
@@ -358,23 +370,20 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, O
         // t = s + ai d' = r0' + ai b'
         fmpz_set(ti, s);
         if (a_arr[i]) {
-            fmpz_add(ti, ti, d);
-            fmpz_mod(ti, ti, Int_Modulus);
+            fmpz_mod_add(ti, ti, d, mod_ctx);
         }
 
-        fmpz_addmul(t, ti, pow); // r0' + ai b'
-        fmpz_mod(t, t, Int_Modulus);
+        fmpz_mod_addmul(t, ti, pow, mod_ctx); // r0' + ai b'
 
-        fmpz_mul_ui(pow, pow, 2);
+        fmpz_mod_mul_ui(pow, pow, 2, mod_ctx);
     }
 
     // So t - q' = a b', and vice versa
 
     // c = a * b + t - q
-    fmpz_mul(triple->C, triple->A, triple->B);
-    fmpz_add(triple->C, triple->C, t);
-    fmpz_sub(triple->C, triple->C, q);
-    fmpz_mod(triple->C, triple->C, Int_Modulus);
+    fmpz_mod_mul(triple->C, triple->A, triple->B, mod_ctx);
+    fmpz_mod_add(triple->C, triple->C, t, mod_ctx);
+    fmpz_mod_sub(triple->C, triple->C, q, mod_ctx);
 
     return triple;
 }

@@ -8,17 +8,18 @@
 #include "../fmpz_utils.h"
 #include "../net_share.h"
 
-const size_t batch_size = 10000; // flexible
-const size_t N = 20;           // Must be >= 2
+const size_t batch_size = 100; // flexible
+const size_t N = 8;           // Must be >= 2
 
 const size_t num_bits = 3;     // Must be >= 3
-const bool do_fork = true;     // false to do leaks testing
 const bool lazy = false;
 
 void test_multiplyBoolShares(const size_t N, const int server_num, const int serverfd,
-    BoolStore* store) {
+    PrecomputeStore* store) {
   bool* const x = new bool[N];
   bool* const y = new bool[N];
+  memset(x, 0, N * sizeof(bool));
+  memset(y, 0, N * sizeof(bool));
   if (server_num == 0) {
     x[0] = true; x[1] = false;
     y[0] = false; y[1] = true;
@@ -27,7 +28,8 @@ void test_multiplyBoolShares(const size_t N, const int server_num, const int ser
     x[1] = true; y[1] = false;
   }
 
-  const bool* const z = store->multiplyBoolShares(N, x, y);
+  bool* z = new bool[N];
+  store->multiplyBoolShares(N, x, y, z);
 
   if (server_num == 0) {
     bool z_other;
@@ -45,7 +47,7 @@ void test_multiplyBoolShares(const size_t N, const int server_num, const int ser
 }
 
 void test_addBinaryShares(const size_t N, const size_t* const nbits, const int server_num, const int serverfd,
-    BoolStore* store) {
+    PrecomputeStore* store) {
   bool** const x = new bool*[N];
   bool** const y = new bool*[N];
   bool** const z = new bool*[N];
@@ -53,11 +55,10 @@ void test_addBinaryShares(const size_t N, const size_t* const nbits, const int s
     x[i] = new bool[nbits[i]];
     y[i] = new bool[nbits[i]];
     z[i] = new bool[nbits[i]];
+    memset(x[i], 0, nbits[i] * sizeof(bool));
+    memset(y[i], 0, nbits[i] * sizeof(bool));
+    memset(z[i], 0, nbits[i] * sizeof(bool));
   }
-  memset(x[0], 0, nbits[0]);
-  memset(x[1], 0, nbits[1]);
-  memset(y[0], 0, nbits[0]);
-  memset(y[1], 0, nbits[1]);
 
   if (server_num == 0) {
     x[0][0] = 1; x[0][1] = 0; x[0][2] = 1;  // 3
@@ -73,7 +74,8 @@ void test_addBinaryShares(const size_t N, const size_t* const nbits, const int s
     y[1][0] = 1; y[1][1] = 0; y[1][2] = 1; y[1][3] = 0;
   }
 
-  const bool* const carry = store->addBinaryShares(N, nbits, x, y, z);
+  bool* carry = new bool[N];
+  store->addBinaryShares(N, nbits, x, y, z, carry);
 
   if (server_num == 0) {
     bool other;
@@ -129,27 +131,27 @@ void test_addBinaryShares(const size_t N, const size_t* const nbits, const int s
 }
 
 void test_b2a_single(const size_t N, const int server_num, const int serverfd,
-    CorrelatedStore* store) {
+    ShareConverter* store) {
   bool* x = new bool[N];
+  memset(x, 0, N * sizeof(bool));
   if (server_num == 0) {
     x[0] = true; x[1] = false;
   } else {
     x[0] = true; x[1] = true;
   }
 
-  fmpz_t* xp = store->b2a_single(N, x);
+  fmpz_t* xp; new_fmpz_array(&xp, N);
+  store->b2a_single(N, x, xp);
 
   if (server_num == 0) {
     fmpz_t tmp; fmpz_init(tmp);
 
     recv_fmpz(serverfd, tmp);
-    fmpz_add(tmp, tmp, xp[0]);
-    fmpz_mod(tmp, tmp, Int_Modulus);
+    fmpz_mod_add(tmp, tmp, xp[0], mod_ctx);
     assert(fmpz_equal_ui(tmp, 0));  // 1 ^ 1 = 0
 
     recv_fmpz(serverfd, tmp);
-    fmpz_add(tmp, tmp, xp[1]);
-    fmpz_mod(tmp, tmp, Int_Modulus);
+    fmpz_mod_add(tmp, tmp, xp[1], mod_ctx);
     assert(fmpz_equal_ui(tmp, 1));  // 0 ^ 1 = 1
 
     fmpz_clear(tmp);
@@ -164,7 +166,7 @@ void test_b2a_single(const size_t N, const int server_num, const int serverfd,
 }
 
 void test_b2a_multi(const size_t N, const size_t* const nbits, const int server_num, const int serverfd,
-    CorrelatedStore* store) {
+    ShareConverter* store) {
   fmpz_t* x; new_fmpz_array(&x, N);
 
   if (server_num == 0) {
@@ -175,20 +177,18 @@ void test_b2a_multi(const size_t N, const size_t* const nbits, const int server_
     fmpz_set_ui(x[1], 4);
   }
 
-  fmpz_t* xp;
-  xp = store->b2a_multi(N, nbits, x);
+  fmpz_t* xp; new_fmpz_array(&xp, N);
+  store->b2a_multi(N, nbits, x, xp);
 
   if (server_num == 0) {
     fmpz_t tmp; fmpz_init(tmp);
 
     recv_fmpz(serverfd, tmp);
-    fmpz_add(tmp, tmp, xp[0]);
-    fmpz_mod(tmp, tmp, Int_Modulus);
+    fmpz_mod_add(tmp, tmp, xp[0], mod_ctx);
     assert(fmpz_equal_ui(tmp, 5));  // 3 ^ 6 = 5
 
     recv_fmpz(serverfd, tmp);
-    fmpz_add(tmp, tmp, xp[1]);
-    fmpz_mod(tmp, tmp, Int_Modulus);
+    fmpz_mod_add(tmp, tmp, xp[1], mod_ctx);
     assert(fmpz_equal_ui(tmp, 1));  // 5 ^ 4 = 1
 
     fmpz_clear(tmp);
@@ -204,10 +204,8 @@ void test_b2a_multi(const size_t N, const size_t* const nbits, const int server_
 void runServerTest(const int server_num, const int serverfd) {
   OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : "127.0.0.1", 60051);
   OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : "127.0.0.1", 60052);
-  PrecomputeStore* store_pre = new PrecomputeStore(serverfd, server_num, ot0, ot1, batch_size, lazy, do_fork);
-  OTCorrelatedStore* store_ot = new OTCorrelatedStore(serverfd, server_num, ot0, ot1, batch_size, lazy, do_fork);
-  BoolStore* store_bool = new BoolStore(serverfd, server_num, ot0, ot1, batch_size, lazy, do_fork);
-
+  PrecomputeStore* store_pre = new PrecomputeStore(serverfd, server_num, ot0, ot1, batch_size, lazy);
+  OTCorrelatedStore* store_ot = new OTCorrelatedStore(serverfd, server_num, ot0, ot1);
   store_pre->maybeUpdate();
 
   size_t* bits_arr = new size_t[N];
@@ -221,12 +219,11 @@ void runServerTest(const int server_num, const int serverfd) {
     std::cout << "iteration: " << i << std::endl;
     start = clock_start();
 
-    test_multiplyBoolShares(N, server_num, serverfd, store_bool);
+    test_multiplyBoolShares(N, server_num, serverfd, store_pre);
     std::cout << "mul bool timing : " << sec_from(start) << std::endl; start = clock_start();
 
-    test_addBinaryShares(N, bits_arr, server_num, serverfd, store_bool);
+    test_addBinaryShares(N, bits_arr, server_num, serverfd, store_pre);
     std::cout << "add bin timing : " << sec_from(start) << std::endl; start = clock_start();
-
 
     test_b2a_single(N, server_num, serverfd, store_pre);
     std::cout << "b2a da single timing : " << sec_from(start) << std::endl; start = clock_start();
@@ -248,20 +245,21 @@ void runServerTest(const int server_num, const int serverfd) {
   delete[] bits_arr;
   delete store_pre;
   delete store_ot;
-  delete store_bool;
 }
 
 void serverTest() {
   std::cout << "Running server test" << std::endl;
-  int sockfd = init_receiver();
 
-  pid_t pid = fork();
-  if (pid == 0) {
+  std::thread t0([&]() {
     int cli_sockfd = init_sender();
 
     runServerTest(0, cli_sockfd);
+
     close(cli_sockfd);
-  } else {
+  });
+
+  std::thread t1([&]() {
+    int sockfd = init_receiver();
     int newsockfd = accept_receiver(sockfd);
 
     // alter randomness to be different from the sender
@@ -275,9 +273,11 @@ void serverTest() {
     runServerTest(1, newsockfd);
 
     close(newsockfd);
-  }
+    close(sockfd);
+  });
 
-  close(sockfd);
+  t0.join();
+  t1.join();
 }
 
 int main(int argc, char* argv[]) {

@@ -29,20 +29,22 @@ const AltTriple* ValidateCorrelatedStore::get_validated_alt_triple() {
   }
 }
 
-// [z] = x_this * x_other
+// [z] = x * x'
 /*
-diff_i = x-i - trip_i->AB
+Trip: (ab, c), (ab', c'), with ab * ab' = c + c'
+diff = x - ab, diff' = x' - ab'
 swap diff
-z_0 = (diff_1 * trip->AB) + trip->C
-z_1 = (diff_0 * x_1) + trip->C
+z_0 = (diff' * trip->AB) + trip->C
+z_1 = (diff * x_1) + trip->C
 */
-fmpz_t* ValidateCorrelatedStore::multiplyAltShares(
-    const size_t N, const fmpz_t* const x, const bool* const use_validated) {
-  fmpz_t* z; new_fmpz_array(&z, N);
+int ValidateCorrelatedStore::multiplyAltShares(
+    const size_t N, const fmpz_t* const x, fmpz_t* const z,
+    const bool* const use_validated) {
+  int sent_bytes = 0;
   fmpz_t* diff; new_fmpz_array(&diff, N);
 
   // only used by server 1, save trip->AB value
-  fmpz_t* a; if (server_num == 0) new_fmpz_array(&a, N);
+  fmpz_t* a; new_fmpz_array(&a, N);
 
   for (unsigned int i = 0; i < N; i++) {
     const AltTriple* trip;
@@ -53,39 +55,30 @@ fmpz_t* ValidateCorrelatedStore::multiplyAltShares(
       unvalidated_alt_triple_store.pop();
     }
 
-    fmpz_sub(diff[i], x[i], trip->AB);
-    fmpz_mod(diff[i], diff[i], Int_Modulus);
+    fmpz_mod_sub(diff[i], x[i], trip->AB, mod_ctx);
     fmpz_set(z[i], trip->C);
-    if (server_num == 0) fmpz_set(a[i], trip->AB);
+    if (server_num == 0)
+      fmpz_set(a[i], trip->AB);
+    else
+      fmpz_set(a[i], x[i]);
 
     delete trip;
   }
 
-  pid_t pid = 0;
-  int status = 0;
-  if (do_fork) pid = fork();
-  if (pid == 0) {
-    send_fmpz_batch(serverfd, diff, N);
-    if (do_fork) exit(EXIT_SUCCESS);
-  }
+  // TODO: Swap auto-sums, we want raw swap with threading.
+  // sent_bytes += swap_fmpz_batch(serverfd, diff, N);
+  sent_bytes += send_fmpz_batch(serverfd, diff, N);
   fmpz_t* diff_other; new_fmpz_array(&diff_other, N);
   recv_fmpz_batch(serverfd, diff_other, N);
 
   for (unsigned int i = 0; i < N; i++) {
-    if (server_num == 0) {
-      fmpz_addmul(z[i], diff_other[i], a[i]);
-    } else {
-      fmpz_addmul(z[i], diff_other[i], x[i]);
-    }
-    fmpz_mod(z[i], z[i], Int_Modulus);
+    fmpz_mod_addmul(z[i], diff_other[i], a[i], mod_ctx);
   }
   clear_fmpz_array(diff, N);
   clear_fmpz_array(diff_other, N);
-  if (server_num == 0) clear_fmpz_array(a, N);
+  clear_fmpz_array(a, N);
 
-  if (do_fork) waitpid(pid, &status, 0);
-
-  return z;
+  return sent_bytes;
 }
 
 void ValidateCorrelatedStore::addUnvalidated(
@@ -112,24 +105,24 @@ void ValidateCorrelatedStore::processUnvalidated(const std::string pk, const siz
 
 // TODO: Backup process if there is unvalidated.
 // Perhaps merge with Preocmpute store, to precompute only if necessary?
+// TODO: Use legit triple for validation, for maliciousness
 
-void ValidateCorrelatedStore::batchValidate(const size_t N) {
+int ValidateCorrelatedStore::batchValidate(const size_t N) {
+  int sent_bytes = 0;
   // isPowerOfTwo from utils.h
-  std::cout << "Batch validating " << N << std::endl;
-  printSizes();
   if (not isPowerOfTwo(N)) {
     std::cout << N << " should be a power of two" << std::endl;
-    return;
+    return sent_bytes;
   }
   if (unvalidated_dabit_store.size() < N) {
     std::cout << "Not enough unvalidated dabits: " << unvalidated_dabit_store.size();
     std::cout << " of " << N << std::endl;
-    return;
+    return sent_bytes;
   }
   if (unvalidated_dabit_store.size() < N) {
     std::cout << "Not enough unvalidated alt triples: " << unvalidated_alt_triple_store.size();
     std::cout << " of " << N << std::endl;
-    return;
+    return sent_bytes;
   }
 
   check_sigma();
@@ -149,8 +142,7 @@ void ValidateCorrelatedStore::batchValidate(const size_t N) {
     // *2 on server0 only
     fmpz_set_ui(pointsF[i], (1 + (server_num == 0)) * (int) bit->b2);
     fmpz_set_ui(pointsG[2*i], (int) bit->b2);
-    fmpz_sub(pointsG[2*i], pointsG[2*i], bit->bp);
-    fmpz_mod(pointsG[2*i], pointsG[2*i], Int_Modulus);
+    fmpz_mod_sub(pointsG[2*i], pointsG[2*i], bit->bp, mod_ctx);
 
     candidates[i] = bit;
   }
@@ -174,10 +166,13 @@ void ValidateCorrelatedStore::batchValidate(const size_t N) {
   }
   clear_fmpz_array(evalsF, N);
   fmpz_set(points[N], sigmaF);
+  // Only the final one needs to be validated.
+  // TODO: look back at this logic.
   bool use_validated[N+1];
   memset(use_validated, 0, sizeof(bool)*N);
   use_validated[N] = true;
-  fmpz_t* pointsMult = multiplyAltShares(N+1, points, use_validated);
+  fmpz_t* pointsMult; new_fmpz_array(&pointsMult, N+1);
+  sent_bytes += multiplyAltShares(N+1, points, pointsMult, use_validated);
   clear_fmpz_array(points, N+1);
   for (unsigned int i = 0; i < N; i++) {
     fmpz_set(pointsG[2*i+1], pointsMult[i]);
@@ -192,42 +187,33 @@ void ValidateCorrelatedStore::batchValidate(const size_t N) {
   chk->Eval2(pointsG, sigmaG);
   clear_fmpz_array(pointsG, 2*N);
   fmpz_t diff; fmpz_init(diff);
-  fmpz_sub(diff, sigmaF, sigmaG);
-  fmpz_mod(diff, diff, Int_Modulus);
-  fmpz_t diff_other; fmpz_init(diff_other);
-
-  pid_t pid = 0;
-  int status = 0;
-  if (do_fork) pid = fork();
-  if (pid == 0) {
-    send_fmpz(serverfd, diff);
-    if (do_fork) exit(EXIT_SUCCESS);
-  }
-  recv_fmpz(serverfd, diff_other);
-
-  fmpz_add(diff, diff, diff_other);
-  fmpz_mod(diff, diff, Int_Modulus);
-
+  fmpz_mod_sub(diff, sigmaF, sigmaG, mod_ctx);
   fmpz_clear(sigmaF);
   fmpz_clear(sigmaG);
+
+  // Swap, but single item so doens't need wrapper
+  fmpz_t diff_other; fmpz_init(diff_other);
+  sent_bytes += send_fmpz(serverfd, diff);
+  recv_fmpz(serverfd, diff_other);
+  fmpz_mod_add(diff, diff, diff_other, mod_ctx);
   fmpz_clear(diff_other);
 
   if (fmpz_is_zero(diff)) {
-    std::cout << "batch validate is valid" << std::endl;
+    // std::cout << "batch validate is valid" << std::endl;
     for (unsigned int i = 0; i < N; i++) {
       dabit_store.push(candidates[i]);
     }
   } else {
-    std::cout << "batch validate is invalid" << std::endl;
+    std::cout << "batch validate is invalid, diff check is " << fmpz_get_si(diff) << std::endl;
     for (unsigned int i = 0; i < N; i++) {
       delete candidates[i];
     }
-    error_exit("Currently no recovery");
+    error_exit("TODO: Currently no recovery for bad validation");
   }
 
   fmpz_clear(diff);
 
-  if (do_fork) waitpid(pid, &status, 0);
+  return sent_bytes;
 }
 
 void ValidateCorrelatedStore::checkDaBits(const size_t n) {
@@ -236,11 +222,11 @@ void ValidateCorrelatedStore::checkDaBits(const size_t n) {
     // NextPowerOfTwo is not inclusive, so -1 or /2
 
     // minimal approach: smallest needed, not as efficient
-    // const size_t needed = NextPowerOfTwo(n - dabit_store.size() - 1);
+    // const size_t to_make = NextPowerOfTwo(n - dabit_store.size() - 1);
 
     // largest approach: largest power of 2 < size (since exclusive)
-    const size_t largest = NextPowerOfTwo(unvalidated_dabit_store.size())/2;
-    batchValidate(largest);
+    const size_t to_make = NextPowerOfTwo(unvalidated_dabit_store.size())/2;
+    batchValidate(to_make);
   }
 }
 
@@ -277,9 +263,9 @@ MultCheckPreComp* ValidateCorrelatedStore::getPrecomp(const size_t N) {
 void ValidateCorrelatedStore::printSizes() {
   std::cout << "Current store sizes:" << std::endl;
   std::cout << " Dabits: " << dabit_store.size() << std::endl;
-  std::cout << " Unvalidated Dabits: " << unvalidated_dabit_store.size() << std::endl;
-  std::cout << " Triples: " << validated_alt_triple_store.size() << std::endl;
-  std::cout << " Unvalidated: " << unvalidated_alt_triple_store.size() << std::endl;
+  std::cout << "  Unvalidated: " << unvalidated_dabit_store.size() << std::endl;
+  std::cout << " Alt Triples: " << validated_alt_triple_store.size() << std::endl;
+  std::cout << "  Unvalidated: " << unvalidated_alt_triple_store.size() << std::endl;
 }
 
 ValidateCorrelatedStore::~ValidateCorrelatedStore() {

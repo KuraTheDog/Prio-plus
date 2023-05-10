@@ -16,15 +16,13 @@ enum returnType {
 
 // Common (synced) randomness between all checkers on both servers
 // Could also be static member, but then syncing is harder
+// If on the same runtime, instead uses constant values,
+// so that them sharing a seed doesn't cause desync.
 extern flint_rand_t snips_seed;
 flint_rand_t snips_seed;
 void syncSnipSeeds(const int serverfd, const int server_num) {
     flint_randinit(snips_seed);
     fmpz_t tmp; fmpz_init(tmp);
-
-    // fmpz_randm(tmp, snips_seed, Int_Modulus);
-    // std::cout << "server " << server_num << " snips sync: next rand: ";
-    // fmpz_print(tmp); std::cout << std::endl;
 
     if (server_num == 0)
         send_seed(serverfd, snips_seed);
@@ -64,7 +62,6 @@ struct Checker {
     {
         if (same_runtime) {
             std::cout << "DEBUG: using fixed checker randomness since same runtime" << std::endl;
-            flint_randinit(snips_seed);
         }
 
         new_fmpz_array(&pointsF, N + 1);
@@ -80,7 +77,6 @@ struct Checker {
     }
 
     ~Checker() {
-        flint_randclear(seed);
         clear_fmpz_array(pointsF, N + 1);
         clear_fmpz_array(pointsG, N + 1);
         clear_fmpz_array(pointsH, 2 * (N + 1));
@@ -124,15 +120,12 @@ struct Checker {
         fmpz_clear(x);
     }
 
-    CorShare* CorShareFn() {
-        // std::cout << "CorShareFn" << std::endl;
-        CorShare* const out = new CorShare();
+    Cor* CorFn() const {
+        // std::cout << "CorFn" << std::endl;
+        Cor* const out = new Cor();
 
-        fmpz_sub(out->shareD, evalF, req->triple->A);
-        fmpz_mod(out->shareD, out->shareD, Int_Modulus);
-
-        fmpz_sub(out->shareE, evalG, req->triple->B);
-        fmpz_mod(out->shareE, out->shareE, Int_Modulus);
+        fmpz_mod_sub(out->D, evalF, req->triple->A, mod_ctx);
+        fmpz_mod_sub(out->E, evalG, req->triple->B, mod_ctx);
 
         return out;
     }
@@ -141,29 +134,17 @@ struct Checker {
         fmpz_t mulCheck;
         fmpz_t term;
 
-        fmpz_init(mulCheck);
+        fmpz_init_set_ui(mulCheck, 0);
         fmpz_init(term);
 
         if (server_num == 0) {
-            fmpz_mul(mulCheck, corIn->D, corIn->E);
-            fmpz_mod(mulCheck, mulCheck, Int_Modulus);
+            fmpz_mod_mul(mulCheck, corIn->D, corIn->E, mod_ctx);
         }
 
-        fmpz_mul(term, corIn->D, req->triple->B);
-        fmpz_mod(term, term, Int_Modulus);
-        fmpz_add(mulCheck, mulCheck, term);
-        fmpz_mod(mulCheck, mulCheck, Int_Modulus);
-
-        fmpz_mul(term, corIn->E, req->triple->A);
-        fmpz_mod(term, term, Int_Modulus);
-        fmpz_add(mulCheck, mulCheck, term);
-        fmpz_mod(mulCheck, mulCheck, Int_Modulus);
-
-        fmpz_add(mulCheck, mulCheck, req->triple->C);
-        fmpz_mod(mulCheck, mulCheck, Int_Modulus);
-
-        fmpz_sub(mulCheck, mulCheck, evalH);
-        fmpz_mod(mulCheck, mulCheck, Int_Modulus);
+        fmpz_mod_addmul(mulCheck, corIn->D, req->triple->B, mod_ctx);
+        fmpz_mod_addmul(mulCheck, corIn->E, req->triple->A, mod_ctx);
+        fmpz_mod_add(mulCheck, mulCheck, req->triple->C, mod_ctx);
+        fmpz_mod_sub(mulCheck, mulCheck, evalH, mod_ctx);
 
         fmpz_t* arr;
         const size_t num_zero_gates = ckt->result_zero.size();
@@ -183,28 +164,24 @@ struct Checker {
     }
 
     void randSum(fmpz_t out, const fmpz_t* const arr, const size_t len) const {
-        fmpz_t tmp; fmpz_init(tmp);
+        fmpz_t r; fmpz_init(r);
 
         for (unsigned int i = 0; i < len; i++) {
-            fmpz_randm(tmp, snips_seed, Int_Modulus);
-            if (same_runtime)
-                fmpz_set_ui(tmp, 1);
-            fmpz_mul(tmp, tmp, arr[i]);
-            fmpz_mod(tmp, tmp, Int_Modulus);
-
-            fmpz_add(out, out, tmp);
+            if (!same_runtime) {
+                fmpz_randm(r, snips_seed, Int_Modulus);
+            } else {
+                fmpz_set_ui(r, 1);
+            }
+            fmpz_mod_addmul(out, r, arr[i], mod_ctx);
         }
 
-        fmpz_mod(out, out, Int_Modulus);
-
-        fmpz_clear(tmp);
+        fmpz_clear(r);
     }
 };
 
 bool AddToZero(const fmpz_t x, const fmpz_t y) {
     fmpz_t sum; fmpz_init(sum);
-    fmpz_add(sum, x, y);
-    fmpz_mod(sum, sum, Int_Modulus);
+    fmpz_mod_add(sum, x, y, mod_ctx);
     bool ans = fmpz_is_zero(sum);
     fmpz_clear(sum);
     return ans;

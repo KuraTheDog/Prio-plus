@@ -20,13 +20,27 @@ For share conversion
 struct OT_Wrapper {
   emp::NetIO* const io;
   emp::IKNP<emp::NetIO>* const ot;
+  const bool malicious;  // Default true. Stored for printing.
 
-  OT_Wrapper(const char* const address, const int port);
+  // Communication costs (computed via monitoring network traffic)
+  // Is bytes sent, since receiver also sends.
+  // There are also one-time-setup costs, which are on server startup so not part of communication
+  const size_t bytes_sender_start = 1;
+  const size_t bytes_sender_per = 32;
+  const size_t bytes_recver_per_block = 2048;
+  const size_t bytes_recver_block_size = 128;
+
+  OT_Wrapper(const char* const address, const int port, const bool malicious = true);
   ~OT_Wrapper();
 
-  void send(const uint64_t* const data0, const uint64_t* const data1,
-            const size_t length);
-  void recv(uint64_t* const data, const bool* b, const size_t length);
+  // OT send/recv 64 bit data = datab selected from (data0, data) using b
+  // If dataX_1 are set, is additional 64 bits added on, for 128 total.
+  // I.e. (data, data_1) = (datab, datab_1) for choice b
+  int send(const uint64_t* const data0, const uint64_t* const data1,
+           const size_t length,
+           const uint64_t* const data0_1 = nullptr, const uint64_t* const data1_1 = nullptr);
+  int recv(uint64_t* const data, const bool* b, const size_t length,
+           uint64_t* const data_1 = nullptr);
 };
 
 // mod 0 = default 2^64
@@ -51,7 +65,7 @@ const uint64_t* const * const intsum_ot_receiver(
     const size_t* const num_bits, const size_t num_shares, const size_t num_values,
     const size_t mod = 0);
 
-std::queue<const BooleanBeaverTriple* const> gen_boolean_beaver_triples(
+std::queue<const BooleanBeaverTriple*> gen_boolean_beaver_triples(
     const int server_num, const unsigned int m,
     OT_Wrapper* const ot0, OT_Wrapper* const ot1);
 

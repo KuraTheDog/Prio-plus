@@ -1,5 +1,3 @@
-// Deprecated and unused
-
 #include "he_triples.h"
 
 #include <sys/wait.h>
@@ -10,7 +8,7 @@
 #include "ciphertext-ser.h"
 #include "pubkeylp-ser.h"
 #include "scheme/bfvrns/bfvrns-ser.h"
-#include "utils/serialize-binary.h"
+#include "utils/serial.h"
 
 #include "net_share.h"
 #include "share.h"
@@ -18,10 +16,9 @@
 // Sends a serializable T mine, receives sent T other.
 template <class T>
 T* ArithTripleGenerator::serializedSwap(const size_t num_batches, const T* mine) const {
-  pid_t pid = 0;
-  int status = 0;
-  if (do_fork) pid = fork();
-  if (pid == 0) {
+  T* other = new T[num_batches];
+
+  std::thread t_send([num_batches, serverfd, mine]() {
     for (unsigned int i = 0; i < num_batches; i++) {
       std::string s;
       std::stringstream ss;
@@ -29,27 +26,25 @@ T* ArithTripleGenerator::serializedSwap(const size_t num_batches, const T* mine)
       s = ss.str();
       send_string(serverfd, s);
     }
+  });
+  std::thread t_recv([num_batches, serverfd, &other]() {
+    for (unsigned int i = 0; i < num_batches; i++) {
+      std::string s2;
+      std::stringstream ss2;
+      recv_string(serverfd, s2);
+      ss2 << s2;
+      ss2.flush();
+      Serial::Deserialize(other[i], ss2, SerType::BINARY);
+    }
+  });
+  t_send.join();
+  t_recv.join();
 
-    if (do_fork) exit(EXIT_SUCCESS);
-  }
-
-  T* other = new T[num_batches];
-  for (unsigned int i = 0; i < num_batches; i++) {
-    std::string s2;
-    std::stringstream ss2;
-    recv_string(serverfd, s2);
-    ss2 << s2;
-    ss2.flush();
-    Serial::Deserialize(other[i], ss2, SerType::BINARY);
-  }
-
-  if (do_fork) waitpid(pid, &status, 0);
   return other;
 }
 
-ArithTripleGenerator::ArithTripleGenerator(const int serverfd, const int server_num, const unsigned int random_offset, const bool do_fork)
+ArithTripleGenerator::ArithTripleGenerator(const int serverfd, const int server_num, const unsigned int random_offset)
 : serverfd(serverfd)
-, do_fork(do_fork)
 {
   if (fmpz_cmp_ui(Int_Modulus, 1ULL << 60) > 0) {
     perror("ERROR: PALISADE based triples don't support Int_Modulus >60 bits");
@@ -67,6 +62,9 @@ ArithTripleGenerator::ArithTripleGenerator(const int serverfd, const int server_
   sk = keyPair.secretKey;
   cc->EvalMultKeyGen(sk);
 
+  // Seed and set up random ints
+  std::random_device rd;
+  std::mt19937 gen(rd());
   std::uniform_int_distribution<int64_t> index_dist{0, plaintextModulus - 1};
   random_int = std::bind(index_dist, generator);
 
@@ -149,12 +147,9 @@ std::vector<BeaverTriple*> ArithTripleGenerator::generateTriples(const size_t n)
       fmpz_set_si(triple->A, a[i][j]);
       fmpz_set_si(triple->B, b[i][j]);
       // c = ab + d + e
-      fmpz_set_si(triple->C, a[i][j]);
-      fmpz_mul_si(triple->C, triple->C, b[i][j]);
-      fmpz_mod(triple->C, triple->C, Int_Modulus);
-      fmpz_add_si(triple->C, triple->C, d[i][j]);
-      fmpz_add_si(triple->C, triple->C, e[j]);
-      fmpz_mod(triple->C, triple->C, Int_Modulus);
+      fmpz_mod_mul(triple->C, triple->A, triple->B, mod_ctx);
+      fmpz_mod_add_si(triple->C, triple->C, d[i][j], mod_ctx);
+      fmpz_mod_add_si(triple->C, triple->C, e[j], mod_ctx);
 
       res.push_back(triple);
     }

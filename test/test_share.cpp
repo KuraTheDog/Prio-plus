@@ -12,8 +12,7 @@ void testSplitShare() {
     SplitShare(num, a, b);
 
     fmpz_t sum; fmpz_init(sum);
-    fmpz_add(sum, a, b);
-    fmpz_mod(sum, sum, Int_Modulus);
+    fmpz_mod_add(sum, a, b, mod_ctx);
 
     assert(fmpz_equal(num, sum) == 1);
 
@@ -34,14 +33,10 @@ void testBeaverTriple() {
     fmpz_init(C);
     fmpz_init(prod);
 
-    fmpz_add(A, t0->A, t1->A);
-    fmpz_mod(A, A, Int_Modulus);
-    fmpz_add(B, t0->B, t1->B);
-    fmpz_mod(B, B, Int_Modulus);
-    fmpz_add(C, t0->C, t1->C);
-    fmpz_mod(C, C, Int_Modulus);
-    fmpz_mul(prod, A, B);
-    fmpz_mod(prod, prod, Int_Modulus);
+    fmpz_mod_add(A, t0->A, t1->A, mod_ctx);
+    fmpz_mod_add(B, t0->B, t1->B, mod_ctx);
+    fmpz_mod_add(C, t0->C, t1->C, mod_ctx);
+    fmpz_mod_mul(prod, A, B, mod_ctx);
 
     assert(fmpz_equal(prod, C) == 1);
 
@@ -57,7 +52,6 @@ int main() {
 
     testSplitShare();
     testBeaverTriple();
-
 
     return 0;
 }

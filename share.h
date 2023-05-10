@@ -6,8 +6,7 @@
 // For fmpz types
 #include "fmpz_utils.h"
 
-struct CorShare;
-
+// For checker's triples
 struct Cor {
     fmpz_t D;
     fmpz_t E;
@@ -17,27 +16,11 @@ struct Cor {
         fmpz_init(E);
     }
 
-    Cor(const CorShare* const x, const CorShare* const y);
+    Cor(const Cor* const x, const Cor* const y);
 
     ~Cor(){
         fmpz_clear(D);
         fmpz_clear(E);
-    }
-};
-
-// Combine with Cor?
-struct CorShare {
-    fmpz_t shareD;
-    fmpz_t shareE;
-
-    CorShare(){
-        fmpz_init(shareD);
-        fmpz_init(shareE);
-    }
-
-    ~CorShare(){
-        fmpz_clear(shareD);
-        fmpz_clear(shareE);
     }
 };
 
@@ -125,18 +108,18 @@ struct ClientPacket {
     }
 
     void print() const {
-        std::cout << " NMul = " << NMul << std::endl;
-        std::cout << " N = " << N << std::endl;
+        std::cout << " NMul = " << NMul << "\n";
+        std::cout << " N = " << N << "\n";
         std::cout << " MulShares = {";
         for (unsigned int i = 0; i < NMul; i++) {
             if (i > 0)
                 std::cout << ", ";
             fmpz_print(MulShares[i]);
         }
-        std::cout << "}" << std::endl;
-        std::cout << " f0_s = "; fmpz_print(f0_s); std::cout << std::endl;
-        std::cout << " g0_s = "; fmpz_print(g0_s); std::cout << std::endl;
-        std::cout << " h0_s = "; fmpz_print(h0_s); std::cout << std::endl;
+        std::cout << "}\n";
+        std::cout << " f0_s = "; fmpz_print(f0_s); std::cout << "\n";
+        std::cout << " g0_s = "; fmpz_print(g0_s); std::cout << "\n";
+        std::cout << " h0_s = "; fmpz_print(h0_s); std::cout << "\n";
         std::cout << " h_points = {";
         for (unsigned int i = 0; i < N; i++) {
             if (i > 0)
@@ -160,13 +143,13 @@ struct DaBit {
     }
 
     void print() const {
-        std::cout << " [b]_p = "; fmpz_print(bp); std::cout << std::endl;
+        std::cout << " [b]_p = "; fmpz_print(bp); std::cout << "\n";
         std::cout << " [b]_2 = " << b2 << std::endl;
     }
 };
 
 // Deprecated. Multiple DaBits use less rounds
-struct EdaBit {
+struct [[deprecated("Multiple Dabits requires less rounds")]] EdaBit {
     fmpz_t r;        // [r]_p
     const size_t n;  // number of bits, length of b
     bool* b;         // {[b]_2}
@@ -193,10 +176,10 @@ struct EdaBit {
     }
 
     void print() const {
-        std::cout << " r = "; fmpz_print(r); std::cout << std::endl;
+        std::cout << " r = " << fmpz_get_ui(r) << "\n";
         fmpz_t x; fmpz_init(x);
         fmpz_from_bool_array(x, b, n);
-        std::cout << " b = "; fmpz_print(x); std::cout << std::endl;
+        std::cout << " b = "  << fmpz_get_ui(x) << std::endl;
         fmpz_clear(x);
     }
 };
@@ -208,6 +191,6 @@ void NewBeaverTriples(BeaverTriple* const out0, BeaverTriple* const out1);
 void NewAltTriples(AltTriple* const out0, AltTriple* const out1);
 
 void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1);
-void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n);
+[[deprecated]] void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n);
 
 #endif

@@ -16,6 +16,9 @@ using namespace lbcrypto;
 // Basic run: local, one context/keys
 void runLocal(size_t N) {
 
+  // Does account for max batch size
+  if (N > 8192) N = 8192;
+
   // int64_t plaintextModulus = 65537;
   // int64_t plaintextModulus = 0x8008001;
   int64_t plaintextModulus = 0x800008001;
@@ -104,17 +107,17 @@ void runLocal(size_t N) {
   Plaintext plain_tmp;
   cryptoContext->Decrypt(keyPair.secretKey, ct_a2_b, &plain_tmp);
   plain_tmp->SetLength(N); auto tmp_val = plain_tmp->GetPackedValue();
-  std::cout << "dec(a2_b): " << tmp_val << std::endl;
+  // std::cout << "dec(a2_b): " << tmp_val << std::endl;
   cryptoContext->Decrypt(keyPair.secretKey, ct_e2, &plain_tmp);
   plain_tmp->SetLength(N); tmp_val = plain_tmp->GetPackedValue();
-  std::cout << "dec(e2):   " << tmp_val << std::endl;
+  // std::cout << "dec(e2):   " << tmp_val << std::endl;
 
   cryptoContext->Decrypt(keyPair.secretKey, ct_a_b2, &plain_tmp);
   plain_tmp->SetLength(N); tmp_val = plain_tmp->GetPackedValue();
-  std::cout << "dec(a_b2): " << tmp_val << std::endl;
+  // std::cout << "dec(a_b2): " << tmp_val << std::endl;
   cryptoContext->Decrypt(keyPair.secretKey, ct_e, &plain_tmp);
   plain_tmp->SetLength(N); tmp_val = plain_tmp->GetPackedValue();
-  std::cout << "dec(e):    " << tmp_val << std::endl;
+  // std::cout << "dec(e):    " << tmp_val << std::endl;
 
   // swap e2 -> 2, e -> 1
 
@@ -129,20 +132,20 @@ void runLocal(size_t N) {
   plain_e2->SetLength(N);
   auto e2 = plain_e2->GetPackedValue();
 
-  std::cout << "a : " << a << std::endl;
-  std::cout << "a2: " << a2 << std::endl;
-  std::cout << "b : " << b << std::endl;
-  std::cout << "b2: " << b2 << std::endl;
+  // std::cout << "a : " << a << std::endl;
+  // std::cout << "a2: " << a2 << std::endl;
+  // std::cout << "b : " << b << std::endl;
+  // std::cout << "b2: " << b2 << std::endl;
 
-  std::cout << std::endl;
+  // std::cout << std::endl;
 
-  std::cout << "d : " << d << std::endl;
-  std::cout << "d2: " << d2 << std::endl;
+  // std::cout << "d : " << d << std::endl;
+  // std::cout << "d2: " << d2 << std::endl;
 
-  std::cout << std::endl;
+  // std::cout << std::endl;
 
-  std::cout << "e : " << e << std::endl;
-  std::cout << "e2: " << e2 << std::endl;
+  // std::cout << "e : " << e << std::endl;
+  // std::cout << "e2: " << e2 << std::endl;
 
   fmpz_t c_val; fmpz_init(c_val);
   fmpz_t c2_val; fmpz_init(c2_val);
@@ -151,7 +154,7 @@ void runLocal(size_t N) {
   fmpz_t tmp2; fmpz_init(tmp2);
 
   for (unsigned int i = 0; i < N; i++) {
-    std::cout << i << ": ";
+    // std::cout << i << ": ";
     fmpz_set_si(c_val, a[i]); fmpz_mul_si(c_val, c_val, b[i]);
     fmpz_add_si(c_val, c_val, d[i]); fmpz_add_si(c_val, c_val, e[i]);
     fmpz_mod(c_val, c_val, fmod);
@@ -163,13 +166,17 @@ void runLocal(size_t N) {
     fmpz_set_si(tmp, a[i]); fmpz_add_si(tmp, tmp, a2[i]);
     fmpz_set_si(tmp2, b[i]); fmpz_add_si(tmp2, tmp2, b2[i]);
     fmpz_mul(tmp, tmp, tmp2); fmpz_mod(tmp, tmp, fmod);
-    std::cout << "(" << a[i] << " + " << a2[i] << ")";
-    std::cout << " * (" << b[i] << " + " << b2[i] << ")";
-    std::cout << "\n = "; fmpz_print(tmp);
-    std::cout << "\n  ("; fmpz_print(c_val);
-    std::cout << " + "; fmpz_print(c_val);
-    fmpz_add(tmp, c_val, c2_val); fmpz_mod(tmp, tmp, fmod);
-    std::cout << ")\n = "; fmpz_print(tmp); std::cout << std::endl;
+    fmpz_add(tmp2, c_val, c2_val); fmpz_mod(tmp2, tmp2, fmod);
+    bool match = fmpz_equal(tmp, tmp2);
+    if (i == 0 and !match) {
+      std::cout << i << " does not match" << std::endl;
+      std::cout << "[a] * [b] = (" << a[i] << " + " << a2[i] << ")";
+      std::cout << " * (" << b[i] << " + " << b2[i] << ")";
+      std::cout << "\n = "; fmpz_print(tmp);
+      std::cout << "\n  [c] = ("; fmpz_print(c_val);
+      std::cout << " + "; fmpz_print(c_val);
+      std::cout << ")\n = "; fmpz_print(tmp2); std::cout << std::endl;
+    }
   }
 }
 
@@ -253,18 +260,21 @@ void runServerTest(const int server_num, const int serverfd, const size_t N) {
 }
 
 void serverTest(const size_t N) {
-  int sockfd = init_receiver();
 
-  if (fork() == 0) {
+  std::thread t0([&]() {
     int cli_sockfd = init_sender();
     runServerTest(0, cli_sockfd, N);
     close(cli_sockfd);
-  } else {
+  });
+  std::thread t1([&]() {
+    int sockfd = init_receiver();
     int newsockfd = accept_receiver(sockfd);
     runServerTest(1, newsockfd, N);
     close(newsockfd);
-  }
-  close(sockfd);
+    close(sockfd);
+  });
+  t0.join();
+  t1.join();
 }
 
 
@@ -277,6 +287,8 @@ int main(int argc, char** argv){
   }
 
   const size_t N = 20000;
+
+  // runLocal(N);
 
   if (server_num == -1) {
     serverTest(N);

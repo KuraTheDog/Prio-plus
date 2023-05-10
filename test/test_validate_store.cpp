@@ -12,15 +12,10 @@
 #include "../interp.h"
 
 const size_t rand_adjust = 5;
-const bool do_fork = false;  // False for leaks debug
 const bool lazy = true;
 
-void multiServerRun(const int server_num, const int serverfd,
-                    const size_t N_make, const size_t N) {
-  ValidateCorrelatedStore store(serverfd, server_num, N_make, lazy, do_fork);
-
-  std::cout << "Setup " << server_num << std::endl;
-  // Lazy pre-generate inputs
+void setup(const int server_num, const int serverfd, const size_t N,
+           ValidateCorrelatedStore& store) {
   if (server_num == 0) {
     // Gen
     DaBit* bits0[N];
@@ -59,7 +54,49 @@ void multiServerRun(const int server_num, const int serverfd,
        store.addUnvalidated(bits1[i], trips1[i]);
     }
   }
-  std::cout << "Run " << server_num << std::endl;
+}
+
+void test_altMult(const int server_num, const int serverfd,
+                  const size_t N_make, const size_t N) {
+  OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : "127.0.0.1", 60051);
+  OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : "127.0.0.1", 60052);
+
+  ValidateCorrelatedStore store(serverfd, server_num, ot0, ot1, N_make, lazy);
+
+  // Setup
+  setup(server_num, serverfd, N, store);
+  store.printSizes();
+
+  fmpz_t* x; new_fmpz_array(&x, N);
+  bool use_validated[N];
+  memset(use_validated, false, N);
+  for (unsigned int i = 0; i < N; i++) {
+    // 1 * 10, 2 * 20, ...
+    fmpz_set_si(x[i], (i+1) * (1 + server_num * 9));
+  }
+
+  fmpz_t* z; new_fmpz_array(&z, N);
+  store.multiplyAltShares(N, x, z, use_validated);
+  swap_fmpz_batch(serverfd, z, N);
+  for (unsigned int i = 0; i < N; i++) {
+    assert(fmpz_equal_ui(z[i], (i+1)*(i+1) * 10));
+  }
+
+  clear_fmpz_array(z, N);
+  delete ot0;
+  delete ot1;
+}
+
+void test_batchValidate(const int server_num, const int serverfd,
+                        const size_t N_make, const size_t N) {
+  OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : "127.0.0.1", 60051);
+  OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : "127.0.0.1", 60052);
+
+  if (server_num == 0) std::cout << "Testing batch validate size: " << N << std::endl;
+  ValidateCorrelatedStore store(serverfd, server_num, ot0, ot1, N_make, lazy);
+
+  setup(server_num, serverfd, N, store);
+  // store.printSizes();
 
   store.batchValidate(N);
 
@@ -67,6 +104,8 @@ void multiServerRun(const int server_num, const int serverfd,
 
   assert(store.numvalidated() == N);
 
+  delete ot0;
+  delete ot1;
 }
 
 
@@ -78,9 +117,11 @@ void serverTest(const size_t N) {
   if (pid == 0) {
     int cli_sockfd = init_sender();
 
-    multiServerRun(0, cli_sockfd, N, N);
-    multiServerRun(0, cli_sockfd, N, N*2);
-    multiServerRun(0, cli_sockfd, N, N/2);
+    test_altMult(0, cli_sockfd, N, N);
+
+    test_batchValidate(0, cli_sockfd, N, N);
+    test_batchValidate(0, cli_sockfd, N, N*2);
+    test_batchValidate(0, cli_sockfd, N, N/2);
 
     close(cli_sockfd);
   } else {
@@ -92,9 +133,11 @@ void serverTest(const size_t N) {
       fmpz_randm(tmp, seed, Int_Modulus);
     fmpz_clear(tmp);
 
-    multiServerRun(1, newsockfd, N, N);
-    multiServerRun(1, newsockfd, N, N*2);
-    multiServerRun(1, newsockfd, N, N/2);
+    test_altMult(1, newsockfd, N, N);
+
+    test_batchValidate(1, newsockfd, N, N);
+    test_batchValidate(1, newsockfd, N, N*2);
+    test_batchValidate(1, newsockfd, N, N/2);
 
     close(newsockfd);
   }
@@ -105,8 +148,12 @@ void serverTest(const size_t N) {
 int main(int argc, char* argv[]) {
   init_constants();
 
+  int N = 4;
+  if (argc >= 2) {
+    N = atoi(argv[1]);
+  }
 
-  serverTest(4);
+  serverTest(N);
 
 
   RootManager(1).clearCache();

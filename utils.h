@@ -9,12 +9,14 @@ inline float sec_from(time_point<high_resolution_clock> start) {
   return (((float)emp::time_from(start)) / CLOCKS_PER_SEC);
 }
 
-inline void error_exit(const char* const msg) {
+[[noreturn]] inline void error_exit(const char* const msg) {
   perror(msg);
   exit(EXIT_FAILURE);
 }
 
-#define LOG2(X) ((unsigned) (8*sizeof (unsigned long long) - __builtin_clzll((X | 1))))
+// Floor log, on nonnegative integers only
+// Note Log2(0) = 1
+#define LOG2(X) ((unsigned) (8*sizeof (unsigned long long) - __builtin_clzll(((X) | 1))))
 
 inline bool isPowerOfTwo(const size_t n) {
   return n && !(n & (n - 1));

@@ -25,8 +25,7 @@ void share_polynomials(const Circuit* const circuit, ClientPacket* const p0, Cli
     fmpz_randm(pointsF[0], seed, Int_Modulus);
     fmpz_randm(pointsG[0], seed, Int_Modulus);
     // h(0) = f(0) * g(0)
-    fmpz_mul(h0, pointsF[0], pointsG[0]);
-    fmpz_mod(h0, h0, Int_Modulus);
+    fmpz_mod_mul(h0, pointsF[0], pointsG[0], mod_ctx);
 
     // u_i, v_i = left, right of i^th mult gate.
     for (unsigned int i = 0; i < n; i++) {
@@ -59,8 +58,7 @@ void share_polynomials(const Circuit* const circuit, ClientPacket* const p0, Cli
     fmpz_t h_val;
     fmpz_init(h_val);
     for (unsigned int j = 0; j < N; j++) {
-        fmpz_mul(h_val, evalsF[2 * j + 1], evalsG[2 * j + 1]);
-        fmpz_mod(h_val, h_val, Int_Modulus);
+        fmpz_mod_mul(h_val, evalsF[2 * j + 1], evalsG[2 * j + 1], mod_ctx);
         SplitShare(h_val, p0->h_points[j], p1->h_points[j]);
     }
 
