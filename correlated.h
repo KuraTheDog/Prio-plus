@@ -246,7 +246,8 @@ protected:
   const bool lazy;  // Lazy (efficient but insecure) generation for behavior testing.
 
   // Securely create N new correlated items
-  const DaBit* const * const generateDaBit(const size_t N);
+  const DaBit* const * const gen_DaBits(const size_t N);
+  const DaBit* const * const gen_DaBits_lazy(const size_t N);
 
   // Add (securely or lazy generated) N items to the store, at least batch_size many
   // TODO: return sent bytes

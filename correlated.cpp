@@ -859,34 +859,15 @@ void PrecomputeStore::addDaBits(const size_t n) {
   // const size_t num_to_make = (n > batch_size ? n : batch_size);
   const size_t num_to_make = n;  // Currently to make "end to end" easier to benchmark
   std::cout << "adding dabits: " << num_to_make << std::endl;
-  if (!lazy) {
-    const DaBit* const * const dabit = generateDaBit(num_to_make);
-    for (unsigned int i = 0; i < num_to_make; i++)
-      dabit_store.push(dabit[i]);
-    delete[] dabit;
-  } else {  // Lazy generation: make local and send over
-    DaBit** const dabit = new DaBit*[num_to_make];
-    for (unsigned int i = 0; i < num_to_make; i++)
-      dabit[i] = new DaBit();
-    if (server_num == 0) {
-      DaBit** const other_dabit = new DaBit*[num_to_make];
-      for (unsigned int i = 0; i < num_to_make; i++) {
-        other_dabit[i] = new DaBit();
-        makeLocalDaBit(dabit[i], other_dabit[i]);
-      }
-      send_DaBit_batch(serverfd, other_dabit, num_to_make);
-      for (unsigned int i = 0; i < num_to_make; i++) {
-        dabit_store.push(dabit[i]);
-        delete other_dabit[i];
-      }
-      delete[] other_dabit;
-    } else {
-      recv_DaBit_batch(serverfd, dabit, num_to_make);
-      for (unsigned int i = 0; i < num_to_make; i++)
-        dabit_store.push(dabit[i]);
-    }
-    delete[] dabit;
+  const DaBit* const * dabits;
+  if (lazy) {
+    dabits = gen_DaBits_lazy(num_to_make);
+  } else {
+    dabits = gen_DaBits(num_to_make);
   }
+  for (unsigned int i = 0; i < num_to_make; i++)
+    dabit_store.push(dabits[i]);
+  delete[] dabits;
   std::cout << "addDaBits timing : " << sec_from(start) << std::endl;
 }
 
@@ -958,7 +939,7 @@ void PrecomputeStore::maybeUpdate() {
 // Nearly COT, except delta is changing
 // random choice and random base, but also random delta matters
 // TODO: Work on larger values, currently assumes mod is uint64_t.
-const DaBit* const * const PrecomputeStore::generateDaBit(const size_t N) {
+const DaBit* const * const PrecomputeStore::gen_DaBits(const size_t N) {
   DaBit** const dabit = new DaBit*[N];
 
   emp::PRG prg;
@@ -997,6 +978,26 @@ const DaBit* const * const PrecomputeStore::generateDaBit(const size_t N) {
   delete[] b;
   delete[] x;
 
+  return dabit;
+}
+
+const DaBit* const * const PrecomputeStore::gen_DaBits_lazy(const size_t N) {
+  DaBit** const dabit = new DaBit*[N];
+  for (unsigned int i = 0; i < N; i++)
+    dabit[i] = new DaBit();
+  if (server_num == 0) {
+    DaBit** const dabit_other = new DaBit*[N];
+    for (unsigned int i = 0; i < N; i++) {
+      dabit_other[i] = new DaBit();
+      makeLocalDaBit(dabit[i], dabit_other[i]);
+    }
+    send_DaBit_batch(serverfd, dabit_other, N);
+    for (unsigned int i = 0; i < N; i++)
+      delete dabit_other[i];
+    delete[] dabit_other;
+  } else {
+    recv_DaBit_batch(serverfd, dabit, N);
+  }
   return dabit;
 }
 
