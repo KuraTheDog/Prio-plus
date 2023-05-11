@@ -5,28 +5,71 @@
 
 #include "net_share.h"
 
+const AltTriple* const * const ValidateCorrelatedStore::gen_AltTriple(const size_t N) {
+  // TODO: smart gen. Can build out of normal beaver triples.
+  error_exit("TODO: Currently only lazy alt triple gen");
+}
 
-const AltTriple* ValidateCorrelatedStore::get_validated_alt_triple() {
-  if (validated_alt_triple_store.size() < 1) {
-    std::cout << "Doing lazy gen of validated alt triple" << std::endl;
-    // TODO: currently lazy gen. Do smart gen. Can do inefficinetly with normal triple.
-    AltTriple* t = new AltTriple();
-    if (server_num == 0) {
-      AltTriple* t_other = new AltTriple();
-      NewAltTriples(t, t_other);
-      send_AltTriple(serverfd, t_other);
-      delete t_other;
-    } else {
-      recv_AltTriple(serverfd, t);
+const AltTriple* const * const ValidateCorrelatedStore::gen_AltTriple_lazy(const size_t N) {
+  AltTriple** const t = new AltTriple*[N];
+  for (unsigned int i = 0; i < N; i++)
+    t[i] = new AltTriple();
+
+  if (server_num == 0) {
+    AltTriple** const t_other = new AltTriple*[N];
+    for (unsigned int i = 0; i < N; i++) {
+      t_other[i] = new AltTriple();
+      NewAltTriples(t[i], t_other[i]);
     }
+    send_AltTriple_batch(serverfd, t_other, N);
+    for (unsigned int i = 0; i < N; i++)
+      delete t_other[i];
+    delete[] t_other;
+  } else {
+    recv_AltTriple_batch(serverfd, t, N);
+  }
+  return t;
+}
 
-    return t;
-  }
-  else {
-    const AltTriple* const trip = validated_alt_triple_store.front();
-    validated_alt_triple_store.pop();
-    return trip;
-  }
+const AltTriple* ValidateCorrelatedStore::get_AltTriple(const bool validated) {
+  check_AltTriple(1, validated);
+
+  std::queue<const AltTriple*>& q = validated ? alt_triple_store : unvalidated_alt_triple_store;
+
+  const AltTriple* const t = q.front();
+  q.pop();
+  return t;
+}
+
+void ValidateCorrelatedStore::check_AltTriple(const size_t n, const bool validated) {
+  std::queue<const AltTriple*>& q = validated ? alt_triple_store : unvalidated_alt_triple_store;
+  if (q.size() < n)
+    add_AltTriples(n - q.size(), validated);
+}
+
+void ValidateCorrelatedStore::check_AltTriple(const size_t n, const bool* const validated) {
+  size_t val_count = 0;
+  for (unsigned int i = 0; i < n; i++)
+    val_count += (size_t) validated[i];
+  check_AltTriple(val_count, true);
+  check_AltTriple(n - val_count, false);
+}
+
+void ValidateCorrelatedStore::add_AltTriples(const size_t n, const bool validated) {
+  auto start = clock_start();
+  std::cout << "adding " << n << (validated?" ":" un") << "validated AltTriples" << std::endl;
+  const AltTriple* const * t;
+  std::queue<const AltTriple*>& q = validated ? alt_triple_store : unvalidated_alt_triple_store;
+
+  if (lazy)
+    t = gen_AltTriple_lazy(n);
+  else
+    t = gen_AltTriple(n);
+
+  for (unsigned int i = 0; i < n; i++)
+    q.push(t[i]);
+  delete[] t;
+  std::cout << "add_AltTriples timing : " << sec_from(start) << std::endl;
 }
 
 // [z] = x * x'
@@ -39,21 +82,17 @@ z_1 = (diff * x_1) + trip->C
 */
 int ValidateCorrelatedStore::multiplyAltShares(
     const size_t N, const fmpz_t* const x, fmpz_t* const z,
-    const bool* const use_validated) {
+    const bool* const validated) {
   int sent_bytes = 0;
   fmpz_t* diff; new_fmpz_array(&diff, N);
 
   // only used by server 1, save trip->AB value
   fmpz_t* a; new_fmpz_array(&a, N);
 
+  check_AltTriple(N, validated);
+
   for (unsigned int i = 0; i < N; i++) {
-    const AltTriple* trip;
-    if (use_validated[i]) {
-      trip = get_validated_alt_triple();
-    } else {
-      trip = unvalidated_alt_triple_store.front();
-      unvalidated_alt_triple_store.pop();
-    }
+    const AltTriple* trip = get_AltTriple(validated[i]);
 
     fmpz_mod_sub(diff[i], x[i], trip->AB, mod_ctx);
     fmpz_set(z[i], trip->C);
@@ -103,7 +142,8 @@ void ValidateCorrelatedStore::processUnvalidated(const std::string pk, const siz
   delete[] std::get<1>(lists);
 }
 
-// TODO: Backup process if there is unvalidated.
+// TODO: Backup process if there is not enough unvalidated.
+//   Idea: make "dummy" valid triples, to ramp it back up to N, then delete them
 // Perhaps merge with Preocmpute store, to precompute only if necessary?
 // TODO: Use legit triple for validation, for maliciousness
 
@@ -264,8 +304,7 @@ void ValidateCorrelatedStore::printSizes() {
   std::cout << "Current store sizes:" << std::endl;
   std::cout << " Dabits: " << dabit_store.size() << std::endl;
   std::cout << "  Unvalidated: " << unvalidated_dabit_store.size() << std::endl;
-  std::cout << " Alt Triples: " << validated_alt_triple_store.size() << std::endl;
-  std::cout << "  Unvalidated: " << unvalidated_alt_triple_store.size() << std::endl;
+  std::cout << "Unvalidated Alt Triples: " << unvalidated_alt_triple_store.size() << std::endl;
 }
 
 ValidateCorrelatedStore::~ValidateCorrelatedStore() {
@@ -277,11 +316,6 @@ ValidateCorrelatedStore::~ValidateCorrelatedStore() {
     const DaBit* const bit = unvalidated_dabit_store.front();
     unvalidated_dabit_store.pop();
     delete bit;
-  }
-  while (!validated_alt_triple_store.empty()) {
-    const AltTriple* const trip = validated_alt_triple_store.front();
-    validated_alt_triple_store.pop();
-    delete trip;
   }
   while (!unvalidated_alt_triple_store.empty()) {
     const AltTriple* const trip = unvalidated_alt_triple_store.front();

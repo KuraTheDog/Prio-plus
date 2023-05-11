@@ -63,8 +63,8 @@ void test_altMult(const int server_num, const int serverfd,
 
   ValidateCorrelatedStore store(serverfd, server_num, ot0, ot1, N_make, lazy);
 
-  // Setup
-  setup(server_num, serverfd, N, store);
+  // Setup: Not necessary, use of check_AltTriples should auto-gen.
+  // setup(server_num, serverfd, N, store);
   store.printSizes();
 
   fmpz_t* x; new_fmpz_array(&x, N);
