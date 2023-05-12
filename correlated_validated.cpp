@@ -57,18 +57,21 @@ void ValidateCorrelatedStore::check_AltTriple(const size_t n, const bool* const 
 
 void ValidateCorrelatedStore::add_AltTriples(const size_t n, const bool validated) {
   auto start = clock_start();
-  std::cout << "adding " << n << (validated?" ":" un") << "validated AltTriples" << std::endl;
+  const size_t num_to_make = (n > alt_triple_batch_size ? n : alt_triple_batch_size);
+
+  std::cout << "adding " << num_to_make << (validated?" ":" un") << "validated AltTriples" << std::endl;
   const AltTriple* const * t;
   std::queue<const AltTriple*>& q = validated ? alt_triple_store : unvalidated_alt_triple_store;
 
   if (lazy)
-    t = gen_AltTriple_lazy(n);
+    t = gen_AltTriple_lazy(num_to_make);
   else
-    t = gen_AltTriple(n);
+    t = gen_AltTriple(num_to_make);
 
-  for (unsigned int i = 0; i < n; i++)
+  for (unsigned int i = 0; i < num_to_make; i++)
     q.push(t[i]);
   delete[] t;
+  
   std::cout << "add_AltTriples timing : " << sec_from(start) << std::endl;
 }
 
@@ -142,40 +145,41 @@ void ValidateCorrelatedStore::processUnvalidated(const std::string pk, const siz
   delete[] std::get<1>(lists);
 }
 
-// TODO: Backup process if there is not enough unvalidated.
-//   Idea: make "dummy" valid triples, to ramp it back up to N, then delete them
-// Perhaps merge with Preocmpute store, to precompute only if necessary?
-// TODO: Use legit triple for validation, for maliciousness
-
-int ValidateCorrelatedStore::batchValidate(const size_t N) {
+int ValidateCorrelatedStore::batchValidate(const size_t target) {
   int sent_bytes = 0;
-  // isPowerOfTwo from utils.h
-  if (not isPowerOfTwo(N)) {
-    std::cout << N << " should be a power of two" << std::endl;
-    return sent_bytes;
+
+  const size_t target_2 = NextPowerOfTwo(target - 1);
+  const size_t num_unval = unvalidated_dabit_store.size();
+  size_t N;        // num to make, power of 2, including dummies
+  size_t num_val;  // how many to validate
+  std::cout << "batchValidate(" << target << "), num unval = " << num_unval << "\n";
+  if (target_2 <= num_unval) {
+    // Make as many as possible within unval
+    // Largest power of 2 <= num_unval
+    N = NextPowerOfTwo(num_unval) / 2;
+    num_val = N;
+  } else {
+    // Use up all unvalidated, and also use dummies
+    // Smallest power of 2 >= num_unval
+    N = NextPowerOfTwo(num_unval - 1);
+    num_val = num_unval;
   }
-  if (unvalidated_dabit_store.size() < N) {
-    std::cout << "Not enough unvalidated dabits: " << unvalidated_dabit_store.size();
-    std::cout << " of " << N << std::endl;
-    return sent_bytes;
-  }
-  if (unvalidated_dabit_store.size() < N) {
-    std::cout << "Not enough unvalidated alt triples: " << unvalidated_alt_triple_store.size();
-    std::cout << " of " << N << std::endl;
-    return sent_bytes;
-  }
+
+  // Will still need N "legit" unvalidated dabits.
+  check_AltTriple(N, false);
 
   check_sigma();
   sigma_uses += 1;
 
   MultCheckPreComp* chk = getPrecomp(N);
 
-  const DaBit* candidates[N];
+  const DaBit* candidates[num_val];
 
   // Setup
+  // Note that new_fmpz_array zero initializes, which give "dummy" dabits.
   fmpz_t* pointsF; new_fmpz_array(&pointsF, N);
   fmpz_t* pointsG; new_fmpz_array(&pointsG, 2*N);
-  for (unsigned int i = 0; i < N; i++) {
+  for (unsigned int i = 0; i < num_val; i++) {
     const DaBit* const bit = unvalidated_dabit_store.front();
     unvalidated_dabit_store.pop();
 
@@ -231,7 +235,7 @@ int ValidateCorrelatedStore::batchValidate(const size_t N) {
   fmpz_clear(sigmaF);
   fmpz_clear(sigmaG);
 
-  // Swap, but single item so doens't need wrapper
+  // Swap, but single item so doesn't need wrapper
   fmpz_t diff_other; fmpz_init(diff_other);
   sent_bytes += send_fmpz(serverfd, diff);
   recv_fmpz(serverfd, diff_other);
@@ -240,12 +244,13 @@ int ValidateCorrelatedStore::batchValidate(const size_t N) {
 
   if (fmpz_is_zero(diff)) {
     // std::cout << "batch validate is valid" << std::endl;
-    for (unsigned int i = 0; i < N; i++) {
-      dabit_store.push(candidates[i]);
+    // Only push those corresponding to original unvalidated
+    for (unsigned int i = 0; i < num_val; i++) {
+      validated_dabit_store.push(candidates[i]);
     }
   } else {
     std::cout << "batch validate is invalid, diff check is " << fmpz_get_si(diff) << std::endl;
-    for (unsigned int i = 0; i < N; i++) {
+    for (unsigned int i = 0; i < num_val; i++) {
       delete candidates[i];
     }
     error_exit("TODO: Currently no recovery for bad validation");
@@ -257,17 +262,24 @@ int ValidateCorrelatedStore::batchValidate(const size_t N) {
 }
 
 void ValidateCorrelatedStore::checkDaBits(const size_t n) {
-  if (dabit_store.size() < n) {
-    // BatchValidate currently handles the yelling if not enough.
-    // NextPowerOfTwo is not inclusive, so -1 or /2
-
-    // minimal approach: smallest needed, not as efficient
-    // const size_t to_make = NextPowerOfTwo(n - dabit_store.size() - 1);
-
-    // largest approach: largest power of 2 < size (since exclusive)
-    const size_t to_make = NextPowerOfTwo(unvalidated_dabit_store.size())/2;
-    batchValidate(to_make);
+  // If not enough validated, validate everything
+  if (num_validated_dabits() < n) {
+    batchValidate(n - num_validated_dabits());
   }
+  // If still not enough validated, ensure enough precomputed
+  if (num_validated_dabits() < n) {
+     PrecomputeStore::checkDaBits(n - num_validated_dabits());
+  }
+}
+
+const DaBit* const ValidateCorrelatedStore::getDaBit() {
+  checkDaBits(1);
+  // Default to precomputed if not enough valids
+  std::queue<const DaBit*>& q = (
+    (num_validated_dabits() > 1) ? validated_dabit_store : dabit_store);
+  const DaBit* const ans = q.front();
+  q.pop();
+  return ans;
 }
 
 void ValidateCorrelatedStore::check_sigma() {
@@ -300,11 +312,13 @@ MultCheckPreComp* ValidateCorrelatedStore::getPrecomp(const size_t N) {
   return pre;
 }
 
-void ValidateCorrelatedStore::printSizes() {
-  std::cout << "Current store sizes:" << std::endl;
-  std::cout << " Dabits: " << dabit_store.size() << std::endl;
-  std::cout << "  Unvalidated: " << unvalidated_dabit_store.size() << std::endl;
-  std::cout << "Unvalidated Alt Triples: " << unvalidated_alt_triple_store.size() << std::endl;
+void ValidateCorrelatedStore::printSizes() const {
+  std::cout << "Current store sizes:\n";
+  std::cout << " Dabits: \n";
+  std::cout << "  Precomputed: " << dabit_store.size() << "\n";
+  std::cout << "  Unvalidated: " << unvalidated_dabit_store.size() << "\n";
+  std::cout << "  Validated:   " << validated_dabit_store.size() << "\n";
+  std::cout << " Unvalidated Alt Triples: " << unvalidated_alt_triple_store.size() << std::endl;
 }
 
 ValidateCorrelatedStore::~ValidateCorrelatedStore() {

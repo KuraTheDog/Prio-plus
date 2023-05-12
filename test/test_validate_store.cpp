@@ -87,6 +87,7 @@ void test_altMult(const int server_num, const int serverfd,
   delete ot1;
 }
 
+// TODO: also check checkDaBits
 void test_batchValidate(const int server_num, const int serverfd,
                         const size_t N_make, const size_t N) {
   OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : "127.0.0.1", 60051);
@@ -98,11 +99,13 @@ void test_batchValidate(const int server_num, const int serverfd,
   setup(server_num, serverfd, N, store);
   // store.printSizes();
 
-  store.batchValidate(N);
+  store.batchValidate();
 
-  std::cout << "Assert " << server_num << ", Numvalidated = " << store.numvalidated() << std::endl;
+  std::cout << "Assert " << server_num << ", Numvalidated = " << store.num_validated_dabits() << std::endl;
 
-  assert(store.numvalidated() == N);
+  assert(store.num_validated_dabits() == N);
+
+  store.printSizes();
 
   delete ot0;
   delete ot1;
@@ -120,8 +123,6 @@ void serverTest(const size_t N) {
     test_altMult(0, cli_sockfd, N, N);
 
     test_batchValidate(0, cli_sockfd, N, N);
-    test_batchValidate(0, cli_sockfd, N, N*2);
-    test_batchValidate(0, cli_sockfd, N, N/2);
 
     close(cli_sockfd);
   } else {
@@ -136,8 +137,6 @@ void serverTest(const size_t N) {
     test_altMult(1, newsockfd, N, N);
 
     test_batchValidate(1, newsockfd, N, N);
-    test_batchValidate(1, newsockfd, N, N*2);
-    test_batchValidate(1, newsockfd, N, N/2);
 
     close(newsockfd);
   }

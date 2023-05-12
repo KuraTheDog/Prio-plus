@@ -11,7 +11,8 @@ class ValidateCorrelatedStore : public PrecomputeStore {
   void check_sigma();  // Call before using sigma. Not return to avoid extra copy.
   void new_sigma();
 
-  const size_t true_batch_size;
+  const size_t min_batch_size;
+  const size_t alt_triple_batch_size;
 
   // TODO: merge behavior with precomputed stores
   // Pre: for batch validate
@@ -24,6 +25,9 @@ class ValidateCorrelatedStore : public PrecomputeStore {
   */
 
   std::queue<const DaBit*> unvalidated_dabit_store;
+  std::queue<const DaBit*> validated_dabit_store;
+  // Precomputed (inherited)
+  // std::queue<const DaBit*> dabit_store;
 
   std::queue<const AltTriple*> unvalidated_alt_triple_store;
   // Precomputed
@@ -41,18 +45,21 @@ class ValidateCorrelatedStore : public PrecomputeStore {
   const AltTriple* const * const gen_AltTriple_lazy(const size_t N);
   void add_AltTriples(const size_t n, const bool validated);
 
+  const DaBit* const getDaBit();
+
 // Batch size must be power of two. NextPowerOfTwo is not inclusive, so -1 to make it so.
 public:
   ValidateCorrelatedStore(const int serverfd, const int server_num,
       OT_Wrapper* const ot0, OT_Wrapper* const ot1,
       const size_t batch_size,
       const bool lazy = false)
-  : PrecomputeStore(serverfd, server_num, ot0, ot1, NextPowerOfTwo(batch_size-1), lazy)
-  , true_batch_size(NextPowerOfTwo(batch_size-1))
+  : PrecomputeStore(serverfd, server_num, ot0, ot1, batch_size, lazy)
+  , min_batch_size(NextPowerOfTwo(batch_size-1))
+  , alt_triple_batch_size(batch_size)
   {
     fmpz_init(sigma);
 
-    eval_precomp_store[true_batch_size] = new MultCheckPreComp(true_batch_size);
+    eval_precomp_store[min_batch_size] = new MultCheckPreComp(min_batch_size);
 
     new_sigma();
   };
@@ -81,18 +88,39 @@ public:
   void checkDaBits(const size_t n = 0);
   // void checkTriples(const size_t n = 0);
 
+  /*
+  Tries to make at least N validated dabits.
+    N' = NextPowerOf2(N) inclusive
+  Depends on how many num_unvalid there are.
+  a) N' <= num_unvalid
+      Then it can make the largest power of 2 it can using only unvalid.
+  b) N' >= num_unvalid
+      Uses "dummy" zero dabits to pad unvalid dabits.
+      May use additional precomputed alt-triples.
+
+  Loosely:
+  Takes N unvalidated DaBits and N' unvalidated altTriples
+  Also uses 1 precomputed altTrip
+  Produces N validated daBits
+
+  2 rounds:
+  Round 1: Alt multiplication
+    N unvalidated for extension
+    Simultaneously 1 validated for on the eval point sigma
+  Round 2: Reveal
+    Swap computed (fg - h)(sigma)
+  */
   int batchValidate(const size_t N);
   int batchValidate() {
-    return batchValidate(true_batch_size);
-  };
-  // TODO: batch validate max possible? NextPowerOfTwo(store size) / 2?
+    return batchValidate(min_batch_size);
+  }
 
   MultCheckPreComp* getPrecomp(const size_t N);
 
-  void printSizes();
+  void printSizes() const;
 
-  size_t numvalidated() {
-    return dabit_store.size();
+  size_t num_validated_dabits() const {
+    return validated_dabit_store.size();
   };
 };
 
