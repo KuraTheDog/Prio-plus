@@ -116,7 +116,7 @@ int send_seeds(const flint_rand_t hash_seed) {
 
 // Send n unvalidated dabits + alt triples to each server.
 int send_unvalidated(const size_t n) {
-    if (STORE_TYPE != validated) {
+    if (STORE_TYPE != validate_store) {
         return 0;
     }
 

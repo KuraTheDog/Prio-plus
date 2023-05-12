@@ -149,7 +149,7 @@ MultCheckPreComp* getPrecomp(const size_t N) {
 }
 
 int recv_unvalidated(const int clientfd, const std::string pk, const size_t n) {
-    if (STORE_TYPE != validated) {
+    if (STORE_TYPE != validate_store) {
         return 0;
     }
 
@@ -176,7 +176,7 @@ int recv_unvalidated(const int clientfd, const std::string pk, const size_t n) {
 }
 
 void process_unvalidated(const std::string pk, const size_t n) {
-    if (STORE_TYPE != validated) {
+    if (STORE_TYPE != validate_store) {
         return;
     }
     const size_t N = NextPowerOfTwo(n-1);
@@ -324,7 +324,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
     start = clock_start();
     auto start2 = clock_start();
 
-    // if (STORE_TYPE != ot)
+    // if (STORE_TYPE != ot_store)
     //     ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs);
 
     int server_bytes = 0;
@@ -418,7 +418,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (STORE_TYPE == precompute)
+    if (STORE_TYPE == precompute_store)
         ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits);
 
     start = clock_start();
@@ -439,7 +439,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
             process_unvalidated(&share.first[0], msg.num_bits);
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
-        if (STORE_TYPE == validated) ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits);
+        if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits);
         start2 = clock_start();
         fmpz_t* const shares_p = share_convert(num_inputs, 1, nbits, shares);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
@@ -479,7 +479,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
             process_unvalidated(pk, msg.num_bits);
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
-        if (STORE_TYPE == validated) ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits);
+        if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits);
         start2 = clock_start();
         fmpz_t* const shares_p = share_convert(num_inputs, 1, nbits, shares);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
@@ -778,7 +778,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (STORE_TYPE == precompute)
+    if (STORE_TYPE == precompute_store)
         ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
 
     start = clock_start();
@@ -806,7 +806,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
             process_unvalidated(&share.first[0], msg.num_bits * num_dabits);
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
-        if (STORE_TYPE == validated) ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
+        if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -875,7 +875,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
             process_unvalidated(pk, msg.num_bits * num_dabits);
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
-        if (STORE_TYPE == validated) ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
+        if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
         for (unsigned int i = 0; i < num_inputs; i++) {
             uint64_t val = 0, val2 = 0;
@@ -1042,7 +1042,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (STORE_TYPE == precompute)
+    if (STORE_TYPE == precompute_store)
         ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
 
     start = clock_start();
@@ -1069,7 +1069,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             process_unvalidated(&share.first[0], msg.num_bits * num_dabits);
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
-        if (STORE_TYPE == validated) ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
+        if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -1153,7 +1153,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             process_unvalidated(pk, msg.num_bits * num_dabits);
         }
         std::cout << "PK time: " << sec_from(start2) << std::endl;
-        if (STORE_TYPE == validated) ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
+        if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -1306,7 +1306,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (STORE_TYPE != ot)
+    if (STORE_TYPE != ot_store)
         ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * max_inp);
 
     start = clock_start();
@@ -2196,11 +2196,11 @@ int main(int argc, char** argv) {
     ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
 
     // TODO: OT disabled for now.
-    if (STORE_TYPE == precompute) {
+    if (STORE_TYPE == precompute_store) {
         correlated_store = new PrecomputeStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE);
-    // } else if (STORE_TYPE == ot) {
+    // } else if (STORE_TYPE == ot_store) {
     //     correlated_store = new OTCorrelatedStore(serverfd, server_num, ot0, ot1);
-    } else if (STORE_TYPE == validated) {
+    } else if (STORE_TYPE == validate_store) {
         correlated_store = new ValidateCorrelatedStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE);
     } else {
         error_exit("Unknown/unsupported store type");
@@ -2221,7 +2221,7 @@ int main(int argc, char** argv) {
                 pair.second -> setEvalPoint(randomX);
         }
 
-        if (STORE_TYPE == precompute) {
+        if (STORE_TYPE == precompute_store) {
             ((PrecomputeStore*) correlated_store)->maybeUpdate();
             // ((PrecomputeStore*) correlated_store)->printSizes();
         }

@@ -48,15 +48,15 @@ ShareConverter
 
 // Selector
 enum StoreType {
-  precompute,
-  ot,
-  validated,
+  precompute_store,
+  ot_store,
+  validate_store,
 };
 
 // Global for now. Can have client/server sync it or be a param file, but not necessary.
-// const StoreType STORE_TYPE = precompute;
-// const StoreType STORE_TYPE = ot;
-const StoreType STORE_TYPE = validated;
+// const StoreType STORE_TYPE = precompute_store;
+// const StoreType STORE_TYPE = ot_store;
+const StoreType STORE_TYPE = validate_store;
 
 
 class ShareConverter {
