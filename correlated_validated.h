@@ -26,7 +26,6 @@ class ValidateCorrelatedStore : public PrecomputeStore {
   std::queue<const DaBit*> unvalidated_dabit_store;
 
   std::queue<const AltTriple*> unvalidated_alt_triple_store;
-  // std::queue<const AltTriple*> validated_alt_triple_store;
   // Precomputed
   std::queue<const AltTriple*> alt_triple_store;
 

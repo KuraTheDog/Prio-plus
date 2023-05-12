@@ -8,7 +8,7 @@
 
 #include "emp-sh2pc/emp-sh2pc.h"
 
-/* 
+/*
 Pieces can be abstracted out
 But for now, in one struct so easier to access various attributes.
 Mostly one-time, but can call with multiple K I guess.
@@ -18,8 +18,8 @@ Currently split for clarity of use / debugging.
 There may be better ways of de-duping, but this should be fine.
  - challenge is to keep it oblivious. same work if all dupes and no dupes.
  - Can't track how many distinct values seen
- - can't pre-prune list of candidates. 
-*/ 
+ - can't pre-prune list of candidates.
+*/
 
 /*
 Standard op:
@@ -104,7 +104,7 @@ struct HeavyEval {
   */
   void parse_countmin();
 
-  /* 
+  /*
   Evals i{th} hash on value
   Assume ax + b
   Value: input_bits

@@ -231,7 +231,7 @@ public:
   // x is N b-bit numbers as additive shares
   int is_negative(const size_t N, const fmpz_t* const x, fmpz_t* const ans);
 
-  // Check: Check if enough to make n. 
+  // Check: Check if enough to make n.
   // If not enough, generates enough (can over-generate)
   virtual void checkDaBits(const size_t n = 0) = 0;
   virtual void checkTriples(const size_t n = 0) = 0;
