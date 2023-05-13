@@ -90,9 +90,9 @@ protected:
   std::queue<const BeaverTriple*> atriple_store;
 
   // Get: Return 1 (check first, which may generate)
-  const DaBit* const getDaBit();
-  const BeaverTriple* const getTriple();
-  const BooleanBeaverTriple* const getBoolTriple();
+  virtual const DaBit* const getDaBit();
+  virtual const BeaverTriple* const getTriple();
+  virtual const BooleanBeaverTriple* const getBoolTriple();
 
   // Currently only used for heavy eval, which is independent of # clients
   // Approx 41 * b * nbits_mod, where b is #bits of run
@@ -272,12 +272,12 @@ public:
 
   ~PrecomputeStore() {};
 
-  void printSizes() const;
-  void maybeUpdate(); // Precompute if not enough.
+  virtual void printSizes() const;
+  virtual void maybeUpdate(); // Precompute if not enough.
 
-  void checkDaBits(const size_t n = 0);
-  void checkTriples(const size_t n = 0);
-  void checkBoolTriples(const size_t n = 0);
+  virtual void checkDaBits(const size_t n = 0);
+  virtual void checkTriples(const size_t n = 0);
+  virtual void checkBoolTriples(const size_t n = 0);
 };
 
 class OTCorrelatedStore : public ShareConverter {

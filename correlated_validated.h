@@ -45,7 +45,7 @@ class ValidateCorrelatedStore : public PrecomputeStore {
   const AltTriple* const * const gen_AltTriple_lazy(const size_t N);
   void add_AltTriples(const size_t n, const bool validated);
 
-  const DaBit* const getDaBit();
+  const DaBit* const getDaBit() override;
 
 // Batch size must be power of two. NextPowerOfTwo is not inclusive, so -1 to make it so.
 public:
@@ -85,7 +85,7 @@ public:
   // add up all unvalidated corresponding to pk
   void processUnvalidated(const std::string pk, const size_t n);
 
-  void checkDaBits(const size_t n = 0);
+  void checkDaBits(const size_t n = 0) override;
   // void checkTriples(const size_t n = 0);
 
   /*
@@ -117,7 +117,7 @@ public:
 
   MultCheckPreComp* getPrecomp(const size_t N);
 
-  void printSizes() const;
+  void printSizes() const override;
 
   size_t num_validated_dabits() const {
     return validated_dabit_store.size();

@@ -7,7 +7,8 @@
 
 const AltTriple* const * const ValidateCorrelatedStore::gen_AltTriple(const size_t N) {
   // TODO: smart gen. Can build out of normal beaver triples.
-  error_exit("TODO: Currently only lazy alt triple gen");
+  std::cout << "TODO: Currently only lazy alt triple gen\n";
+  return gen_AltTriple_lazy(N);
 }
 
 const AltTriple* const * const ValidateCorrelatedStore::gen_AltTriple_lazy(const size_t N) {
@@ -262,21 +263,26 @@ int ValidateCorrelatedStore::batchValidate(const size_t target) {
 }
 
 void ValidateCorrelatedStore::checkDaBits(const size_t n) {
+  // std::cout << "validated checkDaBits(" << n << ") vs " << num_validated_dabits() << std::endl;
   // If not enough validated, validate everything
   if (num_validated_dabits() < n) {
+    // std::cout << "batch validating: " << n - num_validated_dabits() << std::endl;
     batchValidate(n - num_validated_dabits());
   }
   // If still not enough validated, ensure enough precomputed
   if (num_validated_dabits() < n) {
+     // std::cout << "precompute checking: " << n - num_validated_dabits() << std::endl;
      PrecomputeStore::checkDaBits(n - num_validated_dabits());
   }
+  // printSizes();
 }
 
 const DaBit* const ValidateCorrelatedStore::getDaBit() {
   checkDaBits(1);
   // Default to precomputed if not enough valids
+  // std::cout << "getting a " << (num_validated_dabits() > 1 ? "validated" : "precomputed") << " dabit" << std::endl;
   std::queue<const DaBit*>& q = (
-    (num_validated_dabits() > 1) ? validated_dabit_store : dabit_store);
+    (num_validated_dabits() > 0) ? validated_dabit_store : dabit_store);
   const DaBit* const ans = q.front();
   q.pop();
   return ans;

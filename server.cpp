@@ -418,7 +418,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (STORE_TYPE == precompute_store)
+    if (STORE_TYPE != ot_store)
         ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits);
 
     start = clock_start();
@@ -778,7 +778,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (STORE_TYPE == precompute_store)
+    if (STORE_TYPE != ot_store)
         ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
 
     start = clock_start();
@@ -1042,7 +1042,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     std::cout << "bytes from client: " << num_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (STORE_TYPE == precompute_store)
+    if (STORE_TYPE != ot_store)
         ((CorrelatedStore*) correlated_store)->checkDaBits(total_inputs * msg.num_bits * num_dabits);
 
     start = clock_start();
@@ -2221,9 +2221,9 @@ int main(int argc, char** argv) {
                 pair.second -> setEvalPoint(randomX);
         }
 
-        if (STORE_TYPE == precompute_store) {
+        if (STORE_TYPE != ot_store) {
             ((PrecomputeStore*) correlated_store)->maybeUpdate();
-            // ((PrecomputeStore*) correlated_store)->printSizes();
+            ((PrecomputeStore*) correlated_store)->printSizes();
         }
 
         socklen_t addrlen = sizeof(addr);
