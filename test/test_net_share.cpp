@@ -277,7 +277,7 @@ void test_swap(int sockfd, int idx, size_t N) {
     bool* buff = new bool[N];
     memset(buff, idx, N * sizeof(bool));
 
-    int bytes = swap_bool_batch(sockfd, buff, N);
+    int bytes = reveal_bool_batch(sockfd, buff, N);
     std::cout << "bytes: " << bytes << std::endl;
 
     assert(buff[0] == 1);

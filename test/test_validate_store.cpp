@@ -77,7 +77,7 @@ void test_altMult(const int server_num, const int serverfd,
 
   fmpz_t* z; new_fmpz_array(&z, N);
   store.multiplyAltShares(N, x, z, use_validated);
-  swap_fmpz_batch(serverfd, z, N);
+  reveal_fmpz_batch(serverfd, z, N);
   for (unsigned int i = 0; i < N; i++) {
     assert(fmpz_equal_ui(z[i], (i+1)*(i+1) * 10));
   }

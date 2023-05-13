@@ -248,7 +248,7 @@ const bool* const validate_snips(const size_t N,
     for (unsigned int i = 0; i < N; i++)
       cor[i] = checker[i]->CorFn();
 
-    swap_Cor_batch(serverfd, cor, N);
+    reveal_Cor_batch(serverfd, cor, N);
 
     fmpz_t* valid_share; new_fmpz_array(&valid_share, N);
     for (unsigned int i = 0; i < N; i++) {
@@ -259,7 +259,7 @@ const bool* const validate_snips(const size_t N,
     delete[] cor;
     delete[] checker;
 
-    swap_fmpz_batch(serverfd, valid_share, N);
+    reveal_fmpz_batch(serverfd, valid_share, N);
 
     for (unsigned int i = 0; i < N; i++) {
         ans[i] = fmpz_is_zero(valid_share[i]);

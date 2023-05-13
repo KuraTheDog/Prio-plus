@@ -45,7 +45,7 @@ int CorrelatedStore::b2a_single(const size_t N, const bool* const x, fmpz_t* con
     delete dabit;
   }
 
-  sent_bytes += swap_bool_batch(serverfd, v, N);
+  sent_bytes += reveal_bool_batch(serverfd, v, N);
 
   for (unsigned int i = 0; i < N; i++) {
     // [x]_p = v + [b]_p - 2 v [b]_p. Note v only added for one server.
@@ -117,7 +117,7 @@ int CorrelatedStore::multiplyBoolShares(const size_t N,
     z[i] = triple->c;
     delete triple;
   }
-  sent_bytes += swap_bool_batch(serverfd, de, 2 * N);
+  sent_bytes += reveal_bool_batch(serverfd, de, 2 * N);
 
   for (unsigned int i = 0; i < N; i++) {
     bool d = de[i];
@@ -153,7 +153,7 @@ int CorrelatedStore::multiplyArithmeticShares(
     delete triple;
   }
 
-  sent_bytes += swap_fmpz_batch(serverfd, de, 2 * N);
+  sent_bytes += reveal_fmpz_batch(serverfd, de, 2 * N);
 
   for (unsigned int i = 0; i < N; i++) {
     // [xy] = [c] + [x] e + [y] d - de
@@ -725,7 +725,7 @@ int CorrelatedStore::gen_rand_bitshare(const size_t N,
     fmpz_t* r_lt_p; new_fmpz_array(&r_lt_p, num_invalid);
     sent_bytes += cmp_bit(num_invalid, b, rB_tocheck, pB, r_lt_p);
     // Get r_lt_p in clear
-    sent_bytes += swap_fmpz_batch(serverfd, r_lt_p, num_invalid);
+    sent_bytes += reveal_fmpz_batch(serverfd, r_lt_p, num_invalid);
     for (unsigned int i = 0; i < num_invalid; i++) {
       valid[rB_idx[i]] = fmpz_is_one(r_lt_p[i]);
       // std::cout << "check " << i << ": valid[" << rB_idx[i] << "] = " << valid[rB_idx[i]] << std::endl;
@@ -764,7 +764,7 @@ int CorrelatedStore::LSB(const size_t N, const fmpz_t* const x,
   }
   clear_fmpz_array(r, N);
   // 2.1: Reveal c = x + r
-  sent_bytes += swap_fmpz_batch(serverfd, c, N);
+  sent_bytes += reveal_fmpz_batch(serverfd, c, N);
 
   // 3: if wraparound (c < r), x0 = c0 ^ r0
   //    if no wraparound, then x0 = 1 - c0 ^ r0

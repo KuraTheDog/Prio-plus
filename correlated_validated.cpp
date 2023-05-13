@@ -109,10 +109,8 @@ int ValidateCorrelatedStore::multiplyAltShares(
   }
 
   // TODO: Swap auto-sums, we want raw swap with threading.
-  // sent_bytes += swap_fmpz_batch(serverfd, diff, N);
-  sent_bytes += send_fmpz_batch(serverfd, diff, N);
   fmpz_t* diff_other; new_fmpz_array(&diff_other, N);
-  recv_fmpz_batch(serverfd, diff_other, N);
+  sent_bytes += swap_fmpz_batch(serverfd, diff, diff_other, N);
 
   for (unsigned int i = 0; i < N; i++) {
     fmpz_mod_addmul(z[i], diff_other[i], a[i], mod_ctx);

@@ -9,11 +9,13 @@ Returns total bytes sent on success,
   or first fail return of an internal step (typically 0 or negative)
 
 Swap:
+  Sends values to each other at the same time, as one round.
+  Spawns threads to do send/recv so that it's not blocked by massive sends.
+  Return is sent_bytes (which should be received bytes. Complains if not).
+Reveal:
+  similar, except also aggregates to reveal the shares.
   Both send [x]. Sets [x] = [this.x] "+" [recieved other x]
   For bool, "+" is bitwise XOR. For arith, is modular sum
-  Return is sent_bytes (which should be received bytes. Complains if not).
-
-  Spawns threads to do send/recv so that it's not blocked by massive sends.
 */
 
 #ifndef NET_SHARE_H
@@ -65,7 +67,7 @@ int recv_bool(const int sockfd, bool& x);
 // Versus 1 bool at a time takes up a whole byte per bool
 int send_bool_batch(const int sockfd, const bool* const x, const size_t n);
 int recv_bool_batch(const int sockfd, bool* const x, const size_t n);
-int swap_bool_batch(const int sockfd, bool* const x, const size_t n);
+int reveal_bool_batch(const int sockfd, bool* const x, const size_t n);
 
 // Unused
 int send_int(const int sockfd, const int x);
@@ -99,11 +101,12 @@ int recv_string(const int sockfd, std::string& x);
 // If FIXED_FMPZ_SIZE then uses less bytes
 int send_fmpz(const int sockfd, const fmpz_t x);
 int recv_fmpz(const int sockfd, fmpz_t x);
-int swap_fmpz(const int sockfd, fmpz_t x);
+int reveal_fmpz(const int sockfd, fmpz_t x);
 
 int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n);
 int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n);
-int swap_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n);
+int reveal_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n);
+int swap_fmpz_batch(const int sockfd, const fmpz_t* const x, fmpz_t* const y, const size_t n);
 
 int send_seed(const int sockfd, const flint_rand_t x);
 int recv_seed(const int sockfd, flint_rand_t x);
@@ -115,7 +118,7 @@ int recv_Cor(const int sockfd, Cor* const x);
 
 int send_Cor_batch(const int sockfd, const Cor* const * const x, const size_t n);
 int recv_Cor_batch(const int sockfd, Cor* const * const x, const size_t n);
-int swap_Cor_batch(const int sockfd, Cor* const * const x, const size_t n);
+int reveal_Cor_batch(const int sockfd, Cor* const * const x, const size_t n);
 
 int send_ClientPacket(const int sockfd, const ClientPacket* const x,
                       const size_t NMul);
