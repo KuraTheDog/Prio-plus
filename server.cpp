@@ -129,7 +129,7 @@ int recv_unvalidated(const int clientfd, const std::string pk, const size_t n) {
     // Overkill? Can be more efficient in the future. See client for more.
     const size_t N = NextPowerOfTwo(n-1);
 
-    int num_bytes = 0;
+    int cli_bytes = 0;
 
     DaBit** const bits = new DaBit*[N];
     AltTriple** const trips = new AltTriple*[N];
@@ -138,14 +138,14 @@ int recv_unvalidated(const int clientfd, const std::string pk, const size_t n) {
         trips[i] = new AltTriple();
     }
 
-    num_bytes += recv_DaBit_batch(clientfd, bits, N);
-    num_bytes += recv_AltTriple_batch(clientfd, trips, N);
+    cli_bytes += recv_DaBit_batch(clientfd, bits, N);
+    cli_bytes += recv_AltTriple_batch(clientfd, trips, N);
 
     ((ValidateCorrelatedStore*) correlated_store)->queue_Unvalidated(bits, trips, pk);
 
-    // std::cout << "got " << N << " unvalidated in " << num_bytes << " bytes" << std::endl;
+    // std::cout << "got " << N << " unvalidated in " << cli_bytes << " bytes" << std::endl;
 
-    return num_bytes;
+    return cli_bytes;
 }
 
 void process_unvalidated(const std::string pk, const size_t n) {
@@ -159,15 +159,14 @@ void process_unvalidated(const std::string pk, const size_t n) {
 // Currently shares_2 and shares_p are flat num_shares*num_values array.
 // TODO: Consider reworking for matrix form
 // TODO: return sent_bytes
-fmpz_t* const share_convert(const size_t num_shares,  // # inputs
-                            const size_t num_values,  // # values per input
-                            const size_t* const num_bits,  // # bits per value
-                            const uint64_t* const shares_2
-                            ) {
+int const share_convert(const size_t num_shares,  // # inputs
+                        const size_t num_values,  // # values per input
+                        const size_t* const num_bits,  // # bits per value
+                        const uint64_t* const shares_2,
+                        fmpz_t* const shares_p
+                        ) {
     auto start = clock_start();
     [[maybe_unused]] int sent_bytes = 0;
-
-    fmpz_t* shares_p; new_fmpz_array(&shares_p, num_shares * num_values);
 
     // convert
     fmpz_t* f_shares2; new_fmpz_array(&f_shares2, num_shares * num_values);
@@ -191,7 +190,7 @@ fmpz_t* const share_convert(const size_t num_shares,  // # inputs
 
     std::cout << "Share convert time: " << sec_from(start) << std::endl;
 
-    return shares_p;
+    return sent_bytes;
 }
 
 // Batch of N (snips + num_input wire/share) validations
@@ -281,9 +280,9 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
     BitShare share;
     const unsigned int total_inputs = msg.num_of_inputs;
 
-    int num_bytes = 0;
+    int cli_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        num_bytes += recv_in(clientfd, &share, sizeof(BitShare));
+        cli_bytes += recv_in(clientfd, &share, sizeof(BitShare));
         const std::string pk(share.pk, share.pk + PK_LENGTH);
         // recv_unvalidated(clientfd, 1, pk);
         if (share_map.find(pk) != share_map.end())
@@ -292,7 +291,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
-    std::cout << "bytes from client: " << num_bytes << std::endl;
+    std::cout << "bytes from client: " << cli_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
     start = clock_start();
     auto start2 = clock_start();
@@ -300,15 +299,15 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
     // if (STORE_TYPE != ot_store)
     //     ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs);
 
-    int server_bytes = 0;
+    int sent_bytes = 0;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
-        server_bytes += send_size(serverfd, num_inputs);
+        sent_bytes += send_size(serverfd, num_inputs);
         bool* const shares = new bool[num_inputs];
         int i = 0;
         for (const auto& share : share_map) {
-            server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             shares[i] = share.second;
             i++;
         }
@@ -321,7 +320,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
         send_uint64(serverfd, b);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
-        std::cout << "sent server bytes: " << server_bytes << std::endl;
+        std::cout << "sent server bytes: " << sent_bytes << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
@@ -372,9 +371,9 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     const unsigned int total_inputs = msg.num_of_inputs;
     const size_t nbits[1] = {msg.num_bits};
 
-    int num_bytes = 0;
+    int cli_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        num_bytes += recv_in(clientfd, &share, sizeof(IntShare));
+        cli_bytes += recv_in(clientfd, &share, sizeof(IntShare));
         const std::string pk(share.pk, share.pk + PK_LENGTH);
 
         if (share_map.find(pk) != share_map.end()
@@ -384,11 +383,11 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
 
         // std::cout << "share[" << i << "] = " << share.val << std::endl;
 
-        num_bytes += recv_unvalidated(clientfd, pk, msg.num_bits);
+        cli_bytes += recv_unvalidated(clientfd, pk, msg.num_bits);
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
-    std::cout << "bytes from client: " << num_bytes << std::endl;
+    std::cout << "bytes from client: " << cli_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
     if (STORE_TYPE != ot_store)
@@ -397,15 +396,15 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     start = clock_start();
     auto start2 = clock_start();
 
-    int server_bytes = 0;
+    int sent_bytes = 0;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
-        server_bytes += send_size(serverfd, num_inputs);
+        sent_bytes += send_size(serverfd, num_inputs);
         uint64_t* const shares = new uint64_t[num_inputs];
         int i = 0;
         for (const auto& share : share_map) {
-            server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             shares[i] = share.second;
             i++;
 
@@ -414,7 +413,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits);
         start2 = clock_start();
-        fmpz_t* const shares_p = share_convert(num_inputs, 1, nbits, shares);
+        fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs);
+        sent_bytes += share_convert(num_inputs, 1, nbits, shares, shares_p);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
@@ -432,7 +432,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
         send_fmpz(serverfd, b[0]);
         clear_fmpz_array(b, 1);
         std::cout << "total compute time: " << sec_from(start) << std::endl;
-        std::cout << "sent server bytes: " << server_bytes << std::endl;
+        std::cout << "sent server bytes: " << sent_bytes << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs;
@@ -454,11 +454,12 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits);
         start2 = clock_start();
-        fmpz_t* const shares_p = share_convert(num_inputs, 1, nbits, shares);
+        fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs);
+        sent_bytes += share_convert(num_inputs, 1, nbits, shares, shares_p);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        server_bytes += send_bool_batch(serverfd, valid, num_inputs);
+        sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
 
         fmpz_t* a; new_fmpz_array(&a, 1);
         size_t num_valid = accumulate(num_inputs, 1, shares_p, valid, a);
@@ -471,7 +472,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
         std::cout << "accumulate time: " << sec_from(start2) << std::endl;
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
-        std::cout << "sent server bytes: " << server_bytes << std::endl;
+        std::cout << "sent server bytes: " << sent_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             return RET_INVALID;
@@ -494,9 +495,9 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
     IntShare share;
     const unsigned int total_inputs = msg.num_of_inputs;
 
-    int num_bytes = 0;
+    int cli_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        num_bytes += recv_in(clientfd, &share, sizeof(IntShare));
+        cli_bytes += recv_in(clientfd, &share, sizeof(IntShare));
         const std::string pk(share.pk, share.pk + PK_LENGTH);
 
         if (share_map.find(pk) != share_map.end())
@@ -505,21 +506,21 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
-    std::cout << "bytes from client: " << num_bytes << std::endl;
+    std::cout << "bytes from client: " << cli_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
     start = clock_start();
     auto start2 = clock_start();
 
-    int server_bytes = 0;
+    int sent_bytes = 0;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
-        server_bytes += send_size(serverfd, num_inputs);
+        sent_bytes += send_size(serverfd, num_inputs);
         uint64_t b = 0;
         std::string* const pk_list = new std::string[num_inputs];
         size_t idx = 0;
         for (const auto& share : share_map) {
-            server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             pk_list[idx] = share.first;
             idx++;
         }
@@ -539,7 +540,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
         delete[] pk_list;
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
-        std::cout << "sent server bytes: " << server_bytes << std::endl;
+        std::cout << "sent server bytes: " << sent_bytes << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
@@ -559,7 +560,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
         std::cout << "PK + convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        server_bytes += send_bool_batch(serverfd, valid, num_inputs);
+        sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
 
         delete[] valid;
 
@@ -569,7 +570,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
-        std::cout << "sent server bytes: " << server_bytes << std::endl;
+        std::cout << "sent server bytes: " << sent_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             return RET_INVALID;
@@ -598,12 +599,12 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
     // Need this to have all share arrays stay in memory, for server1 later.
     uint64_t* const shares = new uint64_t[total_inputs * (B + 1)];
 
-    int num_bytes = 0;
+    int cli_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        num_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
+        cli_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
         const std::string pk(share.pk, share.pk + PK_LENGTH);
 
-        num_bytes += recv_uint64_batch(clientfd, &shares[i*(B+1)], B+1);
+        cli_bytes += recv_uint64_batch(clientfd, &shares[i*(B+1)], B+1);
 
         if (share_map.find(pk) != share_map.end())
             continue;
@@ -611,22 +612,22 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
-    std::cout << "bytes from client: " << num_bytes << std::endl;
+    std::cout << "bytes from client: " << cli_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
     start = clock_start();
     auto start2 = clock_start();
 
-    int server_bytes = 0;
+    int sent_bytes = 0;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
-        server_bytes += send_size(serverfd, num_inputs);
+        sent_bytes += send_size(serverfd, num_inputs);
         uint64_t b[B+1];
         memset(b, 0, sizeof(b));
         std::string* const pk_list = new std::string[num_inputs];
         size_t idx = 0;
         for (const auto& share : share_map) {
-            server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             pk_list[idx] = share.first;
             idx++;
         }
@@ -647,7 +648,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
 
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
-        std::cout << "sent server bytes: " << server_bytes << std::endl;
+        std::cout << "sent server bytes: " << sent_bytes << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs, num_valid = 0;
@@ -669,7 +670,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
         std::cout << "PK+convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        server_bytes += send_bool_batch(serverfd, valid, num_inputs);
+        sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
 
         delete[] shares;
         delete[] valid;
@@ -678,7 +679,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
-        std::cout << "sent server bytes: " << server_bytes << std::endl;
+        std::cout << "sent server bytes: " << sent_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             return RET_INVALID;
@@ -723,14 +724,14 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
     const size_t NMul = mock_circuit->NumMulGates();
     delete mock_circuit;
 
-    int num_bytes = 0;
+    int cli_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        num_bytes += recv_in(clientfd, &share, sizeof(VarShare));
+        cli_bytes += recv_in(clientfd, &share, sizeof(VarShare));
         const std::string pk(share.pk, share.pk + PK_LENGTH);
 
         ClientPacket* const packet = new ClientPacket(NMul);
         int packet_bytes = recv_ClientPacket(clientfd, packet, NMul);
-        num_bytes += packet_bytes;
+        cli_bytes += packet_bytes;
 
         // std::cout << "share[" << i << "] = " << share.val << ", " << share.val_squared << std::endl;
 
@@ -744,11 +745,11 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
         }
         share_map[pk] = {share.val, share.val_squared, packet};
 
-        num_bytes += recv_unvalidated(clientfd, pk, msg.num_bits * num_dabits);
+        cli_bytes += recv_unvalidated(clientfd, pk, msg.num_bits * num_dabits);
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
-    std::cout << "bytes from client: " << num_bytes << std::endl;
+    std::cout << "bytes from client: " << cli_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
     if (STORE_TYPE != ot_store)
@@ -758,11 +759,11 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
 
     auto start2 = clock_start();
 
-    int server_bytes = 0;
+    int sent_bytes = 0;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
-        server_bytes += send_size(serverfd, num_inputs);
+        sent_bytes += send_size(serverfd, num_inputs);
 
         uint64_t* const shares = new uint64_t[2 * num_inputs];
         ClientPacket** const packet = new ClientPacket*[num_inputs];
@@ -772,7 +773,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             pk_list[idx] = share.first;
             idx++;
 
@@ -789,8 +790,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
             shares[2 * i] = val;
             shares[2 * i + 1] = val2;
         }
-        fmpz_t* const shares_p = share_convert(num_inputs, 2,
-                                               nbits, shares);
+        fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * 2);
+        sent_bytes += share_convert(num_inputs, 2, nbits, shares, shares_p);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
         const bool* const snip_valid = validate_snips(
@@ -816,6 +817,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
         // Convert
         fmpz_t* b; new_fmpz_array(&b, 2);
         accumulate(num_inputs, 2, shares_p, valid, b);
+        delete[] valid;
+        clear_fmpz_array(shares_p, num_inputs * 2);
 
         std::cout << "accumulate time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
@@ -823,11 +826,9 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
         send_fmpz(serverfd, b[0]);
         send_fmpz(serverfd, b[1]);
 
-        delete[] valid;
         clear_fmpz_array(b, 2);
-        clear_fmpz_array(shares_p, num_inputs * 2);
 
-        std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
+        std::cout << "sent non-snip server bytes: " << sent_bytes << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs;
@@ -861,8 +862,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
             shares[2 * i] = val;
             shares[2 * i + 1] = val2;
         }
-        fmpz_t* const shares_p = share_convert(num_inputs, 2,
-                                               nbits, shares);
+        fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * 2);
+        sent_bytes += share_convert(num_inputs, 2, nbits, shares, shares_p);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
         const bool* const snip_valid = validate_snips(
@@ -875,7 +876,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
             delete packet[i];
         }
         // Send valid back, to also encapsulate pre-snip valid[]
-        server_bytes += send_bool_batch(serverfd, valid, num_inputs);
+        sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
         delete[] snip_valid;
         delete[] pk_list;
         delete[] circuit;
@@ -899,7 +900,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
         fmpz_t b2; fmpz_init(b2); recv_fmpz(serverfd, b2);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
+        std::cout << "sent non-snip server bytes: " << sent_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             clear_fmpz_array(a, 2);
@@ -932,10 +933,10 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
 returnType linreg_op(const initMsg msg, const int clientfd,
                      const int serverfd, const int server_num) {
     auto start = clock_start();
-    int num_bytes = 0;
+    int cli_bytes = 0;
 
     size_t degree;
-    num_bytes += recv_size(clientfd, degree);
+    cli_bytes += recv_size(clientfd, degree);
 
     std::cout << "Linreg degree: " << degree << std::endl;
 
@@ -966,17 +967,17 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     for (unsigned int i = 0; i < total_inputs; i++) {
         bool sizes_valid = true;
 
-        num_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
+        cli_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
         const std::string pk(share.pk, share.pk + PK_LENGTH);
 
         share.x_vals = new uint64_t[num_x];
         share.x2_vals = new uint64_t[num_quad];
         share.xy_vals = new uint64_t[num_x];
 
-        num_bytes += recv_uint64_batch(clientfd, share.x_vals, num_x);
-        num_bytes += recv_uint64(clientfd, share.y);
-        num_bytes += recv_uint64_batch(clientfd, share.x2_vals, num_quad);
-        num_bytes += recv_uint64_batch(clientfd, share.xy_vals, num_x);
+        cli_bytes += recv_uint64_batch(clientfd, share.x_vals, num_x);
+        cli_bytes += recv_uint64(clientfd, share.y);
+        cli_bytes += recv_uint64_batch(clientfd, share.x2_vals, num_quad);
+        cli_bytes += recv_uint64_batch(clientfd, share.xy_vals, num_x);
 
         for (unsigned int j = 0; j < num_x; j++) {
             if (share.x_vals[j] >= max_val)
@@ -993,7 +994,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
         ClientPacket* const packet = new ClientPacket(NMul);
         int packet_bytes = recv_ClientPacket(clientfd, packet, NMul);
-        num_bytes += packet_bytes;
+        cli_bytes += packet_bytes;
 
         if ((share_map.find(pk) != share_map.end())
             or (not sizes_valid)
@@ -1008,11 +1009,11 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
         share_map[pk] = {share.x_vals, share.y, share.x2_vals, share.xy_vals, packet};
 
-        num_bytes += recv_unvalidated(clientfd, pk, msg.num_bits * num_dabits);
+        cli_bytes += recv_unvalidated(clientfd, pk, msg.num_bits * num_dabits);
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
-    std::cout << "bytes from client: " << num_bytes << std::endl;
+    std::cout << "bytes from client: " << cli_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
     if (STORE_TYPE != ot_store)
@@ -1021,11 +1022,11 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     start = clock_start();
     auto start2 = clock_start();
 
-    int server_bytes = 0;
+    int sent_bytes = 0;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
-        server_bytes += send_size(serverfd, num_inputs);
+        sent_bytes += send_size(serverfd, num_inputs);
 
         uint64_t* const shares = new uint64_t[num_inputs * num_fields];
         ClientPacket** const packet = new ClientPacket*[num_inputs];
@@ -1035,7 +1036,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            server_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             pk_list[idx] = share.first;
             idx++;
 
@@ -1066,8 +1067,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             delete x2_vals;
             delete xy_vals;
         }
-        fmpz_t* const shares_p = share_convert(num_inputs, num_fields,
-                                               nbits, shares);
+        fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * num_fields);
+        sent_bytes += share_convert(num_inputs, num_fields, nbits, shares, shares_p);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
         const bool* const snip_valid = validate_snips(
@@ -1094,17 +1095,17 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         // Convert
         fmpz_t* b; new_fmpz_array(&b, num_fields);
         accumulate(num_inputs, num_fields, shares_p, valid, b);
+        delete[] valid;
+        clear_fmpz_array(shares_p, num_inputs * num_fields);
 
         std::cout << "accumulate time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
 
         send_fmpz_batch(serverfd, b, num_fields);
 
-        delete[] valid;
         clear_fmpz_array(b, num_fields);
-        clear_fmpz_array(shares_p, num_inputs * num_fields);
 
-        std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
+        std::cout << "sent non-snip server bytes: " << sent_bytes << std::endl;
 
         return RET_NO_ANS;
     } else {
@@ -1155,8 +1156,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             delete x2_vals;
             delete xy_vals;
         }
-        fmpz_t* const shares_p = share_convert(num_inputs, num_fields,
-                                               nbits, shares);
+        fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * num_fields);
+        sent_bytes += share_convert(num_inputs, num_fields, nbits, shares, shares_p);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
         const bool* const snip_valid = validate_snips(
@@ -1170,7 +1171,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             delete packet[i];
         }
         // Send valid back, to also encapsulate pre-snip valid[]
-        server_bytes += send_bool_batch(serverfd, valid, num_inputs);
+        sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
         delete[] snip_valid;
         delete[] pk_list;
         delete[] circuit;
@@ -1222,7 +1223,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         fmpz_clear(b);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "sent non-snip server bytes: " << server_bytes << std::endl;
+        std::cout << "sent non-snip server bytes: " << sent_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             delete[] x_accum;
@@ -1257,12 +1258,12 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     const uint64_t max_inp = 1ULL << msg.num_bits;
 
     FreqShare share;
-    int num_bytes = 0;
+    int cli_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        num_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
+        cli_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
         const std::string pk(share.pk, share.pk+PK_LENGTH);
         share.arr = new bool[max_inp];
-        num_bytes += recv_bool_batch(clientfd, share.arr, max_inp);
+        cli_bytes += recv_bool_batch(clientfd, share.arr, max_inp);
 
         if (share_map.find(pk) != share_map.end()) {
             delete[] share.arr;
@@ -1276,7 +1277,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
-    std::cout << "bytes from client: " << num_bytes << std::endl;
+    std::cout << "bytes from client: " << cli_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
     if (STORE_TYPE != ot_store)
@@ -1284,16 +1285,16 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
 
     start = clock_start();
     auto start2 = clock_start();
-    num_bytes = 0;
+    int sent_bytes = 0;
 
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
-        num_bytes += send_size(serverfd, num_inputs);
+        sent_bytes += send_size(serverfd, num_inputs);
         bool* const shares = new bool[num_inputs * max_inp];
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            num_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             memcpy(&shares[idx * max_inp], share.second, max_inp);
             delete[] share.second;
             idx++;
@@ -1302,7 +1303,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         start2 = clock_start();
 
         fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * max_inp);
-        num_bytes += correlated_store->b2a_single(num_inputs * max_inp, shares, shares_p);
+        sent_bytes += correlated_store->b2a_single(num_inputs * max_inp, shares, shares_p);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
@@ -1324,8 +1325,8 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         // Batch check.
         bool total_parity_other;
         fmpz_t sum_other; fmpz_init(sum_other);
-        num_bytes += send_bool(serverfd, total_parity);
-        num_bytes += send_fmpz(serverfd, sum);
+        sent_bytes += send_bool(serverfd, total_parity);
+        sent_bytes += send_fmpz(serverfd, sum);
         recv_bool(serverfd, total_parity_other);
         recv_fmpz(serverfd, sum_other);
         fmpz_clear(sum);
@@ -1359,7 +1360,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         send_fmpz_batch(serverfd, b, max_inp);
         clear_fmpz_array(b, max_inp);
 
-        std::cout << "sent server bytes: " << num_bytes << std::endl;
+        std::cout << "sent server bytes: " << sent_bytes << std::endl;
         return RET_NO_ANS;
     } else {
         size_t num_inputs;
@@ -1383,7 +1384,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         start2 = clock_start();
 
         fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * max_inp);
-        num_bytes += correlated_store->b2a_single(num_inputs * max_inp, shares, shares_p);
+        sent_bytes += correlated_store->b2a_single(num_inputs * max_inp, shares, shares_p);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
@@ -1408,8 +1409,8 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         // batch check
         bool total_parity_other;
         fmpz_t sum_other; fmpz_init(sum_other);
-        num_bytes += send_bool(serverfd, total_parity);
-        num_bytes += send_fmpz(serverfd, sum);
+        sent_bytes += send_bool(serverfd, total_parity);
+        sent_bytes += send_fmpz(serverfd, sum);
         recv_bool(serverfd, total_parity_other);
         recv_fmpz(serverfd, sum_other);
         bool all_valid = false;
@@ -1418,7 +1419,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
             fmpz_mod_add(sum, sum, sum_other, mod_ctx);
             all_valid = fmpz_equal_ui(sum, total_inputs);
         }
-        num_bytes += send_bool(serverfd, all_valid);
+        sent_bytes += send_bool(serverfd, all_valid);
         if (all_valid) {
             memset(valid, true, num_inputs);
         } else {
@@ -1442,7 +1443,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
             clear_fmpz_array(sums_other, num_inputs);
             delete[] parity_other;
 
-            num_bytes += send_bool_batch(serverfd, valid, num_inputs);
+            sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
         }
 
         clear_fmpz_array(sums, num_inputs);
@@ -1464,7 +1465,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         recv_fmpz_batch(serverfd, b, max_inp);
 
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "sent server bytes: " << num_bytes << std::endl;
+        std::cout << "sent server bytes: " << sent_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
             std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
             clear_fmpz_array(b, max_inp);
@@ -1493,7 +1494,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
     auto start = clock_start();
 
     std::unordered_map<std::string, bool*> share_map;
-    int num_bytes = 0;
+    int cli_bytes = 0;
     const size_t b = msg.num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
 
@@ -1508,11 +1509,11 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
 
     for (unsigned int i = 0; i < total_inputs; i++) {
         char pk_c[PK_LENGTH];
-        num_bytes += recv_in(clientfd, &pk_c[0], PK_LENGTH);
+        cli_bytes += recv_in(clientfd, &pk_c[0], PK_LENGTH);
         const std::string pk(pk_c, pk_c+PK_LENGTH);
 
         bool* const buff = new bool[2 * b];
-        num_bytes += recv_bool_batch(clientfd, buff, 2 * b);
+        cli_bytes += recv_bool_batch(clientfd, buff, 2 * b);
 
         if (share_map.find(pk) != share_map.end()) {
             delete[] buff;
@@ -1523,25 +1524,25 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
-    std::cout << "bytes from client: " << num_bytes << std::endl;
+    std::cout << "bytes from client: " << cli_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
     correlated_store->check_DaBits(total_inputs * 2 * b);
 
     start = clock_start();
     auto start2 = clock_start();
-    num_bytes = 0;
+    int sent_bytes = 0;
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
         const size_t n = num_inputs * b;
-        num_bytes += send_size(serverfd, num_inputs);
+        sent_bytes += send_size(serverfd, num_inputs);
         bool* const valid = new bool[num_inputs];
         bool* const x = new bool[n];
         bool* const y = new bool[n];
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            num_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
 
             memcpy(&x[idx*b], share.second, b);
             memcpy(&y[idx*b], &(share.second[b]), b);
@@ -1562,21 +1563,21 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        num_bytes += correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
+        sent_bytes += correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
         delete[] x;
         delete[] y;
         std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
-        std::cout << "compute bytes sent: " << num_bytes << std::endl;
+        std::cout << "compute bytes sent: " << sent_bytes << std::endl;
 
         // Evaluate
         // True means |1| is larger than |0|
         start2 = clock_start();
         fmpz_t* larger; new_fmpz_array(&larger, b);
-        num_bytes = correlated_store->abs_cmp(b, bucket0, bucket1, larger);
-        num_bytes += send_fmpz_batch(serverfd, larger, b);
+        sent_bytes = correlated_store->abs_cmp(b, bucket0, bucket1, larger);
+        sent_bytes += send_fmpz_batch(serverfd, larger, b);
         std::cout << "evaluate time: " << sec_from(start2) << std::endl;
-        std::cout << "evaluate bytes sent: " << num_bytes << std::endl;
+        std::cout << "evaluate bytes sent: " << sent_bytes << std::endl;
 
         clear_fmpz_array(bucket0, b);
         clear_fmpz_array(bucket1, b);
@@ -1618,23 +1619,23 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
 
             delete[] share;
         }
-        num_bytes += send_bool_batch(serverfd, valid, num_inputs);
+        sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
         std::cout << "PK time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        num_bytes += correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
+        sent_bytes += correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
         delete[] x;
         delete[] y;
         std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
-        std::cout << "compute bytes sent: " << num_bytes << std::endl;
+        std::cout << "compute bytes sent: " << sent_bytes << std::endl;
 
         // Evaluate
 
         start2 = clock_start();
         fmpz_t* larger_0; new_fmpz_array(&larger_0, b);
         fmpz_t* larger_1; new_fmpz_array(&larger_1, b);
-        num_bytes = correlated_store->abs_cmp(b, bucket0, bucket1, larger_0);
+        sent_bytes = correlated_store->abs_cmp(b, bucket0, bucket1, larger_0);
         recv_fmpz_batch(serverfd, larger_1, b);
 
         clear_fmpz_array(bucket0, b);
@@ -1663,7 +1664,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         }
 
         std::cout << "evaluate time: " << sec_from(start2) << std::endl;
-        std::cout << "evaluate sent bytes: " << num_bytes << std::endl;
+        std::cout << "evaluate sent bytes: " << sent_bytes << std::endl;
 
         std::cout << "### Heavy hitter value is " << ans << std::endl;
 
@@ -1681,7 +1682,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     typedef std::tuple <bool*, bool*, bool*, bool*> sharetype;
     std::unordered_map<std::string, sharetype> share_map;
 
-    int64_t num_bytes = 0;
+    int64_t cli_bytes = 0;
     const size_t num_bits = msg.num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
 
@@ -1723,17 +1724,17 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
     for (unsigned int i = 0; i < total_inputs; i++) {
         char pk_c[PK_LENGTH];
-        num_bytes += recv_in(clientfd, &pk_c[0], PK_LENGTH);
+        cli_bytes += recv_in(clientfd, &pk_c[0], PK_LENGTH);
         const std::string pk(pk_c, pk_c+PK_LENGTH);
 
         bool* const share_sh_x = new bool[share_size_sh];
         bool* const share_sh_y = new bool[share_size_sh];
         bool* const share_mask = new bool[share_size_mask];
         bool* const share_count = new bool[share_size_count];
-        num_bytes += recv_bool_batch(clientfd, share_sh_x, share_size_sh);
-        num_bytes += recv_bool_batch(clientfd, share_sh_y, share_size_sh);
-        num_bytes += recv_bool_batch(clientfd, share_mask, share_size_mask);
-        num_bytes += recv_bool_batch(clientfd, share_count, share_size_count);
+        cli_bytes += recv_bool_batch(clientfd, share_sh_x, share_size_sh);
+        cli_bytes += recv_bool_batch(clientfd, share_sh_y, share_size_sh);
+        cli_bytes += recv_bool_batch(clientfd, share_mask, share_size_mask);
+        cli_bytes += recv_bool_batch(clientfd, share_count, share_size_count);
 
         if (share_map.find(pk) != share_map.end()) {
             delete[] share_sh_x;
@@ -1747,7 +1748,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
-    std::cout << "bytes from client: " << num_bytes << std::endl;
+    std::cout << "bytes from client: " << cli_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
     // For each pair of buckets, do 1 B2A.
@@ -1772,10 +1773,10 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
     start = clock_start();
     auto start2 = clock_start();
-    num_bytes = 0;
+    int sent_bytes = 0;
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
-        num_bytes += send_size(serverfd, num_inputs);
+        sent_bytes += send_size(serverfd, num_inputs);
         std::cout << "num_inputs: " << num_inputs << std::endl;
 
         std::string* const pk_list = new std::string[num_inputs];
@@ -1787,7 +1788,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            num_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
             pk_list[idx] = share.first;
             idx++;
         }
@@ -1824,7 +1825,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         memcpy(&shares_2[share_y_offset], shares_sh_y, num_inputs * share_size_sh);
         delete[] shares_sh_y;
         delete[] shares_count;
-        num_bytes += correlated_store->b2a_single(convert_size, shares_2, shares_p);
+        sent_bytes += correlated_store->b2a_single(convert_size, shares_2, shares_p);
         // We use first part of shares_p as the countmin shares.
 
         // Freq check. Batch across all inputs
@@ -1854,8 +1855,8 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         delete[] shares_2;
         bool* parity_other = new bool[cfg.Q + cfg.countmin_cfg.d];
         fmpz_t* sums_other; new_fmpz_array(&sums_other, cfg.Q + cfg.countmin_cfg.d);
-        num_bytes += send_bool_batch(serverfd, parity, cfg.Q + cfg.countmin_cfg.d);
-        num_bytes += send_fmpz_batch(serverfd, sums, cfg.Q + cfg.countmin_cfg.d);
+        sent_bytes += send_bool_batch(serverfd, parity, cfg.Q + cfg.countmin_cfg.d);
+        sent_bytes += send_fmpz_batch(serverfd, sums, cfg.Q + cfg.countmin_cfg.d);
         recv_bool_batch(serverfd, parity_other, cfg.Q + cfg.countmin_cfg.d);
         recv_fmpz_batch(serverfd, sums_other, cfg.Q + cfg.countmin_cfg.d);
         bool all_valid = false;
@@ -1883,7 +1884,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
 
         start3 = clock_start();
-        num_bytes += correlated_store->heavy_convert_mask(
+        sent_bytes += correlated_store->heavy_convert_mask(
             num_inputs, cfg.Q, cfg.B, cfg.SH_depth,
             shares_sh_x, &shares_p[share_y_offset], shares_mask,
             valid, bucket0, bucket1);
@@ -1894,13 +1895,13 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         std::cout << "heavy_convert time: " << sec_from(start3) << std::endl;
         std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
-        std::cout << "compute bytes sent: " << num_bytes << std::endl;
+        std::cout << "compute bytes sent: " << sent_bytes << std::endl;
 
         // straightforward eval. TODO: abs_cmp.
         start2 = clock_start();
-        num_bytes += send_fmpz_batch(serverfd, bucket0, num_sh);
-        num_bytes += send_fmpz_batch(serverfd, bucket1, num_sh);
-        num_bytes += send_fmpz_batch(serverfd, countmin_accum, share_size_count);
+        sent_bytes += send_fmpz_batch(serverfd, bucket0, num_sh);
+        sent_bytes += send_fmpz_batch(serverfd, bucket1, num_sh);
+        sent_bytes += send_fmpz_batch(serverfd, countmin_accum, share_size_count);
 
         clear_fmpz_array(bucket0, num_sh);
         clear_fmpz_array(bucket1, num_sh);
@@ -1957,7 +1958,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         memcpy(&shares_2[share_y_offset], shares_sh_y, num_inputs * share_size_sh);
         delete[] shares_sh_y;
         delete[] shares_count;
-        num_bytes += correlated_store->b2a_single(convert_size, shares_2, shares_p);
+        sent_bytes += correlated_store->b2a_single(convert_size, shares_2, shares_p);
         // We just use first part of shares_p as the countmin shares.
 
         // Freq check. Batch across all inputs
@@ -1987,8 +1988,8 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         delete[] shares_2;
         bool* parity_other = new bool[cfg.Q + cfg.countmin_cfg.d];
         fmpz_t* sums_other; new_fmpz_array(&sums_other, cfg.Q + cfg.countmin_cfg.d);
-        num_bytes += send_bool_batch(serverfd, parity, cfg.Q + cfg.countmin_cfg.d);
-        num_bytes += send_fmpz_batch(serverfd, sums, cfg.Q + cfg.countmin_cfg.d);
+        sent_bytes += send_bool_batch(serverfd, parity, cfg.Q + cfg.countmin_cfg.d);
+        sent_bytes += send_fmpz_batch(serverfd, sums, cfg.Q + cfg.countmin_cfg.d);
         recv_bool_batch(serverfd, parity_other, cfg.Q + cfg.countmin_cfg.d);
         recv_fmpz_batch(serverfd, sums_other, cfg.Q + cfg.countmin_cfg.d);
         bool all_valid = false;
@@ -2016,7 +2017,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
 
         start3 = clock_start();
-        num_bytes += correlated_store->heavy_convert_mask(
+        sent_bytes += correlated_store->heavy_convert_mask(
             num_inputs, cfg.Q, cfg.B, cfg.SH_depth,
             shares_sh_x, &shares_p[share_y_offset], shares_mask,
             valid, bucket0, bucket1);
@@ -2026,7 +2027,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         std::cout << "heavy_convert time: " << sec_from(start3) << std::endl;
         std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
-        std::cout << "compute bytes sent: " << num_bytes << std::endl;
+        std::cout << "compute bytes sent: " << sent_bytes << std::endl;
 
         // Lazy eval. TODO: abs_cmp
         start2 = clock_start();

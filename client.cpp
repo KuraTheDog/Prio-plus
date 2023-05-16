@@ -127,7 +127,7 @@ int send_unvalidated(const size_t n) {
 
     [[maybe_unused]] auto start = clock_start();
 
-    int num_bytes = 0;
+    int sent_bytes = 0;
     DaBit** const da0 = new DaBit*[N];
     DaBit** const da1 = new DaBit*[N];
     AltTriple** const trip0 = new AltTriple*[N];
@@ -143,10 +143,10 @@ int send_unvalidated(const size_t n) {
         NewAltTriples(trip0[i], trip1[i]);
     }
 
-    num_bytes += send_DaBit_batch(sockfd0, da0, N);
-    num_bytes += send_DaBit_batch(sockfd1, da1, N);
-    num_bytes += send_AltTriple_batch(sockfd0, trip0, N);
-    num_bytes += send_AltTriple_batch(sockfd1, trip1, N);
+    sent_bytes += send_DaBit_batch(sockfd0, da0, N);
+    sent_bytes += send_DaBit_batch(sockfd1, da1, N);
+    sent_bytes += send_AltTriple_batch(sockfd0, trip0, N);
+    sent_bytes += send_AltTriple_batch(sockfd1, trip1, N);
 
     for (unsigned int i = 0; i < N; i++) {
         delete da0[i];
@@ -161,15 +161,15 @@ int send_unvalidated(const size_t n) {
 
     // std::cout << "unvalidated send:\t" << sec_from(start) << std::endl;
     // std::cout << "sent " << N << " (originally " << n << ") unvalidated" << std::endl;
-    // std::cout << "unvalidated bytes per server: " << num_bytes / 2 << std::endl;
+    // std::cout << "unvalidated bytes per server: " << sent_bytes / 2 << std::endl;
 
-    return num_bytes;
+    return sent_bytes;
 }
 
 int bit_sum_helper(const std::string protocol, const size_t numreqs,
                    unsigned int &ans, const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
-    int num_bytes = 0;
+    int sent_bytes = 0;
 
     bool real_val, share0, share1;
 
@@ -200,12 +200,12 @@ int bit_sum_helper(const std::string protocol, const size_t numreqs,
 
     start = clock_start();
     if (msg_ptr != nullptr) {
-        num_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
-        num_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
+        sent_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
+        sent_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
     }
     for (unsigned int i = 0; i < numreqs; i++) {
-        num_bytes += send_to_server(0, &bitshare0[i], sizeof(BitShare));
-        num_bytes += send_to_server(1, &bitshare1[i], sizeof(BitShare));
+        sent_bytes += send_to_server(0, &bitshare0[i], sizeof(BitShare));
+        sent_bytes += send_to_server(1, &bitshare1[i], sizeof(BitShare));
     }
 
     delete[] bitshare0;
@@ -214,27 +214,27 @@ int bit_sum_helper(const std::string protocol, const size_t numreqs,
     if (numreqs > 1)
         std::cout << "batch send:\t" << sec_from(start) << std::endl;
 
-    return num_bytes;
+    return sent_bytes;
 }
 
 void bit_sum(const std::string protocol, const size_t numreqs) {
     unsigned int ans = 0;
-    int num_bytes = 0;
+    int sent_bytes = 0;
     initMsg msg;
     msg.num_of_inputs = numreqs;
     msg.type = BIT_SUM;
 
     if (CLIENT_BATCH) {
-        num_bytes += bit_sum_helper(protocol, numreqs, ans, &msg);
+        sent_bytes += bit_sum_helper(protocol, numreqs, ans, &msg);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            num_bytes += bit_sum_helper(protocol, 1, ans, i == 0 ? &msg : nullptr);
+            sent_bytes += bit_sum_helper(protocol, 1, ans, i == 0 ? &msg : nullptr);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
     std::cout << "Ans : " << ans << std::endl;
-    std::cout << "Total sent bytes: " << num_bytes << std::endl;
+    std::cout << "Total sent bytes: " << sent_bytes << std::endl;
 }
 
 /* 0: pk mismatch
@@ -298,7 +298,7 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
 int int_sum_helper(const std::string protocol, const size_t numreqs,
                    uint64_t &ans, const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
-    int num_bytes = 0;
+    int sent_bytes = 0;
 
     uint64_t real_val, share0, share1;
 
@@ -329,13 +329,13 @@ int int_sum_helper(const std::string protocol, const size_t numreqs,
 
     start = clock_start();
     if (msg_ptr != nullptr) {
-        num_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
-        num_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
+        sent_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
+        sent_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
     }
     for (unsigned int i = 0; i < numreqs; i++) {
-        num_bytes += send_to_server(0, &intshare0[i], sizeof(IntShare));
-        num_bytes += send_to_server(1, &intshare1[i], sizeof(IntShare));
-        num_bytes += send_unvalidated(num_bits);
+        sent_bytes += send_to_server(0, &intshare0[i], sizeof(IntShare));
+        sent_bytes += send_to_server(1, &intshare1[i], sizeof(IntShare));
+        sent_bytes += send_unvalidated(num_bits);
     }
     delete[] intshare0;
     delete[] intshare1;
@@ -343,12 +343,12 @@ int int_sum_helper(const std::string protocol, const size_t numreqs,
     if (numreqs > 1)
         std::cout << "batch send:\t" << sec_from(start) << std::endl;
 
-    return num_bytes;
+    return sent_bytes;
 }
 
 void int_sum(const std::string protocol, const size_t numreqs) {
     uint64_t ans = 0;
-    int num_bytes = 0;
+    int sent_bytes = 0;
     initMsg msg;
     msg.num_bits = num_bits;
     msg.num_of_inputs = numreqs;
@@ -360,16 +360,16 @@ void int_sum(const std::string protocol, const size_t numreqs) {
     }
 
     if (CLIENT_BATCH) {
-        num_bytes += int_sum_helper(protocol, numreqs, ans, &msg);
+        sent_bytes += int_sum_helper(protocol, numreqs, ans, &msg);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            num_bytes += int_sum_helper(protocol, 1, ans, i == 0 ? &msg : nullptr);
+            sent_bytes += int_sum_helper(protocol, 1, ans, i == 0 ? &msg : nullptr);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
     std::cout << "Ans : " << ans << std::endl;
-    std::cout << "Total sent bytes: " << num_bytes << std::endl;
+    std::cout << "Total sent bytes: " << sent_bytes << std::endl;
 }
 
 /* 0: x > max
@@ -441,7 +441,7 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
 int xor_op_helper(const std::string protocol, const size_t numreqs,
                   bool &ans, const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
-    int num_bytes = 0;
+    int sent_bytes = 0;
 
     bool value;
     uint64_t encoded, share0, share1;
@@ -482,12 +482,12 @@ int xor_op_helper(const std::string protocol, const size_t numreqs,
         std::cout << "batch make:\t" << sec_from(start) << std::endl;
     start = clock_start();
     if (msg_ptr != nullptr) {
-        num_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
-        num_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
+        sent_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
+        sent_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
     }
     for (unsigned int i = 0; i < numreqs; i++) {
-        num_bytes += send_to_server(0, &intshare0[i], sizeof(IntShare));
-        num_bytes += send_to_server(1, &intshare1[i], sizeof(IntShare));
+        sent_bytes += send_to_server(0, &intshare0[i], sizeof(IntShare));
+        sent_bytes += send_to_server(1, &intshare1[i], sizeof(IntShare));
     }
 
     delete[] intshare0;
@@ -496,12 +496,12 @@ int xor_op_helper(const std::string protocol, const size_t numreqs,
     if (numreqs > 1)
         std::cout << "batch send:\t" << sec_from(start) << std::endl;
 
-    return num_bytes;
+    return sent_bytes;
 }
 
 void xor_op(const std::string protocol, const size_t numreqs) {
     bool ans;
-    int num_bytes = 0;
+    int sent_bytes = 0;
     initMsg msg;
     msg.num_of_inputs = numreqs;
     if (protocol == "ANDOP") {
@@ -515,16 +515,16 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     }
 
     if (CLIENT_BATCH) {
-        num_bytes += xor_op_helper(protocol, numreqs, ans, &msg);
+        sent_bytes += xor_op_helper(protocol, numreqs, ans, &msg);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            num_bytes += xor_op_helper(protocol, 1, ans, i == 0 ? &msg : nullptr);
+            sent_bytes += xor_op_helper(protocol, 1, ans, i == 0 ? &msg : nullptr);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
     std::cout << "Ans : " << std::boolalpha << ans << std::endl;
-    std::cout << "Total sent bytes: " << num_bytes << std::endl;
+    std::cout << "Total sent bytes: " << sent_bytes << std::endl;
 }
 
 /* 0: pk mismatch
@@ -619,7 +619,7 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
                   const unsigned int B, uint64_t &ans,
                   const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
-    int num_bytes = 0;
+    int sent_bytes = 0;
 
     start = clock_start();
 
@@ -675,12 +675,12 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
 
     start = clock_start();
     if (msg_ptr != nullptr) {
-        num_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
-        num_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
+        sent_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
+        sent_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
     }
     for (unsigned int i = 0; i < numreqs; i++) {
-        num_bytes += send_maxshare(0, maxshare0[i], B);
-        num_bytes += send_maxshare(1, maxshare1[i], B);
+        sent_bytes += send_maxshare(0, maxshare0[i], B);
+        sent_bytes += send_maxshare(1, maxshare1[i], B);
 
         delete[] maxshare0[i].arr;
         delete[] maxshare1[i].arr;
@@ -692,14 +692,14 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
     if (numreqs > 1)
         std::cout << "batch send:\t" << sec_from(start) << std::endl;
 
-    return num_bytes;
+    return sent_bytes;
 }
 
 void max_op(const std::string protocol, const size_t numreqs) {
     const uint64_t B = max_int;
 
     uint64_t ans;
-    int num_bytes = 0;
+    int sent_bytes = 0;
     initMsg msg;
     msg.num_of_inputs = numreqs;
     msg.max_inp = B;
@@ -714,16 +714,16 @@ void max_op(const std::string protocol, const size_t numreqs) {
     }
 
     if (CLIENT_BATCH) {
-        num_bytes += max_op_helper(protocol, numreqs, B, ans, &msg);
+        sent_bytes += max_op_helper(protocol, numreqs, B, ans, &msg);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            num_bytes += max_op_helper(protocol, 1, B, ans, i == 0 ? &msg : nullptr);
+            sent_bytes += max_op_helper(protocol, 1, B, ans, i == 0 ? &msg : nullptr);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
     std::cout << "Ans : " << ans << std::endl;
-    std::cout << "Total sent bytes: " << num_bytes << std::endl;
+    std::cout << "Total sent bytes: " << sent_bytes << std::endl;
 }
 
 /* 0: pk mismatch
@@ -820,7 +820,7 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
                   uint64_t& sum, uint64_t& sumsquared,
                   const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
-    int num_bytes = 0;
+    int sent_bytes = 0;
 
     uint64_t real_val, share0, share1, share0_2, share1_2;
 
@@ -878,17 +878,17 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
 
     start = clock_start();
     if (msg_ptr != nullptr) {
-        num_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
-        num_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
+        sent_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
+        sent_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
     }
     for (unsigned int i = 0; i < numreqs; i++) {
-        num_bytes += send_to_server(0, &varshare0[i], sizeof(VarShare));
-        num_bytes += send_to_server(1, &varshare1[i], sizeof(VarShare));
+        sent_bytes += send_to_server(0, &varshare0[i], sizeof(VarShare));
+        sent_bytes += send_to_server(1, &varshare1[i], sizeof(VarShare));
 
-        num_bytes += send_ClientPacket(sockfd0, packet0[i], NMul);
-        num_bytes += send_ClientPacket(sockfd1, packet1[i], NMul);
+        sent_bytes += send_ClientPacket(sockfd0, packet0[i], NMul);
+        sent_bytes += send_ClientPacket(sockfd1, packet1[i], NMul);
 
-        num_bytes += send_unvalidated(num_bits * 3);
+        sent_bytes += send_unvalidated(num_bits * 3);
 
         delete packet0[i];
         delete packet1[i];
@@ -904,7 +904,7 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
     if (numreqs > 1)
         std::cout << "batch send:\t" << sec_from(start) << std::endl;
 
-    return num_bytes;
+    return sent_bytes;
 }
 
 void var_op(const std::string protocol, const size_t numreqs) {
@@ -914,7 +914,7 @@ void var_op(const std::string protocol, const size_t numreqs) {
     }
 
     uint64_t sum = 0, sumsquared = 0;
-    int num_bytes = 0;
+    int sent_bytes = 0;
     initMsg msg;
     msg.num_bits = num_bits;
     msg.num_of_inputs = numreqs;
@@ -927,11 +927,11 @@ void var_op(const std::string protocol, const size_t numreqs) {
     }
 
     if (CLIENT_BATCH) {
-        num_bytes += var_op_helper(protocol, numreqs, sum, sumsquared, &msg);
+        sent_bytes += var_op_helper(protocol, numreqs, sum, sumsquared, &msg);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            num_bytes += var_op_helper(protocol, 1, sum, sumsquared, i == 0 ? &msg : nullptr);
+            sent_bytes += var_op_helper(protocol, 1, sum, sumsquared, i == 0 ? &msg : nullptr);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
@@ -942,7 +942,7 @@ void var_op(const std::string protocol, const size_t numreqs) {
     if (protocol == "STDDEVOP")
         ans = sqrt(ans);
     std::cout << "True Ans: " << ans << std::endl;
-    std::cout << "Total sent bytes: " << num_bytes << std::endl;
+    std::cout << "Total sent bytes: " << sent_bytes << std::endl;
 }
 
 /* 0: x > max
@@ -1101,7 +1101,7 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
     const size_t num_fields = 2 * num_x + 1 + num_quad;
     const size_t total_dabits = degree * (degree + 2) - 2;
 
-    int num_bytes = 0;
+    int sent_bytes = 0;
 
     uint64_t* const x_real = new uint64_t[num_x];
     uint64_t* const x_share0 = new uint64_t[num_x];
@@ -1216,19 +1216,19 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
 
     start = clock_start();
     if (msg_ptr != nullptr) {
-        num_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
-        num_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
+        sent_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
+        sent_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
 
-        num_bytes += send_size(sockfd0, degree);
-        num_bytes += send_size(sockfd1, degree);
+        sent_bytes += send_size(sockfd0, degree);
+        sent_bytes += send_size(sockfd1, degree);
     }
     for (unsigned int i = 0; i < numreqs; i++) {
-        num_bytes += send_linregshare(0, linshare0[i], degree);
-        num_bytes += send_linregshare(1, linshare1[i], degree);
+        sent_bytes += send_linregshare(0, linshare0[i], degree);
+        sent_bytes += send_linregshare(1, linshare1[i], degree);
 
-        num_bytes += send_ClientPacket(sockfd0, packet0[i], NMul);
-        num_bytes += send_ClientPacket(sockfd1, packet1[i], NMul);
-        num_bytes += send_unvalidated(num_bits * total_dabits);
+        sent_bytes += send_ClientPacket(sockfd0, packet0[i], NMul);
+        sent_bytes += send_ClientPacket(sockfd1, packet1[i], NMul);
+        sent_bytes += send_unvalidated(num_bits * total_dabits);
 
         delete[] linshare0[i].x_vals;
         delete[] linshare0[i].x2_vals;
@@ -1249,7 +1249,7 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
     if (numreqs > 1)
         std::cout << "batch send:\t" << sec_from(start) << std::endl;
 
-    return num_bytes;
+    return sent_bytes;
 }
 
 void lin_reg(const std::string protocol, const size_t numreqs) {
@@ -1270,18 +1270,18 @@ void lin_reg(const std::string protocol, const size_t numreqs) {
     memset(x_accum, 0, (num_x + num_quad + 1) * sizeof(uint64_t));
     memset(y_accum, 0, (num_x + 1) * sizeof(uint64_t));
 
-    int num_bytes = 0;
+    int sent_bytes = 0;
     initMsg msg;
     msg.num_bits = num_bits;
     msg.num_of_inputs = numreqs;
     msg.type = LINREG_OP;
 
     if (CLIENT_BATCH) {
-        num_bytes += lin_reg_helper(protocol, numreqs, degree, x_accum, y_accum, &msg);
+        sent_bytes += lin_reg_helper(protocol, numreqs, degree, x_accum, y_accum, &msg);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            num_bytes += lin_reg_helper(protocol, 1, degree, x_accum, y_accum,
+            sent_bytes += lin_reg_helper(protocol, 1, degree, x_accum, y_accum,
                                         i == 0 ? &msg : nullptr);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
@@ -1302,7 +1302,7 @@ void lin_reg(const std::string protocol, const size_t numreqs) {
 
     delete[] c;
 
-    std::cout << "Total sent bytes: " << num_bytes << std::endl;
+    std::cout << "Total sent bytes: " << sent_bytes << std::endl;
 }
 
 /* 0: x > max
@@ -1509,7 +1509,7 @@ void freq_init(bool*& arr0, bool*& arr1, const size_t share_size, emp::PRG& prg)
 int freq_helper(const std::string protocol, const size_t numreqs,
                 uint64_t* counts, const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
-    int num_bytes = 0;
+    int sent_bytes = 0;
 
     uint64_t real_val;
 
@@ -1539,12 +1539,12 @@ int freq_helper(const std::string protocol, const size_t numreqs,
 
     start = clock_start();
     if (msg_ptr != nullptr) {
-        num_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
-        num_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
+        sent_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
+        sent_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
     }
     for (unsigned int i = 0; i < numreqs; i++) {
-        num_bytes += send_freqshare(0, freqshare0[i], max_int);
-        num_bytes += send_freqshare(1, freqshare1[i], max_int);
+        sent_bytes += send_freqshare(0, freqshare0[i], max_int);
+        sent_bytes += send_freqshare(1, freqshare1[i], max_int);
 
         delete[] freqshare0[i].arr;
         delete[] freqshare1[i].arr;
@@ -1556,13 +1556,13 @@ int freq_helper(const std::string protocol, const size_t numreqs,
     if (numreqs > 1)
         std::cout << "batch send:\t" << sec_from(start) << std::endl;
 
-    return num_bytes;
+    return sent_bytes;
 }
 
 void freq_op(const std::string protocol, const size_t numreqs) {
     uint64_t* count = new uint64_t[max_int];
     memset(count, 0, max_int * sizeof(uint64_t));
-    int num_bytes = 0;
+    int sent_bytes = 0;
     initMsg msg;
     msg.num_bits = num_bits;
     msg.num_of_inputs = numreqs;
@@ -1570,24 +1570,24 @@ void freq_op(const std::string protocol, const size_t numreqs) {
     msg.type = FREQ_OP;
 
     if (CLIENT_BATCH) {
-        num_bytes += freq_helper(protocol, numreqs, count, &msg);
+        sent_bytes += freq_helper(protocol, numreqs, count, &msg);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            num_bytes += freq_helper(protocol, 1, count, i == 0 ? &msg : nullptr);
+            sent_bytes += freq_helper(protocol, 1, count, i == 0 ? &msg : nullptr);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
     for (unsigned int j = 0; j < max_int && j < 32; j++)
         std::cout << " Freq(" << j << ") = " << count[j] << "\n";
     delete[] count;
-    std::cout << "Total sent bytes: " << num_bytes << std::endl;
+    std::cout << "Total sent bytes: " << sent_bytes << std::endl;
 }
 
 int heavy_helper(const std::string protocol, const size_t numreqs,
                  HashStore& hash_store, uint64_t* count) {
     auto start = clock_start();
-    int num_bytes = 0;
+    int sent_bytes = 0;
     const size_t b = num_bits;
 
     emp::PRG prg;
@@ -1650,8 +1650,8 @@ int heavy_helper(const std::string protocol, const size_t numreqs,
         // for (unsigned int j = 0; j < 2 * num_bits; j++)
         //     std::cout << freqshare1[i].arr[j] << " ";
         // std::cout << std::endl;
-        num_bytes += send_freqshare(0, freqshare0[i], 2 * num_bits);
-        num_bytes += send_freqshare(1, freqshare1[i], 2 * num_bits);
+        sent_bytes += send_freqshare(0, freqshare0[i], 2 * num_bits);
+        sent_bytes += send_freqshare(1, freqshare1[i], 2 * num_bits);
 
         delete[] freqshare0[i].arr;
         delete[] freqshare1[i].arr;
@@ -1663,11 +1663,11 @@ int heavy_helper(const std::string protocol, const size_t numreqs,
     if (numreqs > 1)
         std::cout << "batch send:\t" << sec_from(start) << std::endl;
 
-    return num_bytes;
+    return sent_bytes;
 }
 
 void heavy_op(const std::string protocol, const size_t numreqs) {
-    int num_bytes = 0;
+    int sent_bytes = 0;
     initMsg msg;
     msg.num_bits = num_bits;
     msg.num_of_inputs = numreqs;
@@ -1690,20 +1690,20 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
     //     hash_store.print_hash(i);
 
     // Send initMsg
-    num_bytes += send_to_server(0, &msg, sizeof(initMsg));
-    num_bytes += send_to_server(1, &msg, sizeof(initMsg));
+    sent_bytes += send_to_server(0, &msg, sizeof(initMsg));
+    sent_bytes += send_to_server(1, &msg, sizeof(initMsg));
 
     // Send seed
     // Will need to send seeds if use various bucket splitting.
     // Currently per-bit splitting.
-    // num_bytes += send_seeds(hash_seed);
+    // sent_bytes += send_seeds(hash_seed);
 
     if (CLIENT_BATCH) {
-        num_bytes += heavy_helper(protocol, numreqs, hash_store, count);
+        sent_bytes += heavy_helper(protocol, numreqs, hash_store, count);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            num_bytes += heavy_helper(protocol, 1, hash_store, count);
+            sent_bytes += heavy_helper(protocol, 1, hash_store, count);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
@@ -1712,7 +1712,7 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
             std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
     }
     delete[] count;
-    std::cout << "Total sent bytes: " << num_bytes << std::endl;
+    std::cout << "Total sent bytes: " << sent_bytes << std::endl;
 }
 
 int multi_heavy_helper(const std::string protocol, const size_t numreqs,
@@ -1720,7 +1720,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
                        HashStore& hash_classify, HashStoreBit& hash_split,
                        HashStore& hash_value, CountMin& count_min) {
     auto start = clock_start();
-    int num_bytes = 0;
+    int sent_bytes = 0;
     emp::PRG prg;
 
     const uint64_t support = 10000;
@@ -1798,12 +1798,12 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
         std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
     for (unsigned int i = 0; i < numreqs; i++) {
-        num_bytes += send_pk(sockfd0, share0[i].pk);
-        num_bytes += send_pk(sockfd1, share1[i].pk);
+        sent_bytes += send_pk(sockfd0, share0[i].pk);
+        sent_bytes += send_pk(sockfd1, share1[i].pk);
 
         for (unsigned int j = 0; j < 4; j++) {
-            num_bytes += send_bool_batch(sockfd0, share0[i].arr[j], sizes[j]);
-            num_bytes += send_bool_batch(sockfd1, share1[i].arr[j], sizes[j]);
+            sent_bytes += send_bool_batch(sockfd0, share0[i].arr[j], sizes[j]);
+            sent_bytes += send_bool_batch(sockfd1, share1[i].arr[j], sizes[j]);
 
             if (i == check_idx) {
                 std::cout << "share0,1[" << i << ", " << j << "] = ";
@@ -1826,7 +1826,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
     if (numreqs > 1)
         std::cout << "batch send:\t" << sec_from(start) << std::endl;
 
-    return num_bytes;
+    return sent_bytes;
 }
 
 void multi_heavy_op(const std::string protocol, const size_t numreqs) {
@@ -1835,7 +1835,7 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
         error_exit("Int Modulus too small");
     }
 
-    int num_bytes = 0;
+    int sent_bytes = 0;
     const size_t count_size = (2*linreg_degree) > 10 ? (2*linreg_degree) : 10;
     uint64_t* count = new uint64_t[count_size + 1];
     memset(count, 0, (count_size + 1) * sizeof(uint64_t));
@@ -1900,12 +1900,12 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     send_seeds(hash_seed_count);
 
     if (CLIENT_BATCH) {
-        num_bytes += multi_heavy_helper(protocol, numreqs, count, cfg,
+        sent_bytes += multi_heavy_helper(protocol, numreqs, count, cfg,
             hash_classify, hash_split, hash_value, count_min);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            num_bytes += multi_heavy_helper(protocol, 1, count, cfg,
+            sent_bytes += multi_heavy_helper(protocol, 1, count, cfg,
                 hash_classify, hash_split, hash_value, count_min);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
@@ -1915,7 +1915,7 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
         std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
     }
     delete[] count;
-    std::cout << "Total sent bytes: " << num_bytes << std::endl;
+    std::cout << "Total sent bytes: " << sent_bytes << std::endl;
 }
 
 int main(int argc, char** argv) {
