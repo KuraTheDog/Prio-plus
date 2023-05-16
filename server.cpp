@@ -56,6 +56,10 @@ size_t send_out(const int sockfd, const void* const buf, const size_t len) {
     return ret;
 }
 
+size_t send_pk(const int sockfd, const std::string x) {
+    return send_out(sockfd, &x[0], PK_LENGTH);
+}
+
 void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port, const int reuse = 1) {
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -307,7 +311,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
         bool* const shares = new bool[num_inputs];
         int i = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_pk(serverfd, share.first);
             shares[i] = share.second;
             i++;
         }
@@ -404,7 +408,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
         uint64_t* const shares = new uint64_t[num_inputs];
         int i = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_pk(serverfd, share.first);
             shares[i] = share.second;
             i++;
 
@@ -520,7 +524,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
         std::string* const pk_list = new std::string[num_inputs];
         size_t idx = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_pk(serverfd, share.first);
             pk_list[idx] = share.first;
             idx++;
         }
@@ -627,7 +631,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
         std::string* const pk_list = new std::string[num_inputs];
         size_t idx = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_pk(serverfd, share.first);
             pk_list[idx] = share.first;
             idx++;
         }
@@ -773,7 +777,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_pk(serverfd, share.first);
             pk_list[idx] = share.first;
             idx++;
 
@@ -1036,7 +1040,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_pk(serverfd, share.first);
             pk_list[idx] = share.first;
             idx++;
 
@@ -1294,7 +1298,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_pk(serverfd, share.first);
             memcpy(&shares[idx * max_inp], share.second, max_inp);
             delete[] share.second;
             idx++;
@@ -1542,7 +1546,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_pk(serverfd, share.first);
 
             memcpy(&x[idx*b], share.second, b);
             memcpy(&y[idx*b], &(share.second[b]), b);
@@ -1788,7 +1792,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_out(serverfd, &share.first[0], PK_LENGTH);
+            sent_bytes += send_pk(serverfd, share.first);
             pk_list[idx] = share.first;
             idx++;
         }
