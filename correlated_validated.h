@@ -45,7 +45,7 @@ class ValidateCorrelatedStore : public PrecomputeStore {
   const AltTriple* const * const gen_AltTriple_lazy(const size_t N);
   void add_AltTriples(const size_t n, const bool validated);
 
-  const DaBit* const getDaBit() override;
+  const DaBit* const get_DaBit() override;
 
 // Batch size must be power of two. NextPowerOfTwo is not inclusive, so -1 to make it so.
 public:
@@ -72,20 +72,20 @@ public:
 
   // [z] = x_this * x_other
   // uses a (un)validated alt triple
-  int multiplyAltShares(const size_t N, const fmpz_t* const x, fmpz_t* const z,
+  int multiply_AltShares(const size_t N, const fmpz_t* const x, fmpz_t* const z,
                         const bool* const validated);
 
   // Add unvalidated correlated to queue
-  void addUnvalidated(const DaBit* const dabit, const AltTriple* const trip);
+  void add_Unvalidated(const DaBit* const dabit, const AltTriple* const trip);
   // Queue up paired unvalidated.
   // Done this way in case data is out of order, had sync issues just using basic add
   // accumulate based on pk, so that it's done with the same "owner"
-  void queueUnvalidated(const DaBit* const * dabits, const AltTriple* const * trips,
+  void queue_Unvalidated(const DaBit* const * dabits, const AltTriple* const * trips,
                         const std::string pk);
   // add up all unvalidated corresponding to pk
-  void processUnvalidated(const std::string pk, const size_t n);
+  void process_Unvalidated(const std::string pk, const size_t n);
 
-  void checkDaBits(const size_t n = 0) override;
+  void check_DaBits(const size_t n = 0) override;
   // void checkTriples(const size_t n = 0);
 
   /*
@@ -110,14 +110,14 @@ public:
   Round 2: Reveal
     Swap computed (fg - h)(sigma)
   */
-  int batchValidate(const size_t N);
-  int batchValidate() {
-    return batchValidate(min_batch_size);
+  int batch_Validate(const size_t N);
+  int batch_Validate() {
+    return batch_Validate(min_batch_size);
   }
 
-  MultCheckPreComp* getPrecomp(const size_t N);
+  MultCheckPreComp* get_Precomp(const size_t N);
 
-  void printSizes() const override;
+  void print_Sizes() const override;
 
   size_t num_validated_dabits() const {
     return validated_dabit_store.size();

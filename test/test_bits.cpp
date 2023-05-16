@@ -29,7 +29,7 @@ void test_multiplyBoolShares(const size_t N, const int server_num, const int ser
   }
 
   bool* z = new bool[N];
-  store->multiplyBoolShares(N, x, y, z);
+  store->multiply_BoolShares(N, x, y, z);
 
   if (server_num == 0) {
     bool z_other;
@@ -75,7 +75,7 @@ void test_addBinaryShares(const size_t N, const size_t* const nbits, const int s
   }
 
   bool* carry = new bool[N];
-  store->addBinaryShares(N, nbits, x, y, z, carry);
+  store->add_BinaryShares(N, nbits, x, y, z, carry);
 
   if (server_num == 0) {
     bool other;
@@ -206,7 +206,7 @@ void runServerTest(const int server_num, const int serverfd) {
   OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : "127.0.0.1", 60052);
   PrecomputeStore* store_pre = new PrecomputeStore(serverfd, server_num, ot0, ot1, batch_size, lazy);
   OTCorrelatedStore* store_ot = new OTCorrelatedStore(serverfd, server_num, ot0, ot1);
-  store_pre->maybeUpdate();
+  store_pre->maybe_Update();
 
   size_t* bits_arr = new size_t[N];
   for (unsigned int i = 0; i < N; i++)
@@ -238,7 +238,7 @@ void runServerTest(const int server_num, const int serverfd) {
     std::cout << "b2a ot multi timing : " << sec_from(start) << std::endl; start = clock_start();
   }
 
-  store_pre->printSizes();
+  store_pre->print_Sizes();
 
   delete ot0;
   delete ot1;

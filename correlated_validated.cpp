@@ -72,7 +72,7 @@ void ValidateCorrelatedStore::add_AltTriples(const size_t n, const bool validate
   for (unsigned int i = 0; i < num_to_make; i++)
     q.push(t[i]);
   delete[] t;
-  
+
   std::cout << "add_AltTriples timing : " << sec_from(start) << std::endl;
 }
 
@@ -84,7 +84,7 @@ swap diff
 z_0 = (diff' * trip->AB) + trip->C
 z_1 = (diff * x_1) + trip->C
 */
-int ValidateCorrelatedStore::multiplyAltShares(
+int ValidateCorrelatedStore::multiply_AltShares(
     const size_t N, const fmpz_t* const x, fmpz_t* const z,
     const bool* const validated) {
   int sent_bytes = 0;
@@ -122,29 +122,29 @@ int ValidateCorrelatedStore::multiplyAltShares(
   return sent_bytes;
 }
 
-void ValidateCorrelatedStore::addUnvalidated(
+void ValidateCorrelatedStore::add_Unvalidated(
     const DaBit* const dabit, const AltTriple* const trip) {
   unvalidated_dabit_store.push(dabit);
   unvalidated_alt_triple_store.push(trip);
 }
 
-void ValidateCorrelatedStore::queueUnvalidated(
+void ValidateCorrelatedStore::queue_Unvalidated(
     const DaBit* const * dabits, const AltTriple* const * trips,
     const std::string pk) {
   unvalidated_pairs[pk] = {dabits, trips};
 }
 
-void ValidateCorrelatedStore::processUnvalidated(const std::string pk, const size_t n) {
+void ValidateCorrelatedStore::process_Unvalidated(const std::string pk, const size_t n) {
   pairtype lists = unvalidated_pairs[pk];
   unvalidated_pairs.erase(pk);
   for (unsigned int i = 0; i < n; i++) {
-    addUnvalidated(std::get<0>(lists)[i], std::get<1>(lists)[i]);
+    add_Unvalidated(std::get<0>(lists)[i], std::get<1>(lists)[i]);
   }
   delete[] std::get<0>(lists);
   delete[] std::get<1>(lists);
 }
 
-int ValidateCorrelatedStore::batchValidate(const size_t target) {
+int ValidateCorrelatedStore::batch_Validate(const size_t target) {
   int sent_bytes = 0;
 
   const size_t target_2 = NextPowerOfTwo(target - 1);
@@ -170,7 +170,7 @@ int ValidateCorrelatedStore::batchValidate(const size_t target) {
   check_sigma();
   sigma_uses += 1;
 
-  MultCheckPreComp* chk = getPrecomp(N);
+  MultCheckPreComp* chk = get_Precomp(N);
 
   const DaBit* candidates[num_val];
 
@@ -215,7 +215,7 @@ int ValidateCorrelatedStore::batchValidate(const size_t target) {
   memset(use_validated, 0, sizeof(bool)*N);
   use_validated[N] = true;
   fmpz_t* pointsMult; new_fmpz_array(&pointsMult, N+1);
-  sent_bytes += multiplyAltShares(N+1, points, pointsMult, use_validated);
+  sent_bytes += multiply_AltShares(N+1, points, pointsMult, use_validated);
   clear_fmpz_array(points, N+1);
   for (unsigned int i = 0; i < N; i++) {
     fmpz_set(pointsG[2*i+1], pointsMult[i]);
@@ -260,23 +260,23 @@ int ValidateCorrelatedStore::batchValidate(const size_t target) {
   return sent_bytes;
 }
 
-void ValidateCorrelatedStore::checkDaBits(const size_t n) {
-  // std::cout << "validated checkDaBits(" << n << ") vs " << num_validated_dabits() << std::endl;
+void ValidateCorrelatedStore::check_DaBits(const size_t n) {
+  // std::cout << "validated check_DaBits(" << n << ") vs " << num_validated_dabits() << std::endl;
   // If not enough validated, validate everything
   if (num_validated_dabits() < n) {
     // std::cout << "batch validating: " << n - num_validated_dabits() << std::endl;
-    batchValidate(n - num_validated_dabits());
+    batch_Validate(n - num_validated_dabits());
   }
   // If still not enough validated, ensure enough precomputed
   if (num_validated_dabits() < n) {
      // std::cout << "precompute checking: " << n - num_validated_dabits() << std::endl;
-     PrecomputeStore::checkDaBits(n - num_validated_dabits());
+     PrecomputeStore::check_DaBits(n - num_validated_dabits());
   }
   // printSizes();
 }
 
-const DaBit* const ValidateCorrelatedStore::getDaBit() {
-  checkDaBits(1);
+const DaBit* const ValidateCorrelatedStore::get_DaBit() {
+  check_DaBits(1);
   // Default to precomputed if not enough valids
   // std::cout << "getting a " << (num_validated_dabits() > 1 ? "validated" : "precomputed") << " dabit" << std::endl;
   std::queue<const DaBit*>& q = (
@@ -304,7 +304,7 @@ void ValidateCorrelatedStore::new_sigma() {
       pair.second -> setEvalPoint(sigma);
 }
 
-MultCheckPreComp* ValidateCorrelatedStore::getPrecomp(const size_t N) {
+MultCheckPreComp* ValidateCorrelatedStore::get_Precomp(const size_t N) {
   MultCheckPreComp* pre;
   if (eval_precomp_store.find(N) == eval_precomp_store.end()) {
     pre = new MultCheckPreComp(N);
@@ -316,7 +316,7 @@ MultCheckPreComp* ValidateCorrelatedStore::getPrecomp(const size_t N) {
   return pre;
 }
 
-void ValidateCorrelatedStore::printSizes() const {
+void ValidateCorrelatedStore::print_Sizes() const {
   std::cout << "Current store sizes:\n";
   std::cout << " Dabits: \n";
   std::cout << "  Precomputed: " << dabit_store.size() << "\n";

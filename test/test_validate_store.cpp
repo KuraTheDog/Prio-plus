@@ -36,7 +36,7 @@ void setup(const int server_num, const int serverfd, const size_t N,
     for (unsigned int i = 0; i < N; i++) {
       send_AltTriple(serverfd, trips1[i]);
 
-      store.addUnvalidated(bits0[i], trips0[i]);
+      store.add_Unvalidated(bits0[i], trips0[i]);
 
       delete bits1[i];
       delete trips1[i];
@@ -51,7 +51,7 @@ void setup(const int server_num, const int serverfd, const size_t N,
     recv_DaBit_batch(serverfd, bits1, N);
     for (unsigned int i = 0; i < N; i++) {
        recv_AltTriple(serverfd, trips1[i]);
-       store.addUnvalidated(bits1[i], trips1[i]);
+       store.add_Unvalidated(bits1[i], trips1[i]);
     }
   }
 }
@@ -65,7 +65,7 @@ void test_altMult(const int server_num, const int serverfd,
 
   // Setup: Not necessary, use of check_AltTriples should auto-gen.
   // setup(server_num, serverfd, N, store);
-  store.printSizes();
+  store.print_Sizes();
 
   fmpz_t* x; new_fmpz_array(&x, N);
   bool use_validated[N];
@@ -76,7 +76,7 @@ void test_altMult(const int server_num, const int serverfd,
   }
 
   fmpz_t* z; new_fmpz_array(&z, N);
-  store.multiplyAltShares(N, x, z, use_validated);
+  store.multiply_AltShares(N, x, z, use_validated);
   reveal_fmpz_batch(serverfd, z, N);
   for (unsigned int i = 0; i < N; i++) {
     assert(fmpz_equal_ui(z[i], (i+1)*(i+1) * 10));
@@ -97,15 +97,15 @@ void test_batchValidate(const int server_num, const int serverfd,
   ValidateCorrelatedStore store(serverfd, server_num, ot0, ot1, N_make, lazy);
 
   setup(server_num, serverfd, N, store);
-  // store.printSizes();
+  // store.print_Sizes();
 
-  store.batchValidate();
+  store.batch_Validate();
 
   std::cout << "Assert " << server_num << ", Numvalidated = " << store.num_validated_dabits() << std::endl;
 
   assert(store.num_validated_dabits() == N);
 
-  store.printSizes();
+  store.print_Sizes();
 
   delete ot0;
   delete ot1;

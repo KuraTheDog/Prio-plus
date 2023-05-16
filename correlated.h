@@ -90,9 +90,9 @@ protected:
   std::queue<const BeaverTriple*> atriple_store;
 
   // Get: Return 1 (check first, which may generate)
-  virtual const DaBit* const getDaBit();
-  virtual const BeaverTriple* const getTriple();
-  virtual const BooleanBeaverTriple* const getBoolTriple();
+  virtual const DaBit* const get_DaBit();
+  virtual const BeaverTriple* const get_Triple();
+  virtual const BooleanBeaverTriple* const get_BoolTriple();
 
   // Currently only used for heavy eval, which is independent of # clients
   // Approx 41 * b * nbits_mod, where b is #bits of run
@@ -135,9 +135,9 @@ public:
 
   // x, y, z are [N]
   // does z[i] = x[i] * y[i], as shares
-  int multiplyBoolShares(const size_t N,
+  int multiply_BoolShares(const size_t N,
       const bool* const x, const bool* const y, bool* const z);
-  int multiplyArithmeticShares(
+  int multiply_ArithmeticShares(
       const size_t N, const fmpz_t* const x, const fmpz_t* const y,
       fmpz_t* const z);
   // N inputs, each B bits large
@@ -146,14 +146,14 @@ public:
   // If z_inv (size N*B): Does a second set multiplied by 1-b instead.
   //   maintains same rounds, just "larger" OT's
   // If valid, it's a [N] array for which inputs are valid
-  int multiplyBoolArith(
+  int multiply_BoolArith(
       const size_t N, const size_t B, const bool* const b, const fmpz_t* const x,
       fmpz_t* const z, fmpz_t* const z_inv = nullptr, const bool* const valid = nullptr);
   // b is [B] rather than [N * B]
   // Grouped by B first, so [x0, ..., x(B-1)] for N=0
   // So [x0, xB, x2B, ...] multiplied by b0.
   // For B-wide masking, mainly
-  int multiplyBoolArithFlat(
+  int multiply_BoolArithFlat(
       const size_t N, const size_t B, const bool* const b_flat, const fmpz_t* const x,
       fmpz_t* const z, fmpz_t* const z_inv = nullptr, const bool* const valid = nullptr);
 
@@ -161,7 +161,7 @@ public:
   // Treats x[i], y[i], z[i] as array of bits
   // sets z[i] and carry[i] as x[i] + y[i] and carry[i], as shares
   // Currently unused
-  [[maybe_unused]] int addBinaryShares(
+  [[maybe_unused]] int add_BinaryShares(
         const size_t N, const size_t* const num_bits,
         const bool* const * const x, const bool* const * const y,
         bool* const * const z, bool* const carry);
@@ -233,9 +233,9 @@ public:
 
   // Check: Check if enough to make n.
   // If not enough, generates enough (can over-generate)
-  virtual void checkDaBits(const size_t n = 0) = 0;
-  virtual void checkTriples(const size_t n = 0) = 0;
-  virtual void checkBoolTriples(const size_t n = 0) = 0;
+  virtual void check_DaBits(const size_t n = 0) = 0;
+  virtual void check_Triples(const size_t n = 0) = 0;
+  virtual void check_BoolTriples(const size_t n = 0) = 0;
 };
 
 // A Cache of correlated bits of different types
@@ -251,9 +251,9 @@ protected:
 
   // Add (securely or lazy generated) N items to the store, at least batch_size many
   // TODO: return sent bytes
-  void addDaBits(const size_t n = 0);
-  void addTriples(const size_t n = 0);
-  void addBoolTriples(const size_t n = 0);
+  void add_DaBits(const size_t n = 0);
+  void add_Triples(const size_t n = 0);
+  void add_BoolTriples(const size_t n = 0);
 
 public:
 
@@ -272,12 +272,12 @@ public:
 
   ~PrecomputeStore() {};
 
-  virtual void printSizes() const;
-  virtual void maybeUpdate(); // Precompute if not enough.
+  virtual void print_Sizes() const;
+  virtual void maybe_Update(); // Precompute if not enough.
 
-  virtual void checkDaBits(const size_t n = 0);
-  virtual void checkTriples(const size_t n = 0);
-  virtual void checkBoolTriples(const size_t n = 0);
+  virtual void check_DaBits(const size_t n = 0);
+  virtual void check_Triples(const size_t n = 0);
+  virtual void check_BoolTriples(const size_t n = 0);
 };
 
 class OTCorrelatedStore : public ShareConverter {

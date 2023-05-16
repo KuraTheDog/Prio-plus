@@ -9,22 +9,22 @@
 #include "ot.h"
 #include "utils.h"
 
-const DaBit* const CorrelatedStore::getDaBit() {
-  checkDaBits(1);
+const DaBit* const CorrelatedStore::get_DaBit() {
+  check_DaBits(1);
   const DaBit* const ans = dabit_store.front();
   dabit_store.pop();
   return ans;
 }
 
-const BeaverTriple* const CorrelatedStore::getTriple() {
-  checkTriples(1);
+const BeaverTriple* const CorrelatedStore::get_Triple() {
+  check_Triples(1);
   const BeaverTriple* const ans = atriple_store.front();
   atriple_store.pop();
   return ans;
 }
 
-const BooleanBeaverTriple* const CorrelatedStore::getBoolTriple() {
-  checkBoolTriples(1);
+const BooleanBeaverTriple* const CorrelatedStore::get_BoolTriple() {
+  check_BoolTriples(1);
   const BooleanBeaverTriple* const ans = btriple_store.front();
   btriple_store.pop();
   return ans;
@@ -33,11 +33,11 @@ const BooleanBeaverTriple* const CorrelatedStore::getBoolTriple() {
 int CorrelatedStore::b2a_single(const size_t N, const bool* const x, fmpz_t* const xp) {
   int sent_bytes = 0;
 
-  checkDaBits(N);
+  check_DaBits(N);
 
   bool* const v = new bool[N];
   for (unsigned int i = 0; i < N; i++) {
-    const DaBit* const dabit = getDaBit();
+    const DaBit* const dabit = get_DaBit();
     v[i] = x[i] ^ dabit->b2;
 
     fmpz_set(xp[i], dabit->bp);
@@ -71,7 +71,7 @@ int CorrelatedStore::b2a_multi(
   for (unsigned int i = 0; i < N; i++)
     total_bits += num_bits[i];
 
-  checkDaBits(total_bits);
+  check_DaBits(total_bits);
 
   bool* const x2 = new bool[total_bits];
 
@@ -101,17 +101,15 @@ int CorrelatedStore::b2a_multi(
 }
 
 
-int CorrelatedStore::multiplyBoolShares(const size_t N,
-                                        const bool* const x,
-                                        const bool* const y,
-                                        bool* const z) {
+int CorrelatedStore::multiply_BoolShares(
+    const size_t N, const bool* const x, const bool* const y, bool* const z) {
   int sent_bytes = 0;
 
   bool* de = new bool[2 * N];
 
-  checkBoolTriples(N);
+  check_BoolTriples(N);
   for (unsigned int i = 0; i < N; i++) {
-    const BooleanBeaverTriple* const triple = getBoolTriple();
+    const BooleanBeaverTriple* const triple = get_BoolTriple();
     de[i] = x[i] ^ triple->a;
     de[i + N] = y[i] ^ triple->b;
     z[i] = triple->c;
@@ -132,17 +130,17 @@ int CorrelatedStore::multiplyBoolShares(const size_t N,
   return sent_bytes;
 }
 
-int CorrelatedStore::multiplyArithmeticShares(
+int CorrelatedStore::multiply_ArithmeticShares(
     const size_t N, const fmpz_t* const x, const fmpz_t* const y,
     fmpz_t* const z) {
   int sent_bytes = 0;
 
   fmpz_t* de; new_fmpz_array(&de, 2 * N);
 
-  checkTriples(N);
+  check_Triples(N);
 
   for (unsigned int i = 0; i < N; i++) {
-    const BeaverTriple* const triple = getTriple();
+    const BeaverTriple* const triple = get_Triple();
 
     fmpz_mod_sub(de[i], x[i], triple->A, mod_ctx);  // [d] = [x] - [a]
     fmpz_mod_sub(de[i+N], y[i], triple->B, mod_ctx);  // [e] = [y] - [b]
@@ -171,7 +169,7 @@ int CorrelatedStore::multiplyArithmeticShares(
 
 // c_{i+1} = c_i xor ((x_i xor c_i) and (y_i xor c_i))
 // output z_i = x_i xor y_i xor c_i
-int CorrelatedStore::addBinaryShares(
+int CorrelatedStore::add_BinaryShares(
     const size_t N, const size_t* const num_bits,
     const bool* const * const x, const bool* const * const y,
     bool* const * const z, bool* const carry) {
@@ -188,7 +186,7 @@ int CorrelatedStore::addBinaryShares(
     total_bits += num_bits[i];
   }
 
-  checkBoolTriples(total_bits);
+  check_BoolTriples(total_bits);
 
   for (unsigned int j = 0; j < max_bits; j++) {
     size_t idx = 0;
@@ -202,7 +200,7 @@ int CorrelatedStore::addBinaryShares(
     }
 
     bool* const new_carry = new bool[idx];
-    sent_bytes += multiplyBoolShares(idx, xi, yi, new_carry);
+    sent_bytes += multiply_BoolShares(idx, xi, yi, new_carry);
 
     idx = 0;
     for (unsigned int i = 0; i < N; i++) {
@@ -221,7 +219,7 @@ int CorrelatedStore::addBinaryShares(
   return sent_bytes;
 }
 
-int CorrelatedStore::multiplyBoolArith(
+int CorrelatedStore::multiply_BoolArith(
     const size_t N, const size_t B, const bool* const b, const fmpz_t* const x,
     fmpz_t* const z, fmpz_t* const z_inv, const bool* const valid
 ) {
@@ -296,7 +294,7 @@ int CorrelatedStore::multiplyBoolArith(
   return sent_bytes;
 }
 
-int CorrelatedStore::multiplyBoolArithFlat(
+int CorrelatedStore::multiply_BoolArithFlat(
     const size_t N, const size_t B, const bool* const b_flat, const fmpz_t* const x,
     fmpz_t* const z, fmpz_t* const z_inv, const bool* const valid
 ) {
@@ -304,7 +302,7 @@ int CorrelatedStore::multiplyBoolArithFlat(
   for (unsigned int j = 0; j < B; j++)
     for (unsigned int i = 0; i < N; i++)
       b[i * B + j] = b_flat[j];
-  int sent_bytes = multiplyBoolArith(N, B, b, x, z, z_inv, valid);
+  int sent_bytes = multiply_BoolArith(N, B, b, x, z, z_inv, valid);
   delete[] b;
   return sent_bytes;
 }
@@ -343,7 +341,7 @@ int CorrelatedStore::heavy_convert(
 
   fmpz_t* buff0; new_fmpz_array(&buff0, N * b);
   fmpz_t* buff1; new_fmpz_array(&buff1, N * b);
-  sent_bytes += multiplyBoolArith(N, b, x, z, buff1, buff0, valid);
+  sent_bytes += multiply_BoolArith(N, b, x, z, buff1, buff0, valid);
   clear_fmpz_array(z, N * b);
   for (unsigned int i = 0; i < N; i++) {
     for (unsigned int j = 0; j < b; j++) {
@@ -424,14 +422,14 @@ int CorrelatedStore::heavy_convert_mask(
   fmpz_clear(z);
 
   fmpz_t* z_masked; new_fmpz_array(&z_masked, N * Q * M * D);
-  sent_bytes += multiplyBoolArith(N, Q * M * D, mask_extended, z_base, z_masked, nullptr, valid);
+  sent_bytes += multiply_BoolArith(N, Q * M * D, mask_extended, z_base, z_masked, nullptr, valid);
   delete[] mask_extended;
   clear_fmpz_array(z_base, N * Q * M * D);
   std::cout << "  mul 1 time: " << sec_from(start) << "\n"; start = clock_start();
 
   fmpz_t* buff0; new_fmpz_array(&buff0, N * Q * M * D);
   fmpz_t* buff1; new_fmpz_array(&buff1, N * Q * M * D);
-  sent_bytes += multiplyBoolArith(N, Q * M * D, x_extended, z_masked, buff1, buff0, valid);
+  sent_bytes += multiply_BoolArith(N, Q * M * D, x_extended, z_masked, buff1, buff0, valid);
   delete[] x_extended;
   clear_fmpz_array(z_masked, N * Q * M * D);
   std::cout << "  mul 2 time: " << sec_from(start) << "\n"; start = clock_start();
@@ -509,8 +507,8 @@ int CorrelatedStore::cmp(const size_t N,
                          const fmpz_t* const x, const fmpz_t* const y,
                          fmpz_t* const ans) {
   int sent_bytes = 0;
-  checkDaBits(4 * N * nbits_mod);
-  checkTriples(13 * N * nbits_mod);
+  check_DaBits(4 * N * nbits_mod);
+  check_Triples(13 * N * nbits_mod);
 
   fmpz_t* diff; new_fmpz_array(&diff, N);
 
@@ -528,8 +526,8 @@ int CorrelatedStore::cmp(const size_t N,
 int CorrelatedStore::abs(const size_t N, const fmpz_t* const x,
                          fmpz_t* const abs_x) {
   int sent_bytes = 0;
-  checkDaBits(4 * N * nbits_mod);
-  checkTriples((13 + 1) * N * nbits_mod);
+  check_DaBits(4 * N * nbits_mod);
+  check_Triples((13 + 1) * N * nbits_mod);
 
   fmpz_t* is_neg; new_fmpz_array(&is_neg, N);
   sent_bytes += is_negative(N, x, is_neg);
@@ -538,7 +536,7 @@ int CorrelatedStore::abs(const size_t N, const fmpz_t* const x,
     if (server_num == 1)
       fmpz_mod_add_ui(is_neg[i], is_neg[i], 1, mod_ctx);
   }
-  sent_bytes += multiplyArithmeticShares(N, x, is_neg, abs_x);
+  sent_bytes += multiply_ArithmeticShares(N, x, is_neg, abs_x);
   clear_fmpz_array(is_neg, N);
   return sent_bytes;
 }
@@ -547,8 +545,8 @@ int CorrelatedStore::abs_cmp(const size_t N,
                              const fmpz_t* const x, const fmpz_t* const y,
                              fmpz_t* const ans) {
   int sent_bytes = 0;
-  checkDaBits(3 * 4 * N * nbits_mod);  // 1 per abs, and 1 for cmp
-  checkTriples((13 + 14 + 14) * N * nbits_mod);  // 13 for cmp, 14 for abs
+  check_DaBits(3 * 4 * N * nbits_mod);  // 1 per abs, and 1 for cmp
+  check_Triples((13 + 14 + 14) * N * nbits_mod);  // 13 for cmp, 14 for abs
 
   // Do abs x and y in one merged set
   fmpz_t* merge; new_fmpz_array(&merge, 2*N);
@@ -583,11 +581,11 @@ int CorrelatedStore::cmp_bit(const size_t N, const size_t b,
   size_t idx;  // for convenience
 
   // Total mults: ~3x (N*b)
-  checkTriples(3 * N * b);
+  check_Triples(3 * N * b);
 
   // [c] = [x ^ y] = [x] + [y] - 2[xy]
   fmpz_t* c; new_fmpz_array(&c, N * b);
-  sent_bytes += multiplyArithmeticShares(N * b, x, y, c);
+  sent_bytes += multiply_ArithmeticShares(N * b, x, y, c);
   for (unsigned int i = 0; i < N * b; i++) {
     fmpz_mod_mul_si(c[i], c[i], -2, mod_ctx);
     fmpz_mod_add(c[i], c[i], x[i], mod_ctx);
@@ -613,7 +611,7 @@ int CorrelatedStore::cmp_bit(const size_t N, const size_t b,
       fmpz_set(ci[i], c[idx]);
       fmpz_set(di1[i], d[idx + 1]);
     }
-    sent_bytes += multiplyArithmeticShares(N, ci, di1, mul);
+    sent_bytes += multiply_ArithmeticShares(N, ci, di1, mul);
     for (unsigned int i = 0; i < N; i++) {
       idx = i * b + j;
       fmpz_mod_add(d[idx], ci[i], di1[i], mod_ctx);
@@ -639,7 +637,7 @@ int CorrelatedStore::cmp_bit(const size_t N, const size_t b,
 
   // [x < y] = sum ei * yi
   fmpz_t* ey; new_fmpz_array(&ey, N * b);
-  sent_bytes += multiplyArithmeticShares(N * b, e, y, ey);
+  sent_bytes += multiply_ArithmeticShares(N * b, e, y, ey);
   clear_fmpz_array(e, N * b);
   for (unsigned int i = 0; i < N; i++) {
     fmpz_zero(ans[i]);
@@ -662,8 +660,8 @@ int CorrelatedStore::gen_rand_bitshare(const size_t N,
 
   // Assumed tries to succeed. (worst case 1/2 fail, so 2 avg, overestimate)
   const size_t avg_tries = 4;
-  checkDaBits(avg_tries * N * b);       // for gen
-  checkTriples(avg_tries * 3 * N * b);  // for cmp
+  check_DaBits(avg_tries * N * b);       // for gen
+  check_Triples(avg_tries * 3 * N * b);  // for cmp
 
   // p bitwise shared, for [r < p]. All bits set on server 0, since public.
   fmpz_t* pB; new_fmpz_array(&pB, N * b);  // Zero by default
@@ -687,7 +685,7 @@ int CorrelatedStore::gen_rand_bitshare(const size_t N,
   while (true) {
     num_invalid = 0;
 
-    checkDaBits(N * b);
+    check_DaBits(N * b);
 
     // Compute new (if not valid)
     for (unsigned int i = 0; i < N; i++) {
@@ -697,7 +695,7 @@ int CorrelatedStore::gen_rand_bitshare(const size_t N,
       fmpz_zero(r[i]);
       for (unsigned int j = 0; j < b; j++) {
         // Just need 2 numbers summing to 0 or 1, so bp. b2 not needed.
-        const DaBit* const dabit = getDaBit();
+        const DaBit* const dabit = get_DaBit();
         fmpz_set(rB[i * b + j], dabit->bp);
         fmpz_mod_addmul_ui(r[i], dabit->bp, 1ULL << j, mod_ctx);
         // consume the dabit
@@ -749,8 +747,8 @@ int CorrelatedStore::LSB(const size_t N, const fmpz_t* const x,
   int sent_bytes = 0;
   const size_t b = nbits_mod;
 
-  checkDaBits(4 * N * b);   // for gen_rand
-  checkTriples((4*3 + 1) * N * b);  // 12 for gen_rand
+  check_DaBits(4 * N * b);   // for gen_rand
+  check_Triples((4*3 + 1) * N * b);  // 12 for gen_rand
 
   // 1: Random bitwise shared r, true [r]p, bitwise [rB]
   fmpz_t* r; new_fmpz_array(&r, N);
@@ -801,7 +799,7 @@ int CorrelatedStore::LSB(const size_t N, const fmpz_t* const x,
   // 4: [x0] = [c < r] + (c0 ^ r0) - 2 [c < r] (c0 ^ r0)
   // 4.1: mul = [c<r] * [c0 ^ r0]
   fmpz_t* mul; new_fmpz_array(&mul, N);
-  sent_bytes += multiplyArithmeticShares(N, cmp, cr, mul);
+  sent_bytes += multiply_ArithmeticShares(N, cmp, cr, mul);
   // 4.2: Final eval: cmp + cr - 2 cmp*cr
   for (unsigned int i = 0; i < N; i++) {
     fmpz_mod_add(x0[i], cmp[i], cr[i], mod_ctx);
@@ -818,8 +816,8 @@ int CorrelatedStore::LSB(const size_t N, const fmpz_t* const x,
 int CorrelatedStore::is_negative(const size_t N,
                                  const fmpz_t* const x, fmpz_t* ans) {
   int sent_bytes = 0;
-  checkDaBits(4 * N * nbits_mod);
-  checkTriples(13 * N * nbits_mod);
+  check_DaBits(4 * N * nbits_mod);
+  check_Triples(13 * N * nbits_mod);
 
   // [(2a)_0]
   fmpz_t* inp; new_fmpz_array(&inp, N);
@@ -842,19 +840,19 @@ int CorrelatedStore::is_negative(const size_t N,
 
 ////////////////
 
-void PrecomputeStore::checkDaBits(const size_t n) {
-  if (dabit_store.size() < n) addDaBits(n - dabit_store.size());
+void PrecomputeStore::check_DaBits(const size_t n) {
+  if (dabit_store.size() < n) add_DaBits(n - dabit_store.size());
 }
 
-void PrecomputeStore::checkBoolTriples(const size_t n) {
-  if (btriple_store.size() < n) addBoolTriples(n - btriple_store.size());
+void PrecomputeStore::check_BoolTriples(const size_t n) {
+  if (btriple_store.size() < n) add_BoolTriples(n - btriple_store.size());
 }
 
-void PrecomputeStore::checkTriples(const size_t n) {
-  if (atriple_store.size() < n) addTriples(n - atriple_store.size());
+void PrecomputeStore::check_Triples(const size_t n) {
+  if (atriple_store.size() < n) add_Triples(n - atriple_store.size());
 }
 
-void PrecomputeStore::addDaBits(const size_t n) {
+void PrecomputeStore::add_DaBits(const size_t n) {
   auto start = clock_start();
   // const size_t num_to_make = (n > batch_size ? n : batch_size);
   const size_t num_to_make = n;  // Currently to make "end to end" easier to benchmark
@@ -868,10 +866,10 @@ void PrecomputeStore::addDaBits(const size_t n) {
   for (unsigned int i = 0; i < num_to_make; i++)
     dabit_store.push(dabits[i]);
   delete[] dabits;
-  std::cout << "addDaBits timing : " << sec_from(start) << std::endl;
+  std::cout << "add_DaBits timing : " << sec_from(start) << std::endl;
 }
 
-void PrecomputeStore::addTriples(const size_t n) {
+void PrecomputeStore::add_Triples(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > triples_batch_size ? n : triples_batch_size);
   std::cout << "adding triples: " << num_to_make << std::endl;
@@ -886,10 +884,10 @@ void PrecomputeStore::addTriples(const size_t n) {
     atriple_store.push(triple);
     // }
   }
-  std::cout << "addTriples timing : " << sec_from(start) << std::endl;
+  std::cout << "add_Triples timing : " << sec_from(start) << std::endl;
 }
 
-void PrecomputeStore::addBoolTriples(const size_t n) {
+void PrecomputeStore::add_BoolTriples(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > batch_size ? n : batch_size);
   std::cout << "adding booltriples: " << num_to_make << std::endl;
@@ -898,17 +896,17 @@ void PrecomputeStore::addBoolTriples(const size_t n) {
     btriple_store.push(new_triples.front());
     new_triples.pop();
   }
-  std::cout << "addBoolTriples timing : " << sec_from(start) << std::endl;
+  std::cout << "add_BoolTriples timing : " << sec_from(start) << std::endl;
 }
 
-void PrecomputeStore::printSizes() const {
+void PrecomputeStore::print_Sizes() const {
   std::cout << "Current store sizes:\n";
   std::cout << " Dabits: " << dabit_store.size() << std::endl;
   // std::cout << " Bool  Triples: " << btriple_store.size() << std::endl;
   std::cout << " Arith Triples: " << atriple_store.size() << std::endl;
 }
 
-void PrecomputeStore::maybeUpdate() {
+void PrecomputeStore::maybe_Update() {
   auto start = clock_start();
 
   // Make top level if stores not enough
@@ -922,15 +920,15 @@ void PrecomputeStore::maybeUpdate() {
   const size_t atrip_target = 2 * make_arith;
 
   if (btriple_store.size() < btrip_target)
-    addBoolTriples(btrip_target);
+    add_BoolTriples(btrip_target);
 
   if (dabit_store.size() < da_target)
-    addDaBits(da_target);
+    add_DaBits(da_target);
 
   if (atriple_store.size() < atrip_target)
-    addTriples(atrip_target);
+    add_Triples(atrip_target);
 
-  printSizes();
+  print_Sizes();
 
   std::cout << "precompute timing : " << sec_from(start) << std::endl;
 }
