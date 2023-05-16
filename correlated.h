@@ -307,7 +307,4 @@ public:
       const size_t mod = 0);
 };
 
-// TODO: Arithmetic triples store, from main branch
-// Also rework to take in output as param, and output # bits properly
-
 #endif

@@ -9,7 +9,6 @@ class ValidateCorrelatedStore : public PrecomputeStore {
   const size_t min_batch_size;
   const size_t alt_triple_batch_size;
 
-  // TODO: merge behavior with precomputed stores
   // Pre: for batch validate
   // unval: recieved
   // val: for computation
@@ -19,6 +18,7 @@ class ValidateCorrelatedStore : public PrecomputeStore {
   std::queue<const BeaverTriple*> atriple_store;
   */
 
+  // TODO: Add in arith triples. Maybe bool, but those currently unused.
   std::queue<const DaBit*> unvalidated_dabit_store;
   std::queue<const DaBit*> validated_dabit_store;
   // Precomputed (inherited)
@@ -30,7 +30,6 @@ class ValidateCorrelatedStore : public PrecomputeStore {
 
   MultEvalManager mult_eval_manager;
 
-  // TODO: consider moving this to normal precompute, and just not using it.
   typedef std::tuple <const DaBit* const *, const AltTriple* const *> pairtype;
   std::unordered_map<std::string, pairtype> unvalidated_pairs;
 
@@ -116,7 +115,5 @@ public:
     return validated_dabit_store.size();
   };
 };
-
-
 
 #endif

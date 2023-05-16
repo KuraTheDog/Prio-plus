@@ -108,7 +108,6 @@ int ValidateCorrelatedStore::multiply_AltShares(
     delete trip;
   }
 
-  // TODO: Swap auto-sums, we want raw swap with threading.
   fmpz_t* diff_other; new_fmpz_array(&diff_other, N);
   sent_bytes += swap_fmpz_batch(serverfd, diff, diff_other, N);
 
@@ -209,7 +208,6 @@ int ValidateCorrelatedStore::batch_Validate(const size_t target) {
   clear_fmpz_array(evalsF, N);
   fmpz_set(points[N], sigmaF);
   // Only the final one needs to be validated.
-  // TODO: look back at this logic.
   bool use_validated[N+1];
   memset(use_validated, 0, sizeof(bool)*N);
   use_validated[N] = true;
@@ -251,7 +249,7 @@ int ValidateCorrelatedStore::batch_Validate(const size_t target) {
     for (unsigned int i = 0; i < num_val; i++) {
       delete candidates[i];
     }
-    error_exit("TODO: Currently no recovery for bad validation");
+    // Assuming called through check_DaBits, it will then proceed to use precomputed daBits instead.
   }
 
   fmpz_clear(diff);

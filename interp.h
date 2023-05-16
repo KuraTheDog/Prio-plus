@@ -228,7 +228,7 @@ public:
 
   MultEvalManager(const int server_num, const int serverfd)
   : server_num(server_num)
-  , serverfd(serverfd) 
+  , serverfd(serverfd)
   {
     fmpz_init(eval_point);
     new_eval_point();
@@ -247,6 +247,5 @@ public:
   // Note: only takes powers of 2.
   MultCheckPreComp* get_Precomp(const size_t N);
 };
-
 
 #endif

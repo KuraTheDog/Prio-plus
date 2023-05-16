@@ -1060,5 +1060,3 @@ int OTCorrelatedStore::b2a_ot(
 
   return sent_bytes;
 }
-
-
