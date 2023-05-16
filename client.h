@@ -35,8 +35,8 @@ void share_polynomials(const Circuit* const circuit, ClientPacket* const p0, Cli
 
     // Build f, g that goes through pointsF, pointsG.
     // Interpolate through the Nth roots of unity
-    fmpz_t* const polyF = interpolate_inv(N, pointsF);
-    fmpz_t* const polyG = interpolate_inv(N, pointsG);
+    fmpz_t* const polyF = interpolate_N_inv(N, pointsF);
+    fmpz_t* const polyG = interpolate_N_inv(N, pointsG);
 
     // Pad to length 2N, to ensure it fits h.
     fmpz_t* paddedF; new_fmpz_array(&paddedF, 2*N);

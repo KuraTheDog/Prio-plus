@@ -192,7 +192,7 @@ int ValidateCorrelatedStore::batch_Validate(const size_t target) {
   // F on sigma, and extra points
   fmpz_t sigmaF; fmpz_init(sigmaF);
   chk->Eval(pointsF, sigmaF);
-  fmpz_t* const polyF = interpolate_inv(N, pointsF);
+  fmpz_t* const polyF = interpolate_N_inv(N, pointsF);
   clear_fmpz_array(pointsF, N);
   fmpz_t* paddedF; new_fmpz_array(&paddedF, 2*N);
   copy_fmpz_array(paddedF, polyF, N);

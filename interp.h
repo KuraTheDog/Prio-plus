@@ -117,7 +117,7 @@ public:
 Inverse interpolate finds coefficients.
 */
 fmpz_t* interpolate_N(const size_t N, const fmpz_t* const points);
-fmpz_t* interpolate_inv(const size_t N, const fmpz_t* const points);
+fmpz_t* interpolate_N_inv(const size_t N, const fmpz_t* const points);
 fmpz_t* interpolate_2N(const size_t N, const fmpz_t* const points);
 fmpz_t* interpolate_2N_inv(const size_t N, const fmpz_t* const points);
 

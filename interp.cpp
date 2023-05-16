@@ -63,7 +63,7 @@ fmpz_t* interpolate_N(const size_t N, const fmpz_t* const points) {
   return fft_interpolate(Int_Modulus, N, RootManager(N).getRoots(), points, false);
 }
 
-fmpz_t* interpolate_inv(const size_t N, const fmpz_t* const points) {
+fmpz_t* interpolate_N_inv(const size_t N, const fmpz_t* const points) {
   return fft_interpolate(Int_Modulus, N, RootManager(N).getRootsInv(), points, true);
 }
 

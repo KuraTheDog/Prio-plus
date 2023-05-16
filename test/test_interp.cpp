@@ -40,7 +40,7 @@ void test_basic_fft(const size_t N) {
     fmpz_randm(points[i], seed, Int_Modulus);
   }
 
-  fmpz_t* coeffs = interpolate_inv(N, points);
+  fmpz_t* coeffs = interpolate_N_inv(N, points);
   fmpz_t* evals = interpolate_N(N, coeffs);
 
   // poly though points, then eval at points. ensure matches.
