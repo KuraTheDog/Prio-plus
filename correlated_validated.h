@@ -6,11 +6,6 @@
 #include "utils.h"
 
 class ValidateCorrelatedStore : public PrecomputeStore {
-  fmpz_t sigma;
-  size_t sigma_uses;
-  void check_sigma();  // Call before using sigma. Not return to avoid extra copy.
-  void new_sigma();
-
   const size_t min_batch_size;
   const size_t alt_triple_batch_size;
 
@@ -33,7 +28,7 @@ class ValidateCorrelatedStore : public PrecomputeStore {
   // Precomputed
   std::queue<const AltTriple*> alt_triple_store;
 
-  std::unordered_map<size_t, MultCheckPreComp*> eval_precomp_store;
+  MultEvalManager mult_eval_manager;
 
   // TODO: consider moving this to normal precompute, and just not using it.
   typedef std::tuple <const DaBit* const *, const AltTriple* const *> pairtype;
@@ -56,12 +51,10 @@ public:
   : PrecomputeStore(serverfd, server_num, ot0, ot1, batch_size, lazy)
   , min_batch_size(NextPowerOfTwo(batch_size-1))
   , alt_triple_batch_size(batch_size)
+  , mult_eval_manager(server_num, serverfd)
   {
-    fmpz_init(sigma);
-
-    eval_precomp_store[min_batch_size] = new MultCheckPreComp(min_batch_size);
-
-    new_sigma();
+    // Common, so pre-cache
+    mult_eval_manager.get_Precomp(min_batch_size);
   };
 
   ~ValidateCorrelatedStore();

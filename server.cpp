@@ -30,10 +30,7 @@
 // Fail if more than this fraction of clients provide invalid inputs
 #define INVALID_THRESHOLD 0.5
 
-uint64_t randx_uses = 0;
-fmpz_t randomX;
-// Precomputes for the current random X, keyed by number of mults.
-std::unordered_map<size_t, MultCheckPreComp*> eval_precomp_store;
+MultEvalManager* mult_eval_manager;
 
 OT_Wrapper* ot0;
 OT_Wrapper* ot1;
@@ -116,36 +113,12 @@ void server1_connect(int& sockfd, const int port, const int reuse = 0) {
     std::cout << "  Connected\n";
 }
 
-// Gets a new randomX, syncs it between servers.
-void sync_randomX(const int serverfd, const int server_num, fmpz_t randomX) {
-    if (server_num == 0) {
-        recv_fmpz(serverfd, randomX);
-        // std::cout << "Got randomX: "; fmpz_print(randomX); std::cout << std::endl;
-    } else {
-        fmpz_randm(randomX, seed, Int_Modulus);
-        // std::cout << "Sending randomX: "; fmpz_print(randomX); std::cout << std::endl;
-        send_fmpz(serverfd, randomX);
-    }
-}
-
 // TODO: can maybe batch this? I.e. get list of all PK at once.
 std::string get_pk(const int serverfd) {
     char pk_buf[PK_LENGTH];
     recv_in(serverfd, &pk_buf[0], PK_LENGTH);
     std::string pk(pk_buf, pk_buf + PK_LENGTH);
     return pk;
-}
-
-MultCheckPreComp* getPrecomp(const size_t N) {
-    MultCheckPreComp* pre;
-    if (eval_precomp_store.find(N) == eval_precomp_store.end()) {
-        pre = new MultCheckPreComp(N);
-        pre->setEvalPoint(randomX);
-        eval_precomp_store[N] = pre;
-    } else {
-        pre = eval_precomp_store[N];
-    }
-    return pre;
 }
 
 int recv_unvalidated(const int clientfd, const std::string pk, const size_t n) {
@@ -238,8 +211,8 @@ const bool* const validate_snips(const size_t N,
     const size_t NumRoots = NextPowerOfTwo(circuit[0]->NumMulGates());
 
     Checker** const checker = new Checker*[N];
-    MultCheckPreComp* const pre = getPrecomp(NumRoots);
-    randx_uses += N;
+    mult_eval_manager->check_eval_point(3 * N);
+    MultCheckPreComp* const pre = mult_eval_manager->get_Precomp(NumRoots);
     for (unsigned int i = 0; i < N; i++)
         checker[i] = new Checker(circuit[i], server_num, packet[i], pre,
                                  &shares_p[i * num_inputs]);
@@ -2187,8 +2160,7 @@ int main(int argc, char** argv) {
         error_exit("Can only handle servers #0 and #1");
     }
 
-    fmpz_init(randomX);
-    sync_randomX(serverfd, server_num, randomX);
+    mult_eval_manager = new MultEvalManager(server_num, serverfd);
 
     syncSnipSeeds(serverfd, server_num);
 
@@ -2212,15 +2184,6 @@ int main(int argc, char** argv) {
     bind_and_listen(addr, sockfd, client_port, 1);
 
     while(1) {
-        // Refresh randomX if used too much
-        if (randx_uses > EVAL_REUSE_THRESHOLD) {
-            randx_uses = 0;
-            sync_randomX(serverfd, server_num, randomX);
-            // Update precomps
-            for (const auto& pair : eval_precomp_store)
-                pair.second -> setEvalPoint(randomX);
-        }
-
         if (STORE_TYPE != ot_store) {
             ((PrecomputeStore*) correlated_store)->maybe_Update();
             ((PrecomputeStore*) correlated_store)->print_Sizes();
@@ -2362,13 +2325,11 @@ int main(int argc, char** argv) {
     }
 
     delete correlated_store;
-    for (const auto& precomp : eval_precomp_store)
-        delete precomp.second;
 
     delete ot0;
     delete ot1;
-    fmpz_clear(randomX);
 
+    delete mult_eval_manager;
     RootManager(1).clearCache();
     clear_constants();
 

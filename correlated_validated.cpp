@@ -167,10 +167,9 @@ int ValidateCorrelatedStore::batch_Validate(const size_t target) {
   // Will still need N "legit" unvalidated dabits.
   check_AltTriple(N, false);
 
-  check_sigma();
-  sigma_uses += 1;
+  mult_eval_manager.check_eval_point(2);
 
-  MultCheckPreComp* chk = get_Precomp(N);
+  MultCheckPreComp* chk = mult_eval_manager.get_Precomp(N);
 
   const DaBit* candidates[num_val];
 
@@ -286,36 +285,6 @@ const DaBit* const ValidateCorrelatedStore::get_DaBit() {
   return ans;
 }
 
-void ValidateCorrelatedStore::check_sigma() {
-  if (sigma_uses > EVAL_REUSE_THRESHOLD) {
-    new_sigma();
-  }
-}
-
-void ValidateCorrelatedStore::new_sigma() {
-  if (server_num == 0) {
-    fmpz_randm(sigma, seed, Int_Modulus);
-    send_fmpz(serverfd, sigma);
-  } else {
-    recv_fmpz(serverfd, sigma);
-  }
-  sigma_uses = 0;
-  for (const auto& pair : eval_precomp_store)
-      pair.second -> setEvalPoint(sigma);
-}
-
-MultCheckPreComp* ValidateCorrelatedStore::get_Precomp(const size_t N) {
-  MultCheckPreComp* pre;
-  if (eval_precomp_store.find(N) == eval_precomp_store.end()) {
-    pre = new MultCheckPreComp(N);
-    pre->setEvalPoint(sigma);
-    eval_precomp_store[N] = pre;
-  } else {
-    pre = eval_precomp_store[N];
-  }
-  return pre;
-}
-
 void ValidateCorrelatedStore::print_Sizes() const {
   std::cout << "Current store sizes:\n";
   std::cout << " Dabits: \n";
@@ -326,10 +295,6 @@ void ValidateCorrelatedStore::print_Sizes() const {
 }
 
 ValidateCorrelatedStore::~ValidateCorrelatedStore() {
-  fmpz_clear(sigma);
-  for (const auto& pair : eval_precomp_store)
-    delete pair.second;
-
   while (!unvalidated_dabit_store.empty()) {
     const DaBit* const bit = unvalidated_dabit_store.front();
     unvalidated_dabit_store.pop();

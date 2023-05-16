@@ -74,3 +74,30 @@ fmpz_t* interpolate_2N(const size_t N, const fmpz_t* const points) {
 fmpz_t* interpolate_2N_inv(const size_t N, const fmpz_t* const points) {
   return fft_interpolate(Int_Modulus, 2 * N, RootManager(N).getRoots2Inv(), points, true);
 }
+
+void MultEvalManager::check_eval_point(const size_t n) {
+  if (eval_point_uses > EVAL_REUSE_THRESHOLD) {
+    new_eval_point();
+  }
+  eval_point_uses += n;
+}
+
+void MultEvalManager::new_eval_point() {
+  if (server_num == 0) {
+    fmpz_randm(eval_point, seed, Int_Modulus);
+    send_fmpz(serverfd, eval_point);
+  } else {
+    recv_fmpz(serverfd, eval_point);
+  }
+  eval_point_uses = 0;
+  for (const auto& pair : store)
+    pair.second -> setEvalPoint(eval_point);
+}
+
+MultCheckPreComp* MultEvalManager::get_Precomp(const size_t N) {
+  if (store.find(N) == store.end()) {
+    store[N] = new MultCheckPreComp(N);
+    store[N]->setEvalPoint(eval_point);
+  }
+  return store[N];
+}

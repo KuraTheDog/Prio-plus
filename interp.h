@@ -5,6 +5,7 @@
 
 #include "constants.h"
 #include "fmpz_utils.h"
+#include "net_share.h"
 #include "utils.h"
 
 extern "C" {
@@ -27,12 +28,24 @@ Eval then takes in the Y values corresponding to the X points, and it finishes
 finding the corresponding poly, and returns it evaluated at the point.
 
 MultCheckPreComp:
-The common use case is mass testing multiplication.
-Namely, for lists of {a}, {b}, {c}, ensure all a_i * b_i = c_i
-For this, there is f(x_i) = a_i, g for b, and h for c.
-Then identity test f * g = h at random x gives that all mults hold with high probability
-For degrees, f and g are deg N, then h has to be deg 2N
-Hence this gives an easy framework for having both N and 2N poly interp.
+ The common use case is mass testing multiplication.
+ Namely, for lists of {a}, {b}, {c}, ensure all a_i * b_i = c_i
+ For this, there is f(x_i) = a_i, g for b, and h for c.
+ Then identity test f * g = h at random x gives that all mults hold with high probability
+ For degrees, f and g are deg N, then h has to be deg 2N
+ Hence this gives an easy framework for having both N and 2N poly interp.
+ This also bakes in an evaulation point.
+
+General use:
+  interpolate_[N/2N][, _inv](N, points): run general interpolation
+  * pass points around, maybe multiple interpolate calls *
+
+  MultEvalManager(server_num, serverfd): setup, including eval point
+  MultEvalManager.check_eval_point(n): Before trying to call eval/eval2 n times
+  chk = MultEvalManager.get_Precomp(N): for circuit with <N gates (N power of 2), prepare
+  * n calls to chk->Eval/Eval2(points, out) *
+
+  RootManager(1).clearCache(): Memory cleanup
 */
 
 /* Cache of roots of unity
@@ -42,6 +55,7 @@ Hence this gives an easy framework for having both N and 2N poly interp.
 
   Use: RootManager(N).getRoots();
   computes roots around N if not cached, then fetches.
+  Usage of interpolate commands does the add check automatically.
 */
 class RootManager {
   static std::unordered_map<size_t, fmpz_t*> roots;
@@ -198,6 +212,40 @@ public:
     delete deg2N;
     fmpz_clear(x);
   }
+};
+
+// Manages multiple MultCheckPreComp for the same eval point, and different sizes.
+class MultEvalManager {
+  std::unordered_map<size_t, MultCheckPreComp*> store;
+
+  fmpz_t eval_point;
+  unsigned int eval_point_uses;
+
+  const int server_num;
+  const int serverfd;
+
+public:
+
+  MultEvalManager(const int server_num, const int serverfd)
+  : server_num(server_num)
+  , serverfd(serverfd) 
+  {
+    fmpz_init(eval_point);
+    new_eval_point();
+  }
+
+  ~MultEvalManager() {
+    fmpz_clear(eval_point);
+    for (const auto& pair : store)
+      delete pair.second;
+  }
+
+  // Use: When going to run on n times, call check(n) first
+  void check_eval_point(const size_t n);
+  void new_eval_point();
+
+  // Note: only takes powers of 2.
+  MultCheckPreComp* get_Precomp(const size_t N);
 };
 
 
