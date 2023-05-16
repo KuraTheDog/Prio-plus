@@ -39,9 +39,8 @@ void NewAltTriples(AltTriple* const out0, AltTriple* const out1) {
     fmpz_randm(out1->AB, seed, Int_Modulus);
     fmpz_randm(out0->C, seed, Int_Modulus);
     // a * b = c
-    fmpz_mul(out1->C, out0->AB, out1->AB);
-    fmpz_sub(out1->C, out1->C, out0->C);
-    fmpz_mod(out1->C, out1->C, Int_Modulus);
+    fmpz_mod_mul(out1->C, out0->AB, out1->AB, mod_ctx);
+    fmpz_mod_sub(out1->C, out1->C, out0->C, mod_ctx);
 }
 
 void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {

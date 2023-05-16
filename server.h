@@ -112,11 +112,9 @@ struct Checker {
         fmpz_t x; fmpz_init(x); pre->getEvalPoint(x);
         pre->Eval(pointsF, evalF);
         pre->Eval(pointsG, evalG);
-        fmpz_mul(evalG, evalG, x);
-        fmpz_mod(evalG, evalG, Int_Modulus);
+        fmpz_mod_mul(evalG, evalG, x, mod_ctx);
         pre->Eval2(pointsH, evalH);
-        fmpz_mul(evalH, evalH, x);
-        fmpz_mod(evalH, evalH, Int_Modulus);
+        fmpz_mod_mul(evalH, evalH, x, mod_ctx);
         fmpz_clear(x);
     }
 

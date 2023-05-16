@@ -40,13 +40,11 @@ void RootManager::addRoots(const size_t N){
   fmpz_set_ui(r2inv[0], 1);
 
   for (unsigned int i = 1; i < N; i++) {
-    fmpz_mul(r[i], r[i-1], g_);
-    fmpz_mod(r[i], r[i], Int_Modulus);
+    fmpz_mod_mul(r[i], r[i-1], g_, mod_ctx);
     fmpz_set(inv[N-i], r[i]);
   }
   for (unsigned int i = 1; i < 2 * N; i++) {
-    fmpz_mul(r2[i], r2[i-1], ghalf_);
-    fmpz_mod(r2[i], r2[i], Int_Modulus);
+    fmpz_mod_mul(r2[i], r2[i-1], ghalf_, mod_ctx);
     fmpz_set(r2inv[2*N-i], r2[i]);
   }
 

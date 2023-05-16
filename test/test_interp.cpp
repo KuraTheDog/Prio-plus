@@ -21,8 +21,7 @@ void test_roots(const size_t N) {
 
   assert(fmpz_equal(roots2[2], roots[1]));
   fmpz_t tmp; fmpz_init(tmp);
-  fmpz_mul(tmp, roots[1], rootsInv[1]);
-  fmpz_mod(tmp, tmp, Int_Modulus);
+  fmpz_mod_mul(tmp, roots[1], rootsInv[1], mod_ctx);
   assert(fmpz_equal_ui(tmp, 1));
   // deal with unused
   fmpz_set(tmp, roots2[0]);
@@ -63,10 +62,8 @@ void eval(const fmpz_t* const coeffs, const fmpz_t x, const size_t N, fmpz_t out
   fmpz_t xpow; fmpz_init_set_ui(xpow, 1);
   fmpz_set_ui(out, 0);
   for (unsigned int i = 0; i < N; i++) {
-    fmpz_addmul(out, coeffs[i], xpow);
-    fmpz_mul(xpow, xpow, x);
-    fmpz_mod(xpow, xpow, Int_Modulus);
-    fmpz_mod(out, out, Int_Modulus);
+    fmpz_mod_addmul(out, coeffs[i], xpow, mod_ctx);
+    fmpz_mod_mul(xpow, xpow, x, mod_ctx);
   }
 }
 

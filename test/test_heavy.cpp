@@ -77,13 +77,11 @@ void test_HeavyConvert(const int server_num, const int serverfd,
     recv_fmpz_batch(serverfd, bucket1_other, nbits);
     fmpz_t tmp; fmpz_init(tmp);
     for (unsigned int j = 0; j < nbits; j++) {
-      fmpz_add(tmp, bucket0[j], bucket0_other[j]);
-      fmpz_mod(tmp, tmp, Int_Modulus);
+      fmpz_mod_add(tmp, bucket0[j], bucket0_other[j], mod_ctx);
       std::cout << "bucket0[" << j << "] total = " << get_fsigned(tmp, Int_Modulus);
       std::cout << ", \tvalue = " << expected0[j] << std::endl;
       assert(get_fsigned(tmp, Int_Modulus) == expected0[j]);
-      fmpz_add(tmp, bucket1[j], bucket1_other[j]);
-      fmpz_mod(tmp, tmp, Int_Modulus);
+      fmpz_mod_add(tmp, bucket1[j], bucket1_other[j], mod_ctx);
       std::cout << "bucket1[" << j << "] total = " << get_fsigned(tmp, Int_Modulus);
       std::cout << ", \tvalue = " << expected1[j] << std::endl;
       assert(get_fsigned(tmp, Int_Modulus) == expected1[j]);
@@ -191,15 +189,13 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
       for (unsigned int m = 0; m < M; m++) {
         for (unsigned int d = 0; d < D; d++) {
           const size_t idx = (q * M + m) * D + d;
-          fmpz_add(tmp, bucket0[idx], bucket0_other[idx]);
-          fmpz_mod(tmp, tmp, Int_Modulus);
+          fmpz_mod_add(tmp, bucket0[idx], bucket0_other[idx], mod_ctx);
           // std::cout << "bucket0[" << q << ", " << m << ", " << d << "] = " << get_fsigned(tmp, Int_Modulus);
           // std::cout << ", expected = " << expected0[idx];
           // std::cout << std::endl;
           assert(get_fsigned(tmp, Int_Modulus) == expected0[idx]);
 
-          fmpz_add(tmp, bucket1[idx], bucket1_other[idx]);
-          fmpz_mod(tmp, tmp, Int_Modulus);
+          fmpz_mod_add(tmp, bucket1[idx], bucket1_other[idx], mod_ctx);
           // std::cout << "bucket1[" << q << ", " << m << ", " << d << "] = " << get_fsigned(tmp, Int_Modulus);
           // std::cout << ", expected = " << expected1[idx];
           // std::cout << std::endl;
@@ -230,12 +226,10 @@ void test_abs_cmp(
   fmpz_t range_f; fmpz_init_set_si(range_f, range);
   for (unsigned int i = 0; i < N; i++) {
     fmpz_randm(val0[i], seed, range_f);
-    fmpz_sub_si(val0[i], val0[i], range / 2);
-    fmpz_mod(val0[i], val0[i], Int_Modulus);
+    fmpz_mod_sub_si(val0[i], val0[i], range / 2, mod_ctx);
 
     fmpz_randm(val1[i], seed, range_f);
-    fmpz_sub_si(val1[i], val1[i], range / 2);
-    fmpz_mod(val1[i], val1[i], Int_Modulus);
+    fmpz_mod_sub_si(val1[i], val1[i], range / 2, mod_ctx);
   }
   // fmpz_set_si(val0[0], -(100 + 10*server_num));
   // fmpz_mod(val0[0], val0[0], Int_Modulus);
@@ -264,15 +258,12 @@ void test_abs_cmp(
     fmpz_t v1_tmp; fmpz_init(v1_tmp);
 
     for (unsigned int i = 0; i < N; i++) {
-      fmpz_add(larger[i], larger[i], larger_other[i]);
-      fmpz_mod(larger[i], larger[i], Int_Modulus);
+      fmpz_mod_add(larger[i], larger[i], larger_other[i], mod_ctx);
 
-      fmpz_add(v0, val0[i], val0_other[i]);
-      fmpz_mod(v0, v0, Int_Modulus);
+      fmpz_mod_add(v0, val0[i], val0_other[i], mod_ctx);
       fmpz_set(v0_tmp, v0);
 
-      fmpz_add(v1, val1[i], val1_other[i]);
-      fmpz_mod(v1, v1, Int_Modulus);
+      fmpz_mod_add(v1, val1[i], val1_other[i], mod_ctx);
       fmpz_set(v1_tmp, v1);
 
       if (fmpz_cmp(v0_tmp, half) > 0) {  // > N/2, negate (abs)
@@ -357,8 +348,7 @@ void test_cmp_bit(
     for (unsigned int x = 0; x < max; x++) {
       for (unsigned int y = 0; y < max; y++) {
         size_t idx = x * max + y;
-        fmpz_add(tmp, ans[idx], ans_other[idx]);
-        fmpz_mod(tmp, tmp, Int_Modulus);
+        fmpz_mod_add(tmp, ans[idx], ans_other[idx], mod_ctx);
         std::cout << x << (fmpz_is_one(tmp) ? " <  " : " >= " ) << y << " (" << fmpz_get_ui(ans[idx]) << " + " << fmpz_get_ui(ans_other[idx]) << " = " << fmpz_get_ui(tmp) << ") " << std::endl;
       }
     }
@@ -397,14 +387,12 @@ void test_rand_bitshare(
     size_t keep = 0;
 
     for (unsigned int i = 0; i < N; i++) {
-      fmpz_add(got, r[i], r_other[i]);
-      fmpz_mod(got, got, Int_Modulus);
+      fmpz_mod_add(got, r[i], r_other[i], mod_ctx);
       // std::cout << "got r = " << fmpz_get_ui(got) << std::endl;
       // std::cout << " binary: ";
       fmpz_zero(r[i]);  // reuse as array
       for (int j = b - 1; j >= 0; --j) {  // For printing binary
-        fmpz_add(bit, r_B[i * b + j], r_B_other[i * b + j]);
-        fmpz_mod(bit, bit, Int_Modulus);
+        fmpz_mod_add(bit, r_B[i * b + j], r_B_other[i * b + j], mod_ctx);
         // std::cout << " bit " << j << " = " << fmpz_get_ui(bit) << " (" << fmpz_get_ui(r_B[i * b + j]) << " + " << fmpz_get_ui(r_B_other[i * b + j]) << ")" << std::endl;
         // std::cout << fmpz_get_ui(bit);
         fmpz_addmul_ui(r[i], bit, 1ULL << j);
@@ -440,8 +428,7 @@ void test_sign(
     for (unsigned int i = 0; i < N; i++) {
       fmpz_randm(x[i], seed, Int_Modulus);
       fmpz_randm(other[i], seed, Int_Modulus);
-      fmpz_add(actual[i], x[i], other[i]);
-      fmpz_mod(actual[i], actual[i], Int_Modulus);
+      fmpz_mod_add(actual[i], x[i], other[i], mod_ctx);
       // std::cout << "val[" << i << "] = " << fmpz_get_ui(actual[i]) << " = " << fmpz_get_ui(x[i]) << " + " << fmpz_get_ui(other[i]) << std::endl;
     }
     send_fmpz_batch(serverfd, other, N);
@@ -458,8 +445,7 @@ void test_sign(
 
     fmpz_t tmp; fmpz_init(tmp);
     for (unsigned int i = 0; i < N; i++) {
-      fmpz_add(tmp, s[i], other[i]);
-      fmpz_mod(tmp, tmp, Int_Modulus);
+      fmpz_mod_add(tmp, s[i], other[i], mod_ctx);
       // std::cout << "val[" << i << "] = " << fmpz_get_ui(actual[i]) << " has least sig bit " << fmpz_get_ui(tmp) << " = " << fmpz_get_ui(s[i]) << " + " << fmpz_get_ui(other[i]) << std::endl;
       std::cout << "val[" << i << "] = " << get_fsigned(actual[i], Int_Modulus) << " (" << fmpz_get_ui(actual[i]) << ") is " << (fmpz_is_one(tmp) == 1 ? "negative" : "non-negative") << std::endl;
     }

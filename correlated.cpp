@@ -480,8 +480,7 @@ bool* CorrelatedStore::cmp_c_clear(const size_t N,
     fmpz_t* c2; new_fmpz_array(&c2, N);
     recv_fmpz_batch(serverfd, x2, N);
     for (unsigned int i = 0; i < N; i++) {
-      fmpz_add(x2[i], x2[i], x[i]);
-      fmpz_mod(x2[i], x2[i], Int_Modulus);
+      fmpz_mod_add(x2[i], x2[i], x[i], mod_ctx);
       if (fmpz_cmp(x2[i], half) > 0) {  // > N/2, so negative
         fmpz_sub(x2[i], x2[i], Int_Modulus);
       }
@@ -828,10 +827,9 @@ int CorrelatedStore::is_negative(const size_t N,
   clear_fmpz_array(inp, N);
   // Code for (1 - [(2a)_0]), aka 1 if positive, 0 if negative
   // for (unsigned int i = 0; i < N; i++) {
-  //   fmpz_neg(ans[i], ans[i]);
+  //   fmpz_mod_neg(ans[i], ans[i], mod_ctx);
   //   if (server_num == 0)
-  //     fmpz_add_ui(ans[i], ans[i], 1);
-  //   fmpz_mod(ans[i], ans[i], Int_Modulus);
+  //     fmpz_mod_add_ui(ans[i], ans[i], 1, mod_ctx);
   // }
   return sent_bytes;
 }

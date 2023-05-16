@@ -149,6 +149,7 @@ void runLocal(size_t N) {
 
   fmpz_t c_val; fmpz_init(c_val);
   fmpz_t c2_val; fmpz_init(c2_val);
+  // TODO: mod_ctx for fmod?
   fmpz_t fmod; fmpz_init_set_si(fmod, plaintextModulus);
   fmpz_t tmp; fmpz_init(tmp);
   fmpz_t tmp2; fmpz_init(tmp2);
@@ -219,14 +220,10 @@ void runServerTest(const int server_num, const int serverfd, const size_t N) {
 
       fmpz_t tmp; fmpz_init(tmp);
       fmpz_t tmp2; fmpz_init(tmp2);
-      fmpz_add(tmp, triple->A, other_triple->A);
-      fmpz_mod(tmp, tmp, Int_Modulus);
-      fmpz_add(tmp2, triple->B, other_triple->B);
-      fmpz_mod(tmp2, tmp2, Int_Modulus);
-      fmpz_mul(tmp, tmp, tmp2);
-      fmpz_mod(tmp, tmp, Int_Modulus);
-      fmpz_add(tmp2, triple->C, other_triple->C);
-      fmpz_mod(tmp2, tmp2, Int_Modulus);
+      fmpz_mod_add(tmp, triple->A, other_triple->A, mod_ctx);
+      fmpz_mod_add(tmp2, triple->B, other_triple->B, mod_ctx);
+      fmpz_mod_mul(tmp, tmp, tmp2, mod_ctx);
+      fmpz_mod_add(tmp2, triple->C, other_triple->C, mod_ctx);
       bool valid = fmpz_equal(tmp, tmp2);
       send_bool(serverfd, valid);
       if (not valid or idx == N-1) {
