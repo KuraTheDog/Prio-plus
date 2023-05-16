@@ -67,15 +67,16 @@ public:
   int multiply_AltShares(const size_t N, const fmpz_t* const x, fmpz_t* const z,
                         const bool* const validated);
 
+  // Queue up paired unvalidated.
+  // Done this way in case data is out of order between the two servers
+  // accumulate based on tag, so that shares are aligned
+  void queue_Unvalidated(const DaBit* const * dabits, const AltTriple* const * trips,
+                         const std::string tag);
+  // add in all n unvalidated corresponding to tag, where n is the size of the lists queued
+  // For use when generally iterating over (synced) tags.
+  void process_Unvalidated(const std::string tag, const size_t n);
   // Add unvalidated correlated to queue
   void add_Unvalidated(const DaBit* const dabit, const AltTriple* const trip);
-  // Queue up paired unvalidated.
-  // Done this way in case data is out of order, had sync issues just using basic add
-  // accumulate based on pk, so that it's done with the same "owner"
-  void queue_Unvalidated(const DaBit* const * dabits, const AltTriple* const * trips,
-                        const std::string pk);
-  // add up all unvalidated corresponding to pk
-  void process_Unvalidated(const std::string pk, const size_t n);
 
   void check_DaBits(const size_t n = 0) override;
   // void checkTriples(const size_t n = 0);

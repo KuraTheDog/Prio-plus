@@ -129,13 +129,13 @@ void ValidateCorrelatedStore::add_Unvalidated(
 
 void ValidateCorrelatedStore::queue_Unvalidated(
     const DaBit* const * dabits, const AltTriple* const * trips,
-    const std::string pk) {
-  unvalidated_pairs[pk] = {dabits, trips};
+    const std::string tag) {
+  unvalidated_pairs[tag] = {dabits, trips};
 }
 
-void ValidateCorrelatedStore::process_Unvalidated(const std::string pk, const size_t n) {
-  pairtype lists = unvalidated_pairs[pk];
-  unvalidated_pairs.erase(pk);
+void ValidateCorrelatedStore::process_Unvalidated(const std::string tag, const size_t n) {
+  pairtype lists = unvalidated_pairs[tag];
+  unvalidated_pairs.erase(tag);
   for (unsigned int i = 0; i < n; i++) {
     add_Unvalidated(std::get<0>(lists)[i], std::get<1>(lists)[i]);
   }

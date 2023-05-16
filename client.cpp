@@ -58,20 +58,20 @@ std::string pub_key_to_hex(const uint64_t* const key) {
     return ss.str();
 }
 
-std::string make_pk(emp::PRG& prg) {
+std::string make_tag(emp::PRG& prg) {
     emp::block b;
     prg.random_block(&b, 1);
     return pub_key_to_hex((uint64_t*)&b);
 }
 
-int send_pk(const int sockfd, const char* const pk) {
-    return send(sockfd, (void*)&(pk[0]), PK_LENGTH, 0);
+int send_tag(const int sockfd, const char* const tag) {
+    return send(sockfd, (void*)&(tag[0]), TAG_LENGTH, 0);
 }
 
 int send_maxshare(const int server_num, const MaxShare& maxshare, const unsigned int B) {
     const int sock = (server_num == 0) ? sockfd0 : sockfd1;
 
-    int ret = send_pk(sock, maxshare.pk);
+    int ret = send_tag(sock, maxshare.tag);
     ret += send_uint64_batch(sock, maxshare.arr, B+1);
 
     return ret;
@@ -79,7 +79,7 @@ int send_maxshare(const int server_num, const MaxShare& maxshare, const unsigned
 
 int send_freqshare(const int server_num, const FreqShare& freqshare, const uint64_t n) {
     const int sock = (server_num == 0) ? sockfd0 : sockfd1;
-    int ret = send_pk(sock, freqshare.pk);
+    int ret = send_tag(sock, freqshare.tag);
     ret += send_bool_batch(sock, freqshare.arr, n);
     return ret;
 }
@@ -90,7 +90,7 @@ int send_linregshare(const int server_num, const LinRegShare& share,  const size
     const size_t num_x = degree - 1;
     const size_t num_quad = num_x * (num_x + 1) / 2;
 
-    int ret = send_pk(sock, share.pk);
+    int ret = send_tag(sock, share.tag);
 
     ret += send_uint64_batch(sock, share.x_vals, num_x);
     ret += send_uint64(sock, share.y);
@@ -184,15 +184,15 @@ int bit_sum_helper(const std::string protocol, const size_t numreqs,
         share1 = share0 ^ real_val;
         ans += real_val;
 
-        const std::string pk_s = make_pk(prg);
-        const char* const pk = pk_s.c_str();
+        const std::string tag_s = make_tag(prg);
+        const char* const tag = tag_s.c_str();
 
-        // std::cout << pk << ": " << std::noboolalpha << real_vals[i] << " = " << shares0[i] << " ^ " << shares1[i] << std::endl;
+        // std::cout << tag << ": " << std::noboolalpha << real_vals[i] << " = " << shares0[i] << " ^ " << shares1[i] << std::endl;
 
-        memcpy(bitshare0[i].pk, &pk[0], PK_LENGTH);
+        memcpy(bitshare0[i].tag, &tag[0], TAG_LENGTH);
         bitshare0[i].val = share0;
 
-        memcpy(bitshare1[i].pk, &pk[0], PK_LENGTH);
+        memcpy(bitshare1[i].tag, &tag[0], TAG_LENGTH);
         bitshare1[i].val = share1;
     }
     if (numreqs > 1)
@@ -237,9 +237,9 @@ void bit_sum(const std::string protocol, const size_t numreqs) {
     std::cout << "Total sent bytes: " << sent_bytes << std::endl;
 }
 
-/* 0: pk mismatch
-   2: share0 has same pk as 1
-   4: share1 has same pk as 3
+/* 0: tag mismatch
+   2: share0 has same tag as 1
+   4: share1 has same tag as 3
 */
 void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
     initMsg msg;
@@ -259,12 +259,12 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
     prg.random_bool(shares0, numreqs);
 
     int ans = 0;
-    std::string pk_str = "";
+    std::string tag_str = "";
     for (unsigned int i = 0; i < numreqs; i++) {
         BitShare share0, share1;
-        const char* prev_pk = pk_str.c_str();
-        pk_str = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* const pk = pk_str.c_str();
+        const char* prev_tag = tag_str.c_str();
+        tag_str = pub_key_to_hex((uint64_t*)&b[i]);
+        const char* const tag = tag_str.c_str();
 
         shares1[i] = real_vals[i]^shares0[i];
         std::cout << i << ": " << std::boolalpha << shares0[i] << " ^ " << shares1[i] << " = " << real_vals[i];
@@ -275,17 +275,17 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
             ans += (real_vals[i] ? 1 : 0);
         }
 
-        memcpy(share0.pk, &pk[0], PK_LENGTH);
+        memcpy(share0.tag, &tag[0], TAG_LENGTH);
         share0.val = shares0[i];
         if (i == 0)
-            share0.pk[0] = 'q';
+            share0.tag[0] = 'q';
         if (i == 2)
-            memcpy(share0.pk, &prev_pk[0], PK_LENGTH);
+            memcpy(share0.tag, &prev_tag[0], TAG_LENGTH);
 
-        memcpy(share1.pk, &pk[0], PK_LENGTH);
+        memcpy(share1.tag, &tag[0], TAG_LENGTH);
         share1.val = shares1[i];
         if (i == 4)
-            memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
+            memcpy(share1.tag, &prev_tag[0], TAG_LENGTH);
 
         send_to_server(0, &share0, sizeof(BitShare));
         send_to_server(1, &share1, sizeof(BitShare));
@@ -315,13 +315,13 @@ int int_sum_helper(const std::string protocol, const size_t numreqs,
         share1 = share0 ^ real_val;
         ans += real_val;
 
-        const std::string pk_s = make_pk(prg);
-        const char* const pk = pk_s.c_str();
+        const std::string tag_s = make_tag(prg);
+        const char* const tag = tag_s.c_str();
 
-        memcpy(intshare0[i].pk, &pk[0], PK_LENGTH);
+        memcpy(intshare0[i].tag, &tag[0], TAG_LENGTH);
         intshare0[i].val = share0;
 
-        memcpy(intshare1[i].pk, &pk[0], PK_LENGTH);
+        memcpy(intshare1[i].tag, &tag[0], TAG_LENGTH);
         intshare1[i].val = share1;
     }
     if (numreqs > 1)
@@ -374,9 +374,9 @@ void int_sum(const std::string protocol, const size_t numreqs) {
 
 /* 0: x > max
    1: x share > max
-   2: pk mismatch
-   4: share0 has same pk as 3
-   6: share1 has same pk as 5
+   2: tag mismatch
+   4: share0 has same tag as 3
+   6: share1 has same tag as 5
 */
 void int_sum_invalid(const std::string protocol, const size_t numreqs) {
     initMsg msg;
@@ -396,7 +396,7 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
     prg.random_data(real_vals, numreqs * sizeof(uint64_t));
     prg.random_data(shares0, numreqs * sizeof(uint64_t));
 
-    std::string pk_str = "";
+    std::string tag_str = "";
     for (unsigned int i = 0; i < numreqs; i++) {
         if (i != 0)
             real_vals[i] = real_vals[i] % max_int;
@@ -412,21 +412,21 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
         }
 
         IntShare share0, share1;
-        const char* prev_pk = pk_str.c_str();
-        pk_str = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* const pk = pk_str.c_str();
+        const char* prev_tag = tag_str.c_str();
+        tag_str = pub_key_to_hex((uint64_t*)&b[i]);
+        const char* const tag = tag_str.c_str();
 
-        memcpy(share0.pk, &pk[0], PK_LENGTH);
+        memcpy(share0.tag, &tag[0], TAG_LENGTH);
         share0.val = shares0[i];
         if (i == 2)
-            share0.pk[0] = 'q';
+            share0.tag[0] = 'q';
         if (i == 4)
-            memcpy(share0.pk, &prev_pk[0], PK_LENGTH);
+            memcpy(share0.tag, &prev_tag[0], TAG_LENGTH);
 
-        memcpy(share1.pk, &pk[0], PK_LENGTH);
+        memcpy(share1.tag, &tag[0], TAG_LENGTH);
         share1.val = shares1[i];
         if (i == 6)
-            memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
+            memcpy(share1.tag, &prev_tag[0], TAG_LENGTH);
 
         send_to_server(0, &share0, sizeof(IntShare));
         send_to_server(1, &share1, sizeof(IntShare));
@@ -469,13 +469,13 @@ int xor_op_helper(const std::string protocol, const size_t numreqs,
         prg.random_data(&share0, sizeof(uint64_t));
         share1 = share0 ^ encoded;
 
-        const std::string pk_s = make_pk(prg);
-        const char* const pk = pk_s.c_str();
+        const std::string tag_s = make_tag(prg);
+        const char* const tag = tag_s.c_str();
 
-        memcpy(intshare0[i].pk, &pk[0], PK_LENGTH);
+        memcpy(intshare0[i].tag, &tag[0], TAG_LENGTH);
         intshare0[i].val = share0;
 
-        memcpy(intshare1[i].pk, &pk[0], PK_LENGTH);
+        memcpy(intshare1[i].tag, &tag[0], TAG_LENGTH);
         intshare1[i].val = share1;
     }
     if (numreqs > 1)
@@ -527,9 +527,9 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     std::cout << "Total sent bytes: " << sent_bytes << std::endl;
 }
 
-/* 0: pk mismatch
-   2: share0 has same pk as 1
-   4: share1 has same pk as 3
+/* 0: tag mismatch
+   2: share0 has same tag as 1
+   4: share1 has same tag as 3
 */
 void xor_op_invalid(const std::string protocol, const size_t numreqs) {
     initMsg msg;
@@ -583,28 +583,28 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
             if (!values[i])
                 encoded_values[i] = 0;
 
-    std::string pk_str = "";
+    std::string tag_str = "";
 
     // Share splitting. Same as int sum. Sum of shares = encoded value
     for (unsigned int i = 0; i < numreqs; i++) {
         shares1[i] = encoded_values[i] ^ shares0[i];
 
         IntShare share0, share1;
-        const char* prev_pk = pk_str.c_str();
-        pk_str = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* const pk = pk_str.c_str();
+        const char* prev_tag = tag_str.c_str();
+        tag_str = pub_key_to_hex((uint64_t*)&b[i]);
+        const char* const tag = tag_str.c_str();
 
-        memcpy(share0.pk, &pk[0], PK_LENGTH);
+        memcpy(share0.tag, &tag[0], TAG_LENGTH);
         share0.val = shares0[i];
         if (i == 0)
-            share0.pk[0] = 'q';
+            share0.tag[0] = 'q';
         if (i == 2)
-            memcpy(share0.pk, &prev_pk[0], PK_LENGTH);
+            memcpy(share0.tag, &prev_tag[0], TAG_LENGTH);
 
-        memcpy(share1.pk, &pk[0], PK_LENGTH);
+        memcpy(share1.tag, &tag[0], TAG_LENGTH);
         share1.val = shares1[i];
         if (i == 4)
-            memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
+            memcpy(share1.tag, &prev_tag[0], TAG_LENGTH);
 
         send_to_server(0, &share0, sizeof(IntShare));
         send_to_server(1, &share1, sizeof(IntShare));
@@ -656,14 +656,14 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
         for (unsigned int j = 0; j <= B; j++)
             share1[j] = share0[j] ^ or_encoded_array[j];
 
-        const std::string pk_s = make_pk(prg);
-        const char* const pk = pk_s.c_str();
+        const std::string tag_s = make_tag(prg);
+        const char* const tag = tag_s.c_str();
 
-        memcpy(maxshare0[i].pk, &pk[0], PK_LENGTH);
+        memcpy(maxshare0[i].tag, &tag[0], TAG_LENGTH);
         maxshare0[i].arr = new uint64_t[B+1];
         memcpy(maxshare0[i].arr, share0, (B+1)*sizeof(uint64_t));
 
-        memcpy(maxshare1[i].pk, &pk[0], PK_LENGTH);
+        memcpy(maxshare1[i].tag, &tag[0], TAG_LENGTH);
         maxshare1[i].arr = new uint64_t[B+1];
         memcpy(maxshare1[i].arr, share1, (B+1)*sizeof(uint64_t));
     }
@@ -726,9 +726,9 @@ void max_op(const std::string protocol, const size_t numreqs) {
     std::cout << "Total sent bytes: " << sent_bytes << std::endl;
 }
 
-/* 0: pk mismatch
-   2: share0 has same pk as 1
-   4: share1 has same pk as 3
+/* 0: tag mismatch
+   2: share0 has same tag as 1
+   4: share1 has same tag as 3
 */
 void max_op_invalid(const std::string protocol, const size_t numreqs) {
     const unsigned int B = 250;
@@ -759,7 +759,7 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
     send_to_server(0, &msg, sizeof(initMsg), 0);
     send_to_server(1, &msg, sizeof(initMsg), 0);
 
-    std::string pk_str = "";
+    std::string tag_str = "";
 
     for (unsigned int i = 0; i < numreqs; i++) {
         MaxShare share0, share1;
@@ -791,21 +791,21 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
         for (unsigned int j = 0; j <= B; j++)
             shares1[j] = shares0[j] ^ or_encoded_array[j];
 
-        const char* prev_pk = pk_str.c_str();
-        pk_str = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* const pk = pk_str.c_str();
+        const char* prev_tag = tag_str.c_str();
+        tag_str = pub_key_to_hex((uint64_t*)&b[i]);
+        const char* const tag = tag_str.c_str();
 
-        memcpy(share0.pk, &pk[0], PK_LENGTH);
+        memcpy(share0.tag, &tag[0], TAG_LENGTH);
         share0.arr = shares0;
         if (i == 0)
-            share0.pk[0] = 'q';
+            share0.tag[0] = 'q';
         if (i == 2)
-            memcpy(share0.pk, &prev_pk[0], PK_LENGTH);
+            memcpy(share0.tag, &prev_tag[0], TAG_LENGTH);
 
-        memcpy(share1.pk, &pk[0], PK_LENGTH);
+        memcpy(share1.tag, &tag[0], TAG_LENGTH);
         share1.arr = shares1;
         if (i == 4)
-            memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
+            memcpy(share1.tag, &prev_tag[0], TAG_LENGTH);
 
         send_maxshare(0, share0, B);
         send_maxshare(1, share1, B);
@@ -852,14 +852,14 @@ int var_op_helper(const std::string protocol, const size_t numreqs,
         sum += real_val;
         sumsquared += squared;
 
-        const std::string pk_s = make_pk(prg);
-        const char* const pk = pk_s.c_str();
+        const std::string tag_s = make_tag(prg);
+        const char* const tag = tag_s.c_str();
 
-        memcpy(varshare0[i].pk, &pk[0], PK_LENGTH);
+        memcpy(varshare0[i].tag, &tag[0], TAG_LENGTH);
         varshare0[i].val = share0;
         varshare0[i].val_squared = share0_2;
 
-        memcpy(varshare1[i].pk, &pk[0], PK_LENGTH);
+        memcpy(varshare1[i].tag, &tag[0], TAG_LENGTH);
         varshare1[i].val = share1;
         varshare1[i].val_squared = share1_2;
 
@@ -954,9 +954,9 @@ void var_op(const std::string protocol, const size_t numreqs) {
    6: p1 const value corruption
    7: p0 mul share corruption
    8: p1 triple corruption
-   9: pk mismatch
-   11: share0 has same pk as 10
-   13: share1 has same pk as 12
+   9: tag mismatch
+   11: share0 has same tag as 10
+   13: share1 has same tag as 12
 */
 void var_op_invalid(const std::string protocol, const size_t numreqs) {
     initMsg msg;
@@ -997,7 +997,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
     fmpz_init(inp[0]);
     fmpz_init(inp[1]);
 
-    std::string pk_str = "";
+    std::string tag_str = "";
 
     for (unsigned int i = 0; i < numreqs; i++) {
         real_vals[i] = real_vals[i] % max_int;
@@ -1026,23 +1026,23 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         }
 
         VarShare share0, share1;
-        const char* prev_pk = pk_str.c_str();
-        pk_str = pub_key_to_hex((uint64_t*)&b[i]);
-        const char* const pk = pk_str.c_str();
+        const char* prev_tag = tag_str.c_str();
+        tag_str = pub_key_to_hex((uint64_t*)&b[i]);
+        const char* const tag = tag_str.c_str();
 
-        memcpy(share0.pk, &pk[0], PK_LENGTH);
+        memcpy(share0.tag, &tag[0], TAG_LENGTH);
         share0.val = shares0[i];
         share0.val_squared = shares0_squared[i];
         if (i == 9)
-            share0.pk[0] = 'q';
+            share0.tag[0] = 'q';
         if (i == 11)
-            memcpy(share0.pk, &prev_pk[0], PK_LENGTH);
+            memcpy(share0.tag, &prev_tag[0], TAG_LENGTH);
 
-        memcpy(share1.pk, &pk[0], PK_LENGTH);
+        memcpy(share1.tag, &tag[0], TAG_LENGTH);
         share1.val = shares1[i];
         share1.val_squared = shares1_squared[i];
         if (i == 13)
-            memcpy(share1.pk, &prev_pk[0], PK_LENGTH);
+            memcpy(share1.tag, &prev_tag[0], TAG_LENGTH);
 
         send_to_server(0, &share0, sizeof(VarShare));
         send_to_server(1, &share1, sizeof(VarShare));
@@ -1164,10 +1164,10 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
         }
 
         // build shares
-        const std::string pk_s = make_pk(prg);
-        const char* const pk = pk_s.c_str();
+        const std::string tag_s = make_tag(prg);
+        const char* const tag = tag_s.c_str();
 
-        memcpy(linshare0[i].pk, &pk[0], PK_LENGTH);
+        memcpy(linshare0[i].tag, &tag[0], TAG_LENGTH);
         linshare0[i].y = y_share0;
         linshare0[i].x_vals = new uint64_t[num_x];
         linshare0[i].x2_vals = new uint64_t[num_quad];
@@ -1176,7 +1176,7 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
         memcpy(linshare0[i].x2_vals, x2_share0, num_quad * sizeof(uint64_t));
         memcpy(linshare0[i].xy_vals, xy_share0, num_x * sizeof(uint64_t));
 
-        memcpy(linshare1[i].pk, &pk[0], PK_LENGTH);
+        memcpy(linshare1[i].tag, &tag[0], TAG_LENGTH);
         linshare1[i].y = y_share1;
         linshare1[i].x_vals = new uint64_t[num_x];
         linshare1[i].x2_vals = new uint64_t[num_quad];
@@ -1314,9 +1314,9 @@ void lin_reg(const std::string protocol, const size_t numreqs) {
    6: p1 const value corruption
    7: p0 mul share corruption
    8: p1 triple corruption
-   9: pk mismatch
-   11: share0 has same pk as 10
-   13: share1 has same pk as 12
+   9: tag mismatch
+   11: share0 has same tag as 10
+   13: share1 has same tag as 12
 */
 void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
     const size_t degree = 2;
@@ -1349,7 +1349,7 @@ void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
     const size_t NMul = mock_circuit->NumMulGates();
     delete mock_circuit;
 
-    std::string pk_s;
+    std::string tag_s;
 
     for (unsigned int i = 0; i < numreqs; i++) {
         prg.random_data(&x_real, sizeof(uint64_t));
@@ -1383,15 +1383,15 @@ void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
         xy_share0 = xy_share0 % (max_int * max_int);
         xy_share1 = xy_share0 ^ xy_real;
 
-        const char* prev_pk = pk_s.c_str();
-        pk_s = make_pk(prg);
-        const char* pk = pk_s.c_str();
+        const char* prev_tag = tag_s.c_str();
+        tag_s = make_tag(prg);
+        const char* tag = tag_s.c_str();
 
-        memcpy(linshare0[i].pk, &pk[0], PK_LENGTH);
+        memcpy(linshare0[i].tag, &tag[0], TAG_LENGTH);
         if (i == 9)
-            linshare0[i].pk[0] = 'q';
+            linshare0[i].tag[0] = 'q';
         if (i == 11)
-            memcpy(linshare0[i].pk, &prev_pk[0], PK_LENGTH);
+            memcpy(linshare0[i].tag, &prev_tag[0], TAG_LENGTH);
         linshare0[i].y = y_share0;
         linshare0[i].x_vals = new uint64_t[1];
         linshare0[i].x2_vals = new uint64_t[1];
@@ -1400,9 +1400,9 @@ void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
         linshare0[i].x2_vals[0] = x2_share0;
         linshare0[i].xy_vals[0] = xy_share0;
 
-        memcpy(linshare1[i].pk, &pk[0], PK_LENGTH);
+        memcpy(linshare1[i].tag, &tag[0], TAG_LENGTH);
         if (i == 13)
-            memcpy(linshare1[i].pk, &prev_pk[0], PK_LENGTH);
+            memcpy(linshare1[i].tag, &prev_tag[0], TAG_LENGTH);
         linshare1[i].y = y_share1;
         linshare1[i].x_vals = new uint64_t[1];
         linshare1[i].x2_vals = new uint64_t[1];
@@ -1528,10 +1528,10 @@ int freq_helper(const std::string protocol, const size_t numreqs,
         freq_init(freqshare0[i].arr, freqshare1[i].arr, max_int, prg);
         freqshare1[i].arr[real_val] ^= 1;
 
-        const std::string pk_s = make_pk(prg);
-        const char* const pk = pk_s.c_str();
-        memcpy(freqshare0[i].pk, &pk[0], PK_LENGTH);
-        memcpy(freqshare1[i].pk, &pk[0], PK_LENGTH);
+        const std::string tag_s = make_tag(prg);
+        const char* const tag = tag_s.c_str();
+        memcpy(freqshare0[i].tag, &tag[0], TAG_LENGTH);
+        memcpy(freqshare1[i].tag, &tag[0], TAG_LENGTH);
     }
 
     if (numreqs > 1)
@@ -1631,10 +1631,10 @@ int heavy_helper(const std::string protocol, const size_t numreqs,
             freqshare1[i].arr[j + b] ^= h;
         }
 
-        const std::string pk_s = make_pk(prg);
-        const char* const pk = pk_s.c_str();
-        memcpy(freqshare0[i].pk, &pk[0], PK_LENGTH);
-        memcpy(freqshare1[i].pk, &pk[0], PK_LENGTH);
+        const std::string tag_s = make_tag(prg);
+        const char* const tag = tag_s.c_str();
+        memcpy(freqshare0[i].tag, &tag[0], TAG_LENGTH);
+        memcpy(freqshare1[i].tag, &tag[0], TAG_LENGTH);
     }
     fmpz_clear(hashed);
 
@@ -1787,10 +1787,10 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
             share1[i].arr[3][d * count_min.cfg.w + fmpz_get_ui(hashed)] ^= 1;
         }
 
-        const std::string pk_s = make_pk(prg);
-        const char* const pk = pk_s.c_str();
-        memcpy(share0[i].pk, &pk[0], PK_LENGTH);
-        memcpy(share1[i].pk, &pk[0], PK_LENGTH);
+        const std::string tag_s = make_tag(prg);
+        const char* const tag = tag_s.c_str();
+        memcpy(share0[i].tag, &tag[0], TAG_LENGTH);
+        memcpy(share1[i].tag, &tag[0], TAG_LENGTH);
     }
     fmpz_clear(hashed);
 
@@ -1798,8 +1798,8 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
         std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
     for (unsigned int i = 0; i < numreqs; i++) {
-        sent_bytes += send_pk(sockfd0, share0[i].pk);
-        sent_bytes += send_pk(sockfd1, share1[i].pk);
+        sent_bytes += send_tag(sockfd0, share0[i].tag);
+        sent_bytes += send_tag(sockfd1, share1[i].tag);
 
         for (unsigned int j = 0; j < 4; j++) {
             sent_bytes += send_bool_batch(sockfd0, share0[i].arr[j], sizes[j]);

@@ -56,8 +56,8 @@ size_t send_out(const int sockfd, const void* const buf, const size_t len) {
     return ret;
 }
 
-size_t send_pk(const int sockfd, const std::string x) {
-    return send_out(sockfd, &x[0], PK_LENGTH);
+size_t send_tag(const int sockfd, const std::string x) {
+    return send_out(sockfd, &x[0], TAG_LENGTH);
 }
 
 void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port, const int reuse = 1) {
@@ -117,15 +117,15 @@ void server1_connect(int& sockfd, const int port, const int reuse = 0) {
     std::cout << "  Connected\n";
 }
 
-// TODO: can maybe batch this? I.e. get list of all PK at once.
-std::string get_pk(const int serverfd) {
-    char pk_buf[PK_LENGTH];
-    recv_in(serverfd, &pk_buf[0], PK_LENGTH);
-    std::string pk(pk_buf, pk_buf + PK_LENGTH);
-    return pk;
+// TODO: can maybe batch this? I.e. get list of all tag at once.
+std::string get_tag(const int serverfd) {
+    char tag_buf[TAG_LENGTH];
+    recv_in(serverfd, &tag_buf[0], TAG_LENGTH);
+    std::string tag(tag_buf, tag_buf + TAG_LENGTH);
+    return tag;
 }
 
-int recv_unvalidated(const int clientfd, const std::string pk, const size_t n) {
+int recv_unvalidated(const int clientfd, const std::string tag, const size_t n) {
     if (STORE_TYPE != validate_store) {
         return 0;
     }
@@ -145,19 +145,19 @@ int recv_unvalidated(const int clientfd, const std::string pk, const size_t n) {
     cli_bytes += recv_DaBit_batch(clientfd, bits, N);
     cli_bytes += recv_AltTriple_batch(clientfd, trips, N);
 
-    ((ValidateCorrelatedStore*) correlated_store)->queue_Unvalidated(bits, trips, pk);
+    ((ValidateCorrelatedStore*) correlated_store)->queue_Unvalidated(bits, trips, tag);
 
     // std::cout << "got " << N << " unvalidated in " << cli_bytes << " bytes" << std::endl;
 
     return cli_bytes;
 }
 
-void process_unvalidated(const std::string pk, const size_t n) {
+void process_unvalidated(const std::string tag, const size_t n) {
     if (STORE_TYPE != validate_store) {
         return;
     }
     const size_t N = NextPowerOfTwo(n-1);
-    ((ValidateCorrelatedStore*) correlated_store)->process_Unvalidated(pk, N);
+    ((ValidateCorrelatedStore*) correlated_store)->process_Unvalidated(tag, N);
 }
 
 // Currently shares_2 and shares_p are flat num_shares*num_values array.
@@ -287,11 +287,11 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
     int cli_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
         cli_bytes += recv_in(clientfd, &share, sizeof(BitShare));
-        const std::string pk(share.pk, share.pk + PK_LENGTH);
-        // recv_unvalidated(clientfd, 1, pk);
-        if (share_map.find(pk) != share_map.end())
+        const std::string tag(share.tag, share.tag + TAG_LENGTH);
+        // recv_unvalidated(clientfd, 1, tag);
+        if (share_map.find(tag) != share_map.end())
             continue;
-        share_map[pk] = share.val;
+        share_map[tag] = share.val;
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
@@ -311,11 +311,11 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
         bool* const shares = new bool[num_inputs];
         int i = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_pk(serverfd, share.first);
+            sent_bytes += send_tag(serverfd, share.first);
             shares[i] = share.second;
             i++;
         }
-        std::cout << "pk time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         const uint64_t b = bitsum_ot_receiver(ot0, shares, num_inputs);
@@ -333,16 +333,16 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
         bool* const valid = new bool[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string pk = get_pk(serverfd);
+            const std::string tag = get_tag(serverfd);
 
-            bool is_valid = (share_map.find(pk) != share_map.end());
+            bool is_valid = (share_map.find(tag) != share_map.end());
             valid[i] = is_valid;
             if (!is_valid)
                 continue;
             num_valid++;
-            shares[i] = share_map[pk];
+            shares[i] = share_map[tag];
         }
-        std::cout << "pk time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         const uint64_t a = bitsum_ot_sender(ot0, shares, valid, num_inputs);
@@ -378,16 +378,16 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     int cli_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
         cli_bytes += recv_in(clientfd, &share, sizeof(IntShare));
-        const std::string pk(share.pk, share.pk + PK_LENGTH);
+        const std::string tag(share.tag, share.tag + TAG_LENGTH);
 
-        if (share_map.find(pk) != share_map.end()
+        if (share_map.find(tag) != share_map.end()
             or share.val >= max_val)
             continue;
-        share_map[pk] = share.val;
+        share_map[tag] = share.val;
 
         // std::cout << "share[" << i << "] = " << share.val << std::endl;
 
-        cli_bytes += recv_unvalidated(clientfd, pk, msg.num_bits);
+        cli_bytes += recv_unvalidated(clientfd, tag, msg.num_bits);
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
@@ -408,13 +408,13 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
         uint64_t* const shares = new uint64_t[num_inputs];
         int i = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_pk(serverfd, share.first);
+            sent_bytes += send_tag(serverfd, share.first);
             shares[i] = share.second;
             i++;
 
             process_unvalidated(&share.first[0], msg.num_bits);
         }
-        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits);
         start2 = clock_start();
         fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs);
@@ -445,17 +445,17 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
         bool* const valid = new bool[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string pk = get_pk(serverfd);
+            const std::string tag = get_tag(serverfd);
 
-            bool is_valid = (share_map.find(pk) != share_map.end());
+            bool is_valid = (share_map.find(tag) != share_map.end());
             valid[i] = is_valid;
             if (!is_valid)
                 continue;
-            shares[i] = share_map[pk];
+            shares[i] = share_map[tag];
 
-            process_unvalidated(pk, msg.num_bits);
+            process_unvalidated(tag, msg.num_bits);
         }
-        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits);
         start2 = clock_start();
         fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs);
@@ -502,11 +502,11 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
     int cli_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
         cli_bytes += recv_in(clientfd, &share, sizeof(IntShare));
-        const std::string pk(share.pk, share.pk + PK_LENGTH);
+        const std::string tag(share.tag, share.tag + TAG_LENGTH);
 
-        if (share_map.find(pk) != share_map.end())
+        if (share_map.find(tag) != share_map.end())
             continue;
-        share_map[pk] = share.val;
+        share_map[tag] = share.val;
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
@@ -521,14 +521,14 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
         const size_t num_inputs = share_map.size();
         sent_bytes += send_size(serverfd, num_inputs);
         uint64_t b = 0;
-        std::string* const pk_list = new std::string[num_inputs];
+        std::string* const tag_list = new std::string[num_inputs];
         size_t idx = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_pk(serverfd, share.first);
-            pk_list[idx] = share.first;
+            sent_bytes += send_tag(serverfd, share.first);
+            tag_list[idx] = share.first;
             idx++;
         }
-        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         bool* const other_valid = new bool[num_inputs];
@@ -536,12 +536,12 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
         for (unsigned int i = 0; i < num_inputs; i++) {
             if (!other_valid[i])
                 continue;
-            b ^= share_map[pk_list[i]];
+            b ^= share_map[tag_list[i]];
         }
         delete[] other_valid;
 
         send_uint64(serverfd, b);
-        delete[] pk_list;
+        delete[] tag_list;
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << sent_bytes << std::endl;
@@ -553,15 +553,15 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
         bool* const valid = new bool[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string pk = get_pk(serverfd);
-            valid[i] = (share_map.find(pk) != share_map.end());
+            const std::string tag = get_tag(serverfd);
+            valid[i] = (share_map.find(tag) != share_map.end());
             if (!valid[i])
                 continue;
             num_valid++;
-            a ^= share_map[pk];
+            a ^= share_map[tag];
         }
 
-        std::cout << "PK + convert time: " << sec_from(start2) << std::endl;
+        std::cout << "tag + convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
@@ -605,14 +605,14 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
 
     int cli_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        cli_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
-        const std::string pk(share.pk, share.pk + PK_LENGTH);
+        cli_bytes += recv_in(clientfd, &share.tag[0], TAG_LENGTH);
+        const std::string tag(share.tag, share.tag + TAG_LENGTH);
 
         cli_bytes += recv_uint64_batch(clientfd, &shares[i*(B+1)], B+1);
 
-        if (share_map.find(pk) != share_map.end())
+        if (share_map.find(tag) != share_map.end())
             continue;
-        share_map[pk] = &shares[i*(B+1)];
+        share_map[tag] = &shares[i*(B+1)];
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
@@ -628,14 +628,14 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
         sent_bytes += send_size(serverfd, num_inputs);
         uint64_t b[B+1];
         memset(b, 0, sizeof(b));
-        std::string* const pk_list = new std::string[num_inputs];
+        std::string* const tag_list = new std::string[num_inputs];
         size_t idx = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_pk(serverfd, share.first);
-            pk_list[idx] = share.first;
+            sent_bytes += send_tag(serverfd, share.first);
+            tag_list[idx] = share.first;
             idx++;
         }
-        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
         bool* const other_valid = new bool[num_inputs];
         recv_bool_batch(serverfd, other_valid, num_inputs);
@@ -643,11 +643,11 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
             if (!other_valid[i])
                 continue;
             for (unsigned int j = 0; j <= B; j++)
-                b[j] ^= share_map[pk_list[i]][j];
+                b[j] ^= share_map[tag_list[i]][j];
         }
         delete[] other_valid;
         delete[] shares;
-        delete[] pk_list;
+        delete[] tag_list;
         send_uint64_batch(serverfd, b, B+1);
 
         std::cout << "convert time: " << sec_from(start2) << std::endl;
@@ -662,16 +662,16 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
         bool* const valid = new bool[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string pk = get_pk(serverfd);
-            valid[i] = (share_map.find(pk) != share_map.end());
+            const std::string tag = get_tag(serverfd);
+            valid[i] = (share_map.find(tag) != share_map.end());
             if (!valid[i])
                 continue;
             num_valid++;
             for (unsigned int j = 0; j <= B; j++)
-                a[j] ^= share_map[pk][j];
+                a[j] ^= share_map[tag][j];
         }
 
-        std::cout << "PK+convert time: " << sec_from(start2) << std::endl;
+        std::cout << "tag+convert time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
@@ -731,7 +731,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
     int cli_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
         cli_bytes += recv_in(clientfd, &share, sizeof(VarShare));
-        const std::string pk(share.pk, share.pk + PK_LENGTH);
+        const std::string tag(share.tag, share.tag + TAG_LENGTH);
 
         ClientPacket* const packet = new ClientPacket(NMul);
         int packet_bytes = recv_ClientPacket(clientfd, packet, NMul);
@@ -739,7 +739,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
 
         // std::cout << "share[" << i << "] = " << share.val << ", " << share.val_squared << std::endl;
 
-        if ((share_map.find(pk) != share_map.end())
+        if ((share_map.find(tag) != share_map.end())
             or (share.val >= max_val)
             or (share.val_squared >= max_val * max_val)
             or (packet_bytes <= 0)
@@ -747,9 +747,9 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
             delete packet;
             continue;
         }
-        share_map[pk] = {share.val, share.val_squared, packet};
+        share_map[tag] = {share.val, share.val_squared, packet};
 
-        cli_bytes += recv_unvalidated(clientfd, pk, msg.num_bits * num_dabits);
+        cli_bytes += recv_unvalidated(clientfd, tag, msg.num_bits * num_dabits);
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
@@ -772,24 +772,24 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
         uint64_t* const shares = new uint64_t[2 * num_inputs];
         ClientPacket** const packet = new ClientPacket*[num_inputs];
 
-        std::string* const pk_list = new std::string[num_inputs];
+        std::string* const tag_list = new std::string[num_inputs];
         Circuit** const circuit = new Circuit*[num_inputs];
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_pk(serverfd, share.first);
-            pk_list[idx] = share.first;
+            sent_bytes += send_tag(serverfd, share.first);
+            tag_list[idx] = share.first;
             idx++;
 
             process_unvalidated(&share.first[0], msg.num_bits * num_dabits);
         }
-        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             uint64_t val = 0, val2 = 0;
-            std::tie(val, val2, packet[i]) = share_map[pk_list[i]];
+            std::tie(val, val2, packet[i]) = share_map[tag_list[i]];
             circuit[i] = CheckVar();
             shares[2 * i] = val;
             shares[2 * i + 1] = val2;
@@ -811,7 +811,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
             delete packet[i];
         }
         delete[] snip_valid;
-        delete[] pk_list;
+        delete[] tag_list;
         delete[] circuit;
         delete[] packet;
         delete[] shares;
@@ -842,23 +842,23 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
         ClientPacket** const packet = new ClientPacket*[num_inputs];
 
         bool* const valid = new bool[num_inputs];
-        std::string* const pk_list = new std::string[num_inputs];
+        std::string* const tag_list = new std::string[num_inputs];
         Circuit** const circuit = new Circuit*[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string pk = get_pk(serverfd);
-            pk_list[i] = pk;
-            valid[i] = (share_map.find(pk) != share_map.end());
+            const std::string tag = get_tag(serverfd);
+            tag_list[i] = tag;
+            valid[i] = (share_map.find(tag) != share_map.end());
 
-            process_unvalidated(pk, msg.num_bits * num_dabits);
+            process_unvalidated(tag, msg.num_bits * num_dabits);
         }
-        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
         for (unsigned int i = 0; i < num_inputs; i++) {
             uint64_t val = 0, val2 = 0;
             if (valid[i]) {
-                std::tie(val, val2, packet[i]) = share_map[pk_list[i]];
+                std::tie(val, val2, packet[i]) = share_map[tag_list[i]];
             } else {
                 packet[i] = new ClientPacket(NMul);  // mock empty packet
             }
@@ -882,7 +882,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
         // Send valid back, to also encapsulate pre-snip valid[]
         sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
         delete[] snip_valid;
-        delete[] pk_list;
+        delete[] tag_list;
         delete[] circuit;
         delete[] packet;
         delete[] shares;
@@ -971,8 +971,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     for (unsigned int i = 0; i < total_inputs; i++) {
         bool sizes_valid = true;
 
-        cli_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
-        const std::string pk(share.pk, share.pk + PK_LENGTH);
+        cli_bytes += recv_in(clientfd, &share.tag[0], TAG_LENGTH);
+        const std::string tag(share.tag, share.tag + TAG_LENGTH);
 
         share.x_vals = new uint64_t[num_x];
         share.x2_vals = new uint64_t[num_quad];
@@ -1000,7 +1000,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         int packet_bytes = recv_ClientPacket(clientfd, packet, NMul);
         cli_bytes += packet_bytes;
 
-        if ((share_map.find(pk) != share_map.end())
+        if ((share_map.find(tag) != share_map.end())
             or (not sizes_valid)
             or (packet_bytes  <= 0)
             ) {
@@ -1011,9 +1011,9 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             continue;
         }
 
-        share_map[pk] = {share.x_vals, share.y, share.x2_vals, share.xy_vals, packet};
+        share_map[tag] = {share.x_vals, share.y, share.x2_vals, share.xy_vals, packet};
 
-        cli_bytes += recv_unvalidated(clientfd, pk, msg.num_bits * num_dabits);
+        cli_bytes += recv_unvalidated(clientfd, tag, msg.num_bits * num_dabits);
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
@@ -1035,18 +1035,18 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         uint64_t* const shares = new uint64_t[num_inputs * num_fields];
         ClientPacket** const packet = new ClientPacket*[num_inputs];
 
-        std::string* const pk_list = new std::string[num_inputs];
+        std::string* const tag_list = new std::string[num_inputs];
         Circuit** const circuit = new Circuit*[num_inputs];
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_pk(serverfd, share.first);
-            pk_list[idx] = share.first;
+            sent_bytes += send_tag(serverfd, share.first);
+            tag_list[idx] = share.first;
             idx++;
 
             process_unvalidated(&share.first[0], msg.num_bits * num_dabits);
         }
-        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
 
@@ -1056,7 +1056,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             uint64_t* x2_vals;
             uint64_t* xy_vals;
 
-            std::tie(x_vals, y_val, x2_vals, xy_vals, packet[i]) = share_map[pk_list[i]];
+            std::tie(x_vals, y_val, x2_vals, xy_vals, packet[i]) = share_map[tag_list[i]];
             circuit[i] = CheckLinReg(degree);
 
             memcpy(&shares[num_fields * i],
@@ -1089,7 +1089,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             delete packet[i];
         }
         delete[] snip_valid;
-        delete[] pk_list;
+        delete[] tag_list;
         delete[] circuit;
         delete[] packet;
         delete[] shares;
@@ -1120,17 +1120,17 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         ClientPacket** const packet = new ClientPacket*[num_inputs];
 
         bool* const valid = new bool[num_inputs];
-        std::string* const pk_list = new std::string[num_inputs];
+        std::string* const tag_list = new std::string[num_inputs];
         Circuit** const circuit = new Circuit*[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string pk = get_pk(serverfd);
-            pk_list[i] = pk;
-            valid[i] = (share_map.find(pk) != share_map.end());
+            const std::string tag = get_tag(serverfd);
+            tag_list[i] = tag;
+            valid[i] = (share_map.find(tag) != share_map.end());
 
-            process_unvalidated(pk, msg.num_bits * num_dabits);
+            process_unvalidated(tag, msg.num_bits * num_dabits);
         }
-        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
 
@@ -1140,7 +1140,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             uint64_t* x2_vals;
             uint64_t* xy_vals;
             if (valid[i]) {
-                std::tie(x_vals, y_val, x2_vals, xy_vals, packet[i]) = share_map[pk_list[i]];
+                std::tie(x_vals, y_val, x2_vals, xy_vals, packet[i]) = share_map[tag_list[i]];
             } else {
                 x_vals = new uint64_t[num_x];
                 x2_vals = new uint64_t[num_quad];
@@ -1177,7 +1177,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         // Send valid back, to also encapsulate pre-snip valid[]
         sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
         delete[] snip_valid;
-        delete[] pk_list;
+        delete[] tag_list;
         delete[] circuit;
         delete[] packet;
         delete[] shares;
@@ -1264,16 +1264,16 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     FreqShare share;
     int cli_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        cli_bytes += recv_in(clientfd, &share.pk[0], PK_LENGTH);
-        const std::string pk(share.pk, share.pk+PK_LENGTH);
+        cli_bytes += recv_in(clientfd, &share.tag[0], TAG_LENGTH);
+        const std::string tag(share.tag, share.tag+TAG_LENGTH);
         share.arr = new bool[max_inp];
         cli_bytes += recv_bool_batch(clientfd, share.arr, max_inp);
 
-        if (share_map.find(pk) != share_map.end()) {
+        if (share_map.find(tag) != share_map.end()) {
             delete[] share.arr;
             continue;
         }
-        share_map[pk] = share.arr;
+        share_map[tag] = share.arr;
 
         // for (unsigned int j = 0; j < max_inp; j++) {
         //     std::cout << "share[" << i << ", " << j << "] = " << share.arr[j] << std::endl;
@@ -1298,12 +1298,12 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_pk(serverfd, share.first);
+            sent_bytes += send_tag(serverfd, share.first);
             memcpy(&shares[idx * max_inp], share.second, max_inp);
             delete[] share.second;
             idx++;
         }
-        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * max_inp);
@@ -1373,18 +1373,18 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         bool* const valid = new bool[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string pk = get_pk(serverfd);
-            valid[i] = (share_map.find(pk) != share_map.end());
+            const std::string tag = get_tag(serverfd);
+            valid[i] = (share_map.find(tag) != share_map.end());
 
-            // realign shares_2 to pk order
+            // realign shares_2 to tag order
             if (valid[i]) {
-                memcpy(&shares[i * max_inp], share_map[pk], max_inp);
-                delete[] share_map[pk];
+                memcpy(&shares[i * max_inp], share_map[tag], max_inp);
+                delete[] share_map[tag];
             } else {
                 memset(&shares[i * max_inp], 0, max_inp);
             }
         }
-        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * max_inp);
@@ -1512,19 +1512,19 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
     fmpz_t* bucket1; new_fmpz_array(&bucket1, b);
 
     for (unsigned int i = 0; i < total_inputs; i++) {
-        char pk_c[PK_LENGTH];
-        cli_bytes += recv_in(clientfd, &pk_c[0], PK_LENGTH);
-        const std::string pk(pk_c, pk_c+PK_LENGTH);
+        char tag_c[TAG_LENGTH];
+        cli_bytes += recv_in(clientfd, &tag_c[0], TAG_LENGTH);
+        const std::string tag(tag_c, tag_c+TAG_LENGTH);
 
         bool* const buff = new bool[2 * b];
         cli_bytes += recv_bool_batch(clientfd, buff, 2 * b);
 
-        if (share_map.find(pk) != share_map.end()) {
+        if (share_map.find(tag) != share_map.end()) {
             delete[] buff;
             continue;
         }
 
-        share_map[pk] = buff;
+        share_map[tag] = buff;
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
@@ -1546,7 +1546,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_pk(serverfd, share.first);
+            sent_bytes += send_tag(serverfd, share.first);
 
             memcpy(&x[idx*b], share.second, b);
             memcpy(&y[idx*b], &(share.second[b]), b);
@@ -1564,7 +1564,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
             delete[] share.second;
         }
         recv_bool_batch(serverfd, valid, num_inputs);
-        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         sent_bytes += correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
@@ -1602,14 +1602,14 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
 
         bool* share;
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string pk = get_pk(serverfd);
-            valid[i] = (share_map.find(pk) != share_map.end());
+            const std::string tag = get_tag(serverfd);
+            valid[i] = (share_map.find(tag) != share_map.end());
             if (!valid[i]) {
                 memset(&x[i * b], 0, b);
                 memset(&y[i * b], 0, b);
                 continue;
             }
-            share = share_map[pk];
+            share = share_map[tag];
             memcpy(&x[i * b], share, b);
             memcpy(&y[i * b], &(share[b]), b);
 
@@ -1624,7 +1624,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
             delete[] share;
         }
         sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
-        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         sent_bytes += correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
@@ -1727,9 +1727,9 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);
 
     for (unsigned int i = 0; i < total_inputs; i++) {
-        char pk_c[PK_LENGTH];
-        cli_bytes += recv_in(clientfd, &pk_c[0], PK_LENGTH);
-        const std::string pk(pk_c, pk_c+PK_LENGTH);
+        char tag_c[TAG_LENGTH];
+        cli_bytes += recv_in(clientfd, &tag_c[0], TAG_LENGTH);
+        const std::string tag(tag_c, tag_c+TAG_LENGTH);
 
         bool* const share_sh_x = new bool[share_size_sh];
         bool* const share_sh_y = new bool[share_size_sh];
@@ -1740,7 +1740,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         cli_bytes += recv_bool_batch(clientfd, share_mask, share_size_mask);
         cli_bytes += recv_bool_batch(clientfd, share_count, share_size_count);
 
-        if (share_map.find(pk) != share_map.end()) {
+        if (share_map.find(tag) != share_map.end()) {
             delete[] share_sh_x;
             delete[] share_sh_y;
             delete[] share_mask;
@@ -1748,7 +1748,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
             continue;
         }
 
-        share_map[pk] = {share_sh_x, share_sh_y, share_mask, share_count};
+        share_map[tag] = {share_sh_x, share_sh_y, share_mask, share_count};
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
@@ -1783,7 +1783,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         sent_bytes += send_size(serverfd, num_inputs);
         std::cout << "num_inputs: " << num_inputs << std::endl;
 
-        std::string* const pk_list = new std::string[num_inputs];
+        std::string* const tag_list = new std::string[num_inputs];
         bool* const valid = new bool[num_inputs];
         bool* const shares_sh_x = new bool[num_inputs * share_size_sh];
         bool* const shares_sh_y = new bool[num_inputs * share_size_sh];
@@ -1792,18 +1792,18 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
         size_t idx = 0;
         for (const auto& share : share_map) {
-            sent_bytes += send_pk(serverfd, share.first);
-            pk_list[idx] = share.first;
+            sent_bytes += send_tag(serverfd, share.first);
+            tag_list[idx] = share.first;
             idx++;
         }
         recv_bool_batch(serverfd, valid, num_inputs);
-        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             if (!valid[i]) continue;
             bool* a; bool* b; bool* c; bool* d;
-            std::tie(a, b, c, d) = share_map[pk_list[i]];
+            std::tie(a, b, c, d) = share_map[tag_list[i]];
             memcpy(&shares_sh_x[i * share_size_sh], a, share_size_sh);
             memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
             memcpy(&shares_mask[i * share_size_mask], c, share_size_mask);
@@ -1813,7 +1813,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
             delete c;
             delete d;
         }
-        delete[] pk_list;
+        delete[] tag_list;
 
         auto start3 = clock_start();
 
@@ -1917,7 +1917,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         recv_size(serverfd, num_inputs);
         std::cout << "num_inputs: " << num_inputs << std::endl;
 
-        std::string* const pk_list = new std::string[num_inputs];
+        std::string* const tag_list = new std::string[num_inputs];
         bool* const valid = new bool[num_inputs];
         bool* const shares_sh_x = new bool[num_inputs * share_size_sh];
         bool* const shares_sh_y = new bool[num_inputs * share_size_sh];
@@ -1925,18 +1925,18 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         bool* const shares_count = new bool[num_inputs * share_size_count];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string pk = get_pk(serverfd);
-            pk_list[i] = pk;
-            valid[i] = (share_map.find(pk) != share_map.end());
+            const std::string tag = get_tag(serverfd);
+            tag_list[i] = tag;
+            valid[i] = (share_map.find(tag) != share_map.end());
         }
         send_bool_batch(serverfd, valid, num_inputs);
-        std::cout << "PK time: " << sec_from(start2) << std::endl;
+        std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             if (!valid[i]) continue;
             bool* a; bool* b; bool* c; bool* d;
-            std::tie(a, b, c, d) = share_map[pk_list[i]];
+            std::tie(a, b, c, d) = share_map[tag_list[i]];
             memcpy(&shares_sh_x[i * share_size_sh], a, share_size_sh);
             memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
             memcpy(&shares_mask[i * share_size_mask], c, share_size_mask);
@@ -1946,7 +1946,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
             delete c;
             delete d;
         }
-        delete[] pk_list;
+        delete[] tag_list;
 
         auto start3 = clock_start();
 
