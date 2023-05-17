@@ -109,6 +109,12 @@ void test_sort_complex(int party) {
       std::cout << "val[" << i << "] = " << v << ",\t freq = " << f << std::endl;
     }
   }
+  delete[] val_A;
+  delete[] val_B;
+  delete[] val;
+  delete[] freq_A;
+  delete[] freq_B;
+  delete[] freq;
 }
 
 void test_index(int party) {
@@ -262,6 +268,8 @@ void test_full(int party, flint_rand_t hash_seed) {
     }
   }
 
+  delete[] top_values;
+  delete[] top_freqs;
   clear_fmpz_array(candidates, num_candidates);
   fmpz_clear(share);
 }

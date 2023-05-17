@@ -145,7 +145,7 @@ int recv_unvalidated(const int clientfd, const std::string tag, const size_t n) 
     cli_bytes += recv_DaBit_batch(clientfd, bits, N);
     cli_bytes += recv_AltTriple_batch(clientfd, trips, N);
 
-    ((ValidateCorrelatedStore*) correlated_store)->queue_Unvalidated(bits, trips, tag);
+    ((ValidateCorrelatedStore*) correlated_store)->queue_Unvalidated(bits, trips, tag, N);
 
     // std::cout << "got " << N << " unvalidated in " << cli_bytes << " bytes" << std::endl;
 
@@ -156,8 +156,7 @@ void process_unvalidated(const std::string tag, const size_t n) {
     if (STORE_TYPE != validate_store) {
         return;
     }
-    const size_t N = NextPowerOfTwo(n-1);
-    ((ValidateCorrelatedStore*) correlated_store)->process_Unvalidated(tag, N);
+    ((ValidateCorrelatedStore*) correlated_store)->process_Unvalidated(tag);
 }
 
 // Currently shares_2 and shares_p are flat num_shares*num_values array.

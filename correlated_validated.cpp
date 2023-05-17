@@ -129,18 +129,19 @@ void ValidateCorrelatedStore::add_Unvalidated(
 
 void ValidateCorrelatedStore::queue_Unvalidated(
     const DaBit* const * dabits, const AltTriple* const * trips,
-    const std::string tag) {
-  unvalidated_pairs[tag] = {dabits, trips};
+    const std::string tag, const size_t n) {
+  unvalidated_pairs[tag] = {n, dabits, trips};
 }
 
-void ValidateCorrelatedStore::process_Unvalidated(const std::string tag, const size_t n) {
+void ValidateCorrelatedStore::process_Unvalidated(const std::string tag) {
   pairtype lists = unvalidated_pairs[tag];
   unvalidated_pairs.erase(tag);
+  const size_t n = std::get<0>(lists);
   for (unsigned int i = 0; i < n; i++) {
-    add_Unvalidated(std::get<0>(lists)[i], std::get<1>(lists)[i]);
+    add_Unvalidated(std::get<1>(lists)[i], std::get<2>(lists)[i]);
   }
-  delete[] std::get<0>(lists);
   delete[] std::get<1>(lists);
+  delete[] std::get<2>(lists);
 }
 
 int ValidateCorrelatedStore::batch_Validate(const size_t target) {
@@ -290,17 +291,4 @@ void ValidateCorrelatedStore::print_Sizes() const {
   std::cout << "  Unvalidated: " << unvalidated_dabit_store.size() << "\n";
   std::cout << "  Validated:   " << validated_dabit_store.size() << "\n";
   std::cout << " Unvalidated Alt Triples: " << unvalidated_alt_triple_store.size() << std::endl;
-}
-
-ValidateCorrelatedStore::~ValidateCorrelatedStore() {
-  while (!unvalidated_dabit_store.empty()) {
-    const DaBit* const bit = unvalidated_dabit_store.front();
-    unvalidated_dabit_store.pop();
-    delete bit;
-  }
-  while (!unvalidated_alt_triple_store.empty()) {
-    const AltTriple* const trip = unvalidated_alt_triple_store.front();
-    unvalidated_alt_triple_store.pop();
-    delete trip;
-  }
 }

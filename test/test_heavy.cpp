@@ -372,7 +372,6 @@ void test_rand_bitshare(
   fmpz_t* r_B; new_fmpz_array(&r_B, N * b);
   store->gen_rand_bitshare(N, r, r_B);
 
-
   if (server_num == 0) {
     fmpz_t* r_other; new_fmpz_array(&r_other, N);
     fmpz_t* r_B_other; new_fmpz_array(&r_B_other, N * b);
@@ -406,6 +405,8 @@ void test_rand_bitshare(
     }
     std::cout << "keepable: " << keep << "/" << N << " = " << ((float)keep)/N << std::endl;
 
+    fmpz_clear(got);
+    fmpz_clear(bit);
     clear_fmpz_array(r_other, N);
     clear_fmpz_array(r_B_other, N * b);
   } else {

@@ -58,6 +58,17 @@ enum StoreType {
 // const StoreType STORE_TYPE = ot_store;
 const StoreType STORE_TYPE = validate_store;
 
+// Useful in destructors
+// Clear a queue of pointers by deleting all of them.
+template <class T>
+void clear_queue(std::queue<T*> q){
+  while(!q.empty()) {
+    const T* const x = q.front();
+    q.pop();
+    delete x;
+  }
+};
+
 
 class ShareConverter {
 protected:
@@ -110,21 +121,9 @@ public:
   }
 
   virtual ~CorrelatedStore() {
-    while (!dabit_store.empty()) {
-      const DaBit* const bit = dabit_store.front();
-      dabit_store.pop();
-      delete bit;
-    }
-    while (!btriple_store.empty()) {
-      const BooleanBeaverTriple* const triple = btriple_store.front();
-      btriple_store.pop();
-      delete triple;
-    }
-    while (!atriple_store.empty()) {
-      const BeaverTriple* const triple = atriple_store.front();
-      atriple_store.pop();
-      delete triple;
-    }
+    clear_queue(dabit_store);
+    clear_queue(btriple_store);
+    clear_queue(atriple_store);
   }
 
   // Single bit. One round.

@@ -65,6 +65,7 @@ void test_inverse() {
 
   for (unsigned int i = 0; i < 5; i++)
     fmpz_randbits(tmp, hash_seed, 1);
+  fmpz_clear(tmp);
 
   const size_t group_size = 6;  // must divide num_hashes, and be > input_bits+1
   HashStoreBit store(num_hashes, input_bits, output_range, hash_seed, group_size);
@@ -86,6 +87,8 @@ void test_inverse() {
   // std::cout << "Answer is " << ans << ", with " << ret << " invalid" << std::endl;
   assert(ret == 0);
   assert(ans == x);
+  clear_fmpz_array(values, group_size);
+  flint_randclear(hash_seed);
 }
 
 void test_countmin() {
@@ -118,6 +121,7 @@ void test_countmin() {
     // std::cout << "query(" << vals[i] << ") = " << ans << ", vs acutal " << counts[i] << std::endl;
     assert(ans == counts[i]);
   }
+  flint_randclear(hash_seed);
 }
 
 int main(int argc, char** argv){

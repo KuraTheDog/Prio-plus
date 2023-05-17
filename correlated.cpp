@@ -732,6 +732,7 @@ int CorrelatedStore::gen_rand_bitshare(const size_t N,
 
   clear_fmpz_array(rB_tocheck, N * b);
   clear_fmpz_array(pB, N * b);
+  clear_fmpz_array(r_lt_p_other, N);
   delete[] rB_idx;
   delete[] valid;
 

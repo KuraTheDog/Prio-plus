@@ -82,6 +82,7 @@ void test_altMult(const int server_num, const int serverfd,
     assert(fmpz_equal_ui(z[i], (i+1)*(i+1) * 10));
   }
 
+  clear_fmpz_array(x, N);
   clear_fmpz_array(z, N);
   delete ot0;
   delete ot1;

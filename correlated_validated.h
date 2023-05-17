@@ -30,7 +30,7 @@ class ValidateCorrelatedStore : public PrecomputeStore {
 
   MultEvalManager mult_eval_manager;
 
-  typedef std::tuple <const DaBit* const *, const AltTriple* const *> pairtype;
+  typedef std::tuple <size_t, const DaBit* const *, const AltTriple* const *> pairtype;
   std::unordered_map<std::string, pairtype> unvalidated_pairs;
 
   // TODO: some way to bulk generate alt triples (e.g. OT).
@@ -56,7 +56,23 @@ public:
     mult_eval_manager.get_Precomp(min_batch_size);
   };
 
-  ~ValidateCorrelatedStore();
+  ~ValidateCorrelatedStore() {
+    clear_queue(unvalidated_dabit_store);
+    clear_queue(validated_dabit_store);
+    clear_queue(unvalidated_alt_triple_store);
+    clear_queue(alt_triple_store);
+
+    for (auto it = unvalidated_pairs.begin(); it != unvalidated_pairs.end(); ++it) {
+      pairtype p = it->second;
+      for (unsigned int i = 0; i < std::get<0>(p); i++) {
+        delete std::get<1>(p);
+        delete std::get<2>(p);
+      }
+      delete[] std::get<1>(p);
+      delete[] std::get<2>(p);
+    }
+    unvalidated_pairs.clear();
+  }
 
   void check_AltTriple(const size_t n, const bool validated);
   // Takes in list for convenience. just checks for #valid and #unvalid
@@ -70,11 +86,12 @@ public:
   // Queue up paired unvalidated.
   // Done this way in case data is out of order between the two servers
   // accumulate based on tag, so that shares are aligned
+  // Arrays of pointers each length n.
   void queue_Unvalidated(const DaBit* const * dabits, const AltTriple* const * trips,
-                         const std::string tag);
+                         const std::string tag, const size_t n);
   // add in all n unvalidated corresponding to tag, where n is the size of the lists queued
   // For use when generally iterating over (synced) tags.
-  void process_Unvalidated(const std::string tag, const size_t n);
+  void process_Unvalidated(const std::string tag);
   // Add unvalidated correlated to queue
   void add_Unvalidated(const DaBit* const dabit, const AltTriple* const trip);
 
