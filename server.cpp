@@ -1713,6 +1713,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     // Count-min
     const size_t share_size_count = cfg.countmin_cfg.d * cfg.countmin_cfg.w;
     const size_t num_sh = cfg.Q * cfg.B * cfg.SH_depth;
+    const size_t single_share_size = (share_size_sh + share_size_count + share_size_mask);
     // Which of the B SH instances it gets classified as
     HashStorePoly hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
     // Split: each SH breakdown into the pairs, bucket 0 or 1. (original was by bits)
@@ -1757,8 +1758,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     // For each pair of buckets, do 1 B2A.
     // All of count-min. Also all of mask for validation
     std::cout << "Inital dabit check" << std::endl;
-    correlated_store->check_DaBits(total_inputs *
-        (share_size_sh + share_size_count + share_size_mask));
+    correlated_store->check_DaBits(total_inputs * single_share_size);
 
     /* Stages:
     Validate each b (share_mask) is frequency vector. With B2A to check sum to 1
@@ -1817,8 +1817,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         auto start3 = clock_start();
 
         // Single round all B2A: count, mask, y
-        const size_t convert_size = num_inputs * (
-            share_size_count + share_size_mask + share_size_sh);
+        const size_t convert_size = num_inputs * single_share_size;
         fmpz_t* shares_p; new_fmpz_array(&shares_p, convert_size);
         bool* shares_2 = new bool[convert_size];
         memcpy(shares_2, shares_count, num_inputs * share_size_count);
@@ -1950,8 +1949,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         auto start3 = clock_start();
 
         // Single round all B2A: count, mask, y
-        const size_t convert_size = num_inputs * (
-            share_size_count + share_size_mask + share_size_sh);
+        const size_t convert_size = num_inputs * single_share_size;
         fmpz_t* shares_p; new_fmpz_array(&shares_p, convert_size);
         bool* shares_2 = new bool[convert_size];
         memcpy(shares_2, shares_count, num_inputs * share_size_count);

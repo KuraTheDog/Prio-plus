@@ -172,6 +172,7 @@ public:
   // Index with i * b + j: (x0, ..., xb-1) for number 0.
   // Makes copying in new shares easier.
   // N valid, if invalid just contributes 0
+  // Uses N * b DaBits
   int heavy_convert(const size_t N, const size_t b,
                     const bool* const x, const bool* const y,
                     const bool* const valid,

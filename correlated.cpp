@@ -30,6 +30,7 @@ const BooleanBeaverTriple* const CorrelatedStore::get_BoolTriple() {
   return ans;
 }
 
+// 1 dabit per
 int CorrelatedStore::b2a_single(const size_t N, const bool* const x, fmpz_t* const xp) {
   int sent_bytes = 0;
 
@@ -62,6 +63,7 @@ int CorrelatedStore::b2a_single(const size_t N, const bool* const x, fmpz_t* con
   return sent_bytes;
 }
 
+// 1 daBit per bit
 int CorrelatedStore::b2a_multi(
     const size_t N, const size_t* const num_bits,
     const fmpz_t* const x, fmpz_t* const xp) {
@@ -100,7 +102,7 @@ int CorrelatedStore::b2a_multi(
   return sent_bytes;
 }
 
-
+// 1 bool triple per bit
 int CorrelatedStore::multiply_BoolShares(
     const size_t N, const bool* const x, const bool* const y, bool* const z) {
   int sent_bytes = 0;
@@ -108,6 +110,7 @@ int CorrelatedStore::multiply_BoolShares(
   bool* de = new bool[2 * N];
 
   check_BoolTriples(N);
+
   for (unsigned int i = 0; i < N; i++) {
     const BooleanBeaverTriple* const triple = get_BoolTriple();
     de[i] = x[i] ^ triple->a;
@@ -130,6 +133,7 @@ int CorrelatedStore::multiply_BoolShares(
   return sent_bytes;
 }
 
+// 1 triple per bit
 int CorrelatedStore::multiply_ArithmeticShares(
     const size_t N, const fmpz_t* const x, const fmpz_t* const y,
     fmpz_t* const z) {
@@ -169,6 +173,7 @@ int CorrelatedStore::multiply_ArithmeticShares(
 
 // c_{i+1} = c_i xor ((x_i xor c_i) and (y_i xor c_i))
 // output z_i = x_i xor y_i xor c_i
+// 1 Bool Trip per bit
 int CorrelatedStore::add_BinaryShares(
     const size_t N, const size_t* const num_bits,
     const bool* const * const x, const bool* const * const y,
@@ -219,6 +224,7 @@ int CorrelatedStore::add_BinaryShares(
   return sent_bytes;
 }
 
+// Pure OT, no correlated used
 int CorrelatedStore::multiply_BoolArith(
     const size_t N, const size_t B, const bool* const b, const fmpz_t* const x,
     fmpz_t* const z, fmpz_t* const z_inv, const bool* const valid
@@ -314,6 +320,8 @@ int CorrelatedStore::heavy_convert(
     fmpz_t* const bucket0, fmpz_t* const bucket1) {
   int sent_bytes = 0;
 
+  check_DaBits(N * b);
+
   // Step 1: convert y to arith shares
   fmpz_t* y_p; new_fmpz_array(&y_p, N * b);
   sent_bytes += b2a_single(N * b, y, y_p);
@@ -380,7 +388,8 @@ int CorrelatedStore::heavy_convert_mask(
         &x[num_processed * Q * D],
         &y_p[num_processed * Q * D],
         &mask[num_processed * Q * M],
-        &valid[num_processed], bucket0, bucket1
+        &valid[num_processed],
+        bucket0, bucket1
       );
 
       num_processed += this_batch_size;

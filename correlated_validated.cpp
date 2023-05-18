@@ -44,6 +44,7 @@ const AltTriple* ValidateCorrelatedStore::get_AltTriple(const bool validated) {
 
 void ValidateCorrelatedStore::check_AltTriple(const size_t n, const bool validated) {
   std::queue<const AltTriple*>& q = validated ? alt_triple_store : unvalidated_alt_triple_store;
+  // std::cout << "checking " << n << (validated?" ":" un") << "validated AltTriples, have: " << q.size() << std::endl;
   if (q.size() < n)
     add_AltTriples(n - q.size(), validated);
 }
@@ -151,7 +152,7 @@ int ValidateCorrelatedStore::batch_Validate(const size_t target) {
   const size_t num_unval = unvalidated_dabit_store.size();
   size_t N;        // num to make, power of 2, including dummies
   size_t num_val;  // how many to validate
-  std::cout << "batchValidate(" << target << "), num unval = " << num_unval << "\n";
+  // std::cout << "batchValidate(" << target << "), num unval = " << num_unval << "\n";
   if (target_2 <= num_unval) {
     // Make as many as possible within unval
     // Largest power of 2 <= num_unval
@@ -267,8 +268,9 @@ void ValidateCorrelatedStore::check_DaBits(const size_t n) {
   }
   // If still not enough validated, ensure enough precomputed
   if (num_validated_dabits() < n) {
-     // std::cout << "precompute checking: " << n - num_validated_dabits() << std::endl;
-     PrecomputeStore::check_DaBits(n - num_validated_dabits());
+    // TODO: possibly also make enough AltTriples at the same time?
+    // std::cout << "precompute checking: " << n - num_validated_dabits() << std::endl;
+    PrecomputeStore::check_DaBits(n - num_validated_dabits());
   }
   // printSizes();
 }
