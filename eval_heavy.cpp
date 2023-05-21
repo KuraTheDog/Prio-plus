@@ -153,14 +153,12 @@ void HeavyEval::print_countmin() {
   for (unsigned int i = 0; i < num_hashes; i++) {
     for (unsigned int j = 0; j < hash_range; j++) {
       uint64_t x = countmin_values[i * hash_range + j].reveal<uint64_t>();
-      if (party == ALICE) {
-        if (x)
-          std::cout << x << " ";
-        else
-          std::cout << "_ ";
-      }
+      if (x)
+        std::cout << x << " ";
+      else
+        std::cout << "_ ";
     }
-    if (party == ALICE) std::cout << std::endl;
+    std::cout << std::endl;
   }
 }
 
@@ -172,10 +170,8 @@ void HeavyEval::print_values() {
   for (unsigned int i = 0; i < num_values; i++) {
     uint64_t v = values[i].reveal<uint64_t>();
     uint64_t f = frequencies ? frequencies[i].reveal<uint64_t>() : 0;
-    if (party == ALICE) {
-      std::cout << "Value: " << v;
-      if (frequencies) std::cout << ", freq: " << f;
-      std::cout << std::endl;
-    }
+    std::cout << "Value: " << v;
+    if (frequencies) std::cout << ", freq: " << f;
+    std::cout << std::endl;
   }
 }

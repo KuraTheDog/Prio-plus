@@ -1,12 +1,12 @@
 #undef NDEBUG
 #include <iostream>
 
-#include "constants.h"
-#include "eval_heavy.h"
-#include "hash.h"
-#include "heavy.h"
-
-#include "emp-sh2pc/emp-sh2pc.h"
+#include "utils_test_connect.h"
+#include "../constants.h"
+#include "../eval_heavy.h"
+#include "../hash.h"
+#include "../heavy.h"
+#include "../ot.h"
 
 /*
 Integer(nbits, val, party):
@@ -223,7 +223,7 @@ void test_full(int party, flint_rand_t hash_seed) {
   }
   // Candidates are 0, 1, 2, 3, ...
   const size_t num_candidates = 8;
-  std::cout << "Creating " << num_candidates << "c andidates " << std::endl;
+  std::cout << "Creating " << num_candidates << " candidates " << std::endl;
   fmpz_t* candidates; new_fmpz_array(&candidates, num_candidates);
   for (unsigned int i = 0; i < num_candidates; i++) {
     fmpz_randm(share, seed, Int_Modulus);
@@ -241,12 +241,12 @@ void test_full(int party, flint_rand_t hash_seed) {
 
   // Step 1: de-share count-min
   heavy_eval.parse_countmin();
-  // heavy_eval.print_countmin();
+  heavy_eval.print_countmin();
 
   // Step 2: add values
   heavy_eval.set_values(candidates, num_candidates);
   // std::cout << "parsed values: \n";
-  // heavy_eval.print_values();
+  heavy_eval.print_values();
 
   // Step 3: get frequencies
   heavy_eval.get_frequencies();
@@ -261,12 +261,16 @@ void test_full(int party, flint_rand_t hash_seed) {
   uint64_t* top_values = new uint64_t[K];
   uint64_t* top_freqs = new uint64_t[K];
   heavy_eval.return_top_K(K, top_values, top_freqs);
-  if (party == ALICE) {
-    std::cout << "Top K = " << K << " values and freqs, decreasing\n";
-    for (unsigned int i = 0; i < K; i++) {
-      std::cout << "Value: " << top_values[i] << ", freq: " << top_freqs[i] << std::endl;
-    }
+  std::cout << "Top K = " << K << " values and freqs, decreasing\n";
+  for (unsigned int i = 0; i < K; i++) {
+    std::cout << "Value: " << top_values[i] << ", freq: " << top_freqs[i] << std::endl;
   }
+  assert(top_values[0] == 2);
+  assert(top_freqs[0] == 6);
+  assert(top_values[1] == 3);
+  assert(top_freqs[1] == 3);
+  assert(top_values[2] == 1);
+  assert(top_freqs[2] == 1);
 
   delete[] top_values;
   delete[] top_freqs;
@@ -274,26 +278,40 @@ void test_full(int party, flint_rand_t hash_seed) {
   fmpz_clear(share);
 }
 
-
-int main(int argc, char** argv) {
+void run(int party, int port) {
   init_constants();
-  int port = 12345;
-  int party;
   // Fork. Party 1, 2. same port. Not using sockets
 
   flint_rand_t hash_seed;
   flint_randinit(hash_seed);
 
-  pid_t pid = fork();
+  OT_Wrapper* ot0 = new OT_Wrapper(party == ALICE ? nullptr : "127.0.0.1", 60051);
+  OT_Wrapper* ot1 = new OT_Wrapper(party == BOB ? nullptr : "127.0.0.1", 60052);
 
-  if (pid == 0) {
-    party = emp::ALICE;
-  } else {
-    party = emp::BOB;
-  }
+  std::cout << "Party " << party << " setting up semi-honest for garble" << std::endl;
+  // NetIO* io = new NetIO(party==BOB ? nullptr : "127.0.0.1", port);
+  // Somehow new io, and ot1->io dont' like to work.
+  NetIO* io = ot0->io;
+  std::cout << "Party " << party << " setting up io with addr " << (party==BOB ? "none" : "127.0.0.1") << " and port " << port << std::endl;
 
-  NetIO* io = new NetIO(party==ALICE ? nullptr : "127.0.0.1", port);
   setup_semi_honest(io, party);
+  std::cout << "Party " << party << " semi-honest for garble set up" << std::endl;
+
+  // Use some OT, since it shares with 
+  uint64_t data0[2] = {10, 20};
+  uint64_t data0_1[2] = {11, 21};
+  uint64_t data1[2] = {1000, 2000};
+  uint64_t data1_1[2] = {1001, 2001};
+  uint64_t* data = new uint64_t[2];
+  uint64_t* data_1 = new uint64_t[2];
+  bool c[2] = {false, true};
+  if (party == ALICE) {
+    ot0->send(data0, data1, 2, data0_1, data1_1);
+    ot1->recv(data, c, 2, data_1);
+  } else {
+    ot0->recv(data, c, 2, data_1);
+    ot1->send(data0, data1, 2, data0_1, data1_1);
+  }
 
   /* General Behavior */
   // test_compare(party);
@@ -307,12 +325,30 @@ int main(int argc, char** argv) {
   /* EvalHeavy specific */
   // test_hash(party, hash_seed);
   test_full(party, hash_seed);
+  io->flush();
 
-  if (party == ALICE) {
-    std::cout << "Mult gates: " << CircuitExecution::circ_exec->num_and()<<endl;
-  }
+  std::cout << "Mult gates: " << CircuitExecution::circ_exec->num_and()<<endl;
 
-  finalize_semi_honest();
+  finalize_semi_honest();  // just deletes things
   delete io;
   clear_constants();
+}
+
+
+int main(int argc, char** argv) {
+  int port = 12345;
+  if (argc == 1) {
+    pid_t pid = fork();
+    if (pid == 0) {
+      run(ALICE, port);
+    } else {
+      run(BOB, port);
+    }
+
+    return 0;
+  }
+
+  int party = atoi(argv[1]);
+  std::cout << "Party: " << party << std::endl;
+  run(party, port);
 }

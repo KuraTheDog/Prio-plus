@@ -7,7 +7,7 @@
 #if OT_TYPE == EMP_IKNP
 
 OT_Wrapper::OT_Wrapper(const char* address, const int port, const bool malicious)
-: io(new emp::NetIO(address, port, true))
+: io(new emp::NetIO(address, port, true))  // quiet
 , ot(new emp::IKNP<emp::NetIO>(io, malicious))
 , malicious(malicious)
 {}

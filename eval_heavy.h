@@ -9,6 +9,13 @@
 #include "emp-sh2pc/emp-sh2pc.h"
 
 /*
+Uses MPC circuit to evaluate heavy
+Evaluates on Count-min
+
+TODO: bucket evaluation with cmp too
+*/
+
+/*
 Pieces can be abstracted out
 But for now, in one struct so easier to access various attributes.
 Mostly one-time, but can call with multiple K I guess.
@@ -19,19 +26,27 @@ There may be better ways of de-duping, but this should be fine.
  - challenge is to keep it oblivious. same work if all dupes and no dupes.
  - Can't track how many distinct values seen
  - can't pre-prune list of candidates.
+
+Note: emp::ALICE is 1, emp::BOB is 2. Not quite server_num.
 */
 
 /*
 Standard op:
-h = HeavyEval(party, count_min)
+h = HeavyEval(party, count_min, total_count)
   - Count-min contains secret-shared values
-parse_countmin()
-  - populate countmin_values with de-shared circuit vals
-set_values(int/fmpz* shares, size num_values)
-  - Shares of candidate values (potentially with dupes)
-  - populates values with actuals with circuit
+  - total count is # items (sum of frequencies)
+Count-min
+  parse_countmin()
+    - populate countmin_values with de-shared circuit vals
+  Can print_countmin past this point
+Values
+  set_values(int/fmpz* shares, size num_values)
+    - Shares of candidate values (potentially with dupes)
+    - populates values with actuals with circuit
+  can print_values past this point
 void get_frequencies()
   - Compute frequency estimates with circuit, populate freq
+  - requires both count-min parsed, and values set.
 sort_remove_dupes()
   - sort (value/freq) by freq, with dupes zero'd out
 return_top_K(size K, uint64_t* topValues, uint64_t* topFreqs)
@@ -78,13 +93,14 @@ struct HeavyEval {
   , freq_bits(LOG2(total_count) + 1)
   {
     std::cout << "HeavyEval params: \n";
+    std::cout << "\t Party: " << party << std::endl;
     std::cout << "\t num hashes: " << num_hashes << std::endl;
     std::cout << "\t hash range: " << hash_range << std::endl;
     std::cout << "\t total_count: " << total_count << std::endl;
-    std::cout << "\t input bits: " << input_bits << std::endl;
-    std::cout << "\t share bits: " << share_bits << std::endl;
-    std::cout << "\t freq bits: " << freq_bits << std::endl;
-    std::cout << "\t hash range bits: " << hash_range_bits << std::endl;
+    std::cout << "\t input bits+1: " << input_bits << std::endl;
+    std::cout << "\t share bits+1: " << share_bits << std::endl;
+    std::cout << "\t freq bits+1: " << freq_bits << std::endl;
+    std::cout << "\t hash range bits+1: " << hash_range_bits << std::endl;
 
     if (hash_range_bits > input_bits) {
       std::cout << "WARNING: hash range > input range. Count-min not needed. ";
