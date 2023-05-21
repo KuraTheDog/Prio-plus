@@ -14,6 +14,7 @@
 
 #include "correlated.h"
 #include "correlated_validated.h"
+#include "eval_heavy.h"
 #include "hash.h"
 #include "heavy.h"
 #include "net_share.h"
@@ -34,6 +35,7 @@ MultEvalManager* mult_eval_manager;
 
 OT_Wrapper* ot0;
 OT_Wrapper* ot1;
+NetIO* garbleIO;
 
 // Store wrapper for share conversion.
 CorrelatedStore* correlated_store;
@@ -1903,13 +1905,43 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         start2 = clock_start();
         sent_bytes += send_fmpz_batch(serverfd, bucket0, num_sh);
         sent_bytes += send_fmpz_batch(serverfd, bucket1, num_sh);
-        sent_bytes += send_fmpz_batch(serverfd, countmin_accum, share_size_count);
+
+        const size_t num_candidates = cfg.Q * cfg.B;
+        uint64_t candidates[num_candidates];
+        // "zero" shares as temp
+        memset(candidates, 0, sizeof(uint64_t) * num_candidates);
 
         clear_fmpz_array(bucket0, num_sh);
         clear_fmpz_array(bucket1, num_sh);
-        clear_fmpz_array(countmin_accum, share_size_count);
 
-        return RET_NO_ANS;
+        CountMin count_min(cfg.countmin_cfg);
+        count_min.setStore(num_bits, hash_seed_count);
+        count_min.counts = countmin_accum;
+        // count_min.print();
+
+        HeavyEval heavy_eval(server_num + 1, count_min, num_inputs);
+        heavy_eval.parse_countmin();
+        // heavy_eval.print_countmin();
+
+        heavy_eval.set_values(candidates, num_candidates);
+        // heavy_eval.print_values();
+        heavy_eval.get_frequencies();
+        heavy_eval.sort_remove_dupes();
+        uint64_t* top_values = new uint64_t[K];
+        uint64_t* top_freqs = new uint64_t[K];
+        std::cout << "Top K = " << K << " values and freqs, decreasing\n";
+        heavy_eval.return_top_K(K, top_values, top_freqs);
+        for (unsigned int i = 0; i < K; i++) {
+          std::cout << "Value: " << top_values[i] << ", freq: " << top_freqs[i] << std::endl;
+        }
+
+        garbleIO->flush();
+
+        delete[] top_values;
+        delete[] top_freqs;
+
+
+        return RET_ANS;
     } else {
         size_t num_inputs;
         recv_size(serverfd, num_inputs);
@@ -2035,10 +2067,8 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
         fmpz_t* bucket0_other; new_fmpz_array(&bucket0_other, num_sh);
         fmpz_t* bucket1_other; new_fmpz_array(&bucket1_other, num_sh);
-        fmpz_t* count_other; new_fmpz_array(&count_other, share_size_count);
         recv_fmpz_batch(serverfd, bucket0_other, num_sh);
         recv_fmpz_batch(serverfd, bucket1_other, num_sh);
-        recv_fmpz_batch(serverfd, count_other, share_size_count);
 
         size_t num_valid = 0;
         for (unsigned int i = 0; i < num_inputs; i++)
@@ -2053,7 +2083,8 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         fmpz_t* values; new_fmpz_array(&values, cfg.SH_depth);
         fmpz_t b0; fmpz_init(b0);
         fmpz_t b1; fmpz_init(b1);
-        std::set<int64_t> candidates;
+        const size_t num_candidates = cfg.Q * cfg.B;
+        uint64_t candidates[num_candidates];
         for (unsigned int q = 0; q < cfg.Q; q++) {
             for (unsigned int b = 0; b < cfg.B; b++) {
                 const size_t group_idx = q * cfg.B + b;
@@ -2075,13 +2106,16 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
                     // std::cout << "  : cmp abs = " << fmpz_cmpabs(b0, b1);
                     // std::cout << ", value = " << fmpz_get_si(values[d]) << "\n";
                 }
+                // TODO: no bad hashes
                 uint64_t ans;
                 int bad_hashes = hash_split.solve(q, values, ans);
                 // std::cout << "Candidate[" << q << ", " << b << "] = ";
                 // std::cout << ans << ", with " << bad_hashes << " invalid\n";
                 if (bad_hashes == 0) {
-                    candidates.insert(ans);
+                    // candidates.insert(ans);
+                    candidates[group_idx] = ans;
                 }
+                candidates[group_idx] = ans;
             }
         }
         clear_fmpz_array(values, cfg.SH_depth);
@@ -2090,42 +2124,36 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         clear_fmpz_array(bucket0_other, num_sh);
         clear_fmpz_array(bucket1_other, num_sh);
 
-        // Query count-min
+        // TODO: secure SH eval
+
         CountMin count_min(cfg.countmin_cfg);
         count_min.setStore(num_bits, hash_seed_count);
-        count_min.init();
-
-        for (unsigned int i = 0; i < share_size_count; i++) {
-            fmpz_mod_add(count_min.counts[i], countmin_accum[i], count_other[i], mod_ctx);
-        }
-        clear_fmpz_array(countmin_accum, share_size_count);
-        clear_fmpz_array(count_other, share_size_count);
-
-        // std::cout << "combined countmin" << std::endl;
+        count_min.counts = countmin_accum;
         // count_min.print();
 
-        // Priority queue?
-        // Size cap at total candidates, which is B * Q.
-        // So don't need to worry about discarding too-small items as more come in
-        std::priority_queue<std::pair<uint64_t, uint64_t>> frequencies;
-        for (auto it = candidates.begin(); it!=candidates.end(); ++it) {
-            uint64_t candidate = *it;
-            uint64_t freq = count_min.query(candidate);
-            frequencies.push(std::make_pair(freq, candidate));
+        HeavyEval heavy_eval(server_num + 1, count_min, num_inputs);
+        heavy_eval.parse_countmin();
+        // heavy_eval.print_countmin();
+
+        heavy_eval.set_values(candidates, num_candidates);
+        // heavy_eval.print_values();
+        heavy_eval.get_frequencies();
+        heavy_eval.sort_remove_dupes();
+        uint64_t* top_values = new uint64_t[K];
+        uint64_t* top_freqs = new uint64_t[K];
+        std::cout << "Top K = " << K << " values and freqs, decreasing\n";
+        heavy_eval.return_top_K(K, top_values, top_freqs);
+        for (unsigned int i = 0; i < K; i++) {
+          std::cout << "Value: " << top_values[i] << ", freq: " << top_freqs[i] << std::endl;
         }
 
-        std::cout << "Heavy items:" << std::endl;
-        // Just print top 2K, for wiggle room etc.
-        for (unsigned int i = 0; i < 2 * K; i++) {
-        // while (!frequencies.empty()) {
-            if (frequencies.empty()) break;
-            auto next = frequencies.top();
-            if (next.first == 0) break;
-            std::cout << "\t value: " << next.second << "\t freq: " << next.first << std::endl;
-            frequencies.pop();
-        }
+        garbleIO->flush();
+
+        delete[] top_values;
+        delete[] top_freqs;
 
         std::cout << "eval time: " << sec_from(start2) << std::endl;
+
 
         return RET_ANS;
     }
@@ -2180,8 +2208,13 @@ int main(int argc, char** argv) {
         error_exit("Unknown/unsupported store type");
     }
 
+    // Reuse IO from OT
+    garbleIO = ot0->io;
+    setup_semi_honest(garbleIO, server_num + 1);
+
     int sockfd, newsockfd;
     sockaddr_in addr;
+
 
     bind_and_listen(addr, sockfd, client_port, 1);
 
@@ -2333,6 +2366,7 @@ int main(int argc, char** argv) {
 
     delete mult_eval_manager;
     RootManager(1).clearCache();
+    finalize_semi_honest();
     clear_constants();
 
     return 0;
