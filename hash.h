@@ -108,7 +108,6 @@ class HashStoreBit : public HashStore {
   // If true, extra equations checking against solved value
   const bool inconsistency_solving;
 
-
   // General "input dimension" = input_bits + 1
   // Constant since otherwise h(0) = 0 always.
   const size_t dim;
@@ -137,22 +136,28 @@ public:
   void eval(const unsigned int i, const uint64_t x, fmpz_t out) const;
   void print_hash(const unsigned int i) const;
   void print_coeff() const {fmpz_mod_mat_print_pretty(coeff);}
+  void print_inv(const size_t i) const {fmpz_mod_mat_print_pretty(inverses[i]);}
 
-  // Change mod, for solving
-  // Starts at hash_range, for matrix creation
-  // But for "advanced" solving (e.g. secret shared), should be Int_Modulus
+  // Call before doing solve on shared values, to shift mod context
   void adjust_mod(const fmpz_t new_mod) {
-    _fmpz_mod_mat_set_mod(coeff, new_mod);
+    for (unsigned int i = 0; i < num_groups; i++) {
+      _fmpz_mod_mat_set_mod(inverses[i], new_mod);
+    }
   }
 
   // |values| = group_size
   // Uses Group(group_num) of hashes.
-  // Uses first [dim] of the hashes and values to solve AX=B
+  // Uses inverse first [dim] of the hashes and values to solve X=A^-1 B
   // Uses extras [dim -> group size] for validation.
   //   Returns number of INVALID checks. 0 is best
   int solve(const unsigned int group_num, const fmpz_t* const values, uint64_t& ans) const;
   // Finds ans, in the corresponding vector form.
   void solve_shares(const unsigned int group_num, const fmpz_t* const values, fmpz_t* const ans) const;
+  // Given "vector" representation vec, extracts answer into ans
+  // Also uses extras from values to validate.
+  // Note that if not inconsistency solving, then values is unused
+  int solve_extract(const unsigned int group_num, const fmpz_t* const values,
+      const fmpz_t* const vec, uint64_t& ans) const;
 };
 
 #endif

@@ -82,7 +82,7 @@ void test_inverse(size_t group_size) {
   fmpz_t* values; new_fmpz_array(&values, group_size);
   for (unsigned int i = 0; i < num_groups; i++) {
     // std::cout << "Testing group: " << i << std::endl;
-    unsigned int x = i + 1;
+    const unsigned int x = i + 1;
     // std::cout << "input is " << x << std::endl;
     for (unsigned int j = 0; j < group_size; j++) {
       store.eval(i * group_size + j, x, values[j]);

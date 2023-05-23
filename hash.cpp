@@ -139,6 +139,7 @@ HashStoreBit::HashStoreBit(
     if (is_solving) {
       fmpz_mod_mat_init(inverses[i], dim, dim, output_range);
       fmpz_mod_mat_inv(inverses[i], window);
+      // _fmpz_mod_mat_set_mod(inverses[i], Int_Modulus);
     }
     fmpz_mod_mat_window_clear(window);
   }
@@ -192,55 +193,44 @@ void HashStoreBit::solve_shares(const unsigned int group_num,
 
   for (unsigned int i = 0; i < dim; i++) {
     fmpz_set(ans[i], fmpz_mod_mat_entry(X, i, 0));
+    // std::cout << "X[" << i << "] = " << fmpz_get_ui(ans[i]) << std::endl;
   }
   fmpz_mod_mat_clear(X);
 }
 
-int HashStoreBit::solve(const unsigned int group_num,
-    const fmpz_t* const values, uint64_t& ans) const {
-  const size_t start = group_num * group_size;
+int HashStoreBit::solve_extract(const unsigned int group_num, const fmpz_t* const values,
+    const fmpz_t* const vec, uint64_t& ans) const {
   ans = 0;
-
-  fmpz_t* X; new_fmpz_array(&X, dim);
-  solve_shares(group_num, values, X);
-
-  // Extract
+  // Extract answer
   for (unsigned int i = 0; i < input_bits; i++) {
-    if (fmpz_is_one(X[i])) {
+    if (fmpz_is_one(vec[i])) {
       // fmpz_add_ui(ans, ans, 1ULL << i);
       ans += (1ULL << i);
-    } else if (fmpz_is_zero(X[i])) {
+    } else if (fmpz_is_zero(vec[i])) {
       continue;
     } else {
       // std::cout << "WARNING: Solution has non-bit value" << std::endl;
-      clear_fmpz_array(X, dim);
       // Case occurs when inconsistent in the first n+1, which is not unlikely
       return 100002;
     }
   }
 
+  // Check constant term
   if (inconsistency_solving and
-      not fmpz_is_one(X[input_bits])) {
+      not fmpz_is_one(vec[input_bits])) {
     // std::cout << "WARNING: Solution has non-1 constant term" << std::endl;
-    clear_fmpz_array(X, dim);
     // Inconsistent in first n+1, or pure empty.
     return 100003;
   }
-  clear_fmpz_array(X, dim);
 
-  // Check
-  // TODO: it would be nicer if it could do least error version:
-  //   E.g. if 2n equations when need n, and 1 bad, it can solve on the 2n-1 good.
-  //      (vs including bad makes many more invalid)
-  //   Solve / inverse don't seem to like non-square matricies
-  //   and least squares seems nontrivial over modular context
-
+  // Compare against remaing values
+  const size_t offset = group_num * group_size;
   int num_invalid = 0;
   if (inconsistency_solving) {
     fmpz_t tmp; fmpz_init(tmp);
     for (unsigned int i = input_bits; i < group_size; i++) {
-      // Ensure hash_{start + i}(ans) = values[i]
-      eval(start + i, ans, tmp);
+      // Ensure hash_{offset + i}(ans) = values[i]
+      eval(offset + i, ans, tmp);
       if (not fmpz_equal(tmp, values[i])) {
         num_invalid++;
       }
@@ -249,4 +239,16 @@ int HashStoreBit::solve(const unsigned int group_num,
   }
 
   return num_invalid;
+}
+
+int HashStoreBit::solve(const unsigned int group_num,
+    const fmpz_t* const values, uint64_t& ans) const {
+  fmpz_t* X; new_fmpz_array(&X, dim);
+  solve_shares(group_num, values, X);
+
+  // Extract
+  int ret = solve_extract(group_num, values, X, ans);
+  clear_fmpz_array(X, dim);
+
+  return ret;
 }
