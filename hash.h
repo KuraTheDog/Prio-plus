@@ -124,12 +124,22 @@ public:
   void print_hash(const unsigned int i) const;
   void print_coeff() const {fmpz_mod_mat_print_pretty(coeff);}
 
+  // Change mod, for solving
+  // Starts at hash_range, for matrix creation
+  // But for "advanced" solving (e.g. secret shared), should be Int_Modulus
+  void adjust_mod(const fmpz_t new_mod) {
+    _fmpz_mod_mat_set_mod(coeff, new_mod);
+  }
+
   // |values| = group_size
   // Uses Group(group_num) of hashes.
   // Uses first [dim] of the hashes and values to solve AX=B
   // Uses extras [dim -> group size] for validation.
   //   Returns number of INVALID checks. 0 is best
   int solve(const unsigned int group_num, const fmpz_t* const values, uint64_t& ans) const;
+  // Finds ans, in the corresponding vector form.
+  // Return 0 if fine, else solve error return
+  int solve_shares(const unsigned int group_num, const fmpz_t* const values, fmpz_t* const ans) const;
 };
 
 #endif

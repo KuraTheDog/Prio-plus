@@ -164,11 +164,15 @@ void HashStoreBit::print_hash(const unsigned int i) const {
   std::cout << std::endl;
 }
 
-int HashStoreBit::solve(const unsigned int group_num, const fmpz_t* const values, uint64_t& ans) const {
+int HashStoreBit::solve_shares(const unsigned int group_num,
+    const fmpz_t* const values, fmpz_t* const ans) const {
   const size_t start = group_num * group_size;
 
   // Init
   fmpz_mod_mat_t A;
+  // Should these be set to other mods instead?
+  // Seems to "inherit" A's dimension when running solve.
+  // But for safetey, "solve_mod" should be used here.
   fmpz_mod_mat_t B; fmpz_mod_mat_init(B, dim, 1, output_range);
   fmpz_mod_mat_t X; fmpz_mod_mat_init(X, dim, 1, output_range);
   for (unsigned int i = 0; i < dim; i++) {
@@ -181,7 +185,7 @@ int HashStoreBit::solve(const unsigned int group_num, const fmpz_t* const values
   // then just X = A^-1 B, and fail case never happens
   // Pre-compute for all hash groups.
   int ret = fmpz_mod_mat_solve(X, A, B);
-  // std::cout << "Solving X * A = B" << std::endl;
+  // std::cout << "Solving A * X = B" << std::endl;
   // std::cout << "input A: "; fmpz_mod_mat_print_pretty(A);
   // std::cout << "input B: "; fmpz_mod_mat_print_pretty(B);
   // std::cout << "solve X: "; fmpz_mod_mat_print_pretty(X);
@@ -191,33 +195,51 @@ int HashStoreBit::solve(const unsigned int group_num, const fmpz_t* const values
     // std::cout << "WARNING: Somehow couldn't solve." << std::endl;
     fmpz_mod_mat_clear(X);
     // Case should not happen
+    return ret;
+  }
+
+  for (unsigned int i = 0; i < dim; i++) {
+    fmpz_set(ans[i], fmpz_mod_mat_entry(X, i, 0));
+  }
+  fmpz_mod_mat_clear(X);
+  return 0;
+}
+
+int HashStoreBit::solve(const unsigned int group_num,
+    const fmpz_t* const values, uint64_t& ans) const {
+  const size_t start = group_num * group_size;
+  ans = 0;
+
+  fmpz_t* X; new_fmpz_array(&X, dim);
+  int ret = solve_shares(group_num, values, X);
+  if (ret > 0) {
+    clear_fmpz_array(X, dim);
     return 100001;
   }
 
   // Extract
-  ans = 0;
   for (unsigned int i = 0; i < input_bits; i++) {
-    if (fmpz_is_one(fmpz_mod_mat_entry(X, i, 0))) {
+    if (fmpz_is_one(X[i])) {
       // fmpz_add_ui(ans, ans, 1ULL << i);
       ans += (1ULL << i);
-    } else if (fmpz_is_zero(fmpz_mod_mat_entry(X, i, 0))) {
+    } else if (fmpz_is_zero(X[i])) {
       continue;
     } else {
       // std::cout << "WARNING: Solution has non-bit value" << std::endl;
-      fmpz_mod_mat_clear(X);
+      clear_fmpz_array(X, dim);
       // Case occurs when inconsistent in the first n+1, which is not unlikely
       return 100002;
     }
   }
 
   if (inconsistency_solving and
-      not fmpz_is_one(fmpz_mod_mat_entry(X, input_bits, 0))) {
+      not fmpz_is_one(X[input_bits])) {
     // std::cout << "WARNING: Solution has non-1 constant term" << std::endl;
-    fmpz_mod_mat_clear(X);
+    clear_fmpz_array(X, dim);
     // Inconsistent in first n+1, or pure empty.
     return 100003;
   }
-  fmpz_mod_mat_clear(X);
+  clear_fmpz_array(X, dim);
 
   // Check
   // TODO: it would be nicer if it could do least error version:
