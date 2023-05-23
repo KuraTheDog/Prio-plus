@@ -8,7 +8,6 @@
 
 const size_t input_bits = 3;
 const size_t output_range = 5;
-const size_t num_hashes = 12;
 
 void run_hash(HashStore &store, unsigned int i) {
   fmpz_t out; fmpz_init(out);
@@ -24,6 +23,8 @@ void run_hash(HashStore &store, unsigned int i) {
 }
 
 void test_seed_sync() {
+  const size_t num_hashes = 12;
+
   flint_rand_t hash_seed;
   flint_randinit(hash_seed);
 
@@ -69,26 +70,32 @@ void test_inverse(size_t group_size) {
     fmpz_randbits(tmp, hash_seed, 1);
   fmpz_clear(tmp);
 
+  const size_t num_groups = 3;  // < 2^input bits
+  const size_t num_hashes = group_size * num_groups;
+
   std::cout << "testing inverse with group size = " << group_size << std::endl;
-  HashStoreBit store(group_size, input_bits, output_range, hash_seed, group_size);
+  HashStoreBit store(num_hashes, input_bits, output_range, hash_seed, group_size);
 
   // std::cout << "Coeff matrix: " << std::endl;
   // store.print_coeff();
 
-  unsigned int x = 2;
-  // std::cout << "input is " << x << std::endl;
   fmpz_t* values; new_fmpz_array(&values, group_size);
-  for (unsigned int i = 0; i < group_size; i++) {
-    store.eval(i, x, values[i]);
-    // store.print_hash(i);
-    // std::cout << "eval_" << i << "(" << x << ") = " << fmpz_get_ui(values[i]) << std::endl;
-  }
+  for (unsigned int i = 0; i < num_groups; i++) {
+    // std::cout << "Testing group: " << i << std::endl;
+    unsigned int x = i + 1;
+    // std::cout << "input is " << x << std::endl;
+    for (unsigned int j = 0; j < group_size; j++) {
+      store.eval(i * group_size + j, x, values[j]);
+      // store.print_hash(j);
+      // std::cout << "eval_" << j << "(" << x << ") = " << fmpz_get_ui(values[j]) << std::endl;
+    }
 
-  uint64_t ans;
-  int ret = store.solve(0, values, ans);
-  // std::cout << "Answer is " << ans << ", with " << ret << " invalid" << std::endl;
-  assert(ret == 0);
-  assert(ans == x);
+    uint64_t ans;
+    int ret = store.solve(i, values, ans);
+    // std::cout << "Answer is " << ans << ", with " << ret << " invalid" << std::endl;
+    assert(ret == 0);
+    assert(ans == x);
+  }
   clear_fmpz_array(values, group_size);
   flint_randclear(hash_seed);
 }
@@ -107,7 +114,6 @@ void test_countmin() {
   count.setStore(3, hash_seed);
 
   // count.store->print();
-
 
   // Small (1/w)^d chance of each full overlapping. so test not too large to amplify this.
   uint64_t vals[3] = {1, 2, 3};

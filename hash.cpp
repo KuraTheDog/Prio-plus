@@ -95,14 +95,14 @@ void HashStorePoly::print_hash(const unsigned int i) const {
 
 HashStoreBit::HashStoreBit(
     const size_t num_hashes, const size_t input_bits, const size_t hash_range,
-    flint_rand_t hash_seed_arg, const size_t group_size_arg)
+    flint_rand_t hash_seed_arg, const size_t group_size_arg, const bool is_solving)
 : HashStore(num_hashes, input_bits, hash_range, hash_seed_arg)
 , group_size(group_size_arg ? group_size_arg : input_bits)
+, num_groups(num_hashes / group_size)
+, is_solving(is_solving)
 , inconsistency_solving(group_size > input_bits)
 , dim(input_bits + ((int) inconsistency_solving))
 {
-  const size_t num_groups = num_hashes / group_size;
-
   // std::cout << (inconsistency_solving ? "" : "not ") << "inconsistency_solving" << std::endl;
   // std::cout << "  Bit store: " << num_groups << " groups of size " << group_size << ", ";
   // std::cout << "  dim : " << dim << ", validate: " << group_size - dim << std::endl;
@@ -119,6 +119,7 @@ HashStoreBit::HashStoreBit(
   fmpz_mod_mat_randtest(coeff, hash_seed);
 
   // Goal: For each group, first square bit is singular, for inversion purposes
+  inverses = new fmpz_mod_mat_t[num_groups];
   fmpz_mod_mat_t window;
   for (unsigned int i = 0; i < num_groups; i++) {
     const size_t start = i * group_size;
@@ -133,6 +134,12 @@ HashStoreBit::HashStoreBit(
     // b) Docs already say "at most count", so seems already random amount.
     fmpz_mod_mat_randops(window, 4 * dim + 1, hash_seed);
 
+    // Also compute inverse ahead of time
+    // By above, always convertable
+    if (is_solving) {
+      fmpz_mod_mat_init(inverses[i], dim, dim, output_range);
+      fmpz_mod_mat_inv(inverses[i], window);
+    }
     fmpz_mod_mat_window_clear(window);
   }
 }
@@ -164,45 +171,29 @@ void HashStoreBit::print_hash(const unsigned int i) const {
   std::cout << std::endl;
 }
 
-int HashStoreBit::solve_shares(const unsigned int group_num,
+void HashStoreBit::solve_shares(const unsigned int group_num,
     const fmpz_t* const values, fmpz_t* const ans) const {
-  const size_t start = group_num * group_size;
+  if (!is_solving) {
+    error_exit("Hash store trying to solve when is_solving is false");
+  }
 
-  // Init
-  fmpz_mod_mat_t A;
-  // Should these be set to other mods instead?
-  // Seems to "inherit" A's dimension when running solve.
-  // But for safetey, "solve_mod" should be used here.
-  fmpz_mod_mat_t B; fmpz_mod_mat_init(B, dim, 1, output_range);
+  // Coeff * X = values -> X = coeff^-1 * values
+  // TODO: better modulus, e.g. if values is shared (int modulus)
+  fmpz_mod_mat_t V; fmpz_mod_mat_init(V, dim, 1, output_range);
   fmpz_mod_mat_t X; fmpz_mod_mat_init(X, dim, 1, output_range);
-  for (unsigned int i = 0; i < dim; i++) {
-    fmpz_set(fmpz_mod_mat_entry(B, i, 0), values[i]);
-  }
-  fmpz_mod_mat_window_init(A, coeff, start, 0, start + dim, dim);
 
-  // Solve for X in AX=B
-  // TODO: For optimization, can pre-invert A since it's fixed (coeffs)
-  // then just X = A^-1 B, and fail case never happens
-  // Pre-compute for all hash groups.
-  int ret = fmpz_mod_mat_solve(X, A, B);
-  // std::cout << "Solving A * X = B" << std::endl;
-  // std::cout << "input A: "; fmpz_mod_mat_print_pretty(A);
-  // std::cout << "input B: "; fmpz_mod_mat_print_pretty(B);
-  // std::cout << "solve X: "; fmpz_mod_mat_print_pretty(X);
-  fmpz_mod_mat_window_clear(A);
-  fmpz_mod_mat_clear(B);
-  if (ret == 0) {
-    // std::cout << "WARNING: Somehow couldn't solve." << std::endl;
-    fmpz_mod_mat_clear(X);
-    // Case should not happen
-    return ret;
+  for (unsigned int i = 0; i < dim; i++) {
+    fmpz_set(fmpz_mod_mat_entry(V, i, 0), values[i]);
   }
+
+  fmpz_mod_mat_mul(X, inverses[group_num], V);
+
+  fmpz_mod_mat_clear(V);
 
   for (unsigned int i = 0; i < dim; i++) {
     fmpz_set(ans[i], fmpz_mod_mat_entry(X, i, 0));
   }
   fmpz_mod_mat_clear(X);
-  return 0;
 }
 
 int HashStoreBit::solve(const unsigned int group_num,
@@ -211,11 +202,7 @@ int HashStoreBit::solve(const unsigned int group_num,
   ans = 0;
 
   fmpz_t* X; new_fmpz_array(&X, dim);
-  int ret = solve_shares(group_num, values, X);
-  if (ret > 0) {
-    clear_fmpz_array(X, dim);
-    return 100001;
-  }
+  solve_shares(group_num, values, X);
 
   // Extract
   for (unsigned int i = 0; i < input_bits; i++) {

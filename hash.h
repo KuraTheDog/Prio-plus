@@ -87,7 +87,7 @@ public:
   }
 };
 
-/* 
+/*
   When group_size = input_bits (default), just solves, with no inconsitency checks
   When group_size > input_bits, extra equations are checked against solved value
     Returns # of inconsistent, so 0 is correct.
@@ -97,27 +97,41 @@ public:
 class HashStoreBit : public HashStore {
   // How big groups of hashes are that are all on the same value, for solving.
   // This should divide into num_hashes.
-  // I.e. there are a bunch of groups of group_size hashes, evaled on a value
+  // I.e. there num_groups groups of group_size hashes, evaled on a value
   //   totaling to num_hashes.
   const size_t group_size;
+  const size_t num_groups;
 
-
+  // If false, doesn't precompute inverses, faster but then can't solve.
+  // Usefor for clients just evaluating on hash
+  const bool is_solving;
+  // If true, extra equations checking against solved value
   const bool inconsistency_solving;
+
 
   // General "input dimension" = input_bits + 1
   // Constant since otherwise h(0) = 0 always.
   const size_t dim;
   fmpz_mod_mat_t coeff;
 
+  fmpz_mod_mat_t* inverses = nullptr;
+
 public:
 
   // Default group size 0 -> input_bits, no inconsitency
   HashStoreBit(
       const size_t num_hashes, const size_t input_bits, const size_t hash_range,
-      flint_rand_t hash_seed_arg, const size_t group_size_arg = 0);
+      flint_rand_t hash_seed_arg, const size_t group_size_arg = 0,
+      const bool is_solving = true);
 
   ~HashStoreBit() {
     fmpz_mod_mat_clear(coeff);
+    if (is_solving) {
+      for (unsigned int i = 0; i < num_groups; i++) {
+        fmpz_mod_mat_clear(inverses[i]);
+      }
+      delete[] inverses;
+    }
   };
 
   void eval(const unsigned int i, const uint64_t x, fmpz_t out) const;
@@ -138,8 +152,7 @@ public:
   //   Returns number of INVALID checks. 0 is best
   int solve(const unsigned int group_num, const fmpz_t* const values, uint64_t& ans) const;
   // Finds ans, in the corresponding vector form.
-  // Return 0 if fine, else solve error return
-  int solve_shares(const unsigned int group_num, const fmpz_t* const values, fmpz_t* const ans) const;
+  void solve_shares(const unsigned int group_num, const fmpz_t* const values, fmpz_t* const ans) const;
 };
 
 #endif
