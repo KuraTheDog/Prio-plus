@@ -241,12 +241,12 @@ void test_full(int party, flint_rand_t hash_seed) {
 
   // Step 1: de-share count-min
   heavy_eval.parse_countmin();
-  heavy_eval.print_countmin();
+  // heavy_eval.print_countmin();
 
   // Step 2: add values
   heavy_eval.set_values(candidates, num_candidates);
   // std::cout << "parsed values: \n";
-  heavy_eval.print_values();
+  // heavy_eval.print_values();
 
   // Step 3: get frequencies
   heavy_eval.get_frequencies();
@@ -297,7 +297,7 @@ void run(int party, int port) {
   setup_semi_honest(io, party);
   std::cout << "Party " << party << " semi-honest for garble set up" << std::endl;
 
-  // Use some OT, since it shares with 
+  // Use some OT, since garble shares IO with OT.
   uint64_t data0[2] = {10, 20};
   uint64_t data0_1[2] = {11, 21};
   uint64_t data1[2] = {1000, 2000};

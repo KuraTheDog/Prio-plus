@@ -106,13 +106,13 @@ struct HeavyEval {
       std::cout << "WARNING: hash range > input range. Count-min not needed. ";
       std::cout << "Behavior will be unreliable" << std::endl;
     }
-  }
+  };
 
   ~HeavyEval() {
     delete[] countmin_values;
     delete[] values;
     delete[] frequencies;
-  }
+  };
 
   /*
   Turns shares of count-min to counts as circuit values
@@ -151,9 +151,11 @@ struct HeavyEval {
   // Populate values with inputs as Integers with input_bits
   // Input is Local secret shares for "party".
   // Num (= num_values) of them.
-  void set_values(fmpz_t* input_shares, const size_t num);
+  void set_values(const fmpz_t* const input_shares, const size_t num);
   // Mostly for testing
-  void set_values(uint64_t* input_shares, const size_t num);
+  void set_values(const uint64_t* const input_shares, const size_t num);
+  // Integer candidate objects from Extract
+  void set_values(Integer* inputs, const size_t num);
   // Populate frequencies using values
   void get_frequencies();
 

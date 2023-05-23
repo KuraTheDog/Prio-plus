@@ -95,6 +95,7 @@ public:
     for other inconsitencies
 */
 class HashStoreBit : public HashStore {
+protected:
   // How big groups of hashes are that are all on the same value, for solving.
   // This should divide into num_hashes.
   // I.e. there num_groups groups of group_size hashes, evaled on a value

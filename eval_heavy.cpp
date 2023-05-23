@@ -102,7 +102,12 @@ void HeavyEval::sort_remove_dupes() {
   sort(frequencies, num_values, values);
 }
 
-void HeavyEval::set_values(fmpz_t* input_shares, const size_t num) {
+void HeavyEval::set_values(Integer* const inputs, const size_t num) {
+  num_values = num;
+  values = inputs;
+}
+
+void HeavyEval::set_values(const fmpz_t* const input_shares, const size_t num) {
   Integer mod(share_bits, fmpz_get_ui(Int_Modulus));
 
   num_values = num;
@@ -118,7 +123,7 @@ void HeavyEval::set_values(fmpz_t* input_shares, const size_t num) {
   }
 }
 
-void HeavyEval::set_values(uint64_t* input_shares, const size_t num) {
+void HeavyEval::set_values(const uint64_t* const input_shares, const size_t num) {
   Integer mod(share_bits, fmpz_get_ui(Int_Modulus));
 
   num_values = num;
