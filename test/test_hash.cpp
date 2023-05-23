@@ -58,17 +58,19 @@ void test_seed_sync() {
   // store2.print();
 }
 
-void test_inverse() {
+void test_inverse(size_t group_size) {
+  group_size = group_size ? group_size : input_bits;
   flint_rand_t hash_seed;
   flint_randinit(hash_seed);
   fmpz_t tmp; fmpz_init(tmp);
 
+  // Offset randomness
   for (unsigned int i = 0; i < 5; i++)
     fmpz_randbits(tmp, hash_seed, 1);
   fmpz_clear(tmp);
 
-  const size_t group_size = 6;  // must divide num_hashes, and be > input_bits+1
-  HashStoreBit store(num_hashes, input_bits, output_range, hash_seed, group_size);
+  std::cout << "testing inverse with group size = " << group_size << std::endl;
+  HashStoreBit store(group_size, input_bits, output_range, hash_seed, group_size);
 
   // std::cout << "Coeff matrix: " << std::endl;
   // store.print_coeff();
@@ -127,6 +129,7 @@ void test_countmin() {
 int main(int argc, char** argv){
   test_seed_sync();
 
-  test_inverse();
   test_countmin();
+  test_inverse(6);
+  test_inverse(0);
 }

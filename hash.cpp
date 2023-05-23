@@ -97,15 +97,17 @@ HashStoreBit::HashStoreBit(
     const size_t num_hashes, const size_t input_bits, const size_t hash_range,
     flint_rand_t hash_seed_arg, const size_t group_size_arg)
 : HashStore(num_hashes, input_bits, hash_range, hash_seed_arg)
-, group_size(group_size_arg ? group_size_arg : num_hashes)
-, dim(input_bits + 1)
+, group_size(group_size_arg ? group_size_arg : input_bits)
+, inconsistency_solving(group_size > input_bits)
+, dim(input_bits + ((int) inconsistency_solving))
 {
   const size_t num_groups = num_hashes / group_size;
 
+  // std::cout << (inconsistency_solving ? "" : "not ") << "inconsistency_solving" << std::endl;
   // std::cout << "  Bit store: " << num_groups << " groups of size " << group_size << ", ";
   // std::cout << "  dim : " << dim << ", validate: " << group_size - dim << std::endl;
 
-  if (num_hashes % group_size != 0) {
+  if (num_hashes < group_size or num_hashes % group_size != 0) {
     std::cout << "Warning: Can't evenly split " << num_hashes << " hashes into size " << group_size << " groups." << std::endl;
   }
   if (group_size < dim) {
@@ -145,14 +147,19 @@ void HashStoreBit::eval(const unsigned int i, const uint64_t x, fmpz_t out) cons
     }
   }
   // Constant
-  fmpz_add(out, out, fmpz_mod_mat_entry(coeff, i, input_bits));
+  if (inconsistency_solving)
+    fmpz_add(out, out, fmpz_mod_mat_entry(coeff, i, input_bits));
 }
 
 void HashStoreBit::print_hash(const unsigned int i) const {
   std::cout << "Hash " << i << ": ";
   for (unsigned int j = 0; j < dim; j++) {
     fmpz_print(fmpz_mod_mat_entry(coeff, i, j));
-    if (j < input_bits) std::cout << " * x_" << j << " + ";
+    if (j < input_bits) {
+      std::cout << " * x_" << j;
+      if (inconsistency_solving or j < (input_bits - 1))
+        std::cout << " + ";
+    }
   }
   std::cout << std::endl;
 }
@@ -169,8 +176,15 @@ int HashStoreBit::solve(const unsigned int group_num, const fmpz_t* const values
   }
   fmpz_mod_mat_window_init(A, coeff, start, 0, start + dim, dim);
 
-  // Solve
+  // Solve for X in AX=B
+  // TODO: For optimization, can pre-invert A since it's fixed (coeffs)
+  // then just X = A^-1 B, and fail case never happens
+  // Pre-compute for all hash groups.
   int ret = fmpz_mod_mat_solve(X, A, B);
+  // std::cout << "Solving X * A = B" << std::endl;
+  // std::cout << "input A: "; fmpz_mod_mat_print_pretty(A);
+  // std::cout << "input B: "; fmpz_mod_mat_print_pretty(B);
+  // std::cout << "solve X: "; fmpz_mod_mat_print_pretty(X);
   fmpz_mod_mat_window_clear(A);
   fmpz_mod_mat_clear(B);
   if (ret == 0) {
@@ -191,11 +205,13 @@ int HashStoreBit::solve(const unsigned int group_num, const fmpz_t* const values
     } else {
       // std::cout << "WARNING: Solution has non-bit value" << std::endl;
       fmpz_mod_mat_clear(X);
-      // Case likely because inconsistent in the first n+1.
+      // Case occurs when inconsistent in the first n+1, which is not unlikely
       return 100002;
     }
   }
-  if (not fmpz_is_one(fmpz_mod_mat_entry(X, input_bits, 0))) {
+
+  if (inconsistency_solving and
+      not fmpz_is_one(fmpz_mod_mat_entry(X, input_bits, 0))) {
     // std::cout << "WARNING: Solution has non-1 constant term" << std::endl;
     fmpz_mod_mat_clear(X);
     // Inconsistent in first n+1, or pure empty.
@@ -211,15 +227,17 @@ int HashStoreBit::solve(const unsigned int group_num, const fmpz_t* const values
   //   and least squares seems nontrivial over modular context
 
   int num_invalid = 0;
-  fmpz_t tmp; fmpz_init(tmp);
-  for (unsigned int i = input_bits; i < group_size; i++) {
-    // Ensure hash_{start + i}(ans) = values[i]
-    eval(start + i, ans, tmp);
-    if (not fmpz_equal(tmp, values[i])) {
-      num_invalid++;
+  if (inconsistency_solving) {
+    fmpz_t tmp; fmpz_init(tmp);
+    for (unsigned int i = input_bits; i < group_size; i++) {
+      // Ensure hash_{start + i}(ans) = values[i]
+      eval(start + i, ans, tmp);
+      if (not fmpz_equal(tmp, values[i])) {
+        num_invalid++;
+      }
     }
+    fmpz_clear(tmp);
   }
-  fmpz_clear(tmp);
 
   return num_invalid;
 }

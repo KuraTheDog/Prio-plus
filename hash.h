@@ -1,6 +1,7 @@
 /* Hash family manager
 
 Makes num_hashes hashes [input_range] -> [output_range] (parameterized by bits).
+With stacking/resuse, num_hashes can include many groups of hashes.
 
 Poly:
   k-wise independent via deg k-1 polynomials
@@ -86,9 +87,22 @@ public:
   }
 };
 
+/* 
+  When group_size = input_bits (default), just solves, with no inconsitency checks
+  When group_size > input_bits, extra equations are checked against solved value
+    Returns # of inconsistent, so 0 is correct.
+    Also includes "error" returns of 10000, 10001, and 10002
+    for other inconsitencies
+*/
 class HashStoreBit : public HashStore {
   // How big groups of hashes are that are all on the same value, for solving.
+  // This should divide into num_hashes.
+  // I.e. there are a bunch of groups of group_size hashes, evaled on a value
+  //   totaling to num_hashes.
   const size_t group_size;
+
+
+  const bool inconsistency_solving;
 
   // General "input dimension" = input_bits + 1
   // Constant since otherwise h(0) = 0 always.
@@ -97,7 +111,7 @@ class HashStoreBit : public HashStore {
 
 public:
 
-  // Default group size 0 -> num_hashes, aka 1 group.
+  // Default group size 0 -> input_bits, no inconsitency
   HashStoreBit(
       const size_t num_hashes, const size_t input_bits, const size_t hash_range,
       flint_rand_t hash_seed_arg, const size_t group_size_arg = 0);
