@@ -2,7 +2,6 @@
 
 void HeavyEval::parse_countmin() {
   countmin_values = new Integer[num_hashes * hash_range];
-  Integer mod(share_bits, fmpz_get_ui(Int_Modulus));
 
   for (unsigned int i = 0; i < num_hashes * hash_range; i++) {
     uint64_t val = fmpz_get_ui(count_min.counts[i]);
@@ -108,8 +107,6 @@ void HeavyEval::set_values(Integer* const inputs, const size_t num) {
 }
 
 void HeavyEval::set_values(const fmpz_t* const input_shares, const size_t num) {
-  Integer mod(share_bits, fmpz_get_ui(Int_Modulus));
-
   num_values = num;
   values = new Integer[num_values];
 
@@ -124,8 +121,6 @@ void HeavyEval::set_values(const fmpz_t* const input_shares, const size_t num) {
 }
 
 void HeavyEval::set_values(const uint64_t* const input_shares, const size_t num) {
-  Integer mod(share_bits, fmpz_get_ui(Int_Modulus));
-
   num_values = num;
   values = new Integer[num_values];
 
@@ -154,7 +149,7 @@ void HeavyEval::return_top_K(const size_t K, uint64_t* const topValues, uint64_t
   }
 }
 
-void HeavyEval::print_countmin() {
+void HeavyEval::print_countmin() const {
   for (unsigned int i = 0; i < num_hashes; i++) {
     for (unsigned int j = 0; j < hash_range; j++) {
       uint64_t x = countmin_values[i * hash_range + j].reveal<uint64_t>();
@@ -167,7 +162,7 @@ void HeavyEval::print_countmin() {
   }
 }
 
-void HeavyEval::print_values() {
+void HeavyEval::print_values() const {
   if (!values) {
     std::cout << "No values" << std::endl;
     return;

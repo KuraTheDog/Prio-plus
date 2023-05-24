@@ -56,9 +56,8 @@ public:
   virtual void print_hash(const unsigned int i) const = 0;
   void print() const;
 
-  size_t get_input_bits() const {
-    return input_bits;
-  };
+  size_t get_input_bits() const { return input_bits; };
+  size_t get_num_hashes() const { return num_hashes; };
 };
 
 class HashStorePoly : public HashStore {
@@ -136,8 +135,12 @@ public:
 
   void eval(const unsigned int i, const uint64_t x, fmpz_t out) const;
   void print_hash(const unsigned int i) const;
-  void print_coeff() const {fmpz_mod_mat_print_pretty(coeff);}
-  void print_inv(const size_t i) const {fmpz_mod_mat_print_pretty(inverses[i]);}
+  void print_coeff() const { fmpz_mod_mat_print_pretty(coeff); }
+  void print_inv(const size_t i) const { fmpz_mod_mat_print_pretty(inverses[i]); }
+  size_t get_num_groups() const { return num_groups; };
+  uint64_t get_inv_coeff(const size_t idx, const size_t i, const size_t j) const {
+    return fmpz_get_ui(fmpz_mod_mat_entry(inverses[idx], i, j));
+  }
 
   // Call before doing solve on shared values, to shift mod context
   void adjust_mod(const fmpz_t new_mod) {

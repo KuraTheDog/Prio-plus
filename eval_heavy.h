@@ -74,6 +74,7 @@ struct HeavyEval {
 
   Integer* countmin_values = nullptr;
 
+  Integer mod;
   size_t num_values;
   // Sized input_bits
   Integer* values = nullptr;
@@ -106,6 +107,8 @@ struct HeavyEval {
       std::cout << "WARNING: hash range > input range. Count-min not needed. ";
       std::cout << "Behavior will be unreliable" << std::endl;
     }
+
+    mod = Integer(share_bits, fmpz_get_ui(Int_Modulus));
   };
 
   ~HeavyEval() {
@@ -162,8 +165,8 @@ struct HeavyEval {
   void return_top_K(const size_t K, uint64_t* const topValues, uint64_t* const topFreqs);
 
   /* DEBUG ONLY */
-  void print_countmin();
-  void print_values();
+  void print_countmin() const;
+  void print_values() const;
 };
 
 #endif

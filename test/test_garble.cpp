@@ -312,6 +312,8 @@ void run(int party, int port) {
     ot0->recv(data, c, 2, data_1);
     ot1->send(data0, data1, 2, data0_1, data1_1);
   }
+  delete[] data;
+  delete[] data_1;
 
   /* General Behavior */
   // test_compare(party);
@@ -331,6 +333,8 @@ void run(int party, int port) {
 
   finalize_semi_honest();  // just deletes things
   delete io;
+  delete ot0;
+  delete ot1;
   clear_constants();
 }
 
