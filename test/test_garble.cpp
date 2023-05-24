@@ -278,6 +278,128 @@ void test_full(int party, flint_rand_t hash_seed) {
   fmpz_clear(share);
 }
 
+void test_bucket_compare(int party, flint_rand_t hash_seed) {
+  const size_t input_bits = 4;
+  const size_t output_range = 2;  // must be 2
+  const size_t depth = input_bits;
+
+  const size_t num_groups = 2;  // < 2^input bits
+  const size_t num_hashes = input_bits * num_groups;
+
+  HashStoreBit store(num_hashes, input_bits, output_range, hash_seed, depth);
+
+  fmpz_t* bucket0; new_fmpz_array(&bucket0, num_hashes);
+  fmpz_t* bucket1; new_fmpz_array(&bucket1, num_hashes);
+
+  fmpz_t tmp; fmpz_init(tmp);
+  fmpz_t tmp2; fmpz_init(tmp2);
+  for (unsigned int i = 0; i < num_hashes; i++) {
+    // actual[i] = abs(b0) < abs(b1);
+    fmpz_randm(tmp, seed, Int_Modulus);
+    fmpz_randm(tmp2, seed, Int_Modulus);
+    if (party == ALICE) {
+      fmpz_set(bucket0[i], tmp);
+      fmpz_set(bucket1[i], tmp2);
+    } else {
+      // Actual
+      int b0 = (i%2 ? (i+1) : (2*i+2)) * ((i/2)%2 ? 1 : -1);
+      int b1 = (i%2 ? (2*i+2) : (i+1)) * (((i+1)/2)%2 ? 1 : -1);
+      fmpz_set_si(bucket0[i], b0);
+      fmpz_set_si(bucket1[i], b1);
+      fmpz_mod(bucket0[i], bucket0[i], Int_Modulus);
+      fmpz_mod(bucket1[i], bucket1[i], Int_Modulus);
+      // Share adjust
+      fmpz_mod_sub(bucket0[i], bucket0[i], tmp, mod_ctx);
+      fmpz_mod_sub(bucket1[i], bucket1[i], tmp2, mod_ctx);
+    }
+  }
+
+  HeavyExtract eval(party, store);
+
+  eval.set_buckets(bucket0, bucket1);
+  // eval.print_buckets();
+
+  eval.bucket_compare();
+  eval.print_cmp();
+
+  clear_fmpz_array(bucket0, num_hashes);
+  clear_fmpz_array(bucket1, num_hashes);
+  fmpz_clear(tmp);
+  fmpz_clear(tmp2);
+}
+
+void test_extract(int party, flint_rand_t hash_seed) {
+  const size_t input_bits = 3;
+  const size_t output_range = 2;  // must be 2
+  const size_t depth = input_bits;
+
+  const size_t num_groups = 4;  // < 2^input bits
+  const size_t num_hashes = input_bits * num_groups;
+
+  HashStoreBit store(num_hashes, input_bits, output_range, hash_seed, depth);
+  // if (party == ALICE) {
+  //   std::cout << "coeff:\n";
+  //   store.print_coeff();
+  // }
+
+  // figure out values
+  fmpz_t* values; new_fmpz_array(&values, num_hashes);
+  for (unsigned int i = 0; i < num_groups; i++) {
+    for (unsigned int j = 0; j < input_bits; j++) {
+      const unsigned int idx = i * input_bits + j;
+      store.eval(idx, i, values[i * input_bits + j]);
+    }
+    // if (party == ALICE) {
+    //   std::cout << "inv " << i << ":\n";
+    //   store.print_inv(i);
+    // }
+  }
+
+  // Set up bucket values according to values
+  fmpz_t* bucket0; new_fmpz_array(&bucket0, num_hashes);
+  fmpz_t* bucket1; new_fmpz_array(&bucket1, num_hashes);
+
+  fmpz_t tmp; fmpz_init(tmp);
+  fmpz_t tmp2; fmpz_init(tmp2);
+  for (unsigned int i = 0; i < num_hashes; i++) {
+    fmpz_randm(tmp, seed, Int_Modulus);
+    fmpz_randm(tmp2, seed, Int_Modulus);
+    if (party == ALICE) {
+      fmpz_set(bucket0[i], tmp);
+      fmpz_set(bucket1[i], tmp2);
+    } else {
+      // Actual
+      int b0 = (i+1) * ((i/2)%2 ? 1 : -1);
+      int b1 = (i+1) * ((i/2)%2 ? 1 : -1);
+      (fmpz_is_one(values[i]) ? b1 : b0) *= 2;
+      fmpz_set_si(bucket0[i], b0);
+      fmpz_set_si(bucket1[i], b1);
+      fmpz_mod(bucket0[i], bucket0[i], Int_Modulus);
+      fmpz_mod(bucket1[i], bucket1[i], Int_Modulus);
+      // Share adjust
+      fmpz_mod_sub(bucket0[i], bucket0[i], tmp, mod_ctx);
+      fmpz_mod_sub(bucket1[i], bucket1[i], tmp2, mod_ctx);
+    }
+  }
+  clear_fmpz_array(values, num_hashes);
+  fmpz_clear(tmp);
+  fmpz_clear(tmp2);
+
+  HeavyExtract eval(party, store);
+
+  eval.set_buckets(bucket0, bucket1);
+  // eval.print_buckets();
+
+  eval.bucket_compare();
+  // eval.print_cmp();
+
+  eval.extract_candidates();
+  eval.print_candidates();
+
+  clear_fmpz_array(bucket0, num_hashes);
+  clear_fmpz_array(bucket1, num_hashes);
+}
+
 void run(int party, int port) {
   init_constants();
   // Fork. Party 1, 2. same port. Not using sockets
@@ -327,12 +449,16 @@ void run(int party, int port) {
   /* EvalHeavy specific */
   // test_hash(party, hash_seed);
   test_full(party, hash_seed);
+
+  // test_bucket_compare(party, hash_seed);
+  test_extract(party, hash_seed);
+
   io->flush();
 
   std::cout << "Mult gates: " << CircuitExecution::circ_exec->num_and()<<endl;
 
   finalize_semi_honest();  // just deletes things
-  delete io;
+  // delete io;  // gets deleted with ot0
   delete ot0;
   delete ot1;
   clear_constants();

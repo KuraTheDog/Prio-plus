@@ -181,6 +181,7 @@ void HashStoreBit::solve_shares(const unsigned int group_num,
   // Coeff * X = values -> X = coeff^-1 * values
   // TODO: better modulus, e.g. if values is shared (int modulus)
   fmpz_mod_mat_t V; fmpz_mod_mat_init(V, dim, 1, output_range);
+  // TODO: X's range should be input? But mod alignment weird.
   fmpz_mod_mat_t X; fmpz_mod_mat_init(X, dim, 1, output_range);
 
   for (unsigned int i = 0; i < dim; i++) {

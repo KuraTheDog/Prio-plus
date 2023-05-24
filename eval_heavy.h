@@ -93,16 +93,6 @@ struct HeavyEval {
   , share_bits(nbits_mod + 1)
   , freq_bits(LOG2(total_count) + 1)
   {
-    std::cout << "HeavyEval params: \n";
-    std::cout << "\t Party: " << party << std::endl;
-    std::cout << "\t num hashes: " << num_hashes << std::endl;
-    std::cout << "\t hash range: " << hash_range << std::endl;
-    std::cout << "\t total_count: " << total_count << std::endl;
-    std::cout << "\t input bits+1: " << input_bits << std::endl;
-    std::cout << "\t share bits+1: " << share_bits << std::endl;
-    std::cout << "\t freq bits+1: " << freq_bits << std::endl;
-    std::cout << "\t hash range bits+1: " << hash_range_bits << std::endl;
-
     if (hash_range_bits > input_bits) {
       std::cout << "WARNING: hash range > input range. Count-min not needed. ";
       std::cout << "Behavior will be unreliable" << std::endl;
@@ -164,9 +154,97 @@ struct HeavyEval {
 
   void return_top_K(const size_t K, uint64_t* const topValues, uint64_t* const topFreqs);
 
+  void print_params() const {
+    std::cout << "HeavyEval params: \n";
+    std::cout << "\t Party: " << party << std::endl;
+    std::cout << "\t num hashes: " << num_hashes << std::endl;
+    std::cout << "\t hash range: " << hash_range << std::endl;
+    std::cout << "\t total_count: " << total_count << std::endl;
+    std::cout << "\t input bits+1: " << input_bits << std::endl;
+    std::cout << "\t share bits+1: " << share_bits << std::endl;
+    std::cout << "\t freq bits+1: " << freq_bits << std::endl;
+    std::cout << "\t hash range bits+1: " << hash_range_bits << std::endl;
+  }
   /* DEBUG ONLY */
   void print_countmin() const;
   void print_values() const;
+};
+
+/*
+Get values (candidates) out of SingleHeavy buckets
+*/
+struct HeavyExtract {
+  const int party;
+
+  const HashStoreBit& store;
+
+  const size_t input_bits;  // for loops, etc
+
+  // for Integer modulus
+  // +1 since Integers can be signed
+  const size_t value_bits;
+  // Initial shares, modulo big modulus
+  const size_t share_bits;
+  // Because bucket can have negative value, need full share_bits too
+
+  const size_t num_buckets;  // = num_hashes
+  const size_t num_values;   // num candidates
+
+  Integer mod;
+  Integer* bucket0;
+  Integer* bucket1;
+  Bit* cmp;
+  Integer* candidates;
+
+  HeavyExtract(const int party, const HashStoreBit& store)
+  : party(party)
+  , store(store)
+  , input_bits(store.get_input_bits())
+  , value_bits(input_bits + 1)
+  , share_bits(nbits_mod + 1)
+  // , bucket_bits(LOG2(total_count) + 1)
+  , num_buckets(store.get_num_hashes())
+  , num_values(store.get_num_groups())
+  {
+    mod = Integer(share_bits, fmpz_get_ui(Int_Modulus));
+    bucket0 = new Integer[num_buckets];
+    bucket1 = new Integer[num_buckets];
+    cmp = new Bit[num_buckets];
+    candidates = new Integer[num_values];
+  };
+
+  ~HeavyExtract() {
+    delete[] bucket0;
+    delete[] bucket1;
+    delete[] cmp;
+    delete[] candidates;
+  };
+
+  void set_bucket(const int idx, const fmpz_t* const bucket);
+  void set_buckets(const fmpz_t* const bucket0, const fmpz_t* const bucket1) {
+    set_bucket(0, bucket0);
+    set_bucket(1, bucket1);
+  }
+
+  // cmp[i] = abs(bucket0[i]) < abs(bucket1[i])
+  void bucket_compare();
+  // Uses hash inverses on bucket compare values to build candidates
+  void extract_candidates();
+  Integer* get_candidates() { return candidates; };
+
+  void print_params() const {
+    std::cout << "HeavyExtract params: \n";
+    std::cout << "\t input_bits: " << input_bits << "\n";
+    std::cout << "\t value_bits (+1): " << value_bits << "\n";
+    std::cout << "\t share_bits (+1): " << share_bits << "\n";
+    std::cout << "\t num_buckets: " << num_buckets << "\n";
+    std::cout << "\t num_values: " << num_values << std::endl;
+  }
+
+  /* DEBUG ONLY */
+  void print_buckets() const;
+  void print_cmp() const;
+  void print_candidates() const;
 };
 
 #endif

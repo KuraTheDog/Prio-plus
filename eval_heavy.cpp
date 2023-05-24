@@ -175,3 +175,85 @@ void HeavyEval::print_values() const {
     std::cout << std::endl;
   }
 }
+
+void HeavyExtract::set_bucket(const int idx, const fmpz_t* const bucket) {
+  Integer* target = idx ? bucket1 : bucket0;
+
+  for (unsigned int i = 0; i < num_buckets; i++) {
+    uint64_t val = fmpz_get_ui(bucket[i]);
+    Integer a(share_bits, party == ALICE ? val : 0, ALICE);
+    Integer b(share_bits, party == BOB ? val : 0, BOB);
+    // Since > N/2 is negative, subtract out mod to shift it
+    target[i] = (a + b) % mod;
+    // No resize, since negatives.
+  }
+}
+
+void HeavyExtract::bucket_compare() {
+  // Absolute value:
+  // If x < mod/2, then x (positive)
+  // If x > mod/2, then "-x" -> abs(x - mod) = -(x-mod) = mod - x
+  Integer mod_half(share_bits, fmpz_get_ui(Int_Modulus)/2, PUBLIC);
+
+  for (unsigned int i = 0; i < num_buckets; i++) {
+    Integer abs0 = If(bucket0[i] < mod_half, bucket0[i], mod - bucket0[i]);
+    Integer abs1 = If(bucket1[i] < mod_half, bucket1[i], mod - bucket1[i]);
+    cmp[i] = abs0 < abs1;
+  }
+}
+
+void HeavyExtract::extract_candidates() {
+  Integer zero(value_bits, 0, PUBLIC);
+  Integer two(value_bits, 2, PUBLIC);
+  for (unsigned int i = 0; i < num_values; i++) {
+    // if (party == ALICE) std::cout << "value idx: " << i << std::endl;
+    Integer value(value_bits, 0, PUBLIC);
+    for (unsigned int j = 0; j < input_bits; j++) {
+      // if (party == ALICE) std::cout << " vec idx: " << j << std::endl;
+      Integer vec(value_bits, 0, PUBLIC);
+      // const size_t idx = i * input_bits + j;
+      for (unsigned int k = 0; k < input_bits; k++) {
+        // bool b = cmp[i * input_bits + k].reveal<bool>();
+        // if (party == ALICE) std::cout << "   vec[" << k << "] = coeff " << store.get_inv_coeff(i, j, k) << " * cmp " << b << std::endl;
+        Integer coeff(value_bits, store.get_inv_coeff(i, j, k), PUBLIC);
+        // vec = Multiply Coeff^-1 * bit, which can be just conditional adds
+        vec = If(cmp[i * input_bits + k], vec + coeff, vec);
+      }
+      // Then, use vec mod 2 as ith bit of candidates (times 2^j)
+      Integer pow(value_bits, 1ULL<<j, PUBLIC);
+      value = If(vec % two == zero, value, value + pow);
+    }
+    candidates[i] = value;
+  }
+}
+
+void HeavyExtract::print_buckets() const {
+  int64_t m = fmpz_get_ui(Int_Modulus);
+  for (unsigned int i = 0; i < num_buckets; i++) {
+    int64_t x0 = bucket0[i].reveal<int64_t>();
+    int64_t x1 = bucket1[i].reveal<int64_t>();
+    x0 -= x0 < m/2 ? 0 : m;
+    x1 -= x1 < m/2 ? 0 : m;
+    std::cout << "buckets[" << i << "] = " << x0 << " vs " << x1 << std::endl;
+  }
+}
+
+void HeavyExtract::print_cmp() const {
+  int64_t m = fmpz_get_ui(Int_Modulus);
+  for (unsigned int i = 0; i < num_buckets; i++) {
+    int64_t x0 = bucket0[i].reveal<int64_t>();
+    int64_t x1 = bucket1[i].reveal<int64_t>();
+    x0 -= x0 < m/2 ? 0 : m;
+    x1 -= x1 < m/2 ? 0 : m;
+    bool l = cmp[i].reveal<bool>();
+    std::cout << "buckets[" << i << "] = |" << x0 << "| ";
+    std::cout << (l ? "<":">") << " |" << x1 << "|" << std::endl;
+  }
+}
+
+void HeavyExtract::print_candidates() const {
+  for (unsigned int i = 0; i < num_values; i++) {
+    int64_t x = candidates[i].reveal<int64_t>();
+    std::cout << "Candidate " << i << " = " << x << std::endl;
+  }
+}
