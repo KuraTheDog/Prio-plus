@@ -238,6 +238,7 @@ void test_full(int party, flint_rand_t hash_seed) {
 
   // Create struct
   HeavyEval heavy_eval(party, count_min, total_count);
+  // heavy_eval.print_params();
 
   // Step 1: de-share count-min
   heavy_eval.parse_countmin();
@@ -286,7 +287,7 @@ void test_bucket_compare(int party, flint_rand_t hash_seed) {
   const size_t num_groups = 2;  // < 2^input bits
   const size_t num_hashes = input_bits * num_groups;
 
-  HashStoreBit store(num_hashes, input_bits, output_range, hash_seed, depth);
+  HashStoreBit store(num_groups, depth, input_bits, output_range, hash_seed);
 
   fmpz_t* bucket0; new_fmpz_array(&bucket0, num_hashes);
   fmpz_t* bucket1; new_fmpz_array(&bucket1, num_hashes);
@@ -336,7 +337,7 @@ void test_extract(int party, flint_rand_t hash_seed) {
   const size_t num_groups = 4;  // < 2^input bits
   const size_t num_hashes = input_bits * num_groups;
 
-  HashStoreBit store(num_hashes, input_bits, output_range, hash_seed, depth);
+  HashStoreBit store(num_groups, depth, input_bits, output_range, hash_seed);
   // if (party == ALICE) {
   //   std::cout << "coeff:\n";
   //   store.print_coeff();

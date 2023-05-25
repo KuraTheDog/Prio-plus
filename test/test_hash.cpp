@@ -70,11 +70,10 @@ void test_inverse(size_t group_size) {
     fmpz_randbits(tmp, hash_seed, 1);
   fmpz_clear(tmp);
 
-  const size_t num_groups = 3;  // < 2^input bits
-  const size_t num_hashes = group_size * num_groups;
+  const size_t num_groups = 3;  // < 2^input bits, for testing
 
   std::cout << "testing inverse with group size = " << group_size << std::endl;
-  HashStoreBit store(num_hashes, input_bits, output_range, hash_seed, group_size);
+  HashStoreBit store(num_groups, group_size, input_bits, output_range, hash_seed);
 
   // std::cout << "Coeff matrix: " << std::endl;
   // store.print_coeff();

@@ -93,28 +93,9 @@ void HashStorePoly::print_hash(const unsigned int i) const {
   std::cout << std::endl;
 }
 
-HashStoreBit::HashStoreBit(
-    const size_t num_hashes, const size_t input_bits, const size_t hash_range,
-    flint_rand_t hash_seed_arg, const size_t group_size_arg, const bool is_solving)
-: HashStore(num_hashes, input_bits, hash_range, hash_seed_arg)
-, group_size(group_size_arg ? group_size_arg : input_bits)
-, num_groups(num_hashes / group_size)
-, is_solving(is_solving)
-, inconsistency_solving(group_size > input_bits)
-, dim(input_bits + ((int) inconsistency_solving))
-{
-  // std::cout << (inconsistency_solving ? "" : "not ") << "inconsistency_solving" << std::endl;
-  // std::cout << "  Bit store: " << num_groups << " groups of size " << group_size << ", ";
-  // std::cout << "  dim : " << dim << ", validate: " << group_size - dim << std::endl;
-
-  if (num_hashes < group_size or num_hashes % group_size != 0) {
-    std::cout << "Warning: Can't evenly split " << num_hashes << " hashes into size " << group_size << " groups." << std::endl;
-  }
-  if (group_size < dim) {
-    std::cout << "Warning: Group size " << group_size << " smaller than input dim " << dim << " groups." << std::endl;
-  }
-
+void HashStoreBit::build_coefficients() {
   fmpz_mod_mat_init(coeff, num_hashes, dim, output_range);
+
   // Random for all/extra outside of main solvable square
   fmpz_mod_mat_randtest(coeff, hash_seed);
 

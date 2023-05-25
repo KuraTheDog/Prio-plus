@@ -96,11 +96,11 @@ public:
 class HashStoreBit : public HashStore {
 protected:
   // How big groups of hashes are that are all on the same value, for solving.
-  // This should divide into num_hashes.
-  // I.e. there num_groups groups of group_size hashes, evaled on a value
-  //   totaling to num_hashes.
-  const size_t group_size;
+  // group size * num_groups gives num_hashes
+  // group size should be >= input bits
+  // If and only if it's equal, then no inconsistnecy solving
   const size_t num_groups;
+  const size_t group_size;
 
   // If false, doesn't precompute inverses, faster but then can't solve.
   // Usefor for clients just evaluating on hash
@@ -117,11 +117,26 @@ protected:
 
 public:
 
-  // Default group size 0 -> input_bits, no inconsitency
   HashStoreBit(
-      const size_t num_hashes, const size_t input_bits, const size_t hash_range,
-      flint_rand_t hash_seed_arg, const size_t group_size_arg = 0,
-      const bool is_solving = true);
+    const size_t num_groups, const size_t group_size, const size_t input_bits,
+    const size_t hash_range, flint_rand_t hash_seed_arg, const bool is_solving = true)
+  : HashStore(num_groups * group_size, input_bits, hash_range, hash_seed_arg)
+  , num_groups(num_groups)
+  , group_size(group_size)
+  , is_solving(is_solving)
+  , inconsistency_solving(group_size > input_bits)
+  , dim(input_bits + ((int) inconsistency_solving))
+  {
+    // std::cout << (inconsistency_solving ? "" : "not ") << "inconsistency_solving" << std::endl;
+    // std::cout << "  Bit store: " << num_groups << " groups of size " << group_size << ", ";
+    // std::cout << "  dim : " << dim << ", validate: " << group_size - dim << std::endl;
+
+    if (group_size < input_bits) {
+      std::cout << "Warning: Group size " << group_size << " smaller than input bits " << input_bits << std::endl;
+    }
+
+    build_coefficients();
+  }
 
   ~HashStoreBit() {
     fmpz_mod_mat_clear(coeff);
@@ -133,6 +148,7 @@ public:
     }
   };
 
+  void build_coefficients();
   void eval(const unsigned int i, const uint64_t x, fmpz_t out) const;
   void print_hash(const unsigned int i) const;
   void print_coeff() const { fmpz_mod_mat_print_pretty(coeff); }
