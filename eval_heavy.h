@@ -188,8 +188,13 @@ struct HeavyExtract {
   const size_t share_bits;
   // Because bucket can have negative value, need full share_bits too
 
-  const size_t num_buckets;  // = num_hashes
-  const size_t num_values;   // num candidates
+  // Q * D hashes
+  // Q * B * D total buckets
+  // Groups of D buckets make value
+  // for Q * B values
+  const size_t Q;  // num groups
+  const size_t B;  // num replications
+  const size_t D;  // depth
 
   Integer mod;
   Integer* bucket0;
@@ -197,21 +202,23 @@ struct HeavyExtract {
   Bit* cmp;
   Integer* candidates;
 
-  HeavyExtract(const int party, const HashStoreBit& store)
+  HeavyExtract(const int party, const HashStoreBit& store, 
+      const size_t Q, const size_t B, const size_t D)
   : party(party)
   , store(store)
   , input_bits(store.get_input_bits())
   , value_bits(input_bits + 1)
   , share_bits(nbits_mod + 1)
   // , bucket_bits(LOG2(total_count) + 1)
-  , num_buckets(store.get_num_hashes())
-  , num_values(store.get_num_groups())
+  , Q(Q)
+  , B(B)
+  , D(D)
   {
     mod = Integer(share_bits, fmpz_get_ui(Int_Modulus));
-    bucket0 = new Integer[num_buckets];
-    bucket1 = new Integer[num_buckets];
-    cmp = new Bit[num_buckets];
-    candidates = new Integer[num_values];
+    bucket0 = new Integer[Q * B * D];
+    bucket1 = new Integer[Q * B * D];
+    cmp = new Bit[Q * B * D];
+    candidates = new Integer[Q * B];
   };
 
   ~HeavyExtract() {
@@ -226,7 +233,6 @@ struct HeavyExtract {
     set_bucket(0, bucket0);
     set_bucket(1, bucket1);
   }
-
   // cmp[i] = abs(bucket0[i]) < abs(bucket1[i])
   void bucket_compare();
   // Uses hash inverses on bucket compare values to build candidates
@@ -237,9 +243,7 @@ struct HeavyExtract {
     std::cout << "HeavyExtract params: \n";
     std::cout << "\t input_bits: " << input_bits << "\n";
     std::cout << "\t value_bits (+1): " << value_bits << "\n";
-    std::cout << "\t share_bits (+1): " << share_bits << "\n";
-    std::cout << "\t num_buckets: " << num_buckets << "\n";
-    std::cout << "\t num_values: " << num_values << std::endl;
+    std::cout << "\t share_bits (+1): " << share_bits << std::endl;
   }
 
   /* DEBUG ONLY */
@@ -247,5 +251,18 @@ struct HeavyExtract {
   void print_cmp() const;
   void print_candidates() const;
 };
+
+void full_heavy_extract(
+    const int server_num,
+    const MultiHeavyConfig cfg,
+    const fmpz_t* const bucket0,
+    const fmpz_t* const bucket1,
+    flint_rand_t hash_seed_split,
+    flint_rand_t hash_seed_count,
+    fmpz_t* const countmin_shares,
+    const size_t num_inputs,
+    uint64_t* top_values,
+    uint64_t* top_freqs
+  );
 
 #endif

@@ -72,7 +72,7 @@ struct MultiHeavyConfig {
   , Q(LOG2(delta_inv))
   , B(ceil(K * ln2_inv))
   , num_bits(num_bits)
-  , SH_depth(num_bits + 1)
+  , SH_depth(num_bits /*+ 1*/)  // TODO: re-introduce constant term
   , countmin_cfg(CountMinConfig(delta, eps ? eps : delta))
   {}
 

@@ -284,8 +284,9 @@ void test_bucket_compare(int party, flint_rand_t hash_seed) {
   const size_t output_range = 2;  // must be 2
   const size_t depth = input_bits;
 
-  const size_t num_groups = 2;  // < 2^input bits
-  const size_t num_hashes = input_bits * num_groups;
+  const size_t num_groups = 4;  // < 2^input bits
+  const size_t num_copies = 2;
+  const size_t num_hashes = input_bits * num_copies * num_groups;
 
   HashStoreBit store(num_groups, depth, input_bits, output_range, hash_seed);
 
@@ -315,7 +316,7 @@ void test_bucket_compare(int party, flint_rand_t hash_seed) {
     }
   }
 
-  HeavyExtract eval(party, store);
+  HeavyExtract eval(party, store, num_groups, num_copies, depth);
 
   eval.set_buckets(bucket0, bucket1);
   // eval.print_buckets();
@@ -335,7 +336,8 @@ void test_extract(int party, flint_rand_t hash_seed) {
   const size_t depth = input_bits;
 
   const size_t num_groups = 4;  // < 2^input bits
-  const size_t num_hashes = input_bits * num_groups;
+  const size_t num_copies = 2;
+  const size_t num_hashes = input_bits * num_copies * num_groups;
 
   HashStoreBit store(num_groups, depth, input_bits, output_range, hash_seed);
   // if (party == ALICE) {
@@ -344,11 +346,17 @@ void test_extract(int party, flint_rand_t hash_seed) {
   // }
 
   // figure out values
+  // For now, just replicate across copies, bits too small for split magic
   fmpz_t* values; new_fmpz_array(&values, num_hashes);
+  fmpz_t tmp; fmpz_init(tmp);
   for (unsigned int i = 0; i < num_groups; i++) {
-    for (unsigned int j = 0; j < input_bits; j++) {
-      const unsigned int idx = i * input_bits + j;
-      store.eval(idx, i, values[i * input_bits + j]);
+    for (unsigned int j = 0; j < depth; j++) {
+      store.eval(i * depth + j, i, tmp);
+      for (unsigned int k = 0; k < num_copies; k++) {
+        // Order group, copy, depth
+        const unsigned int idx = (i * num_copies + k) * depth + j;
+        fmpz_set(values[idx], tmp);
+      }
     }
     // if (party == ALICE) {
     //   std::cout << "inv " << i << ":\n";
@@ -360,7 +368,6 @@ void test_extract(int party, flint_rand_t hash_seed) {
   fmpz_t* bucket0; new_fmpz_array(&bucket0, num_hashes);
   fmpz_t* bucket1; new_fmpz_array(&bucket1, num_hashes);
 
-  fmpz_t tmp; fmpz_init(tmp);
   fmpz_t tmp2; fmpz_init(tmp2);
   for (unsigned int i = 0; i < num_hashes; i++) {
     fmpz_randm(tmp, seed, Int_Modulus);
@@ -386,7 +393,7 @@ void test_extract(int party, flint_rand_t hash_seed) {
   fmpz_clear(tmp);
   fmpz_clear(tmp2);
 
-  HeavyExtract eval(party, store);
+  HeavyExtract eval(party, store, num_groups, num_copies, depth);
 
   eval.set_buckets(bucket0, bucket1);
   // eval.print_buckets();

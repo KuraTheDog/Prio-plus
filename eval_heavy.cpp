@@ -87,6 +87,11 @@ void HeavyEval::zero_out_dupes() {
   but same amount of mult gates, so garbled circuit doesn't care much
   */
 
+  /*
+  TODO: this is incomplete. Sort needs a secondary sort by value, not just key
+  E.g. (1 freq 10, 2 freq 10, 1 freq 10) is not detected as a dupe.
+  */
+
   for (unsigned int i = 0; i < num_values - 1; i++) {
     Bit b = (values[i] == values[i+1]);
     values[i] = If(b, zero_value, values[i]);
@@ -97,7 +102,9 @@ void HeavyEval::zero_out_dupes() {
 void HeavyEval::sort_remove_dupes() {
   if (!frequencies) error_exit("frequencies not set");
   sort(frequencies, num_values, values);
+  // std::cout << "sorted values: " << std::endl; print_values();
   zero_out_dupes();
+  // std::cout << "sorted values, dupes zeroed out: " << std::endl; print_values();
   sort(frequencies, num_values, values);
 }
 
@@ -182,7 +189,7 @@ void HeavyEval::print_values() const {
 void HeavyExtract::set_bucket(const int idx, const fmpz_t* const bucket) {
   Integer* target = idx ? bucket1 : bucket0;
 
-  for (unsigned int i = 0; i < num_buckets; i++) {
+  for (unsigned int i = 0; i < Q * B * D; i++) {
     uint64_t val = fmpz_get_ui(bucket[i]);
     Integer a(share_bits, party == ALICE ? val : 0, ALICE);
     Integer b(share_bits, party == BOB ? val : 0, BOB);
@@ -198,7 +205,7 @@ void HeavyExtract::bucket_compare() {
   // If x > mod/2, then "-x" -> abs(x - mod) = -(x-mod) = mod - x
   Integer mod_half(share_bits, fmpz_get_ui(Int_Modulus)/2, PUBLIC);
 
-  for (unsigned int i = 0; i < num_buckets; i++) {
+  for (unsigned int i = 0; i < Q * B * D; i++) {
     Integer abs0 = If(bucket0[i] < mod_half, bucket0[i], mod - bucket0[i]);
     Integer abs1 = If(bucket1[i] < mod_half, bucket1[i], mod - bucket1[i]);
     cmp[i] = abs0 < abs1;
@@ -207,32 +214,35 @@ void HeavyExtract::bucket_compare() {
 
 void HeavyExtract::extract_candidates() {
   Integer zero(value_bits, 0, PUBLIC);
+  Integer one(value_bits, 1, PUBLIC);
   Integer two(value_bits, 2, PUBLIC);
-  for (unsigned int i = 0; i < num_values; i++) {
-    // if (party == ALICE) std::cout << "value idx: " << i << std::endl;
-    Integer value(value_bits, 0, PUBLIC);
-    for (unsigned int j = 0; j < input_bits; j++) {
-      // if (party == ALICE) std::cout << " vec idx: " << j << std::endl;
-      Integer vec(value_bits, 0, PUBLIC);
-      // const size_t idx = i * input_bits + j;
-      for (unsigned int k = 0; k < input_bits; k++) {
-        // bool b = cmp[i * input_bits + k].reveal<bool>();
-        // if (party == ALICE) std::cout << "   vec[" << k << "] = coeff " << store.get_inv_coeff(i, j, k) << " * cmp " << b << std::endl;
-        Integer coeff(value_bits, store.get_inv_coeff(i, j, k), PUBLIC);
-        // vec = Multiply Coeff^-1 * bit, which can be just conditional adds
-        vec = If(cmp[i * input_bits + k], vec + coeff, vec);
+
+  for (unsigned int q = 0; q < Q; q++) {
+    for (unsigned int b = 0; b < B; b++) {
+      const unsigned int val_idx = q * B + b;
+      Integer value(value_bits, 0, PUBLIC);
+      for (unsigned int d = 0; d < D; d++) {
+        Integer vec(value_bits, 0, PUBLIC);
+        for (unsigned int col = 0; col < input_bits; col++) {
+          const unsigned int cmp_idx = val_idx * D + col;
+          // Coeffs are 0 or 1, and fixed
+          // So we can reduce circuit size by conditional on coeff
+          if (store.get_inv_coeff(q, d, col) == 1) {
+            vec = If(cmp[cmp_idx], vec + one, vec);
+          }
+        }
+        // Can store for reuse, but probably fine
+        Integer pow(value_bits, 1ULL << d, PUBLIC);
+        value = If(vec % two == zero, value, value + pow);
       }
-      // Then, use vec mod 2 as ith bit of candidates (times 2^j)
-      Integer pow(value_bits, 1ULL<<j, PUBLIC);
-      value = If(vec % two == zero, value, value + pow);
+      candidates[val_idx] = value;;
     }
-    candidates[i] = value;
   }
 }
 
 void HeavyExtract::print_buckets() const {
   int64_t m = fmpz_get_ui(Int_Modulus);
-  for (unsigned int i = 0; i < num_buckets; i++) {
+  for (unsigned int i = 0; i < Q * B * D; i++) {
     int64_t x0 = bucket0[i].reveal<int64_t>();
     int64_t x1 = bucket1[i].reveal<int64_t>();
     x0 -= x0 < m/2 ? 0 : m;
@@ -243,7 +253,7 @@ void HeavyExtract::print_buckets() const {
 
 void HeavyExtract::print_cmp() const {
   int64_t m = fmpz_get_ui(Int_Modulus);
-  for (unsigned int i = 0; i < num_buckets; i++) {
+  for (unsigned int i = 0; i < Q * B * D; i++) {
     int64_t x0 = bucket0[i].reveal<int64_t>();
     int64_t x1 = bucket1[i].reveal<int64_t>();
     x0 -= x0 < m/2 ? 0 : m;
@@ -255,8 +265,57 @@ void HeavyExtract::print_cmp() const {
 }
 
 void HeavyExtract::print_candidates() const {
-  for (unsigned int i = 0; i < num_values; i++) {
+  for (unsigned int i = 0; i < Q * B; i++) {
     int64_t x = candidates[i].reveal<int64_t>();
     std::cout << "Candidate " << i << " = " << x << std::endl;
   }
+}
+
+void full_heavy_extract(
+    const int server_num,
+    const MultiHeavyConfig cfg,
+    const fmpz_t* const bucket0,
+    const fmpz_t* const bucket1,
+    flint_rand_t hash_seed_split,
+    flint_rand_t hash_seed_count,
+    fmpz_t* const countmin_shares,
+    const size_t num_inputs,
+    uint64_t* top_values,
+    uint64_t* top_freqs
+  ) {
+  const int party = server_num + 1;
+
+  HashStoreBit hash_split(cfg.Q, cfg.SH_depth, cfg.num_bits, 2, hash_seed_split);
+
+  HeavyExtract ex(party, hash_split, cfg.Q, cfg.B, cfg.SH_depth);
+  // ex.print_params();
+  
+  ex.set_buckets(bucket0, bucket1);
+  // std::cout << "buckets: " << std::endl; ex.print_buckets()
+  
+  ex.bucket_compare();
+  // std::cout << "compare: " << std::endl; ex.print_cmp();
+  
+  ex.extract_candidates();
+  // std::cout << "candidates: " << std::endl; ex.print_candidates();
+
+  CountMin count_min(cfg.countmin_cfg);
+  count_min.setStore(cfg.num_bits, hash_seed_count);
+  count_min.counts = countmin_shares;
+  // count_min.print();
+
+  HeavyEval ev(party, count_min, num_inputs);
+  // ev.print_params();
+
+  ev.parse_countmin();
+  // std::cout << "countmin: " << std::endl; ev.print_countmin();
+
+  ev.set_values(ex.get_candidates(), cfg.Q * cfg.B);
+  // std::cout << "set values: " << std::endl; ev.print_values();
+
+  ev.get_frequencies();
+  // std::cout << "values and freqs: " << std::endl; ev.print_values();
+  ev.sort_remove_dupes();
+  // std::cout << "values and freqs, sort deduped: " << std::endl; ev.print_values();
+  ev.return_top_K(cfg.K, top_values, top_freqs);
 }
