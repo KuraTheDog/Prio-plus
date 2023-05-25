@@ -104,11 +104,13 @@ void HeavyEval::sort_remove_dupes() {
 void HeavyEval::set_values(Integer* const inputs, const size_t num) {
   num_values = num;
   values = inputs;
+  values_is_new = false;
 }
 
 void HeavyEval::set_values(const fmpz_t* const input_shares, const size_t num) {
   num_values = num;
   values = new Integer[num_values];
+  values_is_new = true;
 
   for (unsigned int i = 0; i < num_values; i++) {
     uint64_t val = fmpz_get_ui(input_shares[i]);
@@ -123,6 +125,7 @@ void HeavyEval::set_values(const fmpz_t* const input_shares, const size_t num) {
 void HeavyEval::set_values(const uint64_t* const input_shares, const size_t num) {
   num_values = num;
   values = new Integer[num_values];
+  values_is_new = true;
 
   for (unsigned int i = 0; i < num_values; i++) {
     uint64_t val = input_shares[i];
@@ -170,7 +173,7 @@ void HeavyEval::print_values() const {
   for (unsigned int i = 0; i < num_values; i++) {
     uint64_t v = values[i].reveal<uint64_t>();
     uint64_t f = frequencies ? frequencies[i].reveal<uint64_t>() : 0;
-    std::cout << "Value: " << v;
+    std::cout << "Value " << i+1 << " / " << num_values << ": " << v;
     if (frequencies) std::cout << ", freq: " << f;
     std::cout << std::endl;
   }

@@ -78,10 +78,11 @@ struct HeavyEval {
   size_t num_values;
   // Sized input_bits
   Integer* values = nullptr;
+  bool values_is_new = true;  // if values is Integer[] from elsewhere, don't double delete
   // Sized freq_bits
   Integer* frequencies = nullptr;
 
-  HeavyEval(const int party, CountMin& count_min, const size_t total_count)
+  HeavyEval(const int party, const CountMin& count_min, const size_t total_count)
   : party(party)
   , count_min(count_min)
   , store((HashStorePoly*) count_min.store)
@@ -103,7 +104,7 @@ struct HeavyEval {
 
   ~HeavyEval() {
     delete[] countmin_values;
-    delete[] values;
+    if (values_is_new) delete[] values;
     delete[] frequencies;
   };
 
@@ -230,7 +231,7 @@ struct HeavyExtract {
   void bucket_compare();
   // Uses hash inverses on bucket compare values to build candidates
   void extract_candidates();
-  Integer* get_candidates() { return candidates; };
+  Integer* get_candidates() const { return candidates; };
 
   void print_params() const {
     std::cout << "HeavyExtract params: \n";
