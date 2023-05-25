@@ -1714,17 +1714,11 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     const size_t share_size_mask = cfg.Q * cfg.B;
     // Count-min
     const size_t share_size_count = cfg.countmin_cfg.d * cfg.countmin_cfg.w;
+    // SingleHeavy bucket pairs
     const size_t num_sh = cfg.Q * cfg.B * cfg.SH_depth;
+    // Size of a single client share
     const size_t single_share_size = (share_size_sh + share_size_count + share_size_mask);
-    // Which of the B SH instances it gets classified as
-    HashStorePoly hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
-    // Split: each SH breakdown into the pairs, bucket 0 or 1. (original was by bits)
-    // Base Q*B*depth, but can repeat across B. Invertible
-    HashStoreBit hash_split(cfg.Q, cfg.SH_depth, num_bits, 2, hash_seed_split);
-    // SingleHeavy +-1 values. 4-wize independent
-    // Base Q*B*depth, but can repeat across B
-    HashStorePoly hash_value(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_value, 4);
-    // SH storage: Q instances of B SH, each SH_depth large.
+
     fmpz_t* bucket0; new_fmpz_array(&bucket0, num_sh);
     fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);
 
@@ -1893,7 +1887,6 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
             shares_sh_x, &shares_p[share_y_offset], shares_mask,
             valid, bucket0, bucket1);
         clear_fmpz_array(shares_p, num_inputs * (share_size_count + share_size_mask));
-        delete[] valid;
         delete[] shares_sh_x;
         delete[] shares_mask;
         std::cout << "heavy_convert time: " << sec_from(start3) << std::endl;
@@ -1901,45 +1894,35 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "compute bytes sent: " << sent_bytes << std::endl;
 
-        // straightforward eval. TODO: abs_cmp.
         start2 = clock_start();
-        sent_bytes += send_fmpz_batch(serverfd, bucket0, num_sh);
-        sent_bytes += send_fmpz_batch(serverfd, bucket1, num_sh);
 
-        const size_t num_candidates = cfg.Q * cfg.B;
-        uint64_t candidates[num_candidates];
-        // "zero" shares as temp
-        memset(candidates, 0, sizeof(uint64_t) * num_candidates);
+        size_t num_valid = 0;
+        for (unsigned int i = 0; i < num_inputs; i++)
+            num_valid += valid[i];
+        std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+        delete[] valid;
+        if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
+            std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+            return RET_INVALID;
+        }
+
+        uint64_t* top_values = new uint64_t[K];
+        uint64_t* top_freqs = new uint64_t[K];
+
+        full_heavy_extract(server_num, cfg, bucket0, bucket1, hash_seed_split, hash_seed_count,
+                countmin_accum, num_inputs, top_values, top_freqs);
+        garbleIO->flush();
 
         clear_fmpz_array(bucket0, num_sh);
         clear_fmpz_array(bucket1, num_sh);
 
-        CountMin count_min(cfg.countmin_cfg);
-        count_min.setStore(num_bits, hash_seed_count);
-        count_min.counts = countmin_accum;
-        // count_min.print();
-
-        HeavyEval heavy_eval(server_num + 1, count_min, num_inputs);
-        heavy_eval.parse_countmin();
-        // heavy_eval.print_countmin();
-
-        heavy_eval.set_values(candidates, num_candidates);
-        // heavy_eval.print_values();
-        heavy_eval.get_frequencies();
-        heavy_eval.sort_remove_dupes();
-        uint64_t* top_values = new uint64_t[K];
-        uint64_t* top_freqs = new uint64_t[K];
         std::cout << "Top K = " << K << " values and freqs, decreasing\n";
-        heavy_eval.return_top_K(K, top_values, top_freqs);
         for (unsigned int i = 0; i < K; i++) {
           std::cout << "Value: " << top_values[i] << ", freq: " << top_freqs[i] << std::endl;
         }
 
-        garbleIO->flush();
-
         delete[] top_values;
         delete[] top_freqs;
-
 
         return RET_ANS;
     } else {
@@ -2062,13 +2045,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "compute bytes sent: " << sent_bytes << std::endl;
 
-        // Lazy eval. TODO: abs_cmp
         start2 = clock_start();
-
-        fmpz_t* bucket0_other; new_fmpz_array(&bucket0_other, num_sh);
-        fmpz_t* bucket1_other; new_fmpz_array(&bucket1_other, num_sh);
-        recv_fmpz_batch(serverfd, bucket0_other, num_sh);
-        recv_fmpz_batch(serverfd, bucket1_other, num_sh);
 
         size_t num_valid = 0;
         for (unsigned int i = 0; i < num_inputs; i++)
@@ -2080,80 +2057,25 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
             return RET_INVALID;
         }
 
-        fmpz_t* values; new_fmpz_array(&values, cfg.SH_depth);
-        fmpz_t b0; fmpz_init(b0);
-        fmpz_t b1; fmpz_init(b1);
-        const size_t num_candidates = cfg.Q * cfg.B;
-        uint64_t candidates[num_candidates];
-        for (unsigned int q = 0; q < cfg.Q; q++) {
-            for (unsigned int b = 0; b < cfg.B; b++) {
-                const size_t group_idx = q * cfg.B + b;
-                for (unsigned int d = 0; d < cfg.SH_depth; d++) {
-                    const size_t idx = group_idx * cfg.SH_depth + d;
-                    fmpz_mod_add(b0, bucket0[idx], bucket0_other[idx], mod_ctx);
-                    to_fsigned(b0, Int_Modulus);
-                    fmpz_mod_add(b1, bucket1[idx], bucket1_other[idx], mod_ctx);
-                    to_fsigned(b1, Int_Modulus);
-
-                    // If b0 + b1 < some threshold, then ignore?
-                    // Maybe e.g. b0 + b1 vs total / B (/ 2) ? (half of average?)
-                    // Or some absolute thing
-                    // Will be eliminated by large quantity, count-min, and validation anyways
-
-                    fmpz_set_ui(values[d], fmpz_cmpabs(b0, b1) < 0 ? 1 : 0);
-                    // std::cout << "Bucket[" << idx << "] (" << q << ", " << b << ", " << d << ") = ";
-                    // std::cout << get_fsigned(b0, Int_Modulus) << ", " << get_fsigned(b1, Int_Modulus);
-                    // std::cout << "  : cmp abs = " << fmpz_cmpabs(b0, b1);
-                    // std::cout << ", value = " << fmpz_get_si(values[d]) << "\n";
-                }
-                // TODO: no bad hashes
-                uint64_t ans;
-                int bad_hashes = hash_split.solve(q, values, ans);
-                // std::cout << "Candidate[" << q << ", " << b << "] = ";
-                // std::cout << ans << ", with " << bad_hashes << " invalid\n";
-                if (bad_hashes == 0) {
-                    // candidates.insert(ans);
-                    candidates[group_idx] = ans;
-                }
-                candidates[group_idx] = ans;
-            }
-        }
-        clear_fmpz_array(values, cfg.SH_depth);
-        clear_fmpz_array(bucket0, num_sh);
-        clear_fmpz_array(bucket1, num_sh);
-        clear_fmpz_array(bucket0_other, num_sh);
-        clear_fmpz_array(bucket1_other, num_sh);
-
-        // TODO: secure SH eval
-
-        CountMin count_min(cfg.countmin_cfg);
-        count_min.setStore(num_bits, hash_seed_count);
-        count_min.counts = countmin_accum;
-        // count_min.print();
-
-        HeavyEval heavy_eval(server_num + 1, count_min, num_inputs);
-        heavy_eval.parse_countmin();
-        // heavy_eval.print_countmin();
-
-        heavy_eval.set_values(candidates, num_candidates);
-        // heavy_eval.print_values();
-        heavy_eval.get_frequencies();
-        heavy_eval.sort_remove_dupes();
         uint64_t* top_values = new uint64_t[K];
         uint64_t* top_freqs = new uint64_t[K];
+
+        full_heavy_extract(server_num, cfg, bucket0, bucket1, hash_seed_split, hash_seed_count,
+                countmin_accum, num_inputs, top_values, top_freqs);
+        garbleIO->flush();
+
+        clear_fmpz_array(bucket0, num_sh);
+        clear_fmpz_array(bucket1, num_sh);
+
         std::cout << "Top K = " << K << " values and freqs, decreasing\n";
-        heavy_eval.return_top_K(K, top_values, top_freqs);
         for (unsigned int i = 0; i < K; i++) {
           std::cout << "Value: " << top_values[i] << ", freq: " << top_freqs[i] << std::endl;
         }
-
-        garbleIO->flush();
 
         delete[] top_values;
         delete[] top_freqs;
 
         std::cout << "eval time: " << sec_from(start2) << std::endl;
-
 
         return RET_ANS;
     }
