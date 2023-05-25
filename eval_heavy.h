@@ -11,8 +11,6 @@
 /*
 Uses MPC circuit to evaluate heavy
 Evaluates on Count-min
-
-TODO: bucket evaluation with cmp too
 */
 
 /*
@@ -54,6 +52,59 @@ return_top_K(size K, uint64_t* topValues, uint64_t* topFreqs)
   - does circuit reveal at this step
 */
 
+/* So that we can sort by (freq, value)
+  Comparison returns Bit, since that's what Integer does
+  And just needs geq, since that builds operators in template
+  Operators then to support sorting
+
+  So that same values are next to each other if there's shared frequency when sorting
+
+  Inherit  : public Swappable<IntegerPair>, Comparable<IntegerPair> ? 
+*/
+class IntegerPair{
+public: 
+  Integer x;
+  Integer y;
+
+  IntegerPair(){};
+
+  IntegerPair(Integer x, Integer y)
+  : x(x)
+  , y(y)
+  {};
+
+  IntegerPair(const IntegerPair& other) {
+    x = other.x;
+    y = other.y;
+  }
+
+  inline Bit operator>(const IntegerPair & rhs) const {
+    return (x > rhs.x) | ((x == rhs.x) & (y > rhs.y));
+  };
+
+  inline IntegerPair operator^=(const IntegerPair& rhs) {
+    x ^= rhs.x;
+    y ^= rhs.y;
+    return (*this);
+  };
+
+  inline IntegerPair select(const Bit& sel, const IntegerPair& a) const {
+    IntegerPair res(*this);
+    res.x = x.select(sel, a.x);
+    res.y = y.select(sel, a.y);
+    return res;
+  }
+
+  inline IntegerPair If(const Bit & sel, const IntegerPair& rhs) const {
+    return this->select(sel, rhs);
+  }
+
+};
+inline IntegerPair If(const Bit & sel, const IntegerPair& a, const IntegerPair& b) {
+  IntegerPair res = b;
+  return b.If(sel, a);
+};
+
 struct HeavyEval {
   const int party;
 
@@ -79,8 +130,9 @@ struct HeavyEval {
   // Sized input_bits
   Integer* values = nullptr;
   bool values_is_new = true;  // if values is Integer[] from elsewhere, don't double delete
-  // Sized freq_bits
-  Integer* frequencies = nullptr;
+  // Frequencies are Sized freq_bits
+  // Tuple <freq, val> for sorting purposes
+  IntegerPair* freq_and_vals = nullptr;
 
   HeavyEval(const int party, const CountMin& count_min, const size_t total_count)
   : party(party)
@@ -105,7 +157,7 @@ struct HeavyEval {
   ~HeavyEval() {
     delete[] countmin_values;
     if (values_is_new) delete[] values;
-    delete[] frequencies;
+    delete[] freq_and_vals;
   };
 
   /*

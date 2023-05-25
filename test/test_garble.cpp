@@ -198,11 +198,11 @@ void test_full(int party, flint_rand_t hash_seed) {
   count_min.setStore(input_bits, hash_seed);
 
   // Phase 0.1: Populate count-min
-  int vals[3] = {1, 2, 3};
-  unsigned int counts[3] = {1, 6, 3};
+  const size_t num_diff_vals = 5;
+  unsigned int counts[num_diff_vals] = {1, 10, 5, 5, 2};
   int total_count = 0;
-  for (unsigned int i = 0; i < 3; i++) {
-    count_min.add(vals[i], counts[i]);
+  for (unsigned int i = 0; i < num_diff_vals; i++) {
+    count_min.add(i, counts[i]);
     total_count += counts[i];
   }
 
@@ -222,16 +222,16 @@ void test_full(int party, flint_rand_t hash_seed) {
     }
   }
   // Candidates are 0, 1, 2, 3, ...
-  const size_t num_candidates = 8;
-  std::cout << "Creating " << num_candidates << " candidates " << std::endl;
+  const size_t num_candidates = 10;
+  int candidate_list[num_candidates] = {0, 0, 1, 2, 3, 1, 2, 3, 4, 4};
+  // std::cout << "Creating " << num_candidates << " candidates " << std::endl;
   fmpz_t* candidates; new_fmpz_array(&candidates, num_candidates);
   for (unsigned int i = 0; i < num_candidates; i++) {
     fmpz_randm(share, seed, Int_Modulus);
     if (party == ALICE) {
       fmpz_set(candidates[i], share);
     } else {
-      int v = (i/2) + 1;
-      fmpz_set_ui(candidates[i], v);
+      fmpz_set_ui(candidates[i], candidate_list[i]);
       fmpz_mod_sub(candidates[i], candidates[i], share, mod_ctx);
     }
   }
@@ -246,17 +246,14 @@ void test_full(int party, flint_rand_t hash_seed) {
 
   // Step 2: add values
   heavy_eval.set_values(candidates, num_candidates);
-  // std::cout << "parsed values: \n";
-  // heavy_eval.print_values();
+  // std::cout << "parsed values: \n"; heavy_eval.print_values();
 
   // Step 3: get frequencies
   heavy_eval.get_frequencies();
-  // std::cout << "parsed values with freqs: \n";
-  // heavy_eval.print_values();
+  // std::cout << "parsed values with freqs: \n"; heavy_eval.print_values();
 
   heavy_eval.sort_remove_dupes();
-  // std::cout << "sorted values with freqs: \n";
-  // heavy_eval.print_values();
+  // std::cout << "sorted values with freqs: \n"; heavy_eval.print_values();
 
   const size_t K = 3;
   uint64_t* top_values = new uint64_t[K];
@@ -266,12 +263,13 @@ void test_full(int party, flint_rand_t hash_seed) {
   for (unsigned int i = 0; i < K; i++) {
     std::cout << "Value: " << top_values[i] << ", freq: " << top_freqs[i] << std::endl;
   }
-  assert(top_values[0] == 2);
-  assert(top_freqs[0] == 6);
-  assert(top_values[1] == 3);
-  assert(top_freqs[1] == 3);
-  assert(top_values[2] == 1);
-  assert(top_freqs[2] == 1);
+  assert(top_values[0] == 1);
+  assert(top_freqs[0] == 10);
+  // 2 and 3 have same freq 5
+  assert(top_freqs[1] == 5);
+  assert(top_freqs[2] == 5);
+  assert((top_values[1] == 2 and top_values[2] == 3)
+      or (top_values[1] == 3 and top_values[2] == 2));
 
   delete[] top_values;
   delete[] top_freqs;
