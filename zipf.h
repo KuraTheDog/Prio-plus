@@ -11,7 +11,7 @@
 Weight of value n is 1/n^exponent
 */
 class ZipF {
-  const uint64_t support;   // How many possible values
+  const uint64_t support;       // How many possible values
   const double exponent;        // Weight. 1 = base. Larger = more skewed
 
   const double normalizer;      // 1 / total weight
@@ -47,7 +47,7 @@ public:
 
   uint64_t sample() {
     std::uniform_real_distribution<double> dis(0.0, 1.0);
-    double z = dis(gen);
+    const double z = dis(gen);
     // double z = rand() / RAND_MAX;  // Low set of possible values, not optimal
     // std::cout << "Sample z = " << z << "\n";
 

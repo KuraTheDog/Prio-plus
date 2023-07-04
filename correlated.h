@@ -195,7 +195,7 @@ public:
       const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1);
 
   /* Comparisons.
-  // Assumes modulus is large enough, so <N/2 is positive, >N/2 is negative (x-N)
+  Assumes modulus is large enough, so <N/2 is positive, >N/2 is negative (x-N)
   Return true if first < second. (so is index of larger).
   Equality is merged in, since rare/should not happen case so far.
     Specifically, if x < y then 1, if x >= y then 0
@@ -212,16 +212,22 @@ public:
   // True if [|x|] > [|y|]
   int abs_cmp(const size_t N,
               const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
-  // x, y are Nxb shares of N total b-bit numbers.
+  // x, y are Nxb shares of the bits of N total b-bit numbers.
   // I.e. x[i,j] is additive share of bit j of number i.
-  // Returns additive shares of [x < y]
+  // Returns additive shares of [x < y] (NOTE: opposite of cmp, for convenience)
   // Uses 3 triples per bit to compare
   int cmp_bit(const size_t N, const size_t b,
-                  const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
-  // Generate N random b-bit numbers r, with bitshares rB
-  // b is the # of bits in the int modulus
-  // r is N values [r], returns rB is N*b shares of bits
-  // For each gen, uses a dabit to gen and a cmp_bit (3 triple) to check
+              const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
+  /* Generate N random b-bit numbers r, with bits rB
+    Both are additive shares
+    b is the # of bits in the int modulus
+    For each n, makes 1 share r, and b shares rB_i of the bits of r
+    r = sum_i rB_i * 2^i
+    For each gen, uses a dabit to gen and a cmp_bit (3 triple) to check
+    TODO: these can be pre-computed. 
+    Similar to edabit, but not quite.
+    Bit shares here are additive, while edabit bit shares are boolean.
+  */
   int gen_rand_bitshare(const size_t N, fmpz_t* const r, fmpz_t* const rB);
   // Extracts shares of the least significant bit of additive secret [x]
   int LSB(const size_t N, const fmpz_t* const x, fmpz_t* const x0);

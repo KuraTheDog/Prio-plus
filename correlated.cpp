@@ -603,7 +603,10 @@ int CorrelatedStore::cmp_bit(const size_t N, const size_t b,
   // [di] = OR([cj]) from i+1 to b
   // = [ci] OR [d(i+1)], with d_b = cb
   // a OR b = 1-(1-a)(1-b) = a + b - ab
-  // TODO: Currently doing b-round version. Can be constant, but lazy fine for now.
+  // TODO: Currently doing b-round version.
+  //  Can be constant, but lazy fine for now.
+  //  wait, can we just fold it into one large multiply?
+  //  Set ci, di1. mul = ci * di1. Then set d
   fmpz_t* d; new_fmpz_array(&d, N * b);
   // Start: db = cb
   for (unsigned int i = 0; i < N; i++) {
