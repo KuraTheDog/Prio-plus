@@ -239,7 +239,7 @@ public:
 
   // Check: Check if enough to make n.
   // If not enough, generates enough (can over-generate)
-  virtual void check_DaBits(const size_t n = 0) = 0;
+  virtual int check_DaBits(const size_t n = 0) = 0;
   virtual void check_Triples(const size_t n = 0) = 0;
   virtual void check_BoolTriples(const size_t n = 0) = 0;
 };
@@ -252,12 +252,13 @@ protected:
   const bool lazy;  // Lazy (efficient but insecure) generation for behavior testing.
 
   // Securely create N new correlated items
-  const DaBit* const * const gen_DaBits(const size_t N);
-  const DaBit* const * const gen_DaBits_lazy(const size_t N);
+  // Pass in pointer to array. Methods make new.
+  int gen_DaBits(const size_t N, DaBit** const dabit);
+  int gen_DaBits_lazy(const size_t N, DaBit** const dabit);
 
   // Add (securely or lazy generated) N items to the store, at least batch_size many
   // TODO: return sent bytes
-  void add_DaBits(const size_t n = 0);
+  int add_DaBits(const size_t n = 0);
   void add_Triples(const size_t n = 0);
   void add_BoolTriples(const size_t n = 0);
 
@@ -281,7 +282,7 @@ public:
   virtual void print_Sizes() const;
   virtual void maybe_Update(); // Precompute if not enough.
 
-  virtual void check_DaBits(const size_t n = 0);
+  virtual int check_DaBits(const size_t n = 0);
   virtual void check_Triples(const size_t n = 0);
   virtual void check_BoolTriples(const size_t n = 0);
 };

@@ -851,8 +851,10 @@ int CorrelatedStore::is_negative(const size_t N,
 
 ////////////////
 
-void PrecomputeStore::check_DaBits(const size_t n) {
-  if (dabit_store.size() < n) add_DaBits(n - dabit_store.size());
+int PrecomputeStore::check_DaBits(const size_t n) {
+  if (dabit_store.size() < n)
+    return add_DaBits(n - dabit_store.size());
+  return 0;
 }
 
 void PrecomputeStore::check_BoolTriples(const size_t n) {
@@ -863,21 +865,24 @@ void PrecomputeStore::check_Triples(const size_t n) {
   if (atriple_store.size() < n) add_Triples(n - atriple_store.size());
 }
 
-void PrecomputeStore::add_DaBits(const size_t n) {
+int PrecomputeStore::add_DaBits(const size_t n) {
   auto start = clock_start();
+  int sent_bytes = 0;
   // const size_t num_to_make = (n > batch_size ? n : batch_size);
   const size_t num_to_make = n;  // Currently to make "end to end" easier to benchmark
   std::cout << "adding dabits: " << num_to_make << std::endl;
-  const DaBit* const * dabits;
+  DaBit** const dabits = new DaBit*[num_to_make];
+
   if (lazy) {
-    dabits = gen_DaBits_lazy(num_to_make);
+    sent_bytes += gen_DaBits_lazy(num_to_make, dabits);
   } else {
-    dabits = gen_DaBits(num_to_make);
+    sent_bytes += gen_DaBits(num_to_make, dabits);
   }
   for (unsigned int i = 0; i < num_to_make; i++)
     dabit_store.push(dabits[i]);
   delete[] dabits;
   std::cout << "add_DaBits timing : " << sec_from(start) << std::endl;
+  return sent_bytes;
 }
 
 void PrecomputeStore::add_Triples(const size_t n) {
@@ -947,10 +952,9 @@ void PrecomputeStore::maybe_Update() {
 // Use b2A via OT on random bit
 // Nearly COT, except delta is changing
 // random choice and random base, but also random delta matters
-// TODO: Work on larger values, currently assumes mod is uint64_t.
-const DaBit* const * const PrecomputeStore::gen_DaBits(const size_t N) {
-  DaBit** const dabit = new DaBit*[N];
-
+// TODO: Work on larger values. Currently assumes mod is uint64_t.
+int PrecomputeStore::gen_DaBits(const size_t N, DaBit** const dabit) {
+  int sent_bytes = 0;
   emp::PRG prg;
   const size_t mod = fmpz_get_ui(Int_Modulus);
 
@@ -973,11 +977,11 @@ const DaBit* const * const PrecomputeStore::gen_DaBits(const size_t N) {
       b1[i] = (b0[i] + b[i]) % mod;
       x[i] = mod - b0[i];
     }
-    ot0->send(b0, b1, N);
+    sent_bytes += ot0->send(b0, b1, N);
     delete[] b0;
     delete[] b1;
   } else {
-    ot0->recv(x, b, N);
+    sent_bytes += ot0->recv(x, b, N);
   }
   for (unsigned int i = 0; i < N; i++) {
     uint64_t bp = (b[i] + 2 * (mod - x[i])) % mod;
@@ -987,11 +991,11 @@ const DaBit* const * const PrecomputeStore::gen_DaBits(const size_t N) {
   delete[] b;
   delete[] x;
 
-  return dabit;
+  return sent_bytes;
 }
 
-const DaBit* const * const PrecomputeStore::gen_DaBits_lazy(const size_t N) {
-  DaBit** const dabit = new DaBit*[N];
+int PrecomputeStore::gen_DaBits_lazy(const size_t N, DaBit** const dabit) {
+  int sent_bytes = 0;
   for (unsigned int i = 0; i < N; i++)
     dabit[i] = new DaBit();
   if (server_num == 0) {
@@ -1000,14 +1004,14 @@ const DaBit* const * const PrecomputeStore::gen_DaBits_lazy(const size_t N) {
       dabit_other[i] = new DaBit();
       makeLocalDaBit(dabit[i], dabit_other[i]);
     }
-    send_DaBit_batch(serverfd, dabit_other, N);
+    sent_bytes += send_DaBit_batch(serverfd, dabit_other, N);
     for (unsigned int i = 0; i < N; i++)
       delete dabit_other[i];
     delete[] dabit_other;
   } else {
     recv_DaBit_batch(serverfd, dabit, N);
   }
-  return dabit;
+  return sent_bytes;
 }
 
 

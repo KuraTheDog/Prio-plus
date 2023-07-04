@@ -259,20 +259,22 @@ int ValidateCorrelatedStore::batch_Validate(const size_t target) {
   return sent_bytes;
 }
 
-void ValidateCorrelatedStore::check_DaBits(const size_t n) {
+int ValidateCorrelatedStore::check_DaBits(const size_t n) {
+  int sent_bytes = 0;
   // std::cout << "validated check_DaBits(" << n << ") vs " << num_validated_dabits() << std::endl;
   // If not enough validated, validate everything
   if (num_validated_dabits() < n) {
     // std::cout << "batch validating: " << n - num_validated_dabits() << std::endl;
-    batch_Validate(n - num_validated_dabits());
+    sent_bytes += batch_Validate(n - num_validated_dabits());
   }
   // If still not enough validated, ensure enough precomputed
   if (num_validated_dabits() < n) {
     // TODO: possibly also make enough AltTriples at the same time?
     // std::cout << "precompute checking: " << n - num_validated_dabits() << std::endl;
-    PrecomputeStore::check_DaBits(n - num_validated_dabits());
+    sent_bytes += PrecomputeStore::check_DaBits(n - num_validated_dabits());
   }
   // printSizes();
+  return sent_bytes;
 }
 
 const DaBit* const ValidateCorrelatedStore::get_DaBit() {

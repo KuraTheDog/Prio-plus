@@ -95,8 +95,8 @@ public:
   // Add unvalidated correlated to queue
   void add_Unvalidated(const DaBit* const dabit, const AltTriple* const trip);
 
-  void check_DaBits(const size_t n = 0) override;
-  // void checkTriples(const size_t n = 0);
+  int check_DaBits(const size_t n = 0) override;
+  // int checkTriples(const size_t n = 0);
 
   /*
   Tries to make at least N validated dabits.
