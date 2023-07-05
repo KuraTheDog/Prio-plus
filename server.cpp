@@ -210,21 +210,21 @@ const bool* const validate_snips(const size_t N,
                                  ) {
     auto start = clock_start();
 
-    bool* const ans = new bool[N];
-
+    // Setup precompute
+    // TODO: support multiple circuits at once
     const size_t NumRoots = NextPowerOfTwo(circuit[0]->NumMulGates());
-
-    Checker** const checker = new Checker*[N];
     mult_eval_manager->check_eval_point(3 * N);
     MultCheckPreComp* const pre = mult_eval_manager->get_Precomp(NumRoots);
-    for (unsigned int i = 0; i < N; i++)
+    // Setup checker and cor
+    Checker** const checker = new Checker*[N];
+    Cor** const cor = new Cor*[N];
+    for (unsigned int i = 0; i < N; i++) {
         checker[i] = new Checker(circuit[i], server_num, packet[i], pre,
                                  &shares_p[i * num_inputs]);
+        cor[i] = checker[i]->CorFn();
+    }
 
-    Cor** const cor = new Cor*[N];
-    for (unsigned int i = 0; i < N; i++)
-      cor[i] = checker[i]->CorFn();
-
+    // Reveal Cor
     reveal_Cor_batch(serverfd, cor, N);
 
     fmpz_t* valid_share; new_fmpz_array(&valid_share, N);
@@ -236,8 +236,11 @@ const bool* const validate_snips(const size_t N,
     delete[] cor;
     delete[] checker;
 
+    // Reveal valid
     reveal_fmpz_batch(serverfd, valid_share, N);
 
+    // Answer is if valids are zero
+    bool* const ans = new bool[N];
     for (unsigned int i = 0; i < N; i++) {
         ans[i] = fmpz_is_zero(valid_share[i]);
     }

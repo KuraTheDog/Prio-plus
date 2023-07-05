@@ -148,11 +148,13 @@ void ValidateCorrelatedStore::process_Unvalidated(const std::string tag) {
 int ValidateCorrelatedStore::batch_Validate(const size_t target) {
   int sent_bytes = 0;
 
+  // Step 0: Setup
+
+  // Param setup
   const size_t target_2 = NextPowerOfTwo(target - 1);
   const size_t num_unval = unvalidated_dabit_store.size();
   size_t N;        // num to make, power of 2, including dummies
   size_t num_val;  // how many to validate
-  // std::cout << "batchValidate(" << target << "), num unval = " << num_unval << "\n";
   if (target_2 <= num_unval) {
     // Make as many as possible within unval
     // Largest power of 2 <= num_unval
@@ -165,16 +167,16 @@ int ValidateCorrelatedStore::batch_Validate(const size_t target) {
     num_val = num_unval;
   }
 
-  // Will still need N "legit" unvalidated dabits.
+  // Should always be synced, but just in case. Maybe complain instead?
   check_AltTriple(N, false);
 
+  // More variable setup
   mult_eval_manager.check_eval_point(2);
-
   MultCheckPreComp* chk = mult_eval_manager.get_Precomp(N);
 
   const DaBit* candidates[num_val];
 
-  // Setup
+  // Setup polynomial points
   // Note that new_fmpz_array zero initializes, which give "dummy" dabits.
   fmpz_t* pointsF; new_fmpz_array(&pointsF, N);
   fmpz_t* pointsG; new_fmpz_array(&pointsG, 2*N);
@@ -204,9 +206,8 @@ int ValidateCorrelatedStore::batch_Validate(const size_t target) {
   // Multiply evalF's to get G points
   // Also multiply sigmaF at the same time, as validated
   fmpz_t* points; new_fmpz_array(&points, N+1);
-  for (unsigned int i = 0; i < N; i++) {
+  for (unsigned int i = 0; i < N; i++)
     fmpz_set(points[i], evalsF[2*i+1]);
-  }
   clear_fmpz_array(evalsF, N);
   fmpz_set(points[N], sigmaF);
   // Only the final one needs to be validated.
@@ -214,7 +215,11 @@ int ValidateCorrelatedStore::batch_Validate(const size_t target) {
   memset(use_validated, 0, sizeof(bool)*N);
   use_validated[N] = true;
   fmpz_t* pointsMult; new_fmpz_array(&pointsMult, N+1);
+
+  // Step 1: Both multiplies
   sent_bytes += multiply_AltShares(N+1, points, pointsMult, use_validated);
+
+  // Step 2: Process and evaluate
   clear_fmpz_array(points, N+1);
   for (unsigned int i = 0; i < N; i++) {
     fmpz_set(pointsG[2*i+1], pointsMult[i]);
@@ -233,10 +238,12 @@ int ValidateCorrelatedStore::batch_Validate(const size_t target) {
   fmpz_clear(sigmaF);
   fmpz_clear(sigmaG);
 
-  // Swap, but single item so doesn't need wrapper
+  // Step 3: Reveal differences
   fmpz_t diff_other; fmpz_init(diff_other);
   sent_bytes += send_fmpz(serverfd, diff);
   recv_fmpz(serverfd, diff_other);
+
+  // Step 4: Check if differences sum to 0
   fmpz_mod_add(diff, diff, diff_other, mod_ctx);
   fmpz_clear(diff_other);
 
