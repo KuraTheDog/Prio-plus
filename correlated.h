@@ -127,8 +127,19 @@ public:
   }
 
   // Single bit. One round.
+  void b2a_single_setup(const size_t N, const bool* const x, fmpz_t* const xp, bool* const v);
+  void b2a_single_finish(const size_t N, fmpz_t* const xp, 
+                         const bool* const v, const bool* const v_other);
   int b2a_single(const size_t N, const bool* const x, fmpz_t* const xp);
+
   // Multiple bits. Use a dabit per bit in parallel, so one round
+  void b2a_multi_setup(
+      const size_t N, const size_t total_bits, const size_t* const num_bits,
+      const fmpz_t* const x, fmpz_t* const flat_xp, bool* const v);
+  void b2a_multi_finish(
+      const size_t N, const size_t total_bits, const size_t* const num_bits,
+      fmpz_t* const xp, fmpz_t* const flat_xp, const bool* const v, const bool* const v_other
+  );
   int b2a_multi(const size_t N, const size_t* const num_bits,
                 const fmpz_t* const x, fmpz_t* const xp);
 

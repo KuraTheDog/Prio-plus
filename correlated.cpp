@@ -30,13 +30,7 @@ const BooleanBeaverTriple* const CorrelatedStore::get_BoolTriple() {
   return ans;
 }
 
-// 1 dabit per
-int CorrelatedStore::b2a_single(const size_t N, const bool* const x, fmpz_t* const xp) {
-  int sent_bytes = 0;
-
-  check_DaBits(N);
-
-  bool* const v = new bool[N];
+void CorrelatedStore::b2a_single_setup(const size_t N, const bool* const x, fmpz_t* const xp, bool* const v) {
   for (unsigned int i = 0; i < N; i++) {
     const DaBit* const dabit = get_DaBit();
     v[i] = x[i] ^ dabit->b2;
@@ -45,25 +39,77 @@ int CorrelatedStore::b2a_single(const size_t N, const bool* const x, fmpz_t* con
     // consume the daBit
     delete dabit;
   }
+}
 
-  sent_bytes += reveal_bool_batch(serverfd, v, N);
-
+void CorrelatedStore::b2a_single_finish(
+    const size_t N, fmpz_t* const xp,
+    const bool* const v, const bool* const v_other) {
   for (unsigned int i = 0; i < N; i++) {
     // [x]_p = v + [b]_p - 2 v [b]_p. Note v only added for one server.
     // So since server_num in {0, 1}, we add it when v = 1
     // Currently, [x]_p is holding [b]_p, which is what we want for v = 0
-    if (v[i]) {  // If v = 1, then [x]_p = (0/1) - [b]_p
+    if (v[i] ^ v_other[i]) {  // If v = 1, then [x]_p = (0/1) - [b]_p
       fmpz_mod_neg(xp[i], xp[i], mod_ctx);
       fmpz_mod_add_ui(xp[i], xp[i], server_num, mod_ctx);
     }
   }
+}
+
+int CorrelatedStore::b2a_single(const size_t N, const bool* const x, fmpz_t* const xp) {
+  int sent_bytes = 0;
+
+  check_DaBits(N);
+
+  bool* const v = new bool[N];
+  bool* const v_other = new bool[N];
+
+  b2a_single_setup(N, x, xp, v);
+
+  sent_bytes += send_bool_batch(serverfd, v, N);
+  recv_bool_batch(serverfd, v_other, N);
+
+  b2a_single_finish(N, xp, v, v_other);
 
   delete[] v;
+  delete[] v_other;
 
   return sent_bytes;
 }
 
-// 1 daBit per bit
+void CorrelatedStore::b2a_multi_setup(
+    const size_t N, const size_t total_bits, const size_t* const num_bits,
+    const fmpz_t* const x, fmpz_t* const flat_xp, bool* const v) {
+  bool* const x2 = new bool[total_bits];
+
+  size_t offset = 0;
+  for (unsigned int i = 0; i < N; i++) {
+    for (unsigned int j = 0; j < num_bits[i]; j++)
+      x2[j + offset] = fmpz_tstbit(x[i], j);
+    offset += num_bits[i];
+  }
+
+  b2a_single_setup(total_bits, x2, flat_xp, v);
+  delete[] x2;
+}
+
+void CorrelatedStore::b2a_multi_finish(
+    const size_t N, const size_t total_bits, const size_t* const num_bits,
+    fmpz_t* const xp, fmpz_t* const flat_xp,
+    const bool* const v, const bool* const v_other
+  ) {
+
+  b2a_single_finish(total_bits, flat_xp, v, v_other);
+
+  size_t offset = 0;
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_set_ui(xp[i], 0);
+    for (unsigned int j = 0; j < num_bits[i]; j++) {
+      fmpz_mod_addmul_ui(xp[i], flat_xp[j + offset], (1ULL << j), mod_ctx);
+    }
+    offset += num_bits[i];
+  }
+}
+
 int CorrelatedStore::b2a_multi(
     const size_t N, const size_t* const num_bits,
     const fmpz_t* const x, fmpz_t* const xp) {
@@ -75,29 +121,20 @@ int CorrelatedStore::b2a_multi(
 
   check_DaBits(total_bits);
 
-  bool* const x2 = new bool[total_bits];
+  fmpz_t* flat_xp; new_fmpz_array(&flat_xp, total_bits);
+  bool* const v = new bool[total_bits];
+  bool* const v_other = new bool[total_bits];
 
-  size_t offset = 0;
-  for (unsigned int i = 0; i < N; i++) {
-    for (unsigned int j = 0; j < num_bits[i]; j++)
-      x2[j + offset] = fmpz_tstbit(x[i], j);
-    offset += num_bits[i];
-  }
+  b2a_multi_setup(N, total_bits, num_bits, x, flat_xp, v);
 
-  fmpz_t* tmp_xp; new_fmpz_array(&tmp_xp, total_bits);
-  sent_bytes += b2a_single(total_bits, x2, tmp_xp);
+  sent_bytes += send_bool_batch(serverfd, v, total_bits);
+  recv_bool_batch(serverfd, v_other, total_bits);
 
-  offset = 0;
-  for (unsigned int i = 0; i < N; i++) {
-    fmpz_set_ui(xp[i], 0);
-    for (unsigned int j = 0; j < num_bits[i]; j++) {
-      fmpz_mod_addmul_ui(xp[i], tmp_xp[j + offset], (1ULL << j), mod_ctx);
-    }
-    offset += num_bits[i];
-  }
+  b2a_multi_finish(N, total_bits, num_bits, xp, flat_xp, v, v_other);
 
-  delete[] x2;
-  clear_fmpz_array(tmp_xp, total_bits);
+  delete[] v;
+  delete[] v_other;
+  clear_fmpz_array(flat_xp, total_bits);
 
   return sent_bytes;
 }
