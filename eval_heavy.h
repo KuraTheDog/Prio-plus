@@ -11,6 +11,16 @@
 /*
 Uses MPC circuit to evaluate heavy
 Evaluates on Count-min
+
+For the garble wrapping:
+One time start:
+- Set up NetIO (e.g. ot0->io)
+- setup_semi_honest(garbleIO, server_num + 1);
+Run:
+- full_heavy_extract(...)
+- garbleIO->flush()
+End:
+finalize_semi_honest();
 */
 
 /*
@@ -21,35 +31,11 @@ Can theoretically be one big function with sub-functions.
 Currently split for clarity of use / debugging.
 
 There may be better ways of de-duping, but this should be fine.
- - challenge is to keep it oblivious. same work if all dupes and no dupes.
- - Can't track how many distinct values seen
- - can't pre-prune list of candidates.
+- Challenge is to keep it oblivious. same work if all dupes and no dupes.
+- Can't track how many distinct values seen
+- Can't pre-prune list of candidates.
 
-Note: emp::ALICE is 1, emp::BOB is 2. Not quite server_num.
-*/
-
-/*
-Standard op:
-h = HeavyEval(party, count_min, total_count)
-  - Count-min contains secret-shared values
-  - total count is # items (sum of frequencies)
-Count-min
-  parse_countmin()
-    - populate countmin_values with de-shared circuit vals
-  Can print_countmin past this point
-Values
-  set_values(int/fmpz* shares, size num_values)
-    - Shares of candidate values (potentially with dupes)
-    - populates values with actuals with circuit
-  can print_values past this point
-void get_frequencies()
-  - Compute frequency estimates with circuit, populate freq
-  - requires both count-min parsed, and values set.
-sort_remove_dupes()
-  - sort (value/freq) by freq, with dupes zero'd out
-return_top_K(size K, uint64_t* topValues, uint64_t* topFreqs)
-  - set topValues/Freqs to the top K
-  - does circuit reveal at this step
+Note: emp::ALICE is 1, emp::BOB is 2. (Using server_num + 1)
 */
 
 /* So that we can sort by (freq, value)
@@ -303,6 +289,30 @@ struct HeavyExtract {
   void print_cmp() const;
   void print_candidates() const;
 };
+
+/*
+Standard op:
+h = HeavyEval(party, count_min, total_count)
+  - Count-min contains secret-shared values
+  - total count is # items (sum of frequencies)
+Count-min
+  parse_countmin()
+    - populate countmin_values with de-shared circuit vals
+  Can print_countmin past this point
+Values
+  set_values(int/fmpz* shares, size num_values)
+    - Shares of candidate values (potentially with dupes)
+    - populates values with actuals with circuit
+  can print_values past this point
+void get_frequencies()
+  - Compute frequency estimates with circuit, populate freq
+  - requires both count-min parsed, and values set.
+sort_remove_dupes()
+  - sort (value/freq) by freq, with dupes zero'd out
+return_top_K(size K, uint64_t* topValues, uint64_t* topFreqs)
+  - set topValues/Freqs to the top K
+  - does circuit reveal at this step
+*/
 
 void full_heavy_extract(
     const int server_num,
