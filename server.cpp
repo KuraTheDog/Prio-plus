@@ -2160,7 +2160,7 @@ int main(int argc, char** argv) {
         initMsg msg;
         recv_in(newsockfd, &msg, sizeof(initMsg));
 
-        if (msg.type == BIT_SUM) {
+        if (msg.type == BIT_SUM_OP) {
             std::cout << "BIT_SUM" << std::endl;
             auto start = clock_start();
 
@@ -2170,7 +2170,7 @@ int main(int argc, char** argv) {
                 std::cout << "Ans: " << ans << std::endl;
 
             std::cout << "Total time  : " << sec_from(start) << std::endl;
-        } else if (msg.type == INT_SUM) {
+        } else if (msg.type == INT_SUM_OP) {
             std::cout << "INT_SUM" << std::endl;
             auto start = clock_start();
 

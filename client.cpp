@@ -222,7 +222,7 @@ void bit_sum(const std::string protocol, const size_t numreqs) {
     int sent_bytes = 0;
     initMsg msg;
     msg.num_of_inputs = numreqs;
-    msg.type = BIT_SUM;
+    msg.type = BIT_SUM_OP;
 
     if (CLIENT_BATCH) {
         sent_bytes += bit_sum_helper(protocol, numreqs, ans, &msg);
@@ -244,7 +244,7 @@ void bit_sum(const std::string protocol, const size_t numreqs) {
 void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
     initMsg msg;
     msg.num_of_inputs = numreqs;
-    msg.type = BIT_SUM;
+    msg.type = BIT_SUM_OP;
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
@@ -352,7 +352,7 @@ void int_sum(const std::string protocol, const size_t numreqs) {
     initMsg msg;
     msg.num_bits = num_bits;
     msg.num_of_inputs = numreqs;
-    msg.type = INT_SUM;
+    msg.type = INT_SUM_OP;
 
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << num_bits) * numreqs) < 0 ) {
         std::cout << "Modulus should be at least " << (num_bits + LOG2(numreqs)) << " bits" << std::endl;
@@ -381,7 +381,7 @@ void int_sum(const std::string protocol, const size_t numreqs) {
 void int_sum_invalid(const std::string protocol, const size_t numreqs) {
     initMsg msg;
     msg.num_of_inputs = numreqs;
-    msg.type = INT_SUM;
+    msg.type = INT_SUM_OP;
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 

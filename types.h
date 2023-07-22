@@ -48,8 +48,8 @@ struct MultiFreqShare {
 
 enum messageType {
     NONE_OP,
-    BIT_SUM,
-    INT_SUM,
+    BIT_SUM_OP,
+    INT_SUM_OP,
     AND_OP,
     OR_OP,
     MAX_OP,
