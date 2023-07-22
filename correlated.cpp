@@ -981,7 +981,7 @@ void PrecomputeStore::maybe_Update() {
   if (atriple_store.size() < atrip_target)
     add_Triples(atrip_target);
 
-  print_Sizes();
+  // print_Sizes();
 
   std::cout << "precompute timing : " << sec_from(start) << std::endl;
 }

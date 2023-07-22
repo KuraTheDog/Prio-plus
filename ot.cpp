@@ -254,11 +254,11 @@ std::queue<const BooleanBeaverTriple*> gen_boolean_beaver_triples(
         b1[i] = (x[i] != r[i]); // r[i] XOR x[i]
     }
 
-    if(server_num == 0){
+    if (server_num == 0){
         ot0->send(b0, b1, m);
         ot1->recv(b, y, m);
     }
-    else if(server_num == 1){
+    else if (server_num == 1){
         ot0->recv(b, y, m);
         ot1->send(b0, b1, m);
     }

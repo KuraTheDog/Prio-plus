@@ -69,8 +69,8 @@ Server 0 needs to be started before server 1.
 ### Usage example
 
 0. Run `cd build` and `make`
-1. Run `./bin/server 0 8800 8888 8` to start the first server
-2. In another window, run `./bin/server 1 8801 8888 8` to start the second server
+1. Run `./bin/server 0 8800 8888` to start the first server
+2. In another window, run `./bin/server 1 8801 8888` to start the second server
 3. In another window, run `./bin/client 10 8800 8801 VAROP 8` to run a meta-client that sends out client messages
 3. Repeat step 4 as desired with different parameters
 

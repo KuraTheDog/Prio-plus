@@ -536,7 +536,7 @@ int main(int argc, char* argv[]) {
   init_constants();
 
   int server_num = -1;
-  if(argc >= 2){
+  if (argc >= 2){
     server_num = atoi(argv[1]);
   }
   if (server_num == -1) {

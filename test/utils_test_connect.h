@@ -62,7 +62,7 @@ int init_receiver() {
   if (bind(sockfd, (struct sockaddr *) &rec_addr, sizeof(rec_addr)) < 0)
     error_exit("recv: ERROR on binding");
 
-  if(listen(sockfd, 2) < 0) error_exit("recv: ERROR on listen");
+  if (listen(sockfd, 2) < 0) error_exit("recv: ERROR on listen");
   return sockfd;
 }
 

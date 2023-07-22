@@ -1920,7 +1920,8 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
 
 int main(int argc, char** argv) {
     if (argc < 4) {
-        std::cout << "Usage: ./bin/client num_submissions server0_port server1_port OPERATION num_bits (linreg_degree/heavy_t) " << endl;
+        std::cout << "Usage: ./bin/client num_submissions server0_port server1_port";
+        std::cout << " PROTOCOL num_bits (other params) " << endl;
         return 1;
     }
 
@@ -2067,7 +2068,7 @@ int main(int argc, char** argv) {
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
-    else if(protocol == "LINREGOP") {
+    else if (protocol == "LINREGOP") {
         std::cout << "Uploading all LINREG shares: " << numreqs << std::endl;
 
         if (DEBUG_INVALID)
@@ -2077,7 +2078,7 @@ int main(int argc, char** argv) {
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
-    else if(protocol == "FREQOP") {
+    else if (protocol == "FREQOP") {
         std::cout << "Uploading all FREQ shares: " << numreqs << std::endl;
 
         // if (DEBUG_INVALID)
@@ -2087,8 +2088,8 @@ int main(int argc, char** argv) {
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
-    else if(protocol == "HEAVY") {
         std::cout << "Uploading all HEAVY shares: " << numreqs << std::endl;
+    else if (protocol == "HEAVY") {
 
         // if (DEBUG_INVALID)
         //     lin_reg_invalid(protocol, numreqs);
@@ -2097,7 +2098,7 @@ int main(int argc, char** argv) {
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
-    else if(protocol == "MULTIHEAVY") {
+    else if (protocol == "MULTIHEAVY") {
         std::cout << "Uploading all HEAVY shares: " << numreqs << std::endl;
 
         // if (DEBUG_INVALID)

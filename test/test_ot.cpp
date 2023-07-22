@@ -113,7 +113,7 @@ void run_server1(const size_t m) {
 
 int main(int argc, char** argv){
   int m = 4;
-  if(argc >= 2){
+  if (argc >= 2){
     m = atoi(argv[1]);
   }
   std::cout << "Input: " << m << "\n";
