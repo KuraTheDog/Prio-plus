@@ -3,7 +3,7 @@ Simulates a group of num_submission clients that communicate with the servers.
 
 General layout:
 
-X_op_helper: Makes then sends a batch of client requests
+X_helper: Makes then sends a batch of client requests
 X_op: Sends init msg, then sends either one batch or a bunch in serial
 x_op_invalid: For testing/debugging, does a basic run with intentionally invalid clients.
 */
@@ -84,7 +84,7 @@ int send_freqshare(const int server_num, const FreqShare& freqshare, const uint6
     return ret;
 }
 
-int send_linregshare(const int server_num, const LinRegShare& share,  const size_t degree) {
+int send_linregshare(const int server_num, const LinRegShare& share, const size_t degree) {
     const int sock = (server_num == 0) ? sockfd0 : sockfd1;
 
     const size_t num_x = degree - 1;
@@ -438,7 +438,7 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
     delete[] b;
 }
 
-int xor_op_helper(const std::string protocol, const size_t numreqs,
+int xor_helper(const std::string protocol, const size_t numreqs,
                   bool &ans, const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
     int sent_bytes = 0;
@@ -453,13 +453,13 @@ int xor_op_helper(const std::string protocol, const size_t numreqs,
 
     for (unsigned int i = 0; i < numreqs; i++) {
         prg.random_bool(&value, 1);
-        if (protocol == "ANDOP") {
+        if (protocol == "AND") {
             ans &= value;
             if (value)
                 encoded = 0;
             else
                 prg.random_data(&encoded, sizeof(uint64_t));
-        } else if (protocol == "OROP") {
+        } else if (protocol == "OR") {
             ans |= value;
             if (not value)
                 encoded = 0;
@@ -504,10 +504,10 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     int sent_bytes = 0;
     initMsg msg;
     msg.num_of_inputs = numreqs;
-    if (protocol == "ANDOP") {
+    if (protocol == "AND") {
         msg.type = AND_OP;
         ans = true;
-    } else if (protocol == "OROP") {
+    } else if (protocol == "OR") {
         msg.type = OR_OP;
         ans = false;
     } else {
@@ -515,11 +515,11 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     }
 
     if (CLIENT_BATCH) {
-        sent_bytes += xor_op_helper(protocol, numreqs, ans, &msg);
+        sent_bytes += xor_helper(protocol, numreqs, ans, &msg);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            sent_bytes += xor_op_helper(protocol, 1, ans, i == 0 ? &msg : nullptr);
+            sent_bytes += xor_helper(protocol, 1, ans, i == 0 ? &msg : nullptr);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
@@ -535,10 +535,10 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
     initMsg msg;
     msg.num_of_inputs = numreqs;
     bool ans;
-    if (protocol == "ANDOP") {
+    if (protocol == "AND") {
         msg.type = AND_OP;
         ans = true;
-    } else if (protocol == "OROP") {
+    } else if (protocol == "OR") {
         msg.type = OR_OP;
         ans = false;
     } else {
@@ -567,18 +567,18 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
             continue;
         }
         std::cout << std::endl;
-        if (protocol == "ANDOP")
+        if (protocol == "AND")
             ans &= values[i];
-        if (protocol == "OROP")
+        if (protocol == "OR")
             ans |= values[i];
     }
 
     // encode step. set to all 0's for values that don't force the ans.
-    if (protocol == "ANDOP")
+    if (protocol == "AND")
         for (unsigned int i = 0; i < numreqs; i++)
             if (values[i])
                 encoded_values[i] = 0;
-    if (protocol == "OROP")
+    if (protocol == "OR")
         for (unsigned int i = 0; i < numreqs; i++)
             if (!values[i])
                 encoded_values[i] = 0;
@@ -615,7 +615,7 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
     delete[] b;
 }
 
-int max_op_helper(const std::string protocol, const size_t numreqs,
+int max_helper(const std::string protocol, const size_t numreqs,
                   const unsigned int B, uint64_t &ans,
                   const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
@@ -636,18 +636,18 @@ int max_op_helper(const std::string protocol, const size_t numreqs,
         prg.random_data(&value, sizeof(uint64_t));
         value = value % (B + 1);
 
-        if (protocol == "MAXOP")
+        if (protocol == "MAX")
             ans = (value > ans ? value : ans);
-        if (protocol == "MINOP")
+        if (protocol == "MIN")
             ans = (value < ans ? value : ans);
 
         prg.random_data(or_encoded_array, (B+1)*sizeof(uint64_t));
         prg.random_data(share0, (B+1)*sizeof(uint64_t));
 
         uint64_t v = 0;
-        if (protocol == "MAXOP")
+        if (protocol == "MAX")
             v = value;
-        if (protocol == "MINOP")
+        if (protocol == "MIN")
             v = B - value;
 
         for (unsigned int j = v + 1; j <= B ; j++)
@@ -703,10 +703,10 @@ void max_op(const std::string protocol, const size_t numreqs) {
     initMsg msg;
     msg.num_of_inputs = numreqs;
     msg.max_inp = B;
-    if (protocol == "MAXOP") {
+    if (protocol == "MAX") {
         msg.type = MAX_OP;
         ans = 0;
-    } else if (protocol == "MINOP") {
+    } else if (protocol == "MIN") {
         msg.type = MIN_OP;
         ans = B;
     } else {
@@ -714,11 +714,11 @@ void max_op(const std::string protocol, const size_t numreqs) {
     }
 
     if (CLIENT_BATCH) {
-        sent_bytes += max_op_helper(protocol, numreqs, B, ans, &msg);
+        sent_bytes += max_helper(protocol, numreqs, B, ans, &msg);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            sent_bytes += max_op_helper(protocol, 1, B, ans, i == 0 ? &msg : nullptr);
+            sent_bytes += max_helper(protocol, 1, B, ans, i == 0 ? &msg : nullptr);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
@@ -737,10 +737,10 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
     msg.max_inp = B;
     emp::PRG prg(emp::fix_key);
     uint64_t ans;
-    if (protocol == "MAXOP") {
+    if (protocol == "MAX") {
         msg.type = MAX_OP;
         ans = 0;
-    } else if (protocol == "MINOP") {
+    } else if (protocol == "MIN") {
         msg.type = MIN_OP;
         ans = B;
     } else {
@@ -769,9 +769,9 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
             std::cout << " (invalid)" << std::endl;
         } else {
             std::cout << std::endl;
-            if (protocol == "MAXOP")
+            if (protocol == "MAX")
                 ans = (values[i] > ans? values[i] : ans);
-            if (protocol == "MINOP")
+            if (protocol == "MIN")
                 ans = (values[i] < ans? values[i] : ans);
         }
 
@@ -780,9 +780,9 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
 
         // min(x) = -max(-x) = B - max(B - x)
         uint64_t v = 0;
-        if (protocol == "MAXOP")
+        if (protocol == "MAX")
             v = values[i];
-        if (protocol == "MINOP")
+        if (protocol == "MIN")
             v = B - values[i];
 
         for (unsigned int j = v + 1; j <= B ; j++)
@@ -816,7 +816,7 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
     delete[] b;
 }
 
-int var_op_helper(const std::string protocol, const size_t numreqs,
+int var_helper(const std::string protocol, const size_t numreqs,
                   uint64_t& sum, uint64_t& sumsquared,
                   const initMsg* const msg_ptr = nullptr) {
     auto start = clock_start();
@@ -918,20 +918,20 @@ void var_op(const std::string protocol, const size_t numreqs) {
     initMsg msg;
     msg.num_bits = num_bits;
     msg.num_of_inputs = numreqs;
-    if (protocol == "VAROP") {
+    if (protocol == "VAR") {
         msg.type = VAR_OP;
-    } else if (protocol == "STDDEVOP") {
+    } else if (protocol == "STDDEV") {
         msg.type = STDDEV_OP;
     } else {
         return;
     }
 
     if (CLIENT_BATCH) {
-        sent_bytes += var_op_helper(protocol, numreqs, sum, sumsquared, &msg);
+        sent_bytes += var_helper(protocol, numreqs, sum, sumsquared, &msg);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            sent_bytes += var_op_helper(protocol, 1, sum, sumsquared, i == 0 ? &msg : nullptr);
+            sent_bytes += var_helper(protocol, 1, sum, sumsquared, i == 0 ? &msg : nullptr);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
@@ -939,7 +939,7 @@ void var_op(const std::string protocol, const size_t numreqs) {
     const double ex2 = 1. * sumsquared / numreqs;
     double ans = ex2 - (ex * ex);
     std::cout << "E[X^2] - E[X]^2 = " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
-    if (protocol == "STDDEVOP")
+    if (protocol == "STDDEV")
         ans = sqrt(ans);
     std::cout << "True Ans: " << ans << std::endl;
     std::cout << "Total sent bytes: " << sent_bytes << std::endl;
@@ -961,9 +961,9 @@ void var_op(const std::string protocol, const size_t numreqs) {
 void var_op_invalid(const std::string protocol, const size_t numreqs) {
     initMsg msg;
     msg.num_of_inputs = numreqs;
-    if (protocol == "VAROP") {
+    if (protocol == "VAR") {
         msg.type = VAR_OP;
-    } else if (protocol == "STDDEVOP") {
+    } else if (protocol == "STDDEV") {
         msg.type = STDDEV_OP;
     } else {
         return;
@@ -1081,7 +1081,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
     const double ex2 = 1. * sumsquared / numvalid;
     double ans = ex2 - (ex * ex);
     std::cout << "E[X^2] - E[X]^2 = " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
-    if (protocol == "STDDEVOP")
+    if (protocol == "STDDEV")
         ans = sqrt(ans);
     std::cout << "True Ans: " << ans << std::endl;
 
@@ -1090,7 +1090,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
     fmpz_clear(inp[1]);
 }
 
-int lin_reg_helper(const std::string protocol, const size_t numreqs,
+int linreg_helper(const std::string protocol, const size_t numreqs,
                    const size_t degree,
                    uint64_t* const x_accum, uint64_t* const y_accum,
                    const initMsg* const msg_ptr = nullptr) {
@@ -1252,7 +1252,7 @@ int lin_reg_helper(const std::string protocol, const size_t numreqs,
     return sent_bytes;
 }
 
-void lin_reg(const std::string protocol, const size_t numreqs) {
+void linreg_op(const std::string protocol, const size_t numreqs, const size_t degree) {
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
         std::cout << "Modulus should be at least " << (2 * num_bits + LOG2(numreqs)) << " bits" << std::endl;
         error_exit("Int Modulus too small");
@@ -1277,11 +1277,11 @@ void lin_reg(const std::string protocol, const size_t numreqs) {
     msg.type = LINREG_OP;
 
     if (CLIENT_BATCH) {
-        sent_bytes += lin_reg_helper(protocol, numreqs, degree, x_accum, y_accum, &msg);
+        sent_bytes += linreg_helper(protocol, numreqs, degree, x_accum, y_accum, &msg);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            sent_bytes += lin_reg_helper(protocol, 1, degree, x_accum, y_accum,
+            sent_bytes += linreg_helper(protocol, 1, degree, x_accum, y_accum,
                                         i == 0 ? &msg : nullptr);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
@@ -1318,7 +1318,7 @@ void lin_reg(const std::string protocol, const size_t numreqs) {
    11: share0 has same tag as 10
    13: share1 has same tag as 12
 */
-void lin_reg_invalid(const std::string protocol, const size_t numreqs) {
+void linreg_op_invalid(const std::string protocol, const size_t numreqs) {
     const size_t degree = 2;
 
     const size_t num_x = degree - 1;
@@ -2012,7 +2012,7 @@ int main(int argc, char** argv) {
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
-    else if (protocol == "ANDOP") {
+    else if (protocol == "AND") {
         std::cout << "Uploading all AND shares: " << numreqs << std::endl;
         if (DEBUG_INVALID)
             xor_op_invalid(protocol, numreqs);
@@ -2021,7 +2021,7 @@ int main(int argc, char** argv) {
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
-    else if (protocol == "OROP") {
+    else if (protocol == "OR") {
         std::cout << "Uploading all OR shares: " << numreqs << std::endl;
         if (DEBUG_INVALID)
             xor_op_invalid(protocol, numreqs);
@@ -2030,7 +2030,7 @@ int main(int argc, char** argv) {
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
-    else if (protocol == "MAXOP") {
+    else if (protocol == "MAX") {
         std::cout << "Uploading all MAX shares: " << numreqs << std::endl;
         if (DEBUG_INVALID)
             max_op_invalid(protocol, numreqs);
@@ -2039,7 +2039,7 @@ int main(int argc, char** argv) {
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
-    else if (protocol == "MINOP") {
+    else if (protocol == "MIN") {
         // Min(x) = - max(-x) = b - max(b - x)
         std::cout << "Uploading all MIN shares: " << numreqs << std::endl;
         if (DEBUG_INVALID)
@@ -2049,7 +2049,7 @@ int main(int argc, char** argv) {
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
-    else if (protocol == "VAROP") {
+    else if (protocol == "VAR") {
         std::cout << "Uploading all VAR shares: " << numreqs << std::endl;
         if (DEBUG_INVALID)
             var_op_invalid(protocol, numreqs);
@@ -2058,7 +2058,7 @@ int main(int argc, char** argv) {
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
-    else if (protocol == "STDDEVOP") {
+    else if (protocol == "STDDEV") {
         // Stddev(x) = sqrt(Var(x))
         std::cout << "Uploading all STDDEV shares: " << numreqs << std::endl;
         if (DEBUG_INVALID)
@@ -2068,21 +2068,21 @@ int main(int argc, char** argv) {
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
-    else if (protocol == "LINREGOP") {
         std::cout << "Uploading all LINREG shares: " << numreqs << std::endl;
+    else if (protocol == "LINREG") {
 
         if (DEBUG_INVALID)
-            lin_reg_invalid(protocol, numreqs);
+            linreg_op_invalid(protocol, numreqs);
         else
-            lin_reg(protocol, numreqs);
+            linreg_op(protocol, numreqs);
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
-    else if (protocol == "FREQOP") {
+    else if (protocol == "FREQ") {
         std::cout << "Uploading all FREQ shares: " << numreqs << std::endl;
 
         // if (DEBUG_INVALID)
-        //     lin_reg_invalid(protocol, numreqs);
+        //     freq_op_invalid(protocol, numreqs);
         // else
         freq_op(protocol, numreqs);
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
@@ -2092,7 +2092,7 @@ int main(int argc, char** argv) {
     else if (protocol == "HEAVY") {
 
         // if (DEBUG_INVALID)
-        //     lin_reg_invalid(protocol, numreqs);
+        //     heavy_op_invalid(protocol, numreqs);
         // else
         heavy_op(protocol, numreqs);
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
@@ -2102,11 +2102,17 @@ int main(int argc, char** argv) {
         std::cout << "Uploading all HEAVY shares: " << numreqs << std::endl;
 
         // if (DEBUG_INVALID)
-        //     lin_reg_invalid(protocol, numreqs);
+        //     multi_heavy_op_invalid(protocol, numreqs);
         // else
         multi_heavy_op(protocol, numreqs);
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
+
+    /*
+    else if (protocol == "TOPK") {
+    
+    }
+    */
 
     else {
         std::cout << "Unrecognized protocol: " << protocol << std::endl;

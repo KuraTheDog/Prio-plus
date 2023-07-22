@@ -78,10 +78,10 @@ Server 0 needs to be started before server 1.
 
 * BITSUM: 1 bit integers sum
 * INTSUM: `max_bits` -bit integer sum
-* ANDOP / OROP: Boolean and/or
-* MAXOP / MINOP: Max/min, with values between 0 and `2^max_bits`
-* VAROP / STDDEVOP: Variance / Standard Deviation of `max_bits`-bit integers
-* LINREGOP: `linreg_degree` degree linear regression on `max_bits`-bit integers
+* AND / OR: Boolean and/or
+* MAX / MIN: Max/min, with values between 0 and `2^max_bits`
+* VAR / STDDEV: Variance / Standard Deviation of `max_bits`-bit integers
+* LINREG: `degree` degree linear regression on `max_bits`-bit integers
 * FREQ: Standard frequency counting
 * COUNTMIN: Count-min sketch for `t`-heavy hitters, using `d` hashes of range `w`.
 * HEAVY: Full `t`-heavy hitters, with `L` layers of `d` hashes of range `w` for easy querying.
