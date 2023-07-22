@@ -50,7 +50,8 @@ struct MultiHeavyConfig {
   // root values. The rest can be derived from these
   const size_t K;
   const double delta;
-  const unsigned int delta_inv;
+  const double eps;
+  const unsigned int delta_inv;  // floor(1/delta), for maths
   const size_t Q;
   const double ln2_inv = 1.44269504;  // 1 / (ln 2)
   const size_t B;
@@ -65,15 +66,16 @@ struct MultiHeavyConfig {
 
   const CountMinConfig countmin_cfg;
 
-  MultiHeavyConfig(size_t K, double delta, size_t num_bits, double eps = 0)
+  MultiHeavyConfig(size_t K, double delta, size_t num_bits, double eps)
   : K(K)
   , delta(delta)
+  , eps(eps)
   , delta_inv((unsigned int) floor(1/delta))
   , Q(LOG2(delta_inv))
   , B(ceil(K * ln2_inv))
   , num_bits(num_bits)
-  , SH_depth(num_bits /*+ 1*/)  // TODO: re-introduce constant term
-  , countmin_cfg(CountMinConfig(delta, eps ? eps : delta))
+  , SH_depth(num_bits /*+ 1*/)  // +1 if extra constant term in SH for sanity check ec.
+  , countmin_cfg(CountMinConfig(delta, eps))
   {}
 
   void print() const {

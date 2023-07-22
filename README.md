@@ -55,11 +55,9 @@ The code runs two servers, 0 and 1, each of which needs to be started separately
 Server 0 needs to be started before server 1.
 
 * Server arguments are `server_num client_listen_port server0_port`
-* Client arguments are `./bin/client num_submissions server0_port server1_port OPERATION num_bits (linreg_degree/heavy_t) heavy_w heavy_d heavy_L`
+* Client arguments are `./bin/client num_submissions server0_port server1_port OPERATION num_bits (extra params)`
   * `num_bits` required for ops using integers.
-  * `linreg_degree` optional for LINREG, default 2
-  * `heavy_t`, `heavy_w`, `heavy_d` are parameters for heavy related ops.
-  * `heavy_L` is for heavy, and should be `ceil(log_2(wd))` (param for convenience)
+  * `extra params` depends on protocols
 
 * Ports and max bits need to be consistent across runs and both servers and the client.
 * `max_bits` is used for int based summations, and must match the server value in this case.
@@ -83,8 +81,8 @@ Server 0 needs to be started before server 1.
 * VAR / STDDEV: Variance / Standard Deviation of `max_bits`-bit integers
 * LINREG: `degree` degree linear regression on `max_bits`-bit integers
 * FREQ: Standard frequency counting
-* COUNTMIN: Count-min sketch for `t`-heavy hitters, using `d` hashes of range `w`.
-* HEAVY: Full `t`-heavy hitters, with `L` layers of `d` hashes of range `w` for easy querying.
+* HEAVY: CountMin example. Queries all values, returns those that are heavy. As example, uses uniform stream of `max_bits`-bit integers, except with one value occuring a fraction `f` of the stream.
+* MULTIHEAVY: ZipF distribution of `max_bits` values. Tries to return with accuracy at least `1 - delta` be within `eps` range for the top `K`.
 
 # Code flow outline
 

@@ -43,13 +43,23 @@ x_op_invalid: For testing/debugging, does a basic run with intentionally invalid
 // Whether to have the client batch or not
 #define CLIENT_BATCH true
 
+// Used by most, so global for convenience
 uint32_t num_bits;
 uint64_t max_int;
-uint32_t linreg_degree = 2;
-// heavy threshold
-double t = -1;
 
 int sockfd0, sockfd1;
+
+// Set globals
+void parse_num_bits(const int argc, const char* const * const argv) {
+    if (argc < 6)
+        throw std::invalid_argument("Protocol requires num_bits");
+    num_bits = atoi(argv[5]);
+    std::cout << "num bits: " << num_bits << std::endl;
+    max_int = 1ULL << num_bits;
+    std::cout << "max int: " << max_int << std::endl;
+    if (num_bits > nbits_mod)
+        throw std::invalid_argument("Num bits is too large");
+}
 
 std::string pub_key_to_hex(const uint64_t* const key) {
     std::stringstream ss;
@@ -1258,12 +1268,12 @@ void linreg_op(const std::string protocol, const size_t numreqs, const size_t de
         error_exit("Int Modulus too small");
     }
 
-    const size_t degree = linreg_degree;
+    if (degree < 2)
+        throw std::invalid_argument("Degree must be >= 2");
+
     const size_t num_x = degree - 1;
     const size_t num_quad = num_x * (num_x + 1) / 2;
     // const size_t num_fields = 2 * num_x + 1 + num_quad;
-
-    std::cout << "Linreg degree: " << degree << std::endl;
 
     uint64_t* const x_accum = new uint64_t[num_x + num_quad + 1];
     uint64_t* const y_accum = new uint64_t[num_x + 1];
@@ -1584,7 +1594,7 @@ void freq_op(const std::string protocol, const size_t numreqs) {
     std::cout << "Total sent bytes: " << sent_bytes << std::endl;
 }
 
-int heavy_helper(const std::string protocol, const size_t numreqs,
+int heavy_helper(const std::string protocol, const size_t numreqs, const double f,
                  HashStore& hash_store, uint64_t* count) {
     auto start = clock_start();
     int sent_bytes = 0;
@@ -1605,7 +1615,7 @@ int heavy_helper(const std::string protocol, const size_t numreqs,
     FreqShare* const freqshare0 = new FreqShare[numreqs];
     FreqShare* const freqshare1 = new FreqShare[numreqs];
     for (unsigned int i = 0; i < numreqs; i++) {
-        if (i <= t * numreqs) {  // first t fraction
+        if (i <= f * numreqs) {  // first f fraction
             real_val = heavy;
         } else {
             prg.random_data(&real_val, sizeof(uint64_t));
@@ -1666,7 +1676,7 @@ int heavy_helper(const std::string protocol, const size_t numreqs,
     return sent_bytes;
 }
 
-void heavy_op(const std::string protocol, const size_t numreqs) {
+void heavy_op(const std::string protocol, const size_t numreqs, const double f) {
     int sent_bytes = 0;
     initMsg msg;
     msg.num_bits = num_bits;
@@ -1674,9 +1684,9 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
     msg.max_inp = max_int;
     msg.type = HEAVY_OP;
 
-    if (t <= 0 or t > 1) {
-        error_exit("Should provide threshold (0,1] after bits");
-    }
+    // Fraction of f of the values will be the same
+    if (f <= 0 or f > 1)
+        throw std::invalid_argument("Need gen fraction in (0, 1]");
 
     // track answers
     uint64_t* count = new uint64_t[max_int];
@@ -1699,16 +1709,16 @@ void heavy_op(const std::string protocol, const size_t numreqs) {
     // sent_bytes += send_seeds(hash_seed);
 
     if (CLIENT_BATCH) {
-        sent_bytes += heavy_helper(protocol, numreqs, hash_store, count);
+        sent_bytes += heavy_helper(protocol, numreqs, f, hash_store, count);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            sent_bytes += heavy_helper(protocol, 1, hash_store, count);
+            sent_bytes += heavy_helper(protocol, 1, f, hash_store, count);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
     for (unsigned int j = 0; j < max_int; j++) {
-        if (count[j] > t * numreqs / 2)
+        if (count[j] > f * numreqs / 2)
             std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
     }
     delete[] count;
@@ -1829,14 +1839,20 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
     return sent_bytes;
 }
 
-void multi_heavy_op(const std::string protocol, const size_t numreqs) {
+void multi_heavy_op(const std::string protocol, const size_t numreqs,
+                    const double delta, const double eps, const size_t K) {
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
         std::cout << "Modulus should be at least " << (2 * num_bits + LOG2(numreqs)) << " bits" << std::endl;
-        error_exit("Int Modulus too small");
+        throw std::invalid_argument("Int Modulus too small");
     }
+    if (delta <= 0 or delta > 1)
+        throw std::invalid_argument("Need delta in (0, 1]");
+    if (eps <= 0 or eps > 1)
+        throw std::invalid_argument("Need eps in (0, 1]");
 
     int sent_bytes = 0;
-    const size_t count_size = (2*linreg_degree) > 10 ? (2*linreg_degree) : 10;
+    // For display: how many to print out (max(2K, 10))
+    const size_t count_size = (2*K) > 10 ? (2*K) : 10;
     uint64_t* count = new uint64_t[count_size + 1];
     memset(count, 0, (count_size + 1) * sizeof(uint64_t));
 
@@ -1846,14 +1862,6 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs) {
     msg.max_inp = max_int;
     msg.type = MULTI_HEAVY_OP;
 
-    // TODO: also take K/delta as options
-    if (t <= 0 or t > 1) {
-        error_exit("Should provide delta (0,1] after bits");
-    }
-
-    const size_t K = linreg_degree;  // Default 2. Reuse for now.
-    const double delta = t;
-    const double eps = 0.01;  // TODO: Param
     MultiHeavyConfig cfg(K, delta, num_bits, eps);
 
     cfg.print();
@@ -1933,33 +1941,6 @@ int main(int argc, char** argv) {
 
     const std::string protocol(argv[4]);
 
-    if (argc >= 6) {
-        num_bits = atoi(argv[5]);
-        std::cout << "num bits: " << num_bits << std::endl;
-        max_int = 1ULL << num_bits;
-        std::cout << "max int: " << max_int << std::endl;
-        if (num_bits > nbits_mod)
-            error_exit("Num bits is too large");
-    }
-
-    if (argc >= 7) {
-        double arg7 = atof(argv[6]);
-        std::cout << "arg7: " << arg7 << std::endl;
-        if (arg7 >= 2) {
-            linreg_degree = (int)arg7;
-            std::cout << "linreg degree: " << linreg_degree << std::endl;
-        } else if (arg7 <= 1 and arg7 > 0) {
-            t = arg7;
-            std::cout << "threshold: " << t << std::endl;
-        } else
-            error_exit("Linreg Degree must be >= 2 or threshold in (0,1)");
-    }
-
-    if (argc >= 8) {
-        // Re-use for now.
-        linreg_degree = atoi(argv[7]);
-    }
-
     // Set up server connections
 
     struct sockaddr_in server1, server0;
@@ -2004,6 +1985,7 @@ int main(int argc, char** argv) {
     }
 
     else if (protocol == "INTSUM") {
+        parse_num_bits(argc, argv);
         std::cout << "Uploading all INTSUM shares: " << numreqs << std::endl;
         if (DEBUG_INVALID)
             int_sum_invalid(protocol, numreqs);
@@ -2031,6 +2013,7 @@ int main(int argc, char** argv) {
     }
 
     else if (protocol == "MAX") {
+        parse_num_bits(argc, argv);
         std::cout << "Uploading all MAX shares: " << numreqs << std::endl;
         if (DEBUG_INVALID)
             max_op_invalid(protocol, numreqs);
@@ -2040,6 +2023,7 @@ int main(int argc, char** argv) {
     }
 
     else if (protocol == "MIN") {
+        parse_num_bits(argc, argv);
         // Min(x) = - max(-x) = b - max(b - x)
         std::cout << "Uploading all MIN shares: " << numreqs << std::endl;
         if (DEBUG_INVALID)
@@ -2050,6 +2034,7 @@ int main(int argc, char** argv) {
     }
 
     else if (protocol == "VAR") {
+        parse_num_bits(argc, argv);
         std::cout << "Uploading all VAR shares: " << numreqs << std::endl;
         if (DEBUG_INVALID)
             var_op_invalid(protocol, numreqs);
@@ -2059,6 +2044,7 @@ int main(int argc, char** argv) {
     }
 
     else if (protocol == "STDDEV") {
+        parse_num_bits(argc, argv);
         // Stddev(x) = sqrt(Var(x))
         std::cout << "Uploading all STDDEV shares: " << numreqs << std::endl;
         if (DEBUG_INVALID)
@@ -2068,17 +2054,23 @@ int main(int argc, char** argv) {
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
-        std::cout << "Uploading all LINREG shares: " << numreqs << std::endl;
     else if (protocol == "LINREG") {
+        parse_num_bits(argc, argv);
+        if (argc < 7)
+            throw std::invalid_argument("Need degree >= 2");
+        int degree = atoi(argv[6]);
+        std::cout << "linreg degree: " << degree << std::endl;
 
+        std::cout << "Uploading all LINREG shares: " << numreqs << std::endl;
         if (DEBUG_INVALID)
             linreg_op_invalid(protocol, numreqs);
         else
-            linreg_op(protocol, numreqs);
+            linreg_op(protocol, numreqs, degree);
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
     else if (protocol == "FREQ") {
+        parse_num_bits(argc, argv);
         std::cout << "Uploading all FREQ shares: " << numreqs << std::endl;
 
         // if (DEBUG_INVALID)
@@ -2088,23 +2080,35 @@ int main(int argc, char** argv) {
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
-        std::cout << "Uploading all HEAVY shares: " << numreqs << std::endl;
     else if (protocol == "HEAVY") {
+        parse_num_bits(argc, argv);
+        if (argc < 7)
+            throw std::invalid_argument("Need fraction in (0, 1]");
+        double f = atof(argv[6]);
+        std::cout << "fraction: " << f << std::endl;
 
+        std::cout << "Uploading all HEAVY shares: " << numreqs << std::endl;
         // if (DEBUG_INVALID)
         //     heavy_op_invalid(protocol, numreqs);
         // else
-        heavy_op(protocol, numreqs);
+        heavy_op(protocol, numreqs, f);
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
     else if (protocol == "MULTIHEAVY") {
+        parse_num_bits(argc, argv);
+        // TODO: delta and epsilon parameters
+        if (argc < 9)
+            throw std::invalid_argument("Need parameters [delta, eps, K]");
+        double delta = atof(argv[6]);
+        double eps = atof(argv[7]);
+        int K = atoi(argv[8]);
+        // Possibly K too, depending on what this turns into
         std::cout << "Uploading all HEAVY shares: " << numreqs << std::endl;
-
         // if (DEBUG_INVALID)
         //     multi_heavy_op_invalid(protocol, numreqs);
         // else
-        multi_heavy_op(protocol, numreqs);
+        multi_heavy_op(protocol, numreqs, delta, eps, K);
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
