@@ -131,10 +131,29 @@ void test_countmin() {
   flint_randclear(hash_seed);
 }
 
+void test_half() {
+  flint_rand_t hash_seed;
+  flint_randinit(hash_seed);
+
+  const size_t num_bits = 3;
+
+  HashStoreHalf store(num_bits, hash_seed);
+
+  for (unsigned int i = 0; i < num_bits+1; i++) {
+    int n = 0;
+    for (unsigned int x = 0; x < (1 << num_bits); x++)
+      n += (int) store.survives(i, x);
+    // Right number of survivors. Odd ax+b forces to be true.
+    assert(n == 1ULL << (num_bits - i));
+  }
+}
+
 int main(int argc, char** argv){
   test_seed_sync();
 
   test_countmin();
   test_inverse(6);
   test_inverse(0);
+
+  test_half();
 }

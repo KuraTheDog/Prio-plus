@@ -42,6 +42,7 @@ HashStorePoly::HashStorePoly(
   // We also just want "good enough" distribution.
   // Also, it's not quite polynomial since shift magic.
   // std::cout << "  Poly store degree: " << degree << std::endl;
+  // Can also run into coprime issues. E.g. 3 bits in and out, 0 + 4x, always outputs 0 or 4
   if (output_bits == 0) return;
   for (unsigned int i = 0; i < num_hashes; i++) {
     new_fmpz_array(&coeff[i], degree + 1);

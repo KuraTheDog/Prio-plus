@@ -61,8 +61,8 @@ public:
 };
 
 class HashStorePoly : public HashStore {
+protected:
   const size_t degree;  // degree+1 -wise independent.
-
   fmpz_t** const coeff;
 
 public:
@@ -83,6 +83,42 @@ public:
 
   uint64_t get_coeff(const size_t i, const size_t j) const {
     return fmpz_get_ui(coeff[i][j]);
+  }
+};
+
+// R = num_bits hashes
+// survives(r, x) with probability 1 / 2^r
+// "0" is always survive, up to "R" is one survivor
+// Extra to force more diversity: ax+b mod 2^R, with a odd.
+class HashStoreHalf : public HashStorePoly{
+protected:
+  const size_t R;
+public:
+  HashStoreHalf(const size_t num_bits, flint_rand_t hash_seed_arg)
+  : HashStorePoly(num_bits, num_bits, 1ULL << num_bits, hash_seed_arg, 2)
+  , R(num_bits)
+  {
+    // resample, since shennanigans with co-primeness. so force a = odd
+    fmpz_t half_range;
+    fmpz_init_set_ui(half_range, 1ULL << (R - 1));
+    for (unsigned int i = 0; i < num_bits; i++) {
+      fmpz_randm(coeff[i][1], hash_seed, half_range);
+      fmpz_mul_ui(coeff[i][1], coeff[i][1], 2);
+      fmpz_add_ui(coeff[i][1], coeff[i][1], 1);
+    }
+    fmpz_clear(half_range);
+  }
+
+  bool survives(const size_t i, const uint64_t x) const {
+    if (i == 0)
+      return true;
+
+    fmpz_t tmp; fmpz_init(tmp);
+    eval(i - 1, x, tmp);
+    fmpz_fdiv_q_2exp(tmp, tmp, R - i);
+    bool ret = (bool) fmpz_is_zero(tmp);
+    fmpz_clear(tmp);
+    return ret;
   }
 };
 
