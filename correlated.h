@@ -150,6 +150,11 @@ public:
   int multiply_ArithmeticShares(
       const size_t N, const fmpz_t* const x, const fmpz_t* const y,
       fmpz_t* const z);
+  // x is [N], y is [M], cross multiply into z as [N * M]
+  // x gives column, y is row
+  // so z = [x[0] * y, x[1] * y, ...]
+  int multiply_BoolShares_cross(const size_t N, const size_t M,
+      const bool* x, const bool* y, bool* const z);
   // N inputs, each B bits large
   // b, x, and z are [N * B]
   // Distinction of N vs B only comes in for the optional "valid" array.
