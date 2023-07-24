@@ -1507,7 +1507,7 @@ void linreg_op_invalid(const std::string protocol, const size_t numreqs) {
     delete[] c;
 }
 
-// Make, init to shares of 0
+// Set as bool array, init to random shares of 0
 void freq_init(bool*& arr0, bool*& arr1, const size_t share_size, emp::PRG& prg) {
     arr0 = new bool[share_size];
     arr1 = new bool[share_size];
@@ -1742,6 +1742,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
     uint64_t real_val;
     fmpz_t hashed; fmpz_init(hashed);
 
+    // sh_x, sh_y, q_mask, countmin
     MultiFreqShare* const share0 = new MultiFreqShare[numreqs];
     MultiFreqShare* const share1 = new MultiFreqShare[numreqs];
     // Q sets of singleHeavy, each with Depth layers. (repeat across B)
@@ -1750,9 +1751,11 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
     const size_t share_size_mask = cfg.Q * cfg.B;
     // Count-min
     const size_t share_size_count = cfg.countmin_cfg.d * cfg.countmin_cfg.w;
-    const size_t sizes[4] = {share_size_sh, share_size_sh, share_size_mask, share_size_count};
+    const size_t num_pieces = 4;
+    const size_t sizes[num_pieces] = {share_size_sh, share_size_sh, share_size_mask, 
+            share_size_count};
 
-    // Set to print index
+    // Debug: Set to print value at index
     const unsigned int check_idx = UINT_MAX;
     for (unsigned int i = 0; i < numreqs; i++) {
 
@@ -1763,16 +1766,16 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
             counts[real_val] ++;
         if (i == check_idx) std::cout << "real_val: " << real_val << std::endl;
 
-        // sh_x, sh_y, mask, count
-        share0[i].arr = new bool*[4];
-        share1[i].arr = new bool*[4];
-        freq_init(share0[i].arr[0], share1[i].arr[0], sizes[0], prg);
-        freq_init(share0[i].arr[1], share1[i].arr[1], sizes[1], prg);
-        freq_init(share0[i].arr[2], share1[i].arr[2], sizes[2], prg);
-        freq_init(share0[i].arr[3], share1[i].arr[3], sizes[3], prg);
+        // sh_x, sh_y, q_mask, countmin
+        share0[i].arr = new bool*[num_pieces];
+        share1[i].arr = new bool*[num_pieces];
+        for (unsigned int j = 0; j < num_pieces; j++)
+            freq_init(share0[i].arr[j], share1[i].arr[j], sizes[j], prg);
+
+        // Buckets
         for (unsigned int q = 0; q < cfg.Q; q++) {
             hash_classify.eval(q, real_val, hashed);
-            int b_val = fmpz_get_ui(hashed);
+            const int b_val = fmpz_get_ui(hashed);
             share1[i].arr[2][q * cfg.B + b_val] ^= 1;
 
             if (i == check_idx) std::cout << "substream[" << q << "] = " << b_val << std::endl;
@@ -1780,10 +1783,10 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
             int offset = q * cfg.SH_depth;
             for (unsigned int d = 0; d < cfg.SH_depth; d++) {
                 hash_split.eval(offset + d, real_val, hashed);
-                bool bucket = fmpz_is_one(hashed);
+                const bool bucket = fmpz_is_one(hashed);
                 hash_value.eval(offset + d, real_val, hashed);
                 // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
-                bool h = fmpz_is_one(hashed);
+                const bool h = fmpz_is_one(hashed);
                 if (i == check_idx) std::cout << "  depth " << d << " bucket " << bucket << " value " << h << " (" << 1-2*h << ")" << std::endl;
 
                 share1[i].arr[0][offset + d] ^= bucket;
@@ -1791,6 +1794,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
             }
         }
 
+        // Count-min
         for (unsigned int d = 0; d < count_min.cfg.d; d++) {
             count_min.store->eval(d, real_val, hashed);
             if (i == check_idx) std::cout << "  count[" << d << "] = " << fmpz_get_ui(hashed) << std::endl;
@@ -1807,11 +1811,12 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
     if (numreqs > 1)
         std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
+    // Send
     for (unsigned int i = 0; i < numreqs; i++) {
         sent_bytes += send_tag(sockfd0, share0[i].tag);
         sent_bytes += send_tag(sockfd1, share1[i].tag);
 
-        for (unsigned int j = 0; j < 4; j++) {
+        for (unsigned int j = 0; j < num_pieces; j++) {
             sent_bytes += send_bool_batch(sockfd0, share0[i].arr[j], sizes[j]);
             sent_bytes += send_bool_batch(sockfd1, share1[i].arr[j], sizes[j]);
 
@@ -1894,7 +1899,7 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs,
     send_to_server(0, &msg, sizeof(initMsg));
     send_to_server(1, &msg, sizeof(initMsg));
 
-    // Send params. K, delta are the core.
+    // Send extra params: K, delta, eps
     send_size(sockfd0, K);
     send_size(sockfd1, K);
     send_double(sockfd0, delta);
@@ -2097,13 +2102,12 @@ int main(int argc, char** argv) {
 
     else if (protocol == "MULTIHEAVY") {
         parse_num_bits(argc, argv);
-        // TODO: delta and epsilon parameters
         if (argc < 9)
             throw std::invalid_argument("Need parameters [delta, eps, K]");
         double delta = atof(argv[6]);
         double eps = atof(argv[7]);
-        int K = atoi(argv[8]);
         // Possibly K too, depending on what this turns into
+        int K = atoi(argv[8]);
         std::cout << "Uploading all HEAVY shares: " << numreqs << std::endl;
         // if (DEBUG_INVALID)
         //     multi_heavy_op_invalid(protocol, numreqs);
