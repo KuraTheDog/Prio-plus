@@ -108,7 +108,7 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
   const size_t M = 7;
   const size_t D = 3;
   // Q "parallel" runs of heavy_convert
-  // N inputs, Q copies, D depth, B substreams
+  // N inputs, Q copies, D depth, M substreams
   // |x| = |y| = N * Q * D
   // |mask| = N * Q * M: Substream select
   // Valid size N
@@ -170,8 +170,10 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
 
   // Run
   auto start = clock_start();
-  store->heavy_convert_mask(N, Q, M, D, x, y_p, mask, valid, bucket0, bucket1);
+  int sent_bytes;
+  sent_bytes = store->heavy_convert_mask(N, Q, M, D, x, y_p, mask, valid, bucket0, bucket1);
   std::cout << "heavy mask convert timing : " << sec_from(start) << std::endl;
+  std::cout << "sent_bytes = " << sent_bytes << std::endl;
   delete[] x;
   delete[] y;
   delete[] mask;

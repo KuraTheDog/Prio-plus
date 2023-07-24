@@ -467,40 +467,39 @@ int CorrelatedStore::heavy_convert_mask(
   }
   fmpz_clear(z);
 
+  // Round 1: mask * z
+  // Note: Can't straight multiply masks, since this does tricks for x * z
   fmpz_t* z_masked; new_fmpz_array(&z_masked, N * Q * M * D);
   sent_bytes += multiply_BoolArith(N, Q * M * D, mask_extended, z_base, z_masked, nullptr, valid);
   delete[] mask_extended;
   clear_fmpz_array(z_base, N * Q * M * D);
-  std::cout << "  mul 1 time: " << sec_from(start) << "\n"; start = clock_start();
+  std::cout << "  mask mul time: " << sec_from(start) << "\n"; start = clock_start();
 
+  // Round 2: x * z
+  // Uses tricks for second buff, to implicitly map x to (x, 1-x)
+  // By assuming second one is always "inverted".
+  // Would require extra to allow for "both 0" case with mask
   fmpz_t* buff0; new_fmpz_array(&buff0, N * Q * M * D);
   fmpz_t* buff1; new_fmpz_array(&buff1, N * Q * M * D);
   sent_bytes += multiply_BoolArith(N, Q * M * D, x_extended, z_masked, buff1, buff0, valid);
   delete[] x_extended;
   clear_fmpz_array(z_masked, N * Q * M * D);
-  std::cout << "  mul 2 time: " << sec_from(start) << "\n"; start = clock_start();
+  std::cout << "  xz mul time: " << sec_from(start) << "\n"; start = clock_start();
 
   // for (unsigned int i = 0; i < 1 + 0 * N * Q * M * D; i++) {
   //   std::cout << "x_ext[" << i << "]_" << server_num << " = " << x_extended[i] << std::endl;
   //   std::cout << "mask_ext[" << i << "]_" << server_num << " = " << mask_extended[i] << std::endl;
-  //   std::cout << "z_base[" << i << "]_" << server_num << " = " << fmpz_get_ui(z_base[i]) << std::endl;
-  //   std::cout << "z_masked[" << i << "]_" << server_num << " = " << fmpz_get_ui(z_masked[i]) << std::endl;
-  //   // std::cout << "buff0[" << i << "]_" << server_num << " = " << fmpz_get_ui(buff0[i]) << std::endl;
-  //   // std::cout << "buff1[" << i << "]_" << server_num << " = " << fmpz_get_ui(buff1[i]) << std::endl;
+  //   std::cout << "z_base[" << i << "]_" << server_num << " = " << get_fsigned(z_base[i], Int_Modulus) << std::endl;
+  //   std::cout << "z_masked[" << i << "]_" << server_num << " = " << get_fsigned(z_masked[i], Int_Modulus) << std::endl;
+  //   std::cout << "buff0[" << i << "]_" << server_num << " = " << get_fsigned(buff0[i], Int_Modulus) << std::endl;
+  //   std::cout << "buff1[" << i << "]_" << server_num << " = " << get_fsigned(buff1[i], Int_Modulus) << std::endl;
   // }
 
-
-  for (unsigned int q = 0; q < Q; q++) {
-    for (unsigned int m = 0; m < M; m++) {
-      for (unsigned int d = 0; d < D; d++) {
-        const size_t bucket_idx = (q * M + m) * D + d;
-        for (unsigned int n = 0; n < N; n++) {
-          // const size_t idx = ((n * Q + q) * M + m) * D + d;
-          const size_t idx = n * (Q * M * D) + bucket_idx;
-          fmpz_mod_add(bucket0[bucket_idx], bucket0[bucket_idx], buff0[idx], mod_ctx);
-          fmpz_mod_add(bucket1[bucket_idx], bucket1[bucket_idx], buff1[idx], mod_ctx);
-        }
-      }
+  for (unsigned int bucket_idx = 0; bucket_idx < Q * M * D; bucket_idx++) {
+    for (unsigned int n = 0; n < N; n++) {
+      const size_t idx = n * (Q * M * D) + bucket_idx;
+      fmpz_mod_add(bucket0[bucket_idx], bucket0[bucket_idx], buff0[idx], mod_ctx);
+      fmpz_mod_add(bucket1[bucket_idx], bucket1[bucket_idx], buff1[idx], mod_ctx);
     }
   }
   clear_fmpz_array(buff0, N * Q * M * D);

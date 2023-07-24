@@ -25,7 +25,7 @@ void test_multiplyBoolShares(const size_t N, const int server_num, const int ser
     y[0] = false; y[1] = true;
   } else {
     x[0] = true; x[1] = true;
-    x[1] = true; y[1] = false;
+    y[0] = true; y[1] = false;
   }
 
   bool* z = new bool[N];

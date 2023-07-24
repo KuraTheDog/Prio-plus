@@ -164,6 +164,8 @@ void process_unvalidated(const std::string tag, const size_t n) {
 // Currently shares_2 and shares_p are flat num_shares*num_values array.
 // TODO: Consider reworking for matrix form
 // TODO: return sent_bytes
+// TODO: split, for the sake of communication
+// TODO: move to store? 
 int const share_convert(const size_t num_shares,  // # inputs
                         const size_t num_values,  // # values per input
                         const size_t* const num_bits,  // # bits per value
@@ -200,6 +202,7 @@ int const share_convert(const size_t num_shares,  // # inputs
 
 // Batch of N (snips + num_input wire/share) validations
 // Due to the nature of the final swap, both servers get the same valid array
+// TODO: round split
 const bool* const validate_snips(const size_t N,
                                  const size_t num_inputs,
                                  const int serverfd,
@@ -1719,8 +1722,8 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     const size_t share_size_count = cfg.countmin_cfg.d * cfg.countmin_cfg.w;
     // SingleHeavy bucket pairs
     const size_t num_sh = cfg.Q * cfg.B * cfg.SH_depth;
-    // Size of a single client share
-    const size_t single_share_size = (share_size_sh + share_size_count + share_size_mask);
+    // Values being converted in B2A
+    const size_t share_convert_size = share_size_sh + share_size_count + share_size_mask;
 
     fmpz_t* bucket0; new_fmpz_array(&bucket0, num_sh);
     fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);
@@ -1757,7 +1760,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     // For each pair of buckets, do 1 B2A.
     // All of count-min. Also all of mask for validation
     std::cout << "Inital dabit check" << std::endl;
-    correlated_store->check_DaBits(total_inputs * single_share_size);
+    correlated_store->check_DaBits(total_inputs * share_convert_size);
 
     /* Stages:
     Validate each b (share_mask) is frequency vector. With B2A to check sum to 1
@@ -1765,8 +1768,10 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     (joint share validity)
     Update Countmin with share_count (and freq check in parallel)
     For each (q, b):
-      final mask = share_sh & R_mask. Skip
+      final mask = share_sh & R_mask.
       SH update, except OT multiply [z] by mask.
+
+    TODO: round collapse
 
     mask: B2A just for validation. Kept as bool for Ot multiply
     sh: half B2A for use (z), half kept selection
@@ -1816,7 +1821,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         auto start3 = clock_start();
 
         // Single round all B2A: count, mask, y
-        const size_t convert_size = num_inputs * single_share_size;
+        const size_t convert_size = num_inputs * share_convert_size;
         fmpz_t* shares_p; new_fmpz_array(&shares_p, convert_size);
         bool* shares_2 = new bool[convert_size];
         memcpy(shares_2, shares_count, num_inputs * share_size_count);
@@ -1967,7 +1972,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         auto start3 = clock_start();
 
         // Single round all B2A: count, mask, y
-        const size_t convert_size = num_inputs * single_share_size;
+        const size_t convert_size = num_inputs * share_convert_size;
         fmpz_t* shares_p; new_fmpz_array(&shares_p, convert_size);
         bool* shares_2 = new bool[convert_size];
         memcpy(shares_2, shares_count, num_inputs * share_size_count);

@@ -144,6 +144,7 @@ void test_half() {
     for (unsigned int x = 0; x < (1 << num_bits); x++)
       n += (int) store.survives(i, x);
     // Right number of survivors. Odd ax+b forces to be true.
+    // std::cout << i << ", " << n << std::endl;
     assert(n == 1ULL << (num_bits - i));
   }
 }
