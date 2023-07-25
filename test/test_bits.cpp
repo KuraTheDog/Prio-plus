@@ -48,34 +48,40 @@ void test_multiplyBoolShares(const size_t N, const int server_num, const int ser
 
 void test_multiplyBoolShares_cross(const int server_num, const int serverfd,
     PrecomputeStore* store) {
-  const size_t N = 3;
-  const size_t M = 4;
-  bool* const x = new bool[N];
-  bool* const y = new bool[M];
-  memset(x, 0, N * sizeof(bool));
-  memset(y, 0, M * sizeof(bool));
-  // (1,1,0) x (1,0,0,1)
+  const size_t N = 2;
+  const size_t a = 2;
+  const size_t b = 3;
+  bool* const x = new bool[N * a];
+  bool* const y = new bool[N * b];
+  memset(x, 0, N * a * sizeof(bool));
+  memset(y, 0, N * b * sizeof(bool));
+  // (1, 0) x (1, 1, 0)
+  // (0, 1) x (1, 0, 1)
   if (server_num == 0) {
-    x[0] = true; x[1] = false; x[2] = false;
-    y[0] = false; y[1] = true; y[2] = false; y[3] = true;
+    x[0] = true; x[1] = false; x[2] = true; x[3] = false;
+    y[0] = false; y[1] = true; y[2] = false; y[3] = true; y[4] = true; y[5] = false;
   } else {
-    x[0] = false; x[1] = true; x[2] = false;
-    y[0] = true; y[1] = true; y[2] = false; y[3] = false;
+    x[0] = false; x[1] = false; x[2] = true; x[3] = true;
+    y[0] = true; y[1] = false; y[2] = false; y[3] = false; y[4] = true; y[5] = true;
   }
-  bool* z = new bool[N * M];
+  bool* z = new bool[N * a * b];
 
-  store->multiply_BoolShares_cross(N, M, x, y, z);
+  store->multiply_BoolShares_cross(N, a, b, x, y, z);
 
-  reveal_bool_batch(serverfd, x, N);
-  reveal_bool_batch(serverfd, y, M);
-  reveal_bool_batch(serverfd, z, N * M);
+  reveal_bool_batch(serverfd, x, N * a);
+  reveal_bool_batch(serverfd, y, N * b);
+  reveal_bool_batch(serverfd, z, N * a * b);
   if (server_num == 0) {
     for (unsigned int i = 0; i < N; i++) {
-      for (unsigned int j = 0; j < M; j++) {
-        int idx = i * M + j;
-        // std::cout << "z[" << idx << "] (" << i << ", " << j << ") = " << z[idx];
-        // std::cout << " = " << x[i] << " * " << y[j] << " = " << x[i] * y[j] << std::endl;
-        assert(z[idx] == x[i] * y[j]);
+      for (unsigned int j = 0; j < a; j++) {
+        for (unsigned int k = 0; k < b; k++) {
+          int idx = i * a * b + (j * b + k);
+          int x_idx = i * a + j;
+          int y_idx = i * b + k;
+          // std::cout << "z[" << idx << "] (" << i << ", " << j << ", " << k << ") = " << z[idx];
+          // std::cout << " = " << x[x_idx] << " * " << y[y_idx] << std::endl;
+          assert(z[idx] == x[x_idx] * y[y_idx]);
+        }
       }
     }
   }

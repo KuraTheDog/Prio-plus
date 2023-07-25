@@ -208,19 +208,20 @@ int CorrelatedStore::multiply_ArithmeticShares(
   return sent_bytes;
 }
 
-int CorrelatedStore::multiply_BoolShares_cross(const size_t N, const size_t M,
+int CorrelatedStore::multiply_BoolShares_cross(
+    const size_t N, const size_t a, const size_t b,
     const bool* x, const bool* y, bool* const z) {
   int sent_bytes = 0;
 
-  bool* x_ext = new bool[N * M];
-  bool* y_ext = new bool[N * M];
+  bool* x_ext = new bool[N * a * b];
+  bool* y_ext = new bool[N * a * b];
 
-  for (unsigned int i = 0; i < M; i++)
-    memcpy(&x_ext[i * N], x, N);
-  for (unsigned int i = 0; i < N; i++)
-    memcpy(&y_ext[i * M], y, M);
+  for (unsigned int i = 0; i < N * a; i++) {
+    memset(&x_ext[i * b], x[i], b);
+    memcpy(&y_ext[i * b], &y[(i / a) * b], b);
+  }
 
-  sent_bytes += multiply_BoolShares(N * M, x_ext, y_ext, z);
+  sent_bytes += multiply_BoolShares(N * a * b, x_ext, y_ext, z);
 
   delete[] x_ext;
   delete[] y_ext;
