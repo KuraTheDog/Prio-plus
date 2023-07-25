@@ -151,20 +151,22 @@ void HeavyEval::return_top_K(const size_t K, uint64_t* const topValues, uint64_t
   }
 }
 
-void HeavyEval::print_countmin() const {
+void HeavyEval::print_countmin(bool print) const {
   for (unsigned int i = 0; i < num_hashes; i++) {
     for (unsigned int j = 0; j < hash_range; j++) {
       uint64_t x = countmin_values[i * hash_range + j].reveal<uint64_t>();
-      if (x)
-        std::cout << x << " ";
-      else
-        std::cout << "_ ";
+      if (print) {
+        if (x)
+          std::cout << x << " ";
+        else
+          std::cout << "_ ";
+      }
     }
-    std::cout << std::endl;
+    if (print) std::cout << std::endl;
   }
 }
 
-void HeavyEval::print_values() const {
+void HeavyEval::print_values(bool print) const {
   if (!values) {
     std::cout << "No values" << std::endl;
     return;
@@ -177,9 +179,11 @@ void HeavyEval::print_values() const {
     } else { 
       v = values[i].reveal<uint64_t>();
     }
-    std::cout << "Value " << i+1 << " / " << num_values << ": " << v;
-    if (freq_and_vals) std::cout << ", freq: " << f;
-    std::cout << std::endl;
+    if (print) {
+      std::cout << "Value " << i+1 << " / " << num_values << ": " << v;
+      if (freq_and_vals) std::cout << ", freq: " << f;
+      std::cout << std::endl;
+    }
   }
 }
 
@@ -237,18 +241,18 @@ void HeavyExtract::extract_candidates() {
   }
 }
 
-void HeavyExtract::print_buckets() const {
+void HeavyExtract::print_buckets(bool print) const {
   int64_t m = fmpz_get_ui(Int_Modulus);
   for (unsigned int i = 0; i < Q * B * D; i++) {
     int64_t x0 = bucket0[i].reveal<int64_t>();
     int64_t x1 = bucket1[i].reveal<int64_t>();
     x0 -= x0 < m/2 ? 0 : m;
     x1 -= x1 < m/2 ? 0 : m;
-    std::cout << "buckets[" << i << "] = " << x0 << " vs " << x1 << std::endl;
+    if (print) std::cout << "buckets[" << i << "] = " << x0 << " vs " << x1 << std::endl;
   }
 }
 
-void HeavyExtract::print_cmp() const {
+void HeavyExtract::print_cmp(bool print) const {
   int64_t m = fmpz_get_ui(Int_Modulus);
   for (unsigned int i = 0; i < Q * B * D; i++) {
     int64_t x0 = bucket0[i].reveal<int64_t>();
@@ -256,15 +260,17 @@ void HeavyExtract::print_cmp() const {
     x0 -= x0 < m/2 ? 0 : m;
     x1 -= x1 < m/2 ? 0 : m;
     bool l = cmp[i].reveal<bool>();
-    std::cout << "buckets[" << i << "] = |" << x0 << "| ";
-    std::cout << (l ? "<":">") << " |" << x1 << "|" << std::endl;
+    if (print) {
+      std::cout << "buckets[" << i << "] = |" << x0 << "| ";
+      std::cout << (l ? "<":">") << " |" << x1 << "|" << std::endl;
+    }
   }
 }
 
-void HeavyExtract::print_candidates() const {
   for (unsigned int i = 0; i < Q * B; i++) {
+void HeavyExtract::print_candidates(bool print) const {
     int64_t x = candidates[i].reveal<int64_t>();
-    std::cout << "Candidate " << i << " = " << x << std::endl;
+    if (print) std::cout << "Candidate " << i << " = " << x << std::endl;
   }
 }
 

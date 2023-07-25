@@ -188,7 +188,7 @@ void test_misc(int party, int num_bits = 3) {
   std::cout << c.reveal<int64_t>() << std::endl;
 }
 
-void test_full(int party, flint_rand_t hash_seed) {
+void test_full_sort(int party, flint_rand_t hash_seed) {
 
   // Phase 0: Setup
   CountMinConfig cfg(.1, .4);  // 3 hashes range 7
@@ -236,6 +236,8 @@ void test_full(int party, flint_rand_t hash_seed) {
     }
   }
 
+  // Run
+
   // Create struct
   HeavyEval heavy_eval(party, count_min, total_count);
   // heavy_eval.print_params();
@@ -252,13 +254,18 @@ void test_full(int party, flint_rand_t hash_seed) {
   heavy_eval.get_frequencies();
   // std::cout << "parsed values with freqs: \n"; heavy_eval.print_values();
 
+  // Step 4: Sort and remove dupes
   heavy_eval.sort_remove_dupes();
   // std::cout << "sorted values with freqs: \n"; heavy_eval.print_values();
 
   const size_t K = 3;
   uint64_t* top_values = new uint64_t[K];
   uint64_t* top_freqs = new uint64_t[K];
+
+  // Step 5: extract out top K, return
   heavy_eval.return_top_K(K, top_values, top_freqs);
+
+  // Check
   std::cout << "Top K = " << K << " values and freqs, decreasing\n";
   for (unsigned int i = 0; i < K; i++) {
     std::cout << "Value: " << top_values[i] << ", freq: " << top_freqs[i] << std::endl;
@@ -283,17 +290,17 @@ void test_bucket_compare(int party, flint_rand_t hash_seed) {
   const size_t depth = input_bits;
 
   const size_t num_groups = 4;  // < 2^input bits
-  const size_t num_copies = 2;
-  const size_t num_hashes = input_bits * num_copies * num_groups;
+  const size_t num_substreams = 2;
+  const size_t num_pairs = num_groups * num_substreams * depth;
 
   HashStoreBit store(num_groups, depth, input_bits, output_range, hash_seed);
 
-  fmpz_t* bucket0; new_fmpz_array(&bucket0, num_hashes);
-  fmpz_t* bucket1; new_fmpz_array(&bucket1, num_hashes);
+  fmpz_t* bucket0; new_fmpz_array(&bucket0, num_pairs);
+  fmpz_t* bucket1; new_fmpz_array(&bucket1, num_pairs);
 
   fmpz_t tmp; fmpz_init(tmp);
   fmpz_t tmp2; fmpz_init(tmp2);
-  for (unsigned int i = 0; i < num_hashes; i++) {
+  for (unsigned int i = 0; i < num_pairs; i++) {
     // actual[i] = abs(b0) < abs(b1);
     fmpz_randm(tmp, seed, Int_Modulus);
     fmpz_randm(tmp2, seed, Int_Modulus);
@@ -314,7 +321,7 @@ void test_bucket_compare(int party, flint_rand_t hash_seed) {
     }
   }
 
-  HeavyExtract eval(party, store, num_groups, num_copies, depth);
+  HeavyExtract eval(party, store, num_groups, num_substreams, depth);
 
   eval.set_buckets(bucket0, bucket1);
   // eval.print_buckets();
@@ -322,30 +329,28 @@ void test_bucket_compare(int party, flint_rand_t hash_seed) {
   eval.bucket_compare();
   eval.print_cmp();
 
-  clear_fmpz_array(bucket0, num_hashes);
-  clear_fmpz_array(bucket1, num_hashes);
+  clear_fmpz_array(bucket0, num_pairs);
+  clear_fmpz_array(bucket1, num_pairs);
   fmpz_clear(tmp);
   fmpz_clear(tmp2);
 }
 
 void test_extract(int party, flint_rand_t hash_seed) {
   const size_t input_bits = 3;
-  const size_t output_range = 2;  // must be 2
+  const size_t output_range = 2;  // test built only to support 2
   const size_t depth = input_bits;
 
   const size_t num_groups = 4;  // < 2^input bits
-  const size_t num_copies = 2;
-  const size_t num_hashes = input_bits * num_copies * num_groups;
+  const size_t num_groups = 4;  // < 2^input bits. Q
+  const size_t num_substreams = 2;  // B
+  const size_t num_pairs = num_groups * num_substreams * depth;
 
+  // Setup
   HashStoreBit store(num_groups, depth, input_bits, output_range, hash_seed);
-  // if (party == ALICE) {
-  //   std::cout << "coeff:\n";
-  //   store.print_coeff();
-  // }
 
   // figure out values
   // For now, just replicate across copies, bits too small for split magic
-  fmpz_t* values; new_fmpz_array(&values, num_hashes);
+  fmpz_t* values; new_fmpz_array(&values, num_pairs);
   fmpz_t tmp; fmpz_init(tmp);
   for (unsigned int i = 0; i < num_groups; i++) {
     for (unsigned int j = 0; j < depth; j++) {
@@ -356,18 +361,14 @@ void test_extract(int party, flint_rand_t hash_seed) {
         fmpz_set(values[idx], tmp);
       }
     }
-    // if (party == ALICE) {
-    //   std::cout << "inv " << i << ":\n";
-    //   store.print_inv(i);
-    // }
   }
 
   // Set up bucket values according to values
-  fmpz_t* bucket0; new_fmpz_array(&bucket0, num_hashes);
-  fmpz_t* bucket1; new_fmpz_array(&bucket1, num_hashes);
+  fmpz_t* bucket0; new_fmpz_array(&bucket0, num_pairs);
+  fmpz_t* bucket1; new_fmpz_array(&bucket1, num_pairs);
 
   fmpz_t tmp2; fmpz_init(tmp2);
-  for (unsigned int i = 0; i < num_hashes; i++) {
+  for (unsigned int i = 0; i < num_pairs; i++) {
     fmpz_randm(tmp, seed, Int_Modulus);
     fmpz_randm(tmp2, seed, Int_Modulus);
     if (party == ALICE) {
@@ -387,23 +388,24 @@ void test_extract(int party, flint_rand_t hash_seed) {
       fmpz_mod_sub(bucket1[i], bucket1[i], tmp2, mod_ctx);
     }
   }
-  clear_fmpz_array(values, num_hashes);
+  clear_fmpz_array(values, num_pairs);
   fmpz_clear(tmp);
   fmpz_clear(tmp2);
 
-  HeavyExtract eval(party, store, num_groups, num_copies, depth);
+  // Run
+  HeavyExtract eval(party, store, num_groups, num_substreams, depth);
 
   eval.set_buckets(bucket0, bucket1);
-  // eval.print_buckets();
+  // eval.print_buckets(party == ALICE);
 
   eval.bucket_compare();
-  // eval.print_cmp();
+  // eval.print_cmp(party == ALICE);
 
   eval.extract_candidates();
-  eval.print_candidates();
+  eval.print_candidates(party == ALICE);
 
-  clear_fmpz_array(bucket0, num_hashes);
-  clear_fmpz_array(bucket1, num_hashes);
+  clear_fmpz_array(bucket0, num_pairs);
+  clear_fmpz_array(bucket1, num_pairs);
 }
 
 void run(int party, int port) {
@@ -454,7 +456,7 @@ void run(int party, int port) {
 
   /* EvalHeavy specific */
   // test_hash(party, hash_seed);
-  test_full(party, hash_seed);
+  test_full_sort(party, hash_seed);
 
   // test_bucket_compare(party, hash_seed);
   test_extract(party, hash_seed);

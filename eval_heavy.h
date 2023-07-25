@@ -99,14 +99,13 @@ struct HeavyEval {
 
   const size_t hash_range;
   const size_t num_hashes;
-  const size_t total_count;
 
   // Incremented by 1 since Integers are sometimes signed.
   const size_t input_bits;
   const size_t hash_range_bits;
   // For initial shares, sum modulo big modulus
   const size_t share_bits;
-  // (freq) values are max "total count"
+  // (freq) values are max "total count", used just to determine size of values
   const size_t freq_bits;
 
   Integer* countmin_values = nullptr;
@@ -120,13 +119,13 @@ struct HeavyEval {
   // Tuple <freq, val> for sorting purposes
   IntegerPair* freq_and_vals = nullptr;
 
+  // Total_count only used to determine max size of frequency values
   HeavyEval(const int party, const CountMin& count_min, const size_t total_count)
   : party(party)
   , count_min(count_min)
   , store((HashStorePoly*) count_min.store)
   , hash_range(count_min.cfg.w)
   , num_hashes(count_min.cfg.d)
-  , total_count(total_count)
   , input_bits(store->get_input_bits() + 1)
   , hash_range_bits(LOG2(hash_range) + 1)
   , share_bits(nbits_mod + 1)
@@ -198,15 +197,14 @@ struct HeavyEval {
     std::cout << "\t Party: " << party << std::endl;
     std::cout << "\t num hashes: " << num_hashes << std::endl;
     std::cout << "\t hash range: " << hash_range << std::endl;
-    std::cout << "\t total_count: " << total_count << std::endl;
     std::cout << "\t input bits+1: " << input_bits << std::endl;
     std::cout << "\t share bits+1: " << share_bits << std::endl;
     std::cout << "\t freq bits+1: " << freq_bits << std::endl;
     std::cout << "\t hash range bits+1: " << hash_range_bits << std::endl;
   }
   /* DEBUG ONLY */
-  void print_countmin() const;
-  void print_values() const;
+  void print_countmin(bool print = true) const;
+  void print_values(bool print = true) const;
 };
 
 /*
@@ -226,12 +224,14 @@ struct HeavyExtract {
   const size_t share_bits;
   // Because bucket can have negative value, need full share_bits too
 
-  // Q * D hashes
   // Q * B * D total buckets
+  // Split into B substreams.
+  // Each gets D depth SingleHeavy
+  // Repeat for Q different splits/hashes
   // Groups of D buckets make value
   // for Q * B values
-  const size_t Q;  // num groups
-  const size_t B;  // num replications
+  const size_t Q;  // num groups. Num splitting hashes
+  const size_t B;  // num substreams
   const size_t D;  // depth
 
   Integer mod;
@@ -285,9 +285,9 @@ struct HeavyExtract {
   }
 
   /* DEBUG ONLY */
-  void print_buckets() const;
-  void print_cmp() const;
-  void print_candidates() const;
+  void print_buckets(bool print = true) const;
+  void print_cmp(bool print = true) const;
+  void print_candidates(bool print = true) const;
 };
 
 /*
