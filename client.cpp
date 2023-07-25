@@ -1867,7 +1867,7 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs,
     msg.max_inp = max_int;
     msg.type = MULTI_HEAVY_OP;
 
-    MultiHeavyConfig cfg(K, delta, num_bits, eps);
+    MultiHeavyConfig cfg(K, delta, num_bits, eps, 1);
 
     cfg.print();
 

@@ -289,9 +289,10 @@ void test_bucket_compare(int party, flint_rand_t hash_seed) {
   const size_t output_range = 2;  // must be 2
   const size_t depth = input_bits;
 
+  const size_t num_copies = 1;  // R
   const size_t num_groups = 4;  // < 2^input bits
   const size_t num_substreams = 2;
-  const size_t num_pairs = num_groups * num_substreams * depth;
+  const size_t num_pairs = num_copies * num_groups * num_substreams * depth;
 
   HashStoreBit store(num_groups, depth, input_bits, output_range, hash_seed);
 
@@ -321,7 +322,7 @@ void test_bucket_compare(int party, flint_rand_t hash_seed) {
     }
   }
 
-  HeavyExtract eval(party, store, num_groups, num_substreams, depth);
+  HeavyExtract eval(party, store, num_copies, num_groups, num_substreams, depth);
 
   eval.set_buckets(bucket0, bucket1);
   // eval.print_buckets();
@@ -340,10 +341,10 @@ void test_extract(int party, flint_rand_t hash_seed) {
   const size_t output_range = 2;  // test built only to support 2
   const size_t depth = input_bits;
 
-  const size_t num_groups = 4;  // < 2^input bits
+  const size_t num_copies = 2;  // R
   const size_t num_groups = 4;  // < 2^input bits. Q
   const size_t num_substreams = 2;  // B
-  const size_t num_pairs = num_groups * num_substreams * depth;
+  const size_t num_pairs = num_copies * num_groups * num_substreams * depth;
 
   // Setup
   HashStoreBit store(num_groups, depth, input_bits, output_range, hash_seed);
@@ -355,10 +356,13 @@ void test_extract(int party, flint_rand_t hash_seed) {
   for (unsigned int i = 0; i < num_groups; i++) {
     for (unsigned int j = 0; j < depth; j++) {
       store.eval(i * depth + j, i, tmp);
-      for (unsigned int k = 0; k < num_copies; k++) {
-        // Order group, copy, depth
-        const unsigned int idx = (i * num_copies + k) * depth + j;
-        fmpz_set(values[idx], tmp);
+      for (unsigned int k = 0; k < num_substreams; k++) {
+        // Order group, substream, depth
+        const unsigned int idx = (i * num_substreams + k) * depth + j;
+        for (unsigned int r = 0; r < num_copies; r++) {
+          const unsigned int final_idx = r * num_groups * num_substreams * depth + idx;
+          fmpz_set(values[final_idx], tmp);
+        }
       }
     }
   }
@@ -393,7 +397,7 @@ void test_extract(int party, flint_rand_t hash_seed) {
   fmpz_clear(tmp2);
 
   // Run
-  HeavyExtract eval(party, store, num_groups, num_substreams, depth);
+  HeavyExtract eval(party, store, num_copies, num_groups, num_substreams, depth);
 
   eval.set_buckets(bucket0, bucket1);
   // eval.print_buckets(party == ALICE);

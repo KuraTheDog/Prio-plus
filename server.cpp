@@ -1701,7 +1701,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     size_t K; recv_size(clientfd, K);
     double delta; recv_double(clientfd, delta);
     double eps; recv_double(clientfd, eps);
-    MultiHeavyConfig cfg(K, delta, num_bits, eps);
+    MultiHeavyConfig cfg(K, delta, num_bits, eps, 1);
     cfg.print();
 
     flint_rand_t hash_seed_classify; flint_randinit(hash_seed_classify);
@@ -1894,7 +1894,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
             num_inputs, cfg.Q, cfg.B, cfg.SH_depth,
             shares_sh_x, &shares_p[share_y_offset], shares_mask,
             valid, bucket0, bucket1);
-        clear_fmpz_array(shares_p, num_inputs * (share_size_count + share_size_mask));
+        clear_fmpz_array(shares_p, convert_size);
         delete[] shares_sh_x;
         delete[] shares_mask;
         std::cout << "heavy_convert time: " << sec_from(start3) << std::endl;
@@ -2045,7 +2045,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
             num_inputs, cfg.Q, cfg.B, cfg.SH_depth,
             shares_sh_x, &shares_p[share_y_offset], shares_mask,
             valid, bucket0, bucket1);
-        clear_fmpz_array(shares_p, num_inputs * (share_size_count + share_size_mask));
+        clear_fmpz_array(shares_p, convert_size);
         delete[] shares_sh_x;
         delete[] shares_mask;
         std::cout << "heavy_convert time: " << sec_from(start3) << std::endl;

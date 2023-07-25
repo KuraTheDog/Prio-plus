@@ -43,6 +43,7 @@ struct MultiHeavyConfig {
   // Delta: Failure (0.05)
   // Q = log_2(1/delta) copies of single-heavy
   // B = hash range, (C)^2 / (2 ln 2)
+  // R = halving layers, log(n)
   // Also should have B < input size, else more efficient to just do freq
   // Countmin parameters
   // TODO: Find weakest epsilon, based on "threshold gap"
@@ -55,6 +56,7 @@ struct MultiHeavyConfig {
   const size_t Q;
   const double ln2_inv = 1.44269504;  // 1 / (ln 2)
   const size_t B;
+  const size_t R;
 
   // Q parallel iterations.
   // Each splits input into B substreams.
@@ -66,13 +68,14 @@ struct MultiHeavyConfig {
 
   const CountMinConfig countmin_cfg;
 
-  MultiHeavyConfig(size_t K, double delta, size_t num_bits, double eps)
+  MultiHeavyConfig(size_t K, double delta, size_t num_bits, double eps, size_t layers = 0)
   : K(K)
   , delta(delta)
   , eps(eps)
   , delta_inv((unsigned int) floor(1/delta))
   , Q(LOG2(delta_inv))
   , B(ceil(K * ln2_inv))
+  , R(layers ? layers : num_bits)
   , num_bits(num_bits)
   , SH_depth(num_bits /*+ 1*/)  // +1 if extra constant term in SH for sanity check ec.
   , countmin_cfg(CountMinConfig(delta, eps))
@@ -82,8 +85,10 @@ struct MultiHeavyConfig {
       std::cout << "Multi Heavy Params: " << std::endl;
       std::cout << "\tK = # heavy target: " << K << std::endl;
       std::cout << "\tdelta = max failure: " << delta << std::endl;
+      std::cout << "\teps = tolerance: " << eps << std::endl;
       std::cout << "\tQ = # SH : " << Q << std::endl;
       std::cout << "\tB = substream hash range: " << B << std::endl;
+      std::cout << "\tR = # halving layers: " << R << std::endl;
       std::cout << "\tnum_bits: " << num_bits << std::endl;
       std::cout << "\tSH depth: " << SH_depth << std::endl;
       countmin_cfg.print();

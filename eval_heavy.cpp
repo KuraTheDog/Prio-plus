@@ -190,7 +190,7 @@ void HeavyEval::print_values(bool print) const {
 void HeavyExtract::set_bucket(const int idx, const fmpz_t* const bucket) {
   Integer* target = idx ? bucket1 : bucket0;
 
-  for (unsigned int i = 0; i < Q * B * D; i++) {
+  for (unsigned int i = 0; i < R * Q * B * D; i++) {
     uint64_t val = fmpz_get_ui(bucket[i]);
     Integer a(share_bits, party == ALICE ? val : 0, ALICE);
     Integer b(share_bits, party == BOB ? val : 0, BOB);
@@ -206,7 +206,7 @@ void HeavyExtract::bucket_compare() {
   // If x > mod/2, then "-x" -> abs(x - mod) = -(x-mod) = mod - x
   Integer mod_half(share_bits, fmpz_get_ui(Int_Modulus)/2, PUBLIC);
 
-  for (unsigned int i = 0; i < Q * B * D; i++) {
+  for (unsigned int i = 0; i < R * Q * B * D; i++) {
     Integer abs0 = If(bucket0[i] < mod_half, bucket0[i], mod - bucket0[i]);
     Integer abs1 = If(bucket1[i] < mod_half, bucket1[i], mod - bucket1[i]);
     cmp[i] = abs0 < abs1;
@@ -218,32 +218,40 @@ void HeavyExtract::extract_candidates() {
   Integer one(value_bits, 1, PUBLIC);
   Integer two(value_bits, 2, PUBLIC);
 
-  for (unsigned int q = 0; q < Q; q++) {
-    for (unsigned int b = 0; b < B; b++) {
-      const unsigned int val_idx = q * B + b;
-      Integer value(value_bits, 0, PUBLIC);
-      for (unsigned int d = 0; d < D; d++) {
-        Integer vec(value_bits, 0, PUBLIC);
-        for (unsigned int col = 0; col < input_bits; col++) {
-          const unsigned int cmp_idx = val_idx * D + col;
-          // Coeffs are 0 or 1, and fixed
-          // So we can reduce circuit size by conditional on coeff
-          if (store.get_inv_coeff(q, d, col) == 1) {
-            vec = If(cmp[cmp_idx], vec + one, vec);
+  unsigned int val_idx = 0;
+  // Global repeats R
+  for (unsigned int r = 0; r < R; r++) {
+    // Row repeat Q. Determines hash
+    for (unsigned int q = 0; q < Q; q++) {
+      // Which substream. Builds value for R*Q*B
+      for (unsigned int b = 0; b < B; b++) {
+        Integer value(value_bits, 0, PUBLIC);
+        // Solving over bits of value
+        for (unsigned int bit = 0; bit < input_bits; bit++) {
+          Integer vec(value_bits, 0, PUBLIC);
+          // Over depth, inverting and adding (mod 2)
+          for (unsigned int d = 0; d < D; d++) {
+            const unsigned int cmp_idx = val_idx * D + d;
+            // Coeffs are 0 or 1, and fixed
+            // So we can reduce circuit size by conditional on public coeff
+            if (store.get_inv_coeff(q, bit, d) == 1) {
+              vec = If(cmp[cmp_idx], vec + one, vec);
+            }
           }
+          // Can store powers for reuse, but probably fine since public const
+          Integer pow(value_bits, 1ULL << bit, PUBLIC);
+          value = If(vec % two == zero, value, value + pow);
         }
-        // Can store for reuse, but probably fine
-        Integer pow(value_bits, 1ULL << d, PUBLIC);
-        value = If(vec % two == zero, value, value + pow);
+        candidates[val_idx] = value;
+        val_idx++;
       }
-      candidates[val_idx] = value;;
     }
   }
 }
 
 void HeavyExtract::print_buckets(bool print) const {
   int64_t m = fmpz_get_ui(Int_Modulus);
-  for (unsigned int i = 0; i < Q * B * D; i++) {
+  for (unsigned int i = 0; i < R * Q * B * D; i++) {
     int64_t x0 = bucket0[i].reveal<int64_t>();
     int64_t x1 = bucket1[i].reveal<int64_t>();
     x0 -= x0 < m/2 ? 0 : m;
@@ -254,7 +262,7 @@ void HeavyExtract::print_buckets(bool print) const {
 
 void HeavyExtract::print_cmp(bool print) const {
   int64_t m = fmpz_get_ui(Int_Modulus);
-  for (unsigned int i = 0; i < Q * B * D; i++) {
+  for (unsigned int i = 0; i < R * Q * B * D; i++) {
     int64_t x0 = bucket0[i].reveal<int64_t>();
     int64_t x1 = bucket1[i].reveal<int64_t>();
     x0 -= x0 < m/2 ? 0 : m;
@@ -267,8 +275,8 @@ void HeavyExtract::print_cmp(bool print) const {
   }
 }
 
-  for (unsigned int i = 0; i < Q * B; i++) {
 void HeavyExtract::print_candidates(bool print) const {
+  for (unsigned int i = 0; i < R * Q * B; i++) {
     int64_t x = candidates[i].reveal<int64_t>();
     if (print) std::cout << "Candidate " << i << " = " << x << std::endl;
   }
@@ -290,7 +298,7 @@ void full_heavy_extract(
 
   HashStoreBit hash_split(cfg.Q, cfg.SH_depth, cfg.num_bits, 2, hash_seed_split);
 
-  HeavyExtract ex(party, hash_split, cfg.Q, cfg.B, cfg.SH_depth);
+  HeavyExtract ex(party, hash_split, cfg.R, cfg.Q, cfg.B, cfg.SH_depth);
   // ex.print_params();
   
   ex.set_buckets(bucket0, bucket1);
@@ -313,7 +321,7 @@ void full_heavy_extract(
   ev.parse_countmin();
   // std::cout << "countmin: " << std::endl; ev.print_countmin();
 
-  ev.set_values(ex.get_candidates(), cfg.Q * cfg.B);
+  ev.set_values(ex.get_candidates(), cfg.R * cfg.Q * cfg.B);
   // std::cout << "set values: " << std::endl; ev.print_values();
 
   ev.get_frequencies();

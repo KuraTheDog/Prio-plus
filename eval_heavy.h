@@ -224,12 +224,14 @@ struct HeavyExtract {
   const size_t share_bits;
   // Because bucket can have negative value, need full share_bits too
 
-  // Q * B * D total buckets
   // Split into B substreams.
   // Each gets D depth SingleHeavy
   // Repeat for Q different splits/hashes
+  // Global repeat all R times (same hashes), on different values (halving)
+  // R * Q * B * D total buckets
   // Groups of D buckets make value
-  // for Q * B values
+  // for R * Q * B values
+  const size_t R;  // Full copies
   const size_t Q;  // num groups. Num splitting hashes
   const size_t B;  // num substreams
   const size_t D;  // depth
@@ -241,22 +243,23 @@ struct HeavyExtract {
   Integer* candidates;
 
   HeavyExtract(const int party, const HashStoreBit& store, 
-      const size_t Q, const size_t B, const size_t D)
+      const size_t R, const size_t Q, const size_t B, const size_t D)
   : party(party)
   , store(store)
   , input_bits(store.get_input_bits())
   , value_bits(input_bits + 1)
   , share_bits(nbits_mod + 1)
   // , bucket_bits(LOG2(total_count) + 1)
+  , R(R)
   , Q(Q)
   , B(B)
   , D(D)
   {
     mod = Integer(share_bits, fmpz_get_ui(Int_Modulus));
-    bucket0 = new Integer[Q * B * D];
-    bucket1 = new Integer[Q * B * D];
-    cmp = new Bit[Q * B * D];
-    candidates = new Integer[Q * B];
+    bucket0 = new Integer[R * Q * B * D];
+    bucket1 = new Integer[R * Q * B * D];
+    cmp = new Bit[R * Q * B * D];
+    candidates = new Integer[R * Q * B];
   };
 
   ~HeavyExtract() {
