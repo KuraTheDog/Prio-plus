@@ -221,7 +221,7 @@ void test_full_sort(int party, flint_rand_t hash_seed) {
           share, mod_ctx);
     }
   }
-  // Candidates are 0, 1, 2, 3, ...
+
   const size_t num_candidates = 10;
   int candidate_list[num_candidates] = {0, 0, 1, 2, 3, 1, 2, 3, 4, 4};
   // std::cout << "Creating " << num_candidates << " candidates " << std::endl;

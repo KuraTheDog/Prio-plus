@@ -97,6 +97,7 @@ struct HeavyEval {
   const CountMin& count_min;
   const HashStorePoly* store;
 
+  const size_t input_range;
   const size_t hash_range;
   const size_t num_hashes;
 
@@ -124,6 +125,7 @@ struct HeavyEval {
   : party(party)
   , count_min(count_min)
   , store((HashStorePoly*) count_min.store)
+  , input_range(store->get_input_range())
   , hash_range(count_min.cfg.w)
   , num_hashes(count_min.cfg.d)
   , input_bits(store->get_input_bits() + 1)

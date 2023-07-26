@@ -16,25 +16,34 @@ void HeavyEval::parse_countmin() {
 Integer HeavyEval::eval_hash(Integer value, const unsigned int i) {
   const size_t mult_bits = input_bits * 2 + 1;
 
-  // Slightly larger to allow for modulo to work right.
-  const size_t tmp_size = hash_range_bits + 1;
+  // For mod
+  // Sizes are +1 to make modulo work better
+  // Mult bits has implicit extra +1 that has it work out
+  Integer input_range_int(mult_bits, input_range, PUBLIC);
+  Integer hash_range_int(hash_range_bits + 1, hash_range, PUBLIC);
 
   Integer a(mult_bits, store->get_coeff(i, 1), PUBLIC);
-  Integer b(tmp_size, store->get_coeff(i, 0), PUBLIC);
-  Integer hash_range_int(tmp_size, hash_range, PUBLIC);
+  Integer b(hash_range_bits, store->get_coeff(i, 0), PUBLIC);
 
-  // Input range is 2^input_bits, so we do the mod as part of the truncate
+  // Temp resize value to match for multiply
+  value.resize(mult_bits, false);
   Integer ret = a * value;
+  value.resize(input_bits, false);
+
+  ret = ret % input_range_int;
+  // Resize to desired, and match b
+  ret.resize(hash_range_bits, false);
+  // Grab first bits, from normal hashing
   if (input_bits > hash_range_bits) {
     // Should always happen (shrink so count-min gives advantage).
     ret = ret >> (input_bits - hash_range_bits);
   }
-  // Quick way to do modulo 2^input_bits
-  ret.resize(hash_range_bits-1, false);
-  ret.resize(tmp_size, false);
-  ret = (ret + b);
+  ret = ret + b;
+  // Match modulo
+  ret.resize(hash_range_bits + 1, false);
   ret = ret % hash_range_int;
   ret.resize(hash_range_bits, false);
+
   return ret;
 }
 

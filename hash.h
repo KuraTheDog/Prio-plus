@@ -56,6 +56,7 @@ public:
   virtual void print_hash(const unsigned int i) const = 0;
   void print() const;
 
+  size_t get_input_range() const { return 1ULL << input_bits; };
   size_t get_input_bits() const { return input_bits; };
   size_t get_num_hashes() const { return num_hashes; };
 };
