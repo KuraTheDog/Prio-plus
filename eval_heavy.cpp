@@ -31,13 +31,13 @@ Integer HeavyEval::eval_hash(Integer value, const unsigned int i) {
   value.resize(input_bits, false);
 
   ret = ret % input_range_int;
-  // Resize to desired, and match b
-  ret.resize(hash_range_bits, false);
   // Grab first bits, from normal hashing
   if (input_bits > hash_range_bits) {
     // Should always happen (shrink so count-min gives advantage).
     ret = ret >> (input_bits - hash_range_bits);
   }
+  // Resize to desired, and match b. Above shift stops this from breaking.
+  ret.resize(hash_range_bits, false);
   ret = ret + b;
   // Match modulo
   ret.resize(hash_range_bits + 1, false);
