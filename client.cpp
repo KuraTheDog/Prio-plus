@@ -1752,19 +1752,21 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
     // Count-min
     const size_t share_size_count = cfg.countmin_cfg.d * cfg.countmin_cfg.w;
     const size_t num_pieces = 4;
-    const size_t sizes[num_pieces] = {share_size_sh, share_size_sh, share_size_mask, 
+    const size_t sizes[num_pieces] = {share_size_sh, share_size_sh, share_size_mask,
             share_size_count};
 
     // Debug: Set to print value at index
     const unsigned int check_idx = UINT_MAX;
     for (unsigned int i = 0; i < numreqs; i++) {
+        bool print = (check_idx == i);
+        // bool print = true;
 
         real_val = distribution.sample();
         real_val %= max_int;
         // real_val = 3;
         if (real_val <= count_size)
             counts[real_val] ++;
-        if (i == check_idx) std::cout << "real_val: " << real_val << std::endl;
+        if (print) std::cout << "real_val: " << real_val << std::endl;
 
         // sh_x, sh_y, q_mask, countmin
         share0[i].arr = new bool*[num_pieces];
@@ -1778,7 +1780,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
             const int b_val = fmpz_get_ui(hashed);
             share1[i].arr[2][q * cfg.B + b_val] ^= 1;
 
-            if (i == check_idx) std::cout << "substream[" << q << "] = " << b_val << std::endl;
+            if (print) std::cout << "substream[" << q << "] = " << b_val << std::endl;
 
             int offset = q * cfg.SH_depth;
             for (unsigned int d = 0; d < cfg.SH_depth; d++) {
@@ -1787,7 +1789,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
                 hash_value.eval(offset + d, real_val, hashed);
                 // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
                 const bool h = fmpz_is_one(hashed);
-                if (i == check_idx) std::cout << "  depth " << d << " bucket " << bucket << " value " << h << " (" << 1-2*h << ")" << std::endl;
+                if (print) std::cout << "  depth " << d << " bucket " << bucket << " value " << h << " (" << 1-2*h << ")" << std::endl;
 
                 share1[i].arr[0][offset + d] ^= bucket;
                 share1[i].arr[1][offset + d] ^= h;
@@ -1797,7 +1799,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
         // Count-min
         for (unsigned int d = 0; d < count_min.cfg.d; d++) {
             count_min.store->eval(d, real_val, hashed);
-            if (i == check_idx) std::cout << "  count[" << d << "] = " << fmpz_get_ui(hashed) << std::endl;
+            if (print) std::cout << "  count[" << d << "] = " << fmpz_get_ui(hashed) << std::endl;
             share1[i].arr[3][d * count_min.cfg.w + fmpz_get_ui(hashed)] ^= 1;
         }
 

@@ -45,10 +45,10 @@ Note: emp::ALICE is 1, emp::BOB is 2. (Using server_num + 1)
 
   So that same values are next to each other if there's shared frequency when sorting
 
-  Inherit  : public Swappable<IntegerPair>, Comparable<IntegerPair> ? 
+  Inherit  : public Swappable<IntegerPair>, Comparable<IntegerPair> ?
 */
 class IntegerPair{
-public: 
+public:
   Integer x;
   Integer y;
 
@@ -244,7 +244,7 @@ struct HeavyExtract {
   Bit* cmp;
   Integer* candidates;
 
-  HeavyExtract(const int party, const HashStoreBit& store, 
+  HeavyExtract(const int party, const HashStoreBit& store,
       const size_t R, const size_t Q, const size_t B, const size_t D)
   : party(party)
   , store(store)

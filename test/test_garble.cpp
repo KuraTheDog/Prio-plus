@@ -189,7 +189,6 @@ void test_misc(int party, int num_bits = 3) {
 }
 
 void test_full_sort(int party, flint_rand_t hash_seed) {
-
   // Phase 0: Setup
   CountMinConfig cfg(.1, .4);  // 3 hashes range 7
   const size_t input_bits = 4;  // At least >= range bits
@@ -240,23 +239,23 @@ void test_full_sort(int party, flint_rand_t hash_seed) {
 
   // Create struct
   HeavyEval heavy_eval(party, count_min, total_count);
-  // heavy_eval.print_params();
+  // heavy_eval.print_params(party == ALICE);
 
   // Step 1: de-share count-min
   heavy_eval.parse_countmin();
-  // heavy_eval.print_countmin();
+  // heavy_eval.print_countmin(party == ALICE);
 
   // Step 2: add values
   heavy_eval.set_values(candidates, num_candidates);
-  // std::cout << "parsed values: \n"; heavy_eval.print_values();
+  // std::cout << "parsed values: \n"; heavy_eval.print_values(party == ALICE);
 
   // Step 3: get frequencies
   heavy_eval.get_frequencies();
-  // std::cout << "parsed values with freqs: \n"; heavy_eval.print_values();
+  // std::cout << "parsed values with freqs: \n"; heavy_eval.print_values(party == ALICE);
 
   // Step 4: Sort and remove dupes
   heavy_eval.sort_remove_dupes();
-  // std::cout << "sorted values with freqs: \n"; heavy_eval.print_values();
+  // std::cout << "sorted values with freqs: \n"; heavy_eval.print_values(party == ALICE);
 
   const size_t K = 3;
   uint64_t* top_values = new uint64_t[K];
@@ -272,7 +271,7 @@ void test_full_sort(int party, flint_rand_t hash_seed) {
   }
   assert(top_values[0] == 1);
   assert(top_freqs[0] == 10);
-  // 2 and 3 have same freq 5
+  // 2 and 3 have same freq 5. Assert in some order
   assert(top_freqs[1] == 5);
   assert(top_freqs[2] == 5);
   assert((top_values[1] == 2 and top_values[2] == 3)
@@ -406,7 +405,7 @@ void test_extract(int party, flint_rand_t hash_seed) {
   // eval.print_cmp(party == ALICE);
 
   eval.extract_candidates();
-  eval.print_candidates(party == ALICE);
+  // eval.print_candidates(party == ALICE);
 
   clear_fmpz_array(bucket0, num_pairs);
   clear_fmpz_array(bucket1, num_pairs);

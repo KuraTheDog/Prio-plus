@@ -185,7 +185,7 @@ void HeavyEval::print_values(bool print) const {
     if (freq_and_vals) {
       v = freq_and_vals[i].y.reveal<uint64_t>();
       f = freq_and_vals[i].x.reveal<uint64_t>();
-    } else { 
+    } else {
       v = values[i].reveal<uint64_t>();
     }
     if (print) {
@@ -287,7 +287,7 @@ void HeavyExtract::print_cmp(bool print) const {
 void HeavyExtract::print_candidates(bool print) const {
   for (unsigned int i = 0; i < R * Q * B; i++) {
     int64_t x = candidates[i].reveal<int64_t>();
-    if (print) std::cout << "Candidate " << i << " = " << x << std::endl;
+    if (print) std::cout << "Candidate " << i << " / " << R * Q * B << " = " << x << std::endl;
   }
 }
 
@@ -309,13 +309,13 @@ void full_heavy_extract(
 
   HeavyExtract ex(party, hash_split, cfg.R, cfg.Q, cfg.B, cfg.SH_depth);
   // ex.print_params();
-  
+
   ex.set_buckets(bucket0, bucket1);
   // std::cout << "buckets: " << std::endl; ex.print_buckets()
-  
+
   ex.bucket_compare();
   // std::cout << "compare: " << std::endl; ex.print_cmp();
-  
+
   ex.extract_candidates();
   // std::cout << "candidates: " << std::endl; ex.print_candidates();
 

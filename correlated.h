@@ -128,7 +128,7 @@ public:
 
   // Single bit. One round.
   void b2a_single_setup(const size_t N, const bool* const x, fmpz_t* const xp, bool* const v);
-  void b2a_single_finish(const size_t N, fmpz_t* const xp, 
+  void b2a_single_finish(const size_t N, fmpz_t* const xp,
                          const bool* const v, const bool* const v_other);
   int b2a_single(const size_t N, const bool* const x, fmpz_t* const xp);
 
@@ -241,7 +241,7 @@ public:
     For each n, makes 1 share r, and b shares rB_i of the bits of r
     r = sum_i rB_i * 2^i
     For each gen, uses a dabit to gen and a cmp_bit (3 triple) to check
-    TODO: these can be pre-computed. 
+    TODO: these can be pre-computed.
     Similar to edabit, but not quite.
     Bit shares here are additive, while edabit bit shares are boolean.
   */

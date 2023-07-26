@@ -152,6 +152,7 @@ struct CountMin {
     for (unsigned int i = 0; i < cfg.d; i++) {
       store->eval(i, x, out);
       unsigned int hx = fmpz_get_ui(out);
+      // std::cout << "hash_" << i << "(" << x << ") = " << hx << std::endl;
       size_t idx = i * cfg.w + hx;
       fmpz_add_ui(counts[idx], counts[idx], amount);
       // std::cout << "adding " << amount << " to " << idx << " = [" << i << ", " << hx << "]" << std::endl;

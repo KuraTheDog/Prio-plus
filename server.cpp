@@ -165,7 +165,7 @@ void process_unvalidated(const std::string tag, const size_t n) {
 // TODO: Consider reworking for matrix form
 // TODO: return sent_bytes
 // TODO: split, for the sake of communication
-// TODO: move to store? 
+// TODO: move to store?
 int const share_convert(const size_t num_shares,  // # inputs
                         const size_t num_values,  // # values per input
                         const size_t* const num_bits,  // # bits per value
@@ -2074,6 +2074,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
         clear_fmpz_array(bucket0, num_sh);
         clear_fmpz_array(bucket1, num_sh);
+        // Count-min cleared elsewhere?
 
         std::cout << "Top K = " << K << " values and freqs, decreasing\n";
         for (unsigned int i = 0; i < K; i++) {
