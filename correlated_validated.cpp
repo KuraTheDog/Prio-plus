@@ -45,11 +45,13 @@ const AltTriple* ValidateCorrelatedStore::get_AltTriple(const bool validated) {
 void ValidateCorrelatedStore::check_AltTriple(const size_t n, const bool validated) {
   std::queue<const AltTriple*>& q = validated ? alt_triple_store : unvalidated_alt_triple_store;
   // std::cout << "checking " << n << (validated?" ":" un") << "validated AltTriples, have: " << q.size() << std::endl;
-  if (q.size() < n)
+  if (q.size() < n) {
     add_AltTriples(n - q.size(), validated);
+  }
 }
 
 void ValidateCorrelatedStore::check_AltTriple(const size_t n, const bool* const validated) {
+  // std::cout << "Calling mixed check_AltTriples(" << n << ")\n";
   size_t val_count = 0;
   for (unsigned int i = 0; i < n; i++)
     val_count += (size_t) validated[i];
@@ -276,9 +278,10 @@ int ValidateCorrelatedStore::check_DaBits(const size_t n) {
   }
   // If still not enough validated, ensure enough precomputed
   if (num_validated_dabits() < n) {
+    int num_to_make = n - num_validated_dabits();
     // TODO: possibly also make enough AltTriples at the same time?
     // std::cout << "precompute checking: " << n - num_validated_dabits() << std::endl;
-    sent_bytes += PrecomputeStore::check_DaBits(n - num_validated_dabits());
+    sent_bytes += PrecomputeStore::check_DaBits(num_to_make);
   }
   // printSizes();
   return sent_bytes;

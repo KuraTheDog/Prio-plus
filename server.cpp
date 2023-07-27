@@ -1825,12 +1825,12 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         fmpz_t* shares_p; new_fmpz_array(&shares_p, convert_size);
         bool* shares_2 = new bool[convert_size];
         memcpy(shares_2, shares_count, num_inputs * share_size_count);
-        memcpy(&shares_2[num_inputs * (share_size_count)],
+        delete[] shares_count;
+        memcpy(&shares_2[num_inputs * share_size_count],
                 shares_mask, num_inputs * share_size_mask);
         const size_t share_y_offset = num_inputs * (share_size_count + share_size_mask);
         memcpy(&shares_2[share_y_offset], shares_sh_y, num_inputs * share_size_sh);
         delete[] shares_sh_y;
-        delete[] shares_count;
         sent_bytes += correlated_store->b2a_single(convert_size, shares_2, shares_p);
         // We use first part of shares_p as the countmin shares.
 
@@ -1976,7 +1976,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         fmpz_t* shares_p; new_fmpz_array(&shares_p, convert_size);
         bool* shares_2 = new bool[convert_size];
         memcpy(shares_2, shares_count, num_inputs * share_size_count);
-        memcpy(&shares_2[num_inputs * (share_size_count)],
+        memcpy(&shares_2[num_inputs * share_size_count],
                 shares_mask, num_inputs * share_size_mask);
         const size_t share_y_offset = num_inputs * (share_size_count + share_size_mask);
         memcpy(&shares_2[share_y_offset], shares_sh_y, num_inputs * share_size_sh);
@@ -2071,6 +2071,10 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         full_heavy_extract(server_num, cfg, bucket0, bucket1, hash_seed_split, hash_seed_count,
                 countmin_accum, num_inputs, top_values, top_freqs);
         garbleIO->flush();
+
+        // Extract clobbers accum?
+
+        // reveal_fmpz_batch(serverfd, countmin_accum, share_size_count);
 
         clear_fmpz_array(bucket0, num_sh);
         clear_fmpz_array(bucket1, num_sh);

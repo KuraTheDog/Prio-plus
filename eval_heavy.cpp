@@ -311,7 +311,7 @@ void full_heavy_extract(
   // ex.print_params();
 
   ex.set_buckets(bucket0, bucket1);
-  // std::cout << "buckets: " << std::endl; ex.print_buckets()
+  // std::cout << "buckets: " << std::endl; ex.print_buckets();
 
   ex.bucket_compare();
   // std::cout << "compare: " << std::endl; ex.print_cmp();

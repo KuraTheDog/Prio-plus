@@ -43,7 +43,7 @@ struct MultiHeavyConfig {
   // Delta: Failure (0.05)
   // Q = log_2(1/delta) copies of single-heavy
   // B = hash range, (C)^2 / (2 ln 2)
-  // R = halving layers, log(n)
+  // R = halving layers, log(n). R = 1 is just the always survive layer #0
   // Also should have B < input size, else more efficient to just do freq
   // Countmin parameters
   // TODO: Find weakest epsilon, based on "threshold gap"
