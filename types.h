@@ -60,6 +60,7 @@ enum messageType {
     FREQ_OP,
     HEAVY_OP,
     MULTI_HEAVY_OP,
+    TOP_K_OP,
 };
 
 struct initMsg {

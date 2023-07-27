@@ -1933,6 +1933,235 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs,
     std::cout << "Total sent bytes: " << sent_bytes << std::endl;
 }
 
+int top_k_helper(
+        const std::string protocol, const size_t numreqs, uint64_t* counts,
+        const MultiHeavyConfig cfg, HashStore& hash_classify, HashStoreBit& hash_split,
+        HashStore& hash_value, HashStoreHalf& hash_half, CountMin& count_min) {
+    auto start = clock_start();
+    int sent_bytes = 0;
+    emp::PRG prg;
+
+    const uint64_t support = 10000;
+    const double exponent = 1.1;
+    ZipF distribution(support < max_int ? support : max_int, exponent);
+
+    const size_t count_size = (2*cfg.K) > 10 ? (2*cfg.K) : 10;
+
+    /* TODO: Can we "reuse" masks across R?
+        I.e. do full (share, Q). Then delete half, reuse randomness, etc.
+        don't actually need independent across R / "redistribute".
+        So can just use r_mask as extra multiplier
+        Otherwise need to expand share/Q by factor of R too.
+    */
+    // sh_x, sh_y, bucket_mask, layer_mask, countmin
+    MultiFreqShare* const share0 = new MultiFreqShare[numreqs];
+    MultiFreqShare* const share1 = new MultiFreqShare[numreqs];
+    // Q sets of singleHeavy, each with Depth layers. (repeat across B)
+    const size_t share_size_sh = cfg.Q * cfg.SH_depth;
+    // For each Q, identify b (first hash)
+    const size_t share_size_bucket = cfg.Q * cfg.B;
+    // Layer selector
+    const size_t share_size_layer = cfg.R;
+    // Count-min
+    const size_t share_size_count = cfg.countmin_cfg.d * cfg.countmin_cfg.w;
+    const size_t num_pieces = 5;
+    const size_t sizes[num_pieces] = {share_size_sh, share_size_sh,
+            share_size_bucket, share_size_layer, share_size_count};
+
+    // Make
+    uint64_t real_val;
+    fmpz_t hashed; fmpz_init(hashed);
+    // Debug: Set to print value at index
+    const unsigned int check_idx = UINT_MAX;
+    for (unsigned int i = 0; i < numreqs; i++) {
+        bool print = (check_idx == i);
+
+        real_val = distribution.sample();
+        real_val %= max_int;
+        // real_val = 1;
+        if (real_val <= count_size)
+            counts[real_val] ++;
+        if (print) std::cout << "real_val: " << real_val << std::endl;
+
+        // sh_x, sh_y, bucket_mask, layer_mask, countmin
+        share0[i].arr = new bool*[num_pieces];
+        share1[i].arr = new bool*[num_pieces];
+        for (unsigned int j = 0; j < num_pieces; j++)
+            freq_init(share0[i].arr[j], share1[i].arr[j], sizes[j], prg);
+
+        // Buckets
+        for (unsigned int q = 0; q < cfg.Q; q++) {
+            hash_classify.eval(q, real_val, hashed);
+            const int b_val = fmpz_get_ui(hashed);
+            // Bucket
+            share1[i].arr[2][q * cfg.B + b_val] ^= 1;
+
+            if (print) std::cout << "substream[" << q << "] = " << b_val << std::endl;
+
+            int offset = q * cfg.SH_depth;
+            for (unsigned int d = 0; d < cfg.SH_depth; d++) {
+                hash_split.eval(offset + d, real_val, hashed);
+                const bool bucket = fmpz_is_one(hashed);
+                hash_value.eval(offset + d, real_val, hashed);
+                // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
+                const bool h = fmpz_is_one(hashed);
+                if (print) std::cout << "  depth " << d << " bucket " << bucket << " value " << h << " (" << 1-2*h << ")" << std::endl;
+
+                // x, y
+                share1[i].arr[0][offset + d] ^= bucket;
+                share1[i].arr[1][offset + d] ^= h;
+            }
+        }
+        // R.
+        // TODO: 0 always lives, so skipped
+        for (unsigned int r = 0; r < cfg.R; r++) {
+            const bool b = hash_half.survives(r, real_val);
+            if (print) std::cout << "  layer " << r << (b?" lives":" gone") << std::endl;
+            share1[i].arr[3][r] ^= b;
+        }
+        // TODO: R validation
+
+        // Count-min
+        for (unsigned int d = 0; d < count_min.cfg.d; d++) {
+            count_min.store->eval(d, real_val, hashed);
+            if (print) std::cout << "  count[" << d << "] = " << fmpz_get_ui(hashed) << std::endl;
+            share1[i].arr[4][d * count_min.cfg.w + fmpz_get_ui(hashed)] ^= 1;
+        }
+
+        const std::string tag_s = make_tag(prg);
+        const char* const tag = tag_s.c_str();
+        memcpy(share0[i].tag, &tag[0], TAG_LENGTH);
+        memcpy(share1[i].tag, &tag[0], TAG_LENGTH);
+    }
+    fmpz_clear(hashed);
+
+    if (numreqs > 1)
+        std::cout << "batch make:\t" << sec_from(start) << std::endl;
+
+    // Send
+    for (unsigned int i = 0; i < numreqs; i++) {
+        sent_bytes += send_tag(sockfd0, share0[i].tag);
+        sent_bytes += send_tag(sockfd1, share1[i].tag);
+
+        for (unsigned int j = 0; j < num_pieces; j++) {
+            sent_bytes += send_bool_batch(sockfd0, share0[i].arr[j], sizes[j]);
+            sent_bytes += send_bool_batch(sockfd1, share1[i].arr[j], sizes[j]);
+
+            if (i == check_idx) {
+                std::cout << "share0,1[" << i << ", " << j << "] = ";
+                for (unsigned int k = 0; k < sizes[j]; k++) {
+                    std::cout << share0[i].arr[j][k] << share1[i].arr[j][k] << " ";
+                }
+                std::cout << std::endl;
+            }
+
+            delete[] share0[i].arr[j];
+            delete[] share1[i].arr[j];
+        }
+        delete[] share0[i].arr;
+        delete[] share1[i].arr;
+    }
+
+    delete[] share0;
+    delete[] share1;
+
+    if (numreqs > 1)
+        std::cout << "batch send:\t" << sec_from(start) << std::endl;
+
+    return sent_bytes;
+}
+
+void top_k_op(const std::string protocol, const size_t numreqs,
+              const double delta, const double eps, const size_t K) {
+    if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
+        std::cout << "Modulus should be at least " << (2 * num_bits + LOG2(numreqs)) << " bits" << std::endl;
+        throw std::invalid_argument("Int Modulus too small");
+    }
+    if (delta <= 0 or delta > 1)
+        throw std::invalid_argument("Need delta in (0, 1]");
+    if (eps <= 0 or eps > 1)
+        throw std::invalid_argument("Need eps in (0, 1]");
+
+    int sent_bytes = 0;
+    // For display: how many to print out (max(2K, 10))
+    const size_t count_size = (2*K) > 10 ? (2*K) : 10;
+    uint64_t* count = new uint64_t[count_size + 1];
+    memset(count, 0, (count_size + 1) * sizeof(uint64_t));
+
+    initMsg msg;
+    msg.num_bits = num_bits;
+    msg.num_of_inputs = numreqs;
+    msg.max_inp = max_int;
+    msg.type = TOP_K_OP;
+
+    // Temp
+    size_t R = num_bits;
+
+    MultiHeavyConfig cfg(K, delta, num_bits, eps, R);
+
+    cfg.print();
+
+    // Num hashes, input bits, output range
+    flint_rand_t hash_seed_classify; flint_randinit(hash_seed_classify);
+    flint_rand_t hash_seed_split; flint_randinit(hash_seed_split);
+    flint_rand_t hash_seed_value; flint_randinit(hash_seed_value);
+    flint_rand_t hash_seed_count; flint_randinit(hash_seed_count);
+    flint_rand_t hash_seed_half; flint_randinit(hash_seed_half);
+
+    // Which of the B SH subtreams it gets classified as
+    HashStorePoly hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
+    // Split: each SH breakdown into the pairs, bucket 0 or 1. (original was by bits)
+    // Base Q*B*depth, but can repeat across B. Invertable.
+    HashStoreBit hash_split(cfg.Q, cfg.SH_depth, num_bits, 2, hash_seed_split, false);
+    // SingleHeavy +-1 values. 4-wize independent
+    // Base Q*B*depth, but can repeat across B
+    HashStorePoly hash_value(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_value, 4);
+    // CountMin
+    CountMin count_min(cfg.countmin_cfg);
+    count_min.setStore(num_bits, hash_seed_count);
+    // Halving.
+    HashStoreHalf hash_half(num_bits, hash_seed_half);
+
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
+
+    // Send extra params: K, delta, eps
+    send_size(sockfd0, K);
+    send_size(sockfd1, K);
+    send_double(sockfd0, delta);
+    send_double(sockfd1, delta);
+    send_double(sockfd0, eps);
+    send_double(sockfd1, eps);
+
+    // Temp: Send R
+    send_size(sockfd0, R);
+    send_size(sockfd1, R);
+
+    send_seeds(hash_seed_classify);
+    send_seeds(hash_seed_split);
+    send_seeds(hash_seed_value);
+    send_seeds(hash_seed_count);
+    // send_seeds(hash_seed_half);
+
+    if (CLIENT_BATCH) {
+        sent_bytes += top_k_helper(protocol, numreqs, count, cfg,
+            hash_classify, hash_split, hash_value, hash_half, count_min);
+    } else {
+        auto start = clock_start();
+        for (unsigned int i = 0; i < numreqs; i++)
+            sent_bytes += top_k_helper(protocol, 1, count, cfg,
+                hash_classify, hash_split, hash_value, hash_half, count_min);
+        std::cout << "make+send:\t" << sec_from(start) << std::endl;
+    }
+
+    for (unsigned int j = 0; j <= count_size; j++) {
+        if (j >= max_int) break;
+        std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
+    }
+    delete[] count;
+    std::cout << "Total sent bytes: " << sent_bytes << std::endl;
+}
+
 int main(int argc, char** argv) {
     if (argc < 4) {
         std::cout << "Usage: ./bin/client num_submissions server0_port server1_port";
@@ -2118,11 +2347,17 @@ int main(int argc, char** argv) {
         std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
 
-    /*
     else if (protocol == "TOPK") {
-    
+        parse_num_bits(argc, argv);
+        if (argc < 9)
+            throw std::invalid_argument("Need parameters [delta, eps, K]");
+        double delta = atof(argv[6]);
+        double eps = atof(argv[7]);
+        int K = atoi(argv[8]);
+        std::cout << "Uploading all Top K shares: " << numreqs << std::endl;
+        top_k_op(protocol, numreqs, delta, eps, K);
+        std::cout << "Total time:\t" << sec_from(start) << std::endl;
     }
-    */
 
     else {
         std::cout << "Unrecognized protocol: " << protocol << std::endl;
