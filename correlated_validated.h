@@ -80,8 +80,8 @@ public:
 
   // [z] = x_this * x_other
   // uses a (un)validated alt triple
-  int multiply_AltShares(const size_t N, const fmpz_t* const x, fmpz_t* const z,
-                        const bool* const validated);
+  int64_t multiply_AltShares(const size_t N,
+      const fmpz_t* const x, fmpz_t* const z, const bool* const validated);
 
   // Queue up paired unvalidated.
   // Done this way in case data is out of order between the two servers
@@ -95,8 +95,8 @@ public:
   // Add unvalidated correlated to queue
   void add_Unvalidated(const DaBit* const dabit, const AltTriple* const trip);
 
-  int check_DaBits(const size_t n = 0) override;
-  // int checkTriples(const size_t n = 0);
+  int64_t check_DaBits(const size_t n = 0) override;
+  // int64_t checkTriples(const size_t n = 0);
 
   /*
   Tries to make at least N validated dabits.
@@ -120,8 +120,8 @@ public:
   Round 2: Reveal
     Swap computed (fg - h)(sigma)
   */
-  int batch_Validate(const size_t N);
-  int batch_Validate() {
+  int64_t batch_Validate(const size_t N);
+  int64_t batch_Validate() {
     return batch_Validate(min_batch_size);
   }
 

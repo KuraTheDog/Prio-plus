@@ -1784,7 +1784,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
     start = clock_start();
     auto start2 = clock_start();
-    int sent_bytes = 0;
+    int64_t sent_bytes = 0;
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
         sent_bytes += send_size(serverfd, num_inputs);
@@ -2219,7 +2219,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
     */
     start = clock_start();
     auto start2 = clock_start();
-    int sent_bytes = 0;
+    int64_t sent_bytes = 0;
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
         sent_bytes += send_size(serverfd, num_inputs);

@@ -98,9 +98,9 @@ public:
   {};
 
   // Convert N single-bit values
-  virtual int b2a_single(const size_t N, const bool* const x, fmpz_t* const xp) = 0;
+  virtual int64_t b2a_single(const size_t N, const bool* const x, fmpz_t* const xp) = 0;
   // Convert N values, with each x[i] having num_bits[i] bits.
-  virtual int b2a_multi(const size_t N, const size_t* const num_bits,
+  virtual int64_t b2a_multi(const size_t N, const size_t* const num_bits,
                         const fmpz_t* const x, fmpz_t* const xp) = 0;
   virtual ~ShareConverter() {};
 };
@@ -139,7 +139,7 @@ public:
       const size_t N, const bool* const x, fmpz_t* const xp, bool* const v);
   void b2a_single_finish(
       const size_t N, fmpz_t* const xp, const bool* const v, const bool* const v_other);
-  int b2a_single(const size_t N, const bool* const x, fmpz_t* const xp);
+  int64_t b2a_single(const size_t N, const bool* const x, fmpz_t* const xp);
 
   // Multiple bits. Use a dabit per bit in parallel, so one round
   void b2a_multi_setup(
@@ -148,21 +148,20 @@ public:
   void b2a_multi_finish(
       const size_t N, const size_t total_bits, const size_t* const num_bits,
       fmpz_t* const xp, fmpz_t* const flat_xp, const bool* const v, const bool* const v_other);
-  int b2a_multi(const size_t N, const size_t* const num_bits,
-                const fmpz_t* const x, fmpz_t* const xp);
+  int64_t b2a_multi(const size_t N, const size_t* const num_bits,
+      const fmpz_t* const x, fmpz_t* const xp);
 
   // x, y, z are [N]
   // does z[i] = x[i] * y[i], as shares
-  void multiply_BoolShares_setup(
-      const size_t N, const bool* const x, const bool* const y, bool* const z,
-      bool* const de);
-  void multiply_BoolShares_finish(const size_t N, const bool* const x, const bool* const y, bool* const z,
+  void multiply_BoolShares_setup(const size_t N,
+      const bool* const x, const bool* const y, bool* const z, bool* const de);
+  void multiply_BoolShares_finish(const size_t N,
+      const bool* const x, const bool* const y, bool* const z,
       const bool* const de, const bool* const de_other);
-  int multiply_BoolShares(const size_t N,
+  int64_t multiply_BoolShares(const size_t N,
       const bool* const x, const bool* const y, bool* const z);
-  int multiply_ArithmeticShares(
-      const size_t N, const fmpz_t* const x, const fmpz_t* const y,
-      fmpz_t* const z);
+  int64_t multiply_ArithmeticShares(const size_t N,
+      const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const z);
   // x is [N x a], y is [M x b], cross multiply into z as [N * (a * b)]
   // Each of N inputs gives (a x b) cross
   // x gives column, y is row
@@ -171,7 +170,7 @@ public:
       const size_t N, const size_t a, const size_t b,
       const bool* x, const bool* y, bool* const z,
       bool* const x_ext, bool* const y_ext, bool* const de);
-  int multiply_BoolShares_cross(
+  int64_t multiply_BoolShares_cross(
       const size_t N, const size_t a, const size_t b,
       const bool* x, const bool* y, bool* const z);
   // N inputs, each B bits large
@@ -180,14 +179,14 @@ public:
   // If z_inv (size N*B): Does a second set multiplied by 1-b instead.
   //   maintains same rounds, just "larger" OT's
   // If valid, it's a [N] array for which inputs are valid
-  int multiply_BoolArith(
+  int64_t multiply_BoolArith(
       const size_t N, const size_t B, const bool* const b, const fmpz_t* const x,
       fmpz_t* const z, fmpz_t* const z_inv = nullptr, const bool* const valid = nullptr);
   // b is [B] rather than [N * B]
   // Grouped by B first, so [x0, ..., x(B-1)] for N=0
   // So [x0, xB, x2B, ...] multiplied by b0.
   // For B-wide masking, mainly
-  int multiply_BoolArithFlat(
+  int64_t multiply_BoolArithFlat(
       const size_t N, const size_t B, const bool* const b_flat, const fmpz_t* const x,
       fmpz_t* const z, fmpz_t* const z_inv = nullptr, const bool* const valid = nullptr);
 
@@ -195,10 +194,9 @@ public:
   // Treats x[i], y[i], z[i] as array of bits
   // sets z[i] and carry[i] as x[i] + y[i] and carry[i], as shares
   // Currently unused
-  [[maybe_unused]] int add_BinaryShares(
-        const size_t N, const size_t* const num_bits,
-        const bool* const * const x, const bool* const * const y,
-        bool* const * const z, bool* const carry);
+  [[maybe_unused]] int64_t add_BinaryShares(const size_t N, const size_t* const num_bits,
+      const bool* const * const x, const bool* const * const y,
+      bool* const * const z, bool* const carry);
 
   // N inputs of b values
   // [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
@@ -208,10 +206,9 @@ public:
   // Makes copying in new shares easier.
   // N valid, if invalid just contributes 0
   // Uses N * b DaBits
-  int heavy_convert(const size_t N, const size_t b,
-                    const bool* const x, const bool* const y,
-                    const bool* const valid,
-                    fmpz_t* const bucket0, fmpz_t* const bucket1);
+  int64_t heavy_convert(const size_t N, const size_t b,
+      const bool* const x, const bool* const y, const bool* const valid,
+      fmpz_t* const bucket0, fmpz_t* const bucket1);
 
   // Q "parallel" runs of heavy_convert
   // N inputs, Q copies, D depth, B substreams
@@ -224,7 +221,7 @@ public:
   //   valid = over N
   //   mask  = [over N (over Q (over M))]
   //   buckets = [over Q (over M (over D))]
-  int heavy_convert_mask(
+  int64_t heavy_convert_mask(
       const size_t N, const size_t Q, const size_t M, const size_t D,
       const bool* const x, const fmpz_t* const y_p, const bool* const mask,
       const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1);
@@ -241,17 +238,17 @@ public:
   // True if [x] > c
   bool* cmp_c_clear(const size_t N, const fmpz_t* const x, const fmpz_t* const c);
   // True if [x] > [y]
-  int cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
+  int64_t cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
   // Given [x], sets out = [|x|] via negating if [x] < 0
-  int abs(const size_t N, const fmpz_t* const x, fmpz_t* const abs_x);
+  int64_t abs(const size_t N, const fmpz_t* const x, fmpz_t* const abs_x);
   // True if [|x|] > [|y|]
-  int abs_cmp(const size_t N,
+  int64_t abs_cmp(const size_t N,
               const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
   // x, y are Nxb shares of the bits of N total b-bit numbers.
   // I.e. x[i,j] is additive share of bit j of number i.
   // Returns additive shares of [x < y] (NOTE: opposite of cmp, for convenience)
   // Uses 3 triples per bit to compare
-  int cmp_bit(const size_t N, const size_t b,
+  int64_t cmp_bit(const size_t N, const size_t b,
               const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
   /* Generate N random b-bit numbers r, with bits rB
     Both are additive shares
@@ -263,18 +260,18 @@ public:
     Similar to edabit, but not quite.
     Bit shares here are additive, while edabit bit shares are boolean.
   */
-  int gen_rand_bitshare(const size_t N, fmpz_t* const r, fmpz_t* const rB);
+  int64_t gen_rand_bitshare(const size_t N, fmpz_t* const r, fmpz_t* const rB);
   // Extracts shares of the least significant bit of additive secret [x]
-  int LSB(const size_t N, const fmpz_t* const x, fmpz_t* const x0);
+  int64_t LSB(const size_t N, const fmpz_t* const x, fmpz_t* const x0);
   // Returns share of
   //    1 if x is negative (x > p/2)
   //    0 if x is positive (x < p/2)
   // x is N b-bit numbers as additive shares
-  int is_negative(const size_t N, const fmpz_t* const x, fmpz_t* const ans);
+  int64_t is_negative(const size_t N, const fmpz_t* const x, fmpz_t* const ans);
 
   // Check: Check if enough to make n.
   // If not enough, generates enough (can over-generate)
-  virtual int check_DaBits(const size_t n = 0) = 0;
+  virtual int64_t check_DaBits(const size_t n = 0) = 0;
   virtual void check_Triples(const size_t n = 0) = 0;
   virtual void check_BoolTriples(const size_t n = 0) = 0;
 };
@@ -288,12 +285,12 @@ protected:
 
   // Securely create N new correlated items
   // Pass in pointer to array. Methods make new.
-  int gen_DaBits(const size_t N, DaBit** const dabit);
-  int gen_DaBits_lazy(const size_t N, DaBit** const dabit);
+  int64_t gen_DaBits(const size_t N, DaBit** const dabit);
+  int64_t gen_DaBits_lazy(const size_t N, DaBit** const dabit);
 
   // Add (securely or lazy generated) N items to the store, at least batch_size many
   // TODO: return sent bytes
-  int add_DaBits(const size_t n = 0);
+  int64_t add_DaBits(const size_t n = 0);
   void add_Triples(const size_t n = 0);
   void add_BoolTriples(const size_t n = 0);
 
@@ -317,7 +314,7 @@ public:
   virtual void print_Sizes() const;
   virtual void maybe_Update(); // Precompute if not enough.
 
-  virtual int check_DaBits(const size_t n = 0);
+  virtual int64_t check_DaBits(const size_t n = 0);
   virtual void check_Triples(const size_t n = 0);
   virtual void check_BoolTriples(const size_t n = 0);
 };
@@ -338,12 +335,12 @@ public:
 
   ~OTCorrelatedStore() {};
 
-  int b2a_single(const size_t N, const bool* const x, fmpz_t* const xp);
+  int64_t b2a_single(const size_t N, const bool* const x, fmpz_t* const xp);
   // Multiple bits. Use a dabit per bit in parallel, so one round
-  int b2a_multi(const size_t N, const size_t* const num_bits,
-                const fmpz_t* const x, fmpz_t* const xp);
+  int64_t b2a_multi(const size_t N, const size_t* const num_bits,
+      const fmpz_t* const x, fmpz_t* const xp);
 
-  int b2a_ot(const size_t num_shares, const size_t num_values,
+  int64_t b2a_ot(const size_t num_shares, const size_t num_values,
       const size_t* const num_bits,
       const fmpz_t* const x, fmpz_t* const xp,
       const size_t mod = 0);

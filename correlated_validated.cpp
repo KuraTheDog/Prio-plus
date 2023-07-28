@@ -87,10 +87,10 @@ swap diff
 z_0 = (diff' * trip->AB) + trip->C
 z_1 = (diff * x_1) + trip->C
 */
-int ValidateCorrelatedStore::multiply_AltShares(
+int64_t ValidateCorrelatedStore::multiply_AltShares(
     const size_t N, const fmpz_t* const x, fmpz_t* const z,
     const bool* const validated) {
-  int sent_bytes = 0;
+  int64_t sent_bytes = 0;
   fmpz_t* diff; new_fmpz_array(&diff, N);
 
   // only used by server 1, save trip->AB value
@@ -147,8 +147,8 @@ void ValidateCorrelatedStore::process_Unvalidated(const std::string tag) {
   delete[] std::get<2>(lists);
 }
 
-int ValidateCorrelatedStore::batch_Validate(const size_t target) {
-  int sent_bytes = 0;
+int64_t ValidateCorrelatedStore::batch_Validate(const size_t target) {
+  int64_t sent_bytes = 0;
 
   // Step 0: Setup
 
@@ -268,8 +268,8 @@ int ValidateCorrelatedStore::batch_Validate(const size_t target) {
   return sent_bytes;
 }
 
-int ValidateCorrelatedStore::check_DaBits(const size_t n) {
-  int sent_bytes = 0;
+int64_t ValidateCorrelatedStore::check_DaBits(const size_t n) {
+  int64_t sent_bytes = 0;
   // std::cout << "validated check_DaBits(" << n << ") vs " << num_validated_dabits() << std::endl;
   // If not enough validated, validate everything
   if (num_validated_dabits() < n) {

@@ -56,8 +56,8 @@ void CorrelatedStore::b2a_single_finish(
   }
 }
 
-int CorrelatedStore::b2a_single(const size_t N, const bool* const x, fmpz_t* const xp) {
-  int sent_bytes = 0;
+int64_t CorrelatedStore::b2a_single(const size_t N, const bool* const x, fmpz_t* const xp) {
+  int64_t sent_bytes = 0;
 
   check_DaBits(N);
 
@@ -111,10 +111,10 @@ void CorrelatedStore::b2a_multi_finish(
   }
 }
 
-int CorrelatedStore::b2a_multi(
+int64_t CorrelatedStore::b2a_multi(
     const size_t N, const size_t* const num_bits,
     const fmpz_t* const x, fmpz_t* const xp) {
-  int sent_bytes = 0;
+  int64_t sent_bytes = 0;
 
   size_t total_bits = 0;
   for (unsigned int i = 0; i < N; i++)
@@ -166,9 +166,9 @@ void CorrelatedStore::multiply_BoolShares_finish(
 }
 
 // 1 bool triple per bit
-int CorrelatedStore::multiply_BoolShares(
+int64_t CorrelatedStore::multiply_BoolShares(
     const size_t N, const bool* const x, const bool* const y, bool* const z) {
-  int sent_bytes = 0;
+  int64_t sent_bytes = 0;
 
   check_BoolTriples(2 * N);
 
@@ -188,10 +188,10 @@ int CorrelatedStore::multiply_BoolShares(
 }
 
 // 1 triple per bit
-int CorrelatedStore::multiply_ArithmeticShares(
+int64_t CorrelatedStore::multiply_ArithmeticShares(
     const size_t N, const fmpz_t* const x, const fmpz_t* const y,
     fmpz_t* const z) {
-  int sent_bytes = 0;
+  int64_t sent_bytes = 0;
 
   fmpz_t* de; new_fmpz_array(&de, 2 * N);
 
@@ -238,10 +238,10 @@ void CorrelatedStore::multiply_BoolShares_cross_setup(
   multiply_BoolShares_setup(N * a * b, x_ext, y_ext, z, de);
 }
 
-int CorrelatedStore::multiply_BoolShares_cross(
+int64_t CorrelatedStore::multiply_BoolShares_cross(
     const size_t N, const size_t a, const size_t b,
     const bool* x, const bool* y, bool* const z) {
-  int sent_bytes = 0;
+  int64_t sent_bytes = 0;
 
   check_BoolTriples(2 * N * a * b);
 
@@ -266,11 +266,11 @@ int CorrelatedStore::multiply_BoolShares_cross(
 // c_{i+1} = c_i xor ((x_i xor c_i) and (y_i xor c_i))
 // output z_i = x_i xor y_i xor c_i
 // 1 Bool Trip per bit
-int CorrelatedStore::add_BinaryShares(
+int64_t CorrelatedStore::add_BinaryShares(
     const size_t N, const size_t* const num_bits,
     const bool* const * const x, const bool* const * const y,
     bool* const * const z, bool* const carry) {
-  int sent_bytes = 0;
+  int64_t sent_bytes = 0;
 
   memset(carry, false, N);
   bool* const xi = new bool[N];
@@ -317,11 +317,11 @@ int CorrelatedStore::add_BinaryShares(
 }
 
 // Pure OT, no correlated used
-int CorrelatedStore::multiply_BoolArith(
+int64_t CorrelatedStore::multiply_BoolArith(
     const size_t N, const size_t B, const bool* const b, const fmpz_t* const x,
     fmpz_t* const z, fmpz_t* const z_inv, const bool* const valid
 ) {
-  int sent_bytes = 0;
+  int64_t sent_bytes = 0;
   /* b0, b1 bits. x0, x1 values
   want z0 + z1 = (b0 ^ b1) * (x0 + x1)
   Send (r, r + x), flip order on b0, select with b1.
@@ -392,7 +392,7 @@ int CorrelatedStore::multiply_BoolArith(
   return sent_bytes;
 }
 
-int CorrelatedStore::multiply_BoolArithFlat(
+int64_t CorrelatedStore::multiply_BoolArithFlat(
     const size_t N, const size_t B, const bool* const b_flat, const fmpz_t* const x,
     fmpz_t* const z, fmpz_t* const z_inv, const bool* const valid
 ) {
@@ -400,17 +400,17 @@ int CorrelatedStore::multiply_BoolArithFlat(
   for (unsigned int j = 0; j < B; j++)
     for (unsigned int i = 0; i < N; i++)
       b[i * B + j] = b_flat[j];
-  int sent_bytes = multiply_BoolArith(N, B, b, x, z, z_inv, valid);
+  int64_t sent_bytes = multiply_BoolArith(N, B, b, x, z, z_inv, valid);
   delete[] b;
   return sent_bytes;
 }
 
-int CorrelatedStore::heavy_convert(
+int64_t CorrelatedStore::heavy_convert(
     const size_t N, const size_t b,
     const bool* const x, const bool* const y,
     const bool* const valid,
     fmpz_t* const bucket0, fmpz_t* const bucket1) {
-  int sent_bytes = 0;
+  int64_t sent_bytes = 0;
 
   check_DaBits(N * b);
 
@@ -457,11 +457,11 @@ int CorrelatedStore::heavy_convert(
 
 const unsigned int HEAVY_BATCH_SIZE_BASE = 1200000;
 
-int CorrelatedStore::heavy_convert_mask(
-      const size_t N, const size_t Q, const size_t M, const size_t D,
-      const bool* const x, const fmpz_t* const y_p, const bool* const mask,
-      const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1) {
-  int sent_bytes = 0;
+int64_t CorrelatedStore::heavy_convert_mask(
+    const size_t N, const size_t Q, const size_t M, const size_t D,
+    const bool* const x, const fmpz_t* const y_p, const bool* const mask,
+    const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1) {
+  int64_t sent_bytes = 0;
 
   const size_t heavy_batch_size = HEAVY_BATCH_SIZE_BASE / (Q * M * D);
 
@@ -602,10 +602,10 @@ bool* CorrelatedStore::cmp_c_clear(const size_t N,
 }
 
 // Just (x < y) = (x - y < 0) = is_neg([x - y])
-int CorrelatedStore::cmp(const size_t N,
+int64_t CorrelatedStore::cmp(const size_t N,
                          const fmpz_t* const x, const fmpz_t* const y,
                          fmpz_t* const ans) {
-  int sent_bytes = 0;
+  int64_t sent_bytes = 0;
   check_DaBits(4 * N * nbits_mod);
   check_Triples(13 * N * nbits_mod);
 
@@ -622,9 +622,9 @@ int CorrelatedStore::cmp(const size_t N,
 
 // |x| = (1 - 2[x < 0]) * x
 // if hashes known, sign might reveal some info about non-heavy bucket, so reveal in clear is not fully secure
-int CorrelatedStore::abs(const size_t N, const fmpz_t* const x,
-                         fmpz_t* const abs_x) {
-  int sent_bytes = 0;
+int64_t CorrelatedStore::abs(
+    const size_t N, const fmpz_t* const x, fmpz_t* const abs_x) {
+  int64_t sent_bytes = 0;
   check_DaBits(4 * N * nbits_mod);
   check_Triples((13 + 1) * N * nbits_mod);
 
@@ -640,10 +640,9 @@ int CorrelatedStore::abs(const size_t N, const fmpz_t* const x,
   return sent_bytes;
 }
 
-int CorrelatedStore::abs_cmp(const size_t N,
-                             const fmpz_t* const x, const fmpz_t* const y,
-                             fmpz_t* const ans) {
-  int sent_bytes = 0;
+int64_t CorrelatedStore::abs_cmp(
+    const size_t N, const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans) {
+  int64_t sent_bytes = 0;
   check_DaBits(3 * 4 * N * nbits_mod);  // 1 per abs, and 1 for cmp
   check_Triples((13 + 14 + 14) * N * nbits_mod);  // 13 for cmp, 14 for abs
 
@@ -673,10 +672,10 @@ int CorrelatedStore::abs_cmp(const size_t N,
 
 // x, y are Nxb shares of N total b-bit numbers.
 // I.e. x[i,j] is additive share of bit j of number i.
-int CorrelatedStore::cmp_bit(const size_t N, const size_t b,
-                             const fmpz_t* const x, const fmpz_t* const y,
-                             fmpz_t* const ans) {
-  int sent_bytes = 0;
+int64_t CorrelatedStore::cmp_bit(
+    const size_t N, const size_t b,
+    const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans) {
+  int64_t sent_bytes = 0;
   size_t idx;  // for convenience
 
   // Total mults: ~3x (N*b)
@@ -755,9 +754,9 @@ int CorrelatedStore::cmp_bit(const size_t N, const size_t b,
 // Make each bit in parallel: [ri in {0,1}]p
 // check if [r < p] bitwise, retry if not
 // success odds are p/2^b, worst case ~1/2 failure.
-int CorrelatedStore::gen_rand_bitshare(const size_t N,
-                                       fmpz_t* const r, fmpz_t* const rB) {
-  int sent_bytes = 0;
+int64_t CorrelatedStore::gen_rand_bitshare(
+    const size_t N, fmpz_t* const r, fmpz_t* const rB) {
+  int64_t sent_bytes = 0;
   const size_t b = nbits_mod;
 
   // Assumed tries to succeed. (worst case 1/2 fail, so 2 avg, overestimate)
@@ -845,9 +844,9 @@ int CorrelatedStore::gen_rand_bitshare(const size_t N,
 }
 
 // Since we are masking with random r, this should have max b (2^b > p)
-int CorrelatedStore::LSB(const size_t N, const fmpz_t* const x,
-                         fmpz_t* const x0) {
-  int sent_bytes = 0;
+int64_t CorrelatedStore::LSB(
+    const size_t N, const fmpz_t* const x, fmpz_t* const x0) {
+  int64_t sent_bytes = 0;
   const size_t b = nbits_mod;
 
   check_DaBits(4 * N * b);   // for gen_rand
@@ -916,9 +915,9 @@ int CorrelatedStore::LSB(const size_t N, const fmpz_t* const x,
   return sent_bytes;
 }
 
-int CorrelatedStore::is_negative(const size_t N,
-                                 const fmpz_t* const x, fmpz_t* ans) {
-  int sent_bytes = 0;
+int64_t CorrelatedStore::is_negative(
+    const size_t N, const fmpz_t* const x, fmpz_t* ans) {
+  int64_t sent_bytes = 0;
   check_DaBits(4 * N * nbits_mod);
   check_Triples(13 * N * nbits_mod);
 
@@ -942,7 +941,7 @@ int CorrelatedStore::is_negative(const size_t N,
 
 ////////////////
 
-int PrecomputeStore::check_DaBits(const size_t n) {
+int64_t PrecomputeStore::check_DaBits(const size_t n) {
   if (dabit_store.size() < n)
     return add_DaBits(n - dabit_store.size());
   return 0;
@@ -956,9 +955,9 @@ void PrecomputeStore::check_Triples(const size_t n) {
   if (atriple_store.size() < n) add_Triples(n - atriple_store.size());
 }
 
-int PrecomputeStore::add_DaBits(const size_t n) {
+int64_t PrecomputeStore::add_DaBits(const size_t n) {
   auto start = clock_start();
-  int sent_bytes = 0;
+  int64_t sent_bytes = 0;
   const size_t num_to_make = (n > batch_size ? n : batch_size);
   // const size_t num_to_make = n;  // Use this to make "end to end" easier to benchmark
   std::cout << "adding dabits: " << num_to_make << std::endl;
@@ -1042,8 +1041,8 @@ void PrecomputeStore::maybe_Update() {
 // Nearly COT, except delta is changing
 // random choice and random base, but also random delta matters
 // TODO: Work on larger values. Currently assumes mod is uint64_t.
-int PrecomputeStore::gen_DaBits(const size_t N, DaBit** const dabit) {
-  int sent_bytes = 0;
+int64_t PrecomputeStore::gen_DaBits(const size_t N, DaBit** const dabit) {
+  int64_t sent_bytes = 0;
   emp::PRG prg;
   const size_t mod = fmpz_get_ui(Int_Modulus);
 
@@ -1083,8 +1082,8 @@ int PrecomputeStore::gen_DaBits(const size_t N, DaBit** const dabit) {
   return sent_bytes;
 }
 
-int PrecomputeStore::gen_DaBits_lazy(const size_t N, DaBit** const dabit) {
-  int sent_bytes = 0;
+int64_t PrecomputeStore::gen_DaBits_lazy(const size_t N, DaBit** const dabit) {
+  int64_t sent_bytes = 0;
   for (unsigned int i = 0; i < N; i++)
     dabit[i] = new DaBit();
   if (server_num == 0) {
@@ -1108,13 +1107,13 @@ int PrecomputeStore::gen_DaBits_lazy(const size_t N, DaBit** const dabit) {
 ////////////////
 
 
-int OTCorrelatedStore::b2a_multi(
+int64_t OTCorrelatedStore::b2a_multi(
     const size_t N, const size_t* const num_bits,
     const fmpz_t* const x, fmpz_t* const xp) {
   return b2a_ot(1, N, num_bits, x, xp, fmpz_get_ui(Int_Modulus));
 }
 
-int OTCorrelatedStore::b2a_single(
+int64_t OTCorrelatedStore::b2a_single(
     const size_t N, const bool* const x, fmpz_t* const xp) {
   size_t num_bits[N];
   fmpz_t* x2; new_fmpz_array(&x2, N);
@@ -1128,10 +1127,10 @@ int OTCorrelatedStore::b2a_single(
 }
 
 // Using intsum_ot, multiple bits
-int OTCorrelatedStore::b2a_ot(
+int64_t OTCorrelatedStore::b2a_ot(
     const size_t num_shares, const size_t num_values, const size_t* const num_bits,
     const fmpz_t* const x, fmpz_t* const xp_out, const size_t mod) {
-  int sent_bytes = 0;
+  int64_t sent_bytes = 0;
 
   uint64_t** const x2 = new uint64_t*[num_shares];
   bool* const valid = new bool[num_shares];
