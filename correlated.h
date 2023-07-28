@@ -37,6 +37,20 @@ ShareConverter
   * OT based B2A only
 */
 
+/*
+Stage atomicizing. So can do multiple send/rec in parallel
+1) Setup params
+2) Check
+3) Declare variables. Things passed to send/rec. Need to be new/nullptr outside.
+4) setup
+5) send + rec
+6+) process
+7+) send + rec
+...
+n-1) finish(params, vars)
+n) delete vars. could fit into finish, but clearer outside
+*/
+
 #include <emp-ot/emp-ot.h>
 #include <emp-tool/emp-tool.h>
 #include <queue>
@@ -127,9 +141,10 @@ public:
   }
 
   // Single bit. One round.
-  void b2a_single_setup(const size_t N, const bool* const x, fmpz_t* const xp, bool* const v);
-  void b2a_single_finish(const size_t N, fmpz_t* const xp,
-                         const bool* const v, const bool* const v_other);
+  void b2a_single_setup(
+      const size_t N, const bool* const x, fmpz_t* const xp, bool* const v);
+  void b2a_single_finish(
+      const size_t N, fmpz_t* const xp, const bool* const v, const bool* const v_other);
   int b2a_single(const size_t N, const bool* const x, fmpz_t* const xp);
 
   // Multiple bits. Use a dabit per bit in parallel, so one round
@@ -138,13 +153,17 @@ public:
       const fmpz_t* const x, fmpz_t* const flat_xp, bool* const v);
   void b2a_multi_finish(
       const size_t N, const size_t total_bits, const size_t* const num_bits,
-      fmpz_t* const xp, fmpz_t* const flat_xp, const bool* const v, const bool* const v_other
-  );
+      fmpz_t* const xp, fmpz_t* const flat_xp, const bool* const v, const bool* const v_other);
   int b2a_multi(const size_t N, const size_t* const num_bits,
                 const fmpz_t* const x, fmpz_t* const xp);
 
   // x, y, z are [N]
   // does z[i] = x[i] * y[i], as shares
+  void multiply_BoolShares_setup(
+      const size_t N, const bool* const x, const bool* const y, bool* const z,
+      bool* const de);
+  void multiply_BoolShares_finish(const size_t N, const bool* const x, const bool* const y, bool* const z,
+      const bool* const de, const bool* const de_other);
   int multiply_BoolShares(const size_t N,
       const bool* const x, const bool* const y, bool* const z);
   int multiply_ArithmeticShares(
@@ -154,7 +173,12 @@ public:
   // Each of N inputs gives (a x b) cross
   // x gives column, y is row
   // so z = [x[0] * y, x[1] * y, ...] for input 1, then same for input 2, etc.
-  int multiply_BoolShares_cross(const size_t N, const size_t a, const size_t b,
+  void multiply_BoolShares_cross_setup(
+      const size_t N, const size_t a, const size_t b,
+      const bool* x, const bool* y, bool* const z,
+      bool* const x_ext, bool* const y_ext, bool* const de);
+  int multiply_BoolShares_cross(
+      const size_t N, const size_t a, const size_t b,
       const bool* x, const bool* y, bool* const z);
   // N inputs, each B bits large
   // b, x, and z are [N * B]

@@ -30,7 +30,8 @@ const BooleanBeaverTriple* const CorrelatedStore::get_BoolTriple() {
   return ans;
 }
 
-void CorrelatedStore::b2a_single_setup(const size_t N, const bool* const x, fmpz_t* const xp, bool* const v) {
+void CorrelatedStore::b2a_single_setup(
+    const size_t N, const bool* const x, fmpz_t* const xp, bool* const v) {
   for (unsigned int i = 0; i < N; i++) {
     const DaBit* const dabit = get_DaBit();
     v[i] = x[i] ^ dabit->b2;
@@ -139,15 +140,9 @@ int CorrelatedStore::b2a_multi(
   return sent_bytes;
 }
 
-// 1 bool triple per bit
-int CorrelatedStore::multiply_BoolShares(
-    const size_t N, const bool* const x, const bool* const y, bool* const z) {
-  int sent_bytes = 0;
-
-  bool* de = new bool[2 * N];
-
-  check_BoolTriples(N);
-
+void CorrelatedStore::multiply_BoolShares_setup(
+    const size_t N, const bool* const x, const bool* const y, bool* const z,
+    bool* const de) {
   for (unsigned int i = 0; i < N; i++) {
     const BooleanBeaverTriple* const triple = get_BoolTriple();
     de[i] = x[i] ^ triple->a;
@@ -155,15 +150,37 @@ int CorrelatedStore::multiply_BoolShares(
     z[i] = triple->c;
     delete triple;
   }
-  sent_bytes += reveal_bool_batch(serverfd, de, 2 * N);
+}
 
-  for (unsigned int i = 0; i < N; i++) {
-    bool d = de[i];
-    bool e = de[i + N];
-    z[i] ^= (x[i] and e) ^ (y[i] and d);
-    if (server_num == 0)
-      z[i] ^= (d and e);
-  }
+void CorrelatedStore::multiply_BoolShares_finish(
+    const size_t N, const bool* const x, const bool* const y, bool* const z,
+    const bool* const de, const bool* const de_other) {
+
+    for (unsigned int i = 0; i < N; i++) {
+      bool d = de[i] ^ de_other[i];
+      bool e = de[i + N] ^ de_other[i + N];
+      z[i] ^= (x[i] and e) ^ (y[i] and d);
+      if (server_num == 0)
+        z[i] ^= (d and e);
+    }
+}
+
+// 1 bool triple per bit
+int CorrelatedStore::multiply_BoolShares(
+    const size_t N, const bool* const x, const bool* const y, bool* const z) {
+  int sent_bytes = 0;
+
+  check_BoolTriples(N);
+
+  bool* de = new bool[2 * N];
+  bool* de_other = new bool[2 * N];
+
+  multiply_BoolShares_setup(N, x, y, z, de);
+
+  sent_bytes += send_bool_batch(serverfd, de, 2 * N);
+  recv_bool_batch(serverfd, de_other, 2 * N);
+
+  multiply_BoolShares_finish(N, x, y, z, de, de_other);
 
   delete[] de;
 
@@ -208,6 +225,19 @@ int CorrelatedStore::multiply_ArithmeticShares(
   return sent_bytes;
 }
 
+void CorrelatedStore::multiply_BoolShares_cross_setup(
+    const size_t N, const size_t a, const size_t b,
+    const bool* x, const bool* y, bool* const z,
+    bool* const x_ext, bool* const y_ext, bool* const de) {
+
+  for (unsigned int i = 0; i < N * a; i++) {
+    memset(&x_ext[i * b], x[i], b);
+    memcpy(&y_ext[i * b], &y[(i / a) * b], b);
+  }
+
+  multiply_BoolShares_setup(N * a * b, x_ext, y_ext, z, de);
+}
+
 int CorrelatedStore::multiply_BoolShares_cross(
     const size_t N, const size_t a, const size_t b,
     const bool* x, const bool* y, bool* const z) {
@@ -215,13 +245,15 @@ int CorrelatedStore::multiply_BoolShares_cross(
 
   bool* x_ext = new bool[N * a * b];
   bool* y_ext = new bool[N * a * b];
+  bool* de = new bool[2 * N * a * b];
+  bool* de_other = new bool[2 * N * a * b];
 
-  for (unsigned int i = 0; i < N * a; i++) {
-    memset(&x_ext[i * b], x[i], b);
-    memcpy(&y_ext[i * b], &y[(i / a) * b], b);
-  }
+  multiply_BoolShares_cross_setup(N, a, b, x, y, z, x_ext, y_ext, de);
 
-  sent_bytes += multiply_BoolShares(N * a * b, x_ext, y_ext, z);
+  sent_bytes += send_bool_batch(serverfd, de, 2 * N * a * b);
+  recv_bool_batch(serverfd, de_other, 2 * N * a * b);
+
+  multiply_BoolShares_finish(N * a * b, x_ext, y_ext, z, de, de_other);
 
   delete[] x_ext;
   delete[] y_ext;
