@@ -1732,6 +1732,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     fmpz_t* bucket0; new_fmpz_array(&bucket0, num_sh);
     fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);
 
+    auto start2 = clock_start();
     for (unsigned int i = 0; i < total_inputs; i++) {
         char tag_c[TAG_LENGTH];
         cli_bytes += recv_in(clientfd, &tag_c[0], TAG_LENGTH);
@@ -1759,12 +1760,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << cli_bytes << std::endl;
-    std::cout << "receive time: " << sec_from(start) << std::endl;
-
-    // For each pair of buckets, do 1 B2A.
-    // All of count-min. Also all of mask for validation
-    std::cout << "Inital dabit check" << std::endl;
-    correlated_store->check_DaBits(total_inputs * share_convert_size);
+    std::cout << "receive time: " << sec_from(start2) << std::endl;
 
     /* Stages:
     Validate each b (share_mask) is frequency vector. With B2A to check sum to 1
@@ -1783,7 +1779,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     */
 
     start = clock_start();
-    auto start2 = clock_start();
+    start2 = clock_start();
     int64_t sent_bytes = 0;
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -2150,6 +2146,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
     fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);
 
     // Read
+    auto start2 = clock_start();
     for (unsigned int i = 0; i < total_inputs; i++) {
         char tag_c[TAG_LENGTH];
         cli_bytes += recv_in(clientfd, &tag_c[0], TAG_LENGTH);
@@ -2182,12 +2179,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
     std::cout << "bytes from client: " << cli_bytes << std::endl;
-    std::cout << "receive time: " << sec_from(start) << std::endl;
-
-    // For each pair of buckets, do 1 B2A.
-    // All of count-min. Also all of mask for validation
-    std::cout << "Inital dabit check" << std::endl;
-    correlated_store->check_DaBits(total_inputs * share_convert_size);
+    std::cout << "receive time: " << sec_from(start2) << std::endl;
 
     /* Cross product bucket x layer first:
         boolean AND
@@ -2218,7 +2210,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
     Final: Accumulation (after all validation)
     */
     start = clock_start();
-    auto start2 = clock_start();
+    start2 = clock_start();
     int64_t sent_bytes = 0;
     if (server_num == 1) {
         const size_t num_inputs = share_map.size();
@@ -2386,16 +2378,10 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         }
 
         // Evaluation: Answer extraction
+        start2 = clock_start();
+
         uint64_t* top_values = new uint64_t[K];
         uint64_t* top_freqs = new uint64_t[K];
-
-        // fmpz_t* b0_other; new_fmpz_array(&b0_other, num_sh);
-        // fmpz_t* b1_other; new_fmpz_array(&b1_other, num_sh);
-        // recv_fmpz_batch(serverfd, b0_other, num_sh);
-        // recv_fmpz_batch(serverfd, b1_other, num_sh);
-        // for (unsigned int i = 0; i < n; i++) {
-            
-        // }
 
         full_heavy_extract(server_num, cfg, bucket0, bucket1, hash_seed_split, hash_seed_count,
                 countmin_accum, num_inputs, top_values, top_freqs);
@@ -2408,6 +2394,8 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         for (unsigned int i = 0; i < K; i++) {
           std::cout << "Value: " << top_values[i] << ", freq: " << top_freqs[i] << std::endl;
         }
+
+        std::cout << "eval time: " << sec_from(start2) << std::endl;
 
         delete[] top_values;
         delete[] top_freqs;
@@ -2572,15 +2560,8 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         }
 
         // Evaluation: Answer extraction
-        // Preliminary: Eval in clear
 
-        // reveal_fmpz_batch(serverfd, bucket0, num_sh);
-        // reveal_fmpz_batch(serverfd, bucket1, num_sh);
-
-        // for (unsigned int i = 0; i < cfg.R * cfg.Q * cfg.B) {
-
-        // }
-
+        start2 = clock_start();
 
         uint64_t* top_values = new uint64_t[K];
         uint64_t* top_freqs = new uint64_t[K];
