@@ -455,6 +455,10 @@ int64_t CorrelatedStore::heavy_convert(
   return sent_bytes;
 }
 
+// Note: Doesn't seem to error any more without?
+// However, on local, it's faster batching then doing one sent
+//   (since no send time)
+// TODO: investigate OT batching
 const unsigned int HEAVY_BATCH_SIZE_BASE = 1200000;
 
 int64_t CorrelatedStore::heavy_convert_mask(
@@ -466,15 +470,15 @@ int64_t CorrelatedStore::heavy_convert_mask(
   const size_t heavy_batch_size = HEAVY_BATCH_SIZE_BASE / (Q * M * D);
 
   if (N > heavy_batch_size) {
-    std::cout << "heavy convert total: " << N << ", heavy batch size: " << heavy_batch_size << std::endl;
+    // std::cout << "heavy convert total: " << N << ", heavy batch size: " << heavy_batch_size << std::endl;
     size_t num_processed = 0;
     size_t batch_idx = 0;
-    size_t num_batches = ceil(1.0 * N / heavy_batch_size);
+    [[maybe_unused]] size_t num_batches = ceil(1.0 * N / heavy_batch_size);
     while (num_processed < N) {
       const size_t num_remaining = N - num_processed;
       const size_t this_batch_size = num_remaining < heavy_batch_size ? num_remaining : heavy_batch_size;
       batch_idx++;
-      std::cout << "Starting heavy batch: " << batch_idx << " / " << num_batches << std::endl;
+      // std::cout << "Starting heavy batch: " << batch_idx << " / " << num_batches << std::endl;
 
       sent_bytes += heavy_convert_mask(this_batch_size, Q, M, D,
         &x[num_processed * Q * D],
@@ -490,7 +494,7 @@ int64_t CorrelatedStore::heavy_convert_mask(
     return sent_bytes;
   }
 
-  auto start = clock_start();
+  [[maybe_unused]] auto start = clock_start();
 
   fmpz_t* z_base; new_fmpz_array(&z_base, N * Q * M * D);
   bool* x_extended = new bool[N * Q * M * D];
@@ -528,7 +532,7 @@ int64_t CorrelatedStore::heavy_convert_mask(
   sent_bytes += multiply_BoolArith(N, Q * M * D, mask_extended, z_base, z_masked, nullptr, valid);
   delete[] mask_extended;
   clear_fmpz_array(z_base, N * Q * M * D);
-  std::cout << "  mask mul time: " << sec_from(start) << "\n"; start = clock_start();
+  // std::cout << "  mask mul time: " << sec_from(start) << "\n"; start = clock_start();
 
   // Round 2: x * z
   // Uses tricks for second buff, to implicitly map x to (x, 1-x)
@@ -539,7 +543,7 @@ int64_t CorrelatedStore::heavy_convert_mask(
   sent_bytes += multiply_BoolArith(N, Q * M * D, x_extended, z_masked, buff1, buff0, valid);
   delete[] x_extended;
   clear_fmpz_array(z_masked, N * Q * M * D);
-  std::cout << "  xz mul time: " << sec_from(start) << "\n"; start = clock_start();
+  // std::cout << "  xz mul time: " << sec_from(start) << "\n"; start = clock_start();
 
   // for (unsigned int i = 0; i < 1 + 0 * N * Q * M * D; i++) {
   //   std::cout << "x_ext[" << i << "]_" << server_num << " = " << x_extended[i] << std::endl;

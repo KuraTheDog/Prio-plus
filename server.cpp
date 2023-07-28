@@ -2205,7 +2205,10 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         cross multiply bucket and layer (AND)
     2: frequency checks: bucket and count-min
         Snips?
-    2.5:  SH update with [z] * mask? OT stuff, so doesn't quite align
+    2.5:  Heavy convert:
+        SH update with [z] * mask?
+        OT stuff, so doesn't overlap easily
+        Also since lots of OT, by far the slowest part
         double check alignment
     Final: Accumulation (after all validation)
     */
@@ -2273,6 +2276,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         memcpy(&shares_2[share_y_offset], shares_sh_y, num_inputs * share_size_sh);
         delete[] shares_sh_y;
         sent_bytes += correlated_store->b2a_single(convert_size, shares_2, shares_p);
+        std::cout << "B2A time: " << sec_from(start3) << std::endl; start3 = clock_start();
 
         // Round 1.5: Mask multiply (AND)
         // TODO: fold into above
@@ -2281,6 +2285,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
                 num_inputs, share_size_bucket, share_size_layer,
                 shares_bucket, shares_layer, mask);
         // Fold R into Q (just "more copies")
+        std::cout << "cross time: " << sec_from(start3) << std::endl; start3 = clock_start();
 
         // Round 2: Frequency checks
         // Ensure count and bucket are freq vectors (one send)
@@ -2334,7 +2339,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
             memset(valid, false, num_inputs);
             std::cout << "Batch not valid. Individual check currently not implemented" << std::endl;
         }
-        std::cout << "first B2A and freq validation time: " << sec_from(start3) << std::endl;
+        std::cout << "freq validation time: " << sec_from(start3) << std::endl;
 
 
         // Round 2.5: Heavy convert with mask
@@ -2461,6 +2466,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         memcpy(&shares_2[share_y_offset], shares_sh_y, num_inputs * share_size_sh);
         delete[] shares_sh_y;
         sent_bytes += correlated_store->b2a_single(convert_size, shares_2, shares_p);
+        std::cout << "B2A time: " << sec_from(start3) << std::endl; start3 = clock_start();
 
         // Round 1.5: Mask multiply (AND)
         // TODO: fold into above
@@ -2468,6 +2474,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         sent_bytes += correlated_store->multiply_BoolShares_cross(
                 num_inputs, share_size_bucket, share_size_layer,
                 shares_bucket, shares_layer, mask);
+        std::cout << "B2A time: " << sec_from(start3) << std::endl; start3 = clock_start();
 
         // Round 2: Frequency checks
         bool* parity = new bool[cfg.Q + cfg.countmin_cfg.d];
@@ -2519,7 +2526,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
             memset(valid, false, num_inputs);
             std::cout << "Batch not valid. Individual check currently not implemented" << std::endl;
         }
-        std::cout << "first B2A and freq validation time: " << sec_from(start3) << std::endl;
+        std::cout << "freq validation time: " << sec_from(start3) << std::endl;
 
         // Round 2.5: Heavy convert with mask
         // 2 rounds of OT, which can't easily fold
