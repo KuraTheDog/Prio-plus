@@ -170,7 +170,7 @@ int CorrelatedStore::multiply_BoolShares(
     const size_t N, const bool* const x, const bool* const y, bool* const z) {
   int sent_bytes = 0;
 
-  check_BoolTriples(N);
+  check_BoolTriples(2 * N);
 
   bool* de = new bool[2 * N];
   bool* de_other = new bool[2 * N];
@@ -242,6 +242,8 @@ int CorrelatedStore::multiply_BoolShares_cross(
     const size_t N, const size_t a, const size_t b,
     const bool* x, const bool* y, bool* const z) {
   int sent_bytes = 0;
+
+  check_BoolTriples(2 * N * a * b);
 
   bool* x_ext = new bool[N * a * b];
   bool* y_ext = new bool[N * a * b];
@@ -957,8 +959,8 @@ void PrecomputeStore::check_Triples(const size_t n) {
 int PrecomputeStore::add_DaBits(const size_t n) {
   auto start = clock_start();
   int sent_bytes = 0;
-  // const size_t num_to_make = (n > batch_size ? n : batch_size);
-  const size_t num_to_make = n;  // Currently to make "end to end" easier to benchmark
+  const size_t num_to_make = (n > batch_size ? n : batch_size);
+  // const size_t num_to_make = n;  // Use this to make "end to end" easier to benchmark
   std::cout << "adding dabits: " << num_to_make << std::endl;
   DaBit** const dabits = new DaBit*[num_to_make];
 
@@ -976,7 +978,7 @@ int PrecomputeStore::add_DaBits(const size_t n) {
 
 void PrecomputeStore::add_Triples(const size_t n) {
   auto start = clock_start();
-  const size_t num_to_make = (n > triples_batch_size ? n : triples_batch_size);
+  const size_t num_to_make = (n > batch_size ? n : batch_size);
   std::cout << "adding triples: " << num_to_make << std::endl;
   // if (triple_gen) {  // not null pointer
   //   std::vector<BeaverTriple*> new_triples = triple_gen->generateTriples(num_to_make);
@@ -1007,31 +1009,29 @@ void PrecomputeStore::add_BoolTriples(const size_t n) {
 void PrecomputeStore::print_Sizes() const {
   std::cout << "Current store sizes:\n";
   std::cout << " Dabits: " << dabit_store.size() << std::endl;
-  // std::cout << " Bool  Triples: " << btriple_store.size() << std::endl;
+  std::cout << " Bool  Triples: " << btriple_store.size() << std::endl;
   std::cout << " Arith Triples: " << atriple_store.size() << std::endl;
 }
 
 void PrecomputeStore::maybe_Update() {
   auto start = clock_start();
 
-  // Make top level if stores not enough
-  const bool make_da = dabit_store.size() < (batch_size / 2);
-  // Determine how much of each to make
-  const size_t da_target = 2 * make_da * batch_size;
-  const size_t btrip_target = 0;  // NOTE: Currently disabled/not used
-
-  // For heavy
-  const bool make_arith = atriple_store.size() < (batch_size / 2);
-  const size_t atrip_target = 2 * make_arith;
+  // Extra make factor, to overkill for convenience
+  const size_t extra_make_factor = 2;
+  // Targets.
+  const size_t da_target = batch_size;
+  const size_t atrip_target = batch_size;
+  // Estimating factor of 32. based on num bits, specific use, etc.
+  const size_t btrip_target = batch_size * 32;
 
   if (btriple_store.size() < btrip_target)
-    add_BoolTriples(btrip_target);
+    add_BoolTriples(btrip_target * extra_make_factor);
 
   if (dabit_store.size() < da_target)
-    add_DaBits(da_target);
+    add_DaBits(da_target * extra_make_factor);
 
   if (atriple_store.size() < atrip_target)
-    add_Triples(atrip_target);
+    add_Triples(atrip_target * extra_make_factor);
 
   // print_Sizes();
 

@@ -119,12 +119,6 @@ protected:
   virtual const BeaverTriple* const get_Triple();
   virtual const BooleanBeaverTriple* const get_BoolTriple();
 
-  // Currently only used for heavy eval, which is independent of # clients
-  // Approx 41 * b * nbits_mod, where b is #bits of run
-  // Here estimating a rounds of 16 bits (or 4 of 4, etc)
-  // TODO: This will get deprecated with garbled
-  const size_t triples_batch_size = 41 * 16 * nbits_mod;
-
 public:
   CorrelatedStore(const int serverfd, const int server_num,
                   OT_Wrapper* const ot0, OT_Wrapper* const ot1)

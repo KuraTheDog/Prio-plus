@@ -1725,6 +1725,10 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     // Values being converted in B2A
     const size_t share_convert_size = share_size_sh + share_size_count + share_size_mask;
 
+    if (STORE_TYPE != ot_store) {
+        ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * share_convert_size);
+    }
+
     fmpz_t* bucket0; new_fmpz_array(&bucket0, num_sh);
     fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);
 
@@ -2136,6 +2140,11 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
     const size_t num_sh = cfg.R * cfg.Q * cfg.B * cfg.SH_depth;
     // Values being converted in B2A: count, bucket, y
     const size_t share_convert_size = share_size_count + share_size_bucket + share_size_sh;
+
+    if (STORE_TYPE != ot_store) {
+        ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * share_convert_size);
+        ((CorrelatedStore*) correlated_store)->check_BoolTriples(2 * total_inputs * share_size_bucket * share_size_layer);
+    }
 
     fmpz_t* bucket0; new_fmpz_array(&bucket0, num_sh);
     fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);
