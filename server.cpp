@@ -253,35 +253,6 @@ const bool* const validate_snips(const size_t N,
     return ans;
 }
 
-/*
-shares_p: size inp X values, set across (all vals for inp0, then inp1, etc.)
-valid: size inp, if false ignore corresponding shares
-ans: size values, has modular sum of valid shares
-returns number of valid.
-*/
-size_t accumulate(const size_t num_inputs,
-                  const size_t num_values,
-                  const fmpz_t* const shares_p,
-                  const bool* const valid,
-                  fmpz_t* const ans
-                  ) {
-    size_t num_valid = 0;
-
-    for (unsigned int j = 0; j < num_values; j++)
-        fmpz_zero(ans[j]);
-
-    for (unsigned int i = 0; i < num_inputs; i++) {
-        if (!valid[i])
-            continue;
-        for (unsigned int j = 0; j < num_values; j++) {
-            fmpz_mod_add(ans[j], ans[j], shares_p[i * num_values + j], mod_ctx);
-        }
-        num_valid++;
-    }
-
-    return num_valid;
-}
-
 // Note: since bits, uses specific bitsum_ot, rather than normal store stuff.
 returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
                    const int server_num, uint64_t& ans) {

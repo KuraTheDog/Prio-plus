@@ -42,9 +42,7 @@ void test_HeavyConvert(const int server_num, const int serverfd,
     const bool bucket = j % 2;
     const bool hash  = (j >> 1) % 2;
     // if (server_num == 0) {
-    //   std::cout << "bit " << j << " = bucket " << bucket << ", hash " << hash;
-    //   if (with_mask) std::cout << ", mask " << mask_eval(j);
-    //   std::cout << std::endl;
+    //   std::cout << "bit " << j << " = bucket " << bucket << ", hash " << hash << std::endl;
     // }
 
     (bucket ? expected1 : expected0)[j] = (hash ? -(int)N : N);
@@ -495,11 +493,8 @@ void runServerTest(const int server_num, const int serverfd) {
   test_HeavyConvertMask(server_num, serverfd, store);
 
   // test_cmp_bit(server_num, serverfd, store);
-
   // test_rand_bitshare(server_num, serverfd, store);
-
   // test_sign(server_num, serverfd, store);
-
   test_abs_cmp(server_num, serverfd, store);
 
   delete ot0;

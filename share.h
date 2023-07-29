@@ -184,6 +184,18 @@ struct [[deprecated("Multiple Dabits requires less rounds")]] EdaBit {
     }
 };
 
+/*
+With [num_inputs] each providing [num_values] values, accumulate into ans if valid.
+values: size [num_inputs * num_values], [all values for input0, all for input1, ...]
+valid: size [num_inputs], if false ignore that input
+ans: size [num_values], ans[i] is modular sum of all input's value[i]
+returns number of valid.
+Here for convenience (to access mod), and since this is usually used to sum shares
+*/
+size_t accumulate(const size_t num_inputs, const size_t num_values,
+                  const fmpz_t* const values, const bool* const valid,
+                  fmpz_t* const ans);
+
 // Note: A can't be val, but B can.
 void SplitShare(const fmpz_t val, fmpz_t A, fmpz_t B);
 

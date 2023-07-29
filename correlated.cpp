@@ -442,14 +442,11 @@ int64_t CorrelatedStore::heavy_convert(
   fmpz_t* buff0; new_fmpz_array(&buff0, N * b);
   fmpz_t* buff1; new_fmpz_array(&buff1, N * b);
   sent_bytes += multiply_BoolArith(N, b, x, z, buff1, buff0, valid);
+
+  // Valid extra since already processed in OT
   clear_fmpz_array(z, N * b);
-  for (unsigned int i = 0; i < N; i++) {
-    for (unsigned int j = 0; j < b; j++) {
-      const size_t idx = i * b + j;
-      fmpz_mod_add(bucket0[j], bucket0[j], buff0[idx], mod_ctx);
-      fmpz_mod_add(bucket1[j], bucket1[j], buff1[idx], mod_ctx);
-    }
-  }
+  accumulate(N, b, buff0, valid, bucket0);
+  accumulate(N, b, buff1, valid, bucket1);
   clear_fmpz_array(buff0, N * b);
   clear_fmpz_array(buff1, N * b);
   return sent_bytes;
@@ -554,13 +551,8 @@ int64_t CorrelatedStore::heavy_convert_mask(
   //   std::cout << "buff1[" << i << "]_" << server_num << " = " << get_fsigned(buff1[i], Int_Modulus) << std::endl;
   // }
 
-  for (unsigned int bucket_idx = 0; bucket_idx < Q * M * D; bucket_idx++) {
-    for (unsigned int n = 0; n < N; n++) {
-      const size_t idx = n * (Q * M * D) + bucket_idx;
-      fmpz_mod_add(bucket0[bucket_idx], bucket0[bucket_idx], buff0[idx], mod_ctx);
-      fmpz_mod_add(bucket1[bucket_idx], bucket1[bucket_idx], buff1[idx], mod_ctx);
-    }
-  }
+  accumulate(N, Q * M * D, buff0, valid, bucket0);
+  accumulate(N, Q * M * D, buff1, valid, bucket1);
   clear_fmpz_array(buff0, N * Q * M * D);
   clear_fmpz_array(buff1, N * Q * M * D);
 
