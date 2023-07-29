@@ -65,7 +65,10 @@ void test_HeavyConvert(const int server_num, const int serverfd,
     }
   }
 
+  store->check_DaBits(N * nbits);
+
   auto start = clock_start();
+  std::cout << "clock start" << std::endl;
   store->heavy_convert(N, nbits, x, y, valid, bucket0, bucket1);
   std::cout << "heavy convert timing : " << sec_from(start) << std::endl;
 
@@ -78,12 +81,12 @@ void test_HeavyConvert(const int server_num, const int serverfd,
     fmpz_t tmp; fmpz_init(tmp);
     for (unsigned int j = 0; j < nbits; j++) {
       fmpz_mod_add(tmp, bucket0[j], bucket0_other[j], mod_ctx);
-      std::cout << "bucket0[" << j << "] total = " << get_fsigned(tmp, Int_Modulus);
-      std::cout << ", \tvalue = " << expected0[j] << std::endl;
+      // std::cout << "bucket0[" << j << "] total = " << get_fsigned(tmp, Int_Modulus);
+      // std::cout << ", \tvalue = " << expected0[j] << std::endl;
       assert(get_fsigned(tmp, Int_Modulus) == expected0[j]);
       fmpz_mod_add(tmp, bucket1[j], bucket1_other[j], mod_ctx);
-      std::cout << "bucket1[" << j << "] total = " << get_fsigned(tmp, Int_Modulus);
-      std::cout << ", \tvalue = " << expected1[j] << std::endl;
+      // std::cout << "bucket1[" << j << "] total = " << get_fsigned(tmp, Int_Modulus);
+      // std::cout << ", \tvalue = " << expected1[j] << std::endl;
       assert(get_fsigned(tmp, Int_Modulus) == expected1[j]);
     }
     fmpz_clear(tmp);
@@ -471,7 +474,7 @@ void runServerTest(const int server_num, const int serverfd) {
   OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : "127.0.0.1", 60052);
   PrecomputeStore* store = new PrecomputeStore(serverfd, server_num, ot0, ot1, batch_size, lazy);
 
-  // store->maybeUpdate();
+  // store->maybe_Update();
   std::cout << std::endl;
 
   // random adjusting. different numbers adjust seed.

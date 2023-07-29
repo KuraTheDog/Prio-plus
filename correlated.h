@@ -8,7 +8,7 @@ Maintaines a cache of precomputed correlated randomness.
 
 PrecomputeStore:
 Made in at least batch_size chunks at a time.
-New batches are build either as it runs out, or by calling maybeUpdate
+New batches are build either as it runs out, or by calling maybe_Update
 Also includes io objects for OT, which have their own precomputes
 Uses for generating daBits via OT.
 Also adding boolean shares via boolean triples (currently unused).
@@ -39,6 +39,7 @@ ShareConverter
 
 /*
 Stage atomicizing. So can do multiple send/rec in parallel
+See inside main functions for uses. (e.g. inside b2a_single for how to use)
 1) Setup params
 2) Check
 3) Declare variables. Things passed to send/rec. Need to be new/nullptr outside.
@@ -134,14 +135,17 @@ public:
     clear_queue(atriple_store);
   }
 
-  // Single bit. One round.
+  // Single bit value.
+  // One round, for each consuming a dabit and sending 1 bit.
   void b2a_single_setup(
       const size_t N, const bool* const x, fmpz_t* const xp, bool* const v);
   void b2a_single_finish(
       const size_t N, fmpz_t* const xp, const bool* const v, const bool* const v_other);
   int64_t b2a_single(const size_t N, const bool* const x, fmpz_t* const xp);
 
-  // Multiple bits. Use a dabit per bit in parallel, so one round
+  // Multiple bits values.
+  // One round, for each bit consuming a dabit and sending 1 bit.
+  // Boolean shares stored as numbers in x, with x[i] length num_bits[i]
   void b2a_multi_setup(
       const size_t N, const size_t total_bits, const size_t* const num_bits,
       const fmpz_t* const x, fmpz_t* const flat_xp, bool* const v);
@@ -176,9 +180,10 @@ public:
   // N inputs, each B bits large
   // b, x, and z are [N * B]
   // Distinction of N vs B only comes in for the optional "valid" array.
-  // If z_inv (size N*B): Does a second set multiplied by 1-b instead.
-  //   maintains same rounds, just "larger" OT's
+  // If optional z_inv (size N*B): Does a second set multiplied by 1-b instead.
+  //   maintains same rounds/number of OTs, just "larger" OT's (extra params)
   // If valid, it's a [N] array for which inputs are valid
+  // Uses N * B OTs, no correlated
   int64_t multiply_BoolArith(
       const size_t N, const size_t B, const bool* const b, const fmpz_t* const x,
       fmpz_t* const z, fmpz_t* const z_inv = nullptr, const bool* const valid = nullptr);
@@ -205,7 +210,7 @@ public:
   // Index with i * b + j: (x0, ..., xb-1) for number 0.
   // Makes copying in new shares easier.
   // N valid, if invalid just contributes 0
-  // Uses N * b DaBits
+  // Uses N * b DaBits and OTs
   int64_t heavy_convert(const size_t N, const size_t b,
       const bool* const x, const bool* const y, const bool* const valid,
       fmpz_t* const bucket0, fmpz_t* const bucket1);
