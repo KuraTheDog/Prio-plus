@@ -67,28 +67,36 @@ int recv_bool_batch(const int sockfd, bool* const x, const size_t n) {
     return ret;
 }
 
-int reveal_bool_batch(const int sockfd, bool* const x, const size_t n) {
+int swap_bool_batch(const int sockfd, const bool* const x, bool* const y, const size_t n) {
     int sent_bytes = 0;
     int recv_bytes = 0;
-
-    bool* buff = new bool[n];
 
     std::thread t_send([sockfd, x, n, &sent_bytes]() {
         sent_bytes += send_bool_batch(sockfd, x, n);
     });
-    std::thread t_recv([sockfd, &buff, n, &recv_bytes]() {
-        recv_bytes += recv_bool_batch(sockfd, buff, n);
+    std::thread t_recv([sockfd, &y, n, &recv_bytes]() {
+        recv_bytes += recv_bool_batch(sockfd, y, n);
     });
     t_send.join();
     t_recv.join();
-
-    for (unsigned int i = 0; i < n; i++)
-        x[i] ^= buff[i];
 
     if (sent_bytes != recv_bytes) {
         std::cout << "WARNING: sent " << sent_bytes << " bytes, ";
         std::cout << "but received " << recv_bytes << " bytes" << std::endl;
     }
+
+    return sent_bytes;
+}
+
+int reveal_bool_batch(const int sockfd, bool* const x, const size_t n) {
+    int sent_bytes = 0;
+
+    bool* buff = new bool[n];
+
+    sent_bytes += swap_bool_batch(sockfd, x, buff, n);
+
+    for (unsigned int i = 0; i < n; i++)
+        x[i] ^= buff[i];
 
     delete[] buff;
 

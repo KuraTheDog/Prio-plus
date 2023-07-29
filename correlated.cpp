@@ -66,8 +66,7 @@ int64_t CorrelatedStore::b2a_single(const size_t N, const bool* const x, fmpz_t*
 
   b2a_single_setup(N, x, xp, v);
 
-  sent_bytes += send_bool_batch(serverfd, v, N);
-  recv_bool_batch(serverfd, v_other, N);
+  sent_bytes += swap_bool_batch(serverfd, v, v_other, N);
 
   b2a_single_finish(N, xp, v, v_other);
 
@@ -128,8 +127,7 @@ int64_t CorrelatedStore::b2a_multi(
 
   b2a_multi_setup(N, total_bits, num_bits, x, flat_xp, v);
 
-  sent_bytes += send_bool_batch(serverfd, v, total_bits);
-  recv_bool_batch(serverfd, v_other, total_bits);
+  sent_bytes += swap_bool_batch(serverfd, v, v_other, total_bits);
 
   b2a_multi_finish(N, total_bits, num_bits, xp, flat_xp, v, v_other);
 
@@ -177,8 +175,7 @@ int64_t CorrelatedStore::multiply_BoolShares(
 
   multiply_BoolShares_setup(N, x, y, z, de);
 
-  sent_bytes += send_bool_batch(serverfd, de, 2 * N);
-  recv_bool_batch(serverfd, de_other, 2 * N);
+  sent_bytes += swap_bool_batch(serverfd, de, de_other, 2 * N);
 
   multiply_BoolShares_finish(N, x, y, z, de, de_other);
 
@@ -252,8 +249,7 @@ int64_t CorrelatedStore::multiply_BoolShares_cross(
 
   multiply_BoolShares_cross_setup(N, a, b, x, y, z, x_ext, y_ext, de);
 
-  sent_bytes += send_bool_batch(serverfd, de, 2 * N * a * b);
-  recv_bool_batch(serverfd, de_other, 2 * N * a * b);
+  sent_bytes += swap_bool_batch(serverfd, de, de_other, 2 * N * a * b);
 
   multiply_BoolShares_finish(N * a * b, x_ext, y_ext, z, de, de_other);
 
