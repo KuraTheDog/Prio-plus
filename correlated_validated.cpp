@@ -285,6 +285,7 @@ int64_t ValidateCorrelatedStore::check_DaBits(const size_t n) {
     // std::cout << "precompute checking: " << n - num_validated_dabits() << std::endl;
     // std::cout << "check_da(" << n << "), not enough validated. to_make = " << num_to_make << "\n";
     sent_bytes += PrecomputeStore::check_DaBits(num_to_make);
+    check_AltTriple(num_to_make, true);
   }
   // printSizes();
   return sent_bytes;

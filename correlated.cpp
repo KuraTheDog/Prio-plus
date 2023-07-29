@@ -168,7 +168,7 @@ int64_t CorrelatedStore::multiply_BoolShares(
     const size_t N, const bool* const x, const bool* const y, bool* const z) {
   int64_t sent_bytes = 0;
 
-  check_BoolTriples(2 * N);
+  check_BoolTriples(N);
 
   bool* de = new bool[2 * N];
   bool* de_other = new bool[2 * N];
