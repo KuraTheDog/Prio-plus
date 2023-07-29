@@ -467,7 +467,7 @@ int64_t CorrelatedStore::heavy_convert_mask(
   const size_t heavy_batch_size = HEAVY_BATCH_SIZE_BASE / (Q * M * D);
 
   if (N > heavy_batch_size) {
-    // std::cout << "heavy convert total: " << N << ", heavy batch size: " << heavy_batch_size << std::endl;
+    // std::cout << "heavy convert total: " << N << ", heavy batch size: " << heavy_batch_size << "\n";
     size_t num_processed = 0;
     size_t batch_idx = 0;
     [[maybe_unused]] size_t num_batches = ceil(1.0 * N / heavy_batch_size);
@@ -542,15 +542,6 @@ int64_t CorrelatedStore::heavy_convert_mask(
   clear_fmpz_array(z_masked, N * Q * M * D);
   // std::cout << "  xz mul time: " << sec_from(start) << "\n"; start = clock_start();
 
-  // for (unsigned int i = 0; i < 1 + 0 * N * Q * M * D; i++) {
-  //   std::cout << "x_ext[" << i << "]_" << server_num << " = " << x_extended[i] << std::endl;
-  //   std::cout << "mask_ext[" << i << "]_" << server_num << " = " << mask_extended[i] << std::endl;
-  //   std::cout << "z_base[" << i << "]_" << server_num << " = " << get_fsigned(z_base[i], Int_Modulus) << std::endl;
-  //   std::cout << "z_masked[" << i << "]_" << server_num << " = " << get_fsigned(z_masked[i], Int_Modulus) << std::endl;
-  //   std::cout << "buff0[" << i << "]_" << server_num << " = " << get_fsigned(buff0[i], Int_Modulus) << std::endl;
-  //   std::cout << "buff1[" << i << "]_" << server_num << " = " << get_fsigned(buff1[i], Int_Modulus) << std::endl;
-  // }
-
   accumulate(N, Q * M * D, buff0, valid, bucket0);
   accumulate(N, Q * M * D, buff1, valid, bucket1);
   clear_fmpz_array(buff0, N * Q * M * D);
@@ -617,7 +608,8 @@ int64_t CorrelatedStore::cmp(const size_t N,
 }
 
 // |x| = (1 - 2[x < 0]) * x
-// if hashes known, sign might reveal some info about non-heavy bucket, so reveal in clear is not fully secure
+// if hashes known, sign might reveal some info about non-heavy bucket
+// so reveal in clear is not fully secure
 int64_t CorrelatedStore::abs(
     const size_t N, const fmpz_t* const x, fmpz_t* const abs_x) {
   int64_t sent_bytes = 0;
@@ -823,7 +815,6 @@ int64_t CorrelatedStore::gen_rand_bitshare(
     sent_bytes += reveal_fmpz_batch(serverfd, r_lt_p, num_invalid);
     for (unsigned int i = 0; i < num_invalid; i++) {
       valid[rB_idx[i]] = fmpz_is_one(r_lt_p[i]);
-      // std::cout << "check " << i << ": valid[" << rB_idx[i] << "] = " << valid[rB_idx[i]] << std::endl;
     }
     clear_fmpz_array(r_lt_p, num_invalid);
   }
@@ -833,8 +824,6 @@ int64_t CorrelatedStore::gen_rand_bitshare(
   clear_fmpz_array(r_lt_p_other, N);
   delete[] rB_idx;
   delete[] valid;
-
-  // std::cout << "total sub-iterations: " << log_num_invalid << ", vs expected: " << avg_tries * N << std::endl;
 
   return sent_bytes;
 }
@@ -993,7 +982,8 @@ void PrecomputeStore::add_BoolTriples(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > batch_size ? n : batch_size);
   std::cout << "adding booltriples: " << num_to_make << std::endl;
-  std::queue<const BooleanBeaverTriple*> new_triples = gen_boolean_beaver_triples(server_num, num_to_make, ot0, ot1);
+  std::queue<const BooleanBeaverTriple*> new_triples = (
+      gen_boolean_beaver_triples(server_num, num_to_make, ot0, ot1));
   for (unsigned int i = 0; i < num_to_make; i++) {
     btriple_store.push(new_triples.front());
     new_triples.pop();

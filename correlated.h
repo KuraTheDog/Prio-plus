@@ -157,6 +157,11 @@ public:
 
   // x, y, z are [N]
   // does z[i] = x[i] * y[i], as shares
+  /* TODO: It would be cool to have a "binary-fold" multiply list
+     E.g. for 5 to 8 items, do in 3 rounds via pairing
+     For "heavy mask" though, would require weirdness with unfolding
+     since "variable" number of rounds.
+  */
   void multiply_BoolShares_setup(const size_t N,
       const bool* const x, const bool* const y, bool* const z, bool* const de);
   void multiply_BoolShares_finish(const size_t N,
@@ -203,15 +208,13 @@ public:
       const bool* const * const x, const bool* const * const y,
       bool* const * const z, bool* const carry);
 
-  // N inputs of b values
+  // N inputs (each may be valid or not) of b values
   // [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
   // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
   // |x| = |y| = N * b
   // Index with i * b + j: (x0, ..., xb-1) for number 0.
-  // Makes copying in new shares easier.
-  // N valid, if invalid just contributes 0. Valid here since fed into OT.
   // Accumulates into the buckets sized b.
-  // Uses N * b DaBits and OTs
+  // One round of B2A (N*b), one round of OTs (N*b)
   int64_t heavy_convert(const size_t N, const size_t b,
       const bool* const x, const bool* const y, const bool* const valid,
       fmpz_t* const bucket0, fmpz_t* const bucket1);
@@ -227,6 +230,7 @@ public:
   //   valid = over N
   //   mask  = [over N (over Q (over M))]
   //   buckets = [over Q (over M (over D))]
+  // One round of B2A (N*Q*D), two rounds of Ots (N*Q*M*D) each
   int64_t heavy_convert_mask(
       const size_t N, const size_t Q, const size_t M, const size_t D,
       const bool* const x, const fmpz_t* const y_p, const bool* const mask,
