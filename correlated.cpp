@@ -509,13 +509,13 @@ int64_t CorrelatedStore::heavy_convert_mask(
     const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1) {
   int64_t sent_bytes = 0;
 
-  const size_t heavy_batch_size = HEAVY_BATCH_SIZE_BASE / (Q * M * D);
+  const size_t heavy_batch_size = HEAVY_BATCH_SIZE_BASE / (Q * M * D) + 1;
 
   if (N > heavy_batch_size) {
     // std::cout << "heavy convert total: " << N << ", heavy batch size: " << heavy_batch_size << "\n";
     size_t num_processed = 0;
     size_t batch_idx = 0;
-    [[maybe_unused]] size_t num_batches = ceil(1.0 * N / heavy_batch_size);
+    [[maybe_unused]] unsigned int num_batches = ceil(1.0 * N / heavy_batch_size);
     while (num_processed < N) {
       const size_t num_remaining = N - num_processed;
       const size_t this_batch_size = num_remaining < heavy_batch_size ? num_remaining : heavy_batch_size;
