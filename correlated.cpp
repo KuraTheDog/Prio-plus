@@ -422,13 +422,13 @@ int64_t CorrelatedStore::heavy_convert(
   sent_bytes += b2a_single(3 * N * b, z, zp);
 
   delete[] z;
-  // Accumulate.
+  // Accumulate
   for (unsigned int i = 0; i < N; i++) {
     if (!valid[i])
       continue;
     for (unsigned int j = 0; j < b; j++) {
       const size_t idx = i * b + j;
-      // (1-2y)(1-x) = 1 - x - 2y + 2 * xy
+      // (1-2y)(1-x) = 1 - x - 2y + 2xy
       // Alternate approach: replace `y` with `y^xy` before feeding into B2A.
       fmpz_mod_add_ui(bucket0[j], bucket0[j], server_num, mod_ctx);
       fmpz_mod_sub(bucket0[j], bucket0[j], zp[N*b + idx], mod_ctx);

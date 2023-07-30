@@ -224,7 +224,7 @@ public:
       fmpz_t* const bucket0, fmpz_t* const bucket1);
 
   // Q "parallel" runs of heavy_convert
-  // N inputs, Q copies, D depth, B substreams
+  // N inputs, Q copies, D depth, M substreams
   // |x| = |y| = N * Q * D
   // |mask| = N * Q * M: Substream select
   // Valid size N
@@ -234,7 +234,8 @@ public:
   //   valid = over N
   //   mask  = [over N (over Q (over M))]
   //   buckets = [over Q (over M (over D))]
-  // One round of B2A (N*Q*D), two rounds of Ots (N*Q*M*D) each
+  // has one round of B2A (NQD) outside: (1-2y)
+  // Two rounds of Ots (NQMD each): first * mask, second a double * (x, 1-x)
   int64_t heavy_convert_mask(
       const size_t N, const size_t Q, const size_t M, const size_t D,
       const bool* const x, const fmpz_t* const y_p, const bool* const mask,
