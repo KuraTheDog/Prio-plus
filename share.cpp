@@ -14,9 +14,6 @@ size_t accumulate(const size_t num_inputs, const size_t num_values,
                   const fmpz_t* const values, const bool* const valid,
                   fmpz_t* const ans) {
   size_t num_valid = 0;
-  // Ensure init. Likely already done by new_fmpz_array, but make sure
-  for (unsigned int j = 0; j < num_values; j++)
-    fmpz_zero(ans[j]);
 
   for (unsigned int i = 0; i < num_inputs; i++) {
     if (!valid[i])
