@@ -24,6 +24,8 @@ int OT_Wrapper::send(
     emp::block* const block0 = new emp::block[length];
     emp::block* const block1 = new emp::block[length];
 
+    // std::cout << "OT send len: " << length << (data0_1 ? " with double data" : "") << std::endl;
+
     for (unsigned int i = 0; i < length; i++) {
         block0[i] = emp::makeBlock(data0_1 ? data0_1[i] : 0, data0[i]);
         block1[i] = emp::makeBlock(data1_1 ? data1_1[i] : 0, data1[i]);

@@ -494,6 +494,11 @@ int64_t CorrelatedStore::heavy_convert_ot(
 
 // Note: Doesn't seem to error any more without?
 // However, on local, it's faster batching then doing one sent
+
+// Note:
+// Runs into "OT Extension check failednet_recv_data"
+// Doesn't seem to be size thing? maybe? Does socket get full? hard to test
+// Note, on local, it's faster batching then doing one sent
 //   (since no send time)
 // TODO: investigate OT batching
 const unsigned int HEAVY_BATCH_SIZE_BASE = 1200000;

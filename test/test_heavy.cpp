@@ -144,6 +144,15 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
   auto mask_eval = [](int n, int m){return (n + m) % 3 == 0;};
 
   // Setup
+  /*
+  "base random"
+    x, y rotate 00, 10, 01, 11
+    mask at base alternates (0, 1, 0, 1)
+  actual value
+    x alternates along d, offset by q
+    y alternates every other by d, offset by q
+    mask is every 3rd
+  */ 
   for (unsigned int n = 0; n < N; n++) {
     memset(&x[n * (Q * D)], n % 2, Q * D);
     memset(&y[n * (Q * D)], (n>>1) % 2, Q * D);
@@ -163,8 +172,6 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
       }
     }
   }
-  fmpz_t* y_p; new_fmpz_array(&y_p, N * Q * D);
-  store->b2a_single(N * Q * D, y, y_p);
 
   // Setup expected.
   for (unsigned int q = 0; q < Q; q++) {
@@ -178,13 +185,19 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
       }
     }
   }
+  fmpz_t* y_p; new_fmpz_array(&y_p, N * Q * D);
 
+  store->check_DaBits(N * Q * D);
 
   // Run
   auto start = clock_start();
   int sent_bytes;
+  store->b2a_single(N * Q * D, y, y_p);
+  std::cout << "heavy mask: b2a timing " << sec_from(start) << std::endl;
+  auto start2 = clock_start();
   sent_bytes = store->heavy_convert_mask(N, Q, M, D, x, y_p, mask, valid, bucket0, bucket1);
-  std::cout << "heavy mask convert timing : " << sec_from(start) << std::endl;
+  std::cout << "heavy mask convert timing : " << sec_from(start2) << std::endl;
+  std::cout << "heavy mask total timing : " << sec_from(start) << std::endl;
   std::cout << "sent_bytes = " << sent_bytes << std::endl;
   delete[] x;
   delete[] y;
