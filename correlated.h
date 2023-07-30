@@ -214,8 +214,12 @@ public:
   // |x| = |y| = N * b
   // Index with i * b + j: (x0, ..., xb-1) for number 0.
   // Accumulates into the buckets sized b.
-  // One round of B2A (N*b), one round of OTs (N*b)
+  // One round bool mult (N*b), one round of B2A (3*N*b)
   int64_t heavy_convert(const size_t N, const size_t b,
+      const bool* const x, const bool* const y, const bool* const valid,
+      fmpz_t* const bucket0, fmpz_t* const bucket1);
+  // One round of B2A (N*b), one round of OTs (N*b)
+  int64_t heavy_convert_ot(const size_t N, const size_t b,
       const bool* const x, const bool* const y, const bool* const valid,
       fmpz_t* const bucket0, fmpz_t* const bucket1);
 

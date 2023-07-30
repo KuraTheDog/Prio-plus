@@ -401,7 +401,51 @@ int64_t CorrelatedStore::multiply_BoolArithFlat(
   return sent_bytes;
 }
 
+// Note: N, b difference only for accumulate.
+// But comes into play more with masks later and lines up with OT, so left in for matching
 int64_t CorrelatedStore::heavy_convert(
+    const size_t N, const size_t b,
+    const bool* const x, const bool* const y, const bool* const valid,
+    fmpz_t* const bucket0, fmpz_t* const bucket1) {
+  int64_t sent_bytes = 0;
+
+  check_BoolTriples(N * b);
+  check_DaBits(3 * N * b);
+
+  // xy, x, y
+  bool* const z = new bool[3 * N * b];
+  fmpz_t* zp; new_fmpz_array(&zp, 3 * N * b);
+  memcpy(&z[N*b], x, N * b);
+  memcpy(&z[2 * N*b], y, N * b);
+
+  sent_bytes += multiply_BoolShares(N * b, x, y, z);
+  sent_bytes += b2a_single(3 * N * b, z, zp);
+
+  delete[] z;
+  // Accumulate.
+  for (unsigned int i = 0; i < N; i++) {
+    if (!valid[i])
+      continue;
+    for (unsigned int j = 0; j < b; j++) {
+      const size_t idx = i * b + j;
+      // (1-2y)(1-x) = 1 - x - 2y + 2 * xy
+      // Alternate approach: replace `y` with `y^xy` before feeding into B2A.
+      fmpz_mod_add_ui(bucket0[j], bucket0[j], server_num, mod_ctx);
+      fmpz_mod_sub(bucket0[j], bucket0[j], zp[N*b + idx], mod_ctx);
+      fmpz_mod_submul_ui(bucket0[j], zp[2*N*b + idx], 2, mod_ctx);
+      fmpz_mod_addmul_ui(bucket0[j], zp[idx], 2, mod_ctx);
+
+      // (1 - 2y)x = x - 2xy
+      fmpz_mod_add(bucket1[j], bucket1[j], zp[N*b + idx], mod_ctx);
+      fmpz_mod_submul_ui(bucket1[j], zp[idx], 2, mod_ctx);
+    }
+  }
+  clear_fmpz_array(zp, 3 * N * b);
+
+  return sent_bytes;
+}
+
+int64_t CorrelatedStore::heavy_convert_ot(
     const size_t N, const size_t b,
     const bool* const x, const bool* const y,
     const bool* const valid,

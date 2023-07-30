@@ -11,6 +11,8 @@
 const size_t batch_size = 100; // flexible
 const bool lazy = false;
 
+const bool use_ot_version = false;
+
 /*
 4 bits, for each bucket/hash combo
 8 inputs per, for possible randomness (0-bucket, 2 xor bits)
@@ -56,18 +58,27 @@ void test_HeavyConvert(const int server_num, const int serverfd,
       // share 1
       if (server_num == 1) {
         // std::cout << "x[" << idx << "] = " << x[idx] << ", " << (x[idx] ^ bucket) << std::endl;
-        // std::cout << "y[" << idx << "] = " << x[idx] << ", " << (y[idx] ^ hash) << std::endl;
+        // std::cout << "y[" << idx << "] = " << y[idx] << ", " << (y[idx] ^ hash) << std::endl;
         x[idx] ^= bucket;
         y[idx] ^= hash;
       }
     }
   }
 
-  store->check_DaBits(N * nbits);
+  if (use_ot_version) {
+    store->check_DaBits(N * nbits);
+  } else {
+    store->check_BoolTriples(2 * N * nbits);
+    store->check_DaBits(3 * N * nbits);
+  }
 
   auto start = clock_start();
   std::cout << "clock start" << std::endl;
-  store->heavy_convert(N, nbits, x, y, valid, bucket0, bucket1);
+  if (use_ot_version) {
+    store->heavy_convert_ot(N, nbits, x, y, valid, bucket0, bucket1);
+  } else {
+    store->heavy_convert(N, nbits, x, y, valid, bucket0, bucket1);
+  }
   std::cout << "heavy convert timing : " << sec_from(start) << std::endl;
 
   // recombine / test
@@ -80,11 +91,11 @@ void test_HeavyConvert(const int server_num, const int serverfd,
     for (unsigned int j = 0; j < nbits; j++) {
       fmpz_mod_add(tmp, bucket0[j], bucket0_other[j], mod_ctx);
       // std::cout << "bucket0[" << j << "] total = " << get_fsigned(tmp, Int_Modulus);
-      // std::cout << ", \tvalue = " << expected0[j] << std::endl;
+      // std::cout << ", \texpected = " << expected0[j] << std::endl;
       assert(get_fsigned(tmp, Int_Modulus) == expected0[j]);
       fmpz_mod_add(tmp, bucket1[j], bucket1_other[j], mod_ctx);
       // std::cout << "bucket1[" << j << "] total = " << get_fsigned(tmp, Int_Modulus);
-      // std::cout << ", \tvalue = " << expected1[j] << std::endl;
+      // std::cout << ", \texpected = " << expected1[j] << std::endl;
       assert(get_fsigned(tmp, Int_Modulus) == expected1[j]);
     }
     fmpz_clear(tmp);
@@ -473,7 +484,7 @@ void runServerTest(const int server_num, const int serverfd) {
   PrecomputeStore* store = new PrecomputeStore(serverfd, server_num, ot0, ot1, batch_size, lazy);
 
   // store->maybe_Update();
-  std::cout << std::endl;
+  // std::cout << std::endl;
 
   // random adjusting. different numbers adjust seed.
   // Can also do different per server
@@ -534,6 +545,8 @@ void serverTest() {
 // 00, 01 = 0, 10 = 1, 11 = 0 (-1)
 int main(int argc, char* argv[]) {
   init_constants();
+
+  std::cout << "Using " << (use_ot_version ? "" : "non-") << "OT heavy convert\n";
 
   int server_num = -1;
   if (argc >= 2){
