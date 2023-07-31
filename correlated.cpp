@@ -1141,23 +1141,39 @@ int64_t PrecomputeStore::gen_DaBits_lazy(const size_t N, DaBit** const dabit) co
   return sent_bytes;
 }
 
+// Normal lazy: one side makes both random local, send to other
+// Very lazy version: all local (cyclic bool logic)
 int64_t PrecomputeStore::gen_BoolTriple_lazy(const size_t N, BooleanBeaverTriple** const triples) const {
   int64_t sent_bytes = 0;
-  for (unsigned int i = 0; i < N; i++)
-    triples[i] = new BooleanBeaverTriple();
-  if (server_num == 0) {
-    BooleanBeaverTriple** const triples_other = new BooleanBeaverTriple*[N];
-    for (unsigned int i = 0; i < N; i++) {
-      triples_other[i] = new BooleanBeaverTriple();
-      makeLocalBoolTriple(triples[i], triples_other[i]);
+
+  // for (unsigned int i = 0; i < N; i++)
+  //   triples[i] = new BooleanBeaverTriple();
+  // if (server_num == 0) {
+  //   BooleanBeaverTriple** const triples_other = new BooleanBeaverTriple*[N];
+  //   for (unsigned int i = 0; i < N; i++) {
+  //     triples_other[i] = new BooleanBeaverTriple();
+  //     makeLocalBoolTriple(triples[i], triples_other[i]);
+  //   }
+  //   sent_bytes += send_BoolTriple_batch(serverfd, triples_other, N);
+  //   for (unsigned int i = 0; i < N; i++)
+  //     delete triples_other[i];
+  //   delete[] triples_other;
+  // } else {
+  //   recv_BoolTriple_batch(serverfd, triples, N);
+  // }
+
+  for (unsigned int i = 0; i < N; i++) {
+    // "random"
+    triples[i] = new BooleanBeaverTriple((i>>2) % 2, (i>>1) % 2, i % 2);
+    if (server_num == 1) {
+      // Actuals
+      triples[i]->a ^= (i>>4) % 2;
+      triples[i]->b ^= (i>>3) % 2;
+      // C
+      triples[i]->c ^= ((i>>3)%4) >= 3;  // should be 3
     }
-    sent_bytes += send_BoolTriple_batch(serverfd, triples_other, N);
-    for (unsigned int i = 0; i < N; i++)
-      delete triples_other[i];
-    delete[] triples_other;
-  } else {
-    recv_BoolTriple_batch(serverfd, triples, N);
   }
+
   return sent_bytes;
 }
 

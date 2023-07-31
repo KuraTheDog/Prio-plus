@@ -9,7 +9,7 @@
 #include "../net_share.h"
 
 const size_t batch_size = 100; // flexible
-const size_t N = 8;           // Must be >= 2
+const size_t N = 80;           // Must be >= 2
 
 const size_t num_bits = 3;     // Must be >= 3
 const bool lazy = false;
@@ -18,32 +18,38 @@ void test_multiplyBoolShares(const size_t N, const int server_num, const int ser
     PrecomputeStore* store) {
   bool* const x = new bool[N];
   bool* const y = new bool[N];
+  bool* actual = new bool[N];
   memset(x, 0, N * sizeof(bool));
   memset(y, 0, N * sizeof(bool));
-  if (server_num == 0) {
-    x[0] = true; x[1] = false;
-    y[0] = false; y[1] = true;
-  } else {
-    x[0] = true; x[1] = true;
-    y[0] = true; y[1] = false;
+  for (unsigned int i = 0; i < N; i++) {
+    // Random base
+    // x[i] = (i>>3)%2;
+    // y[i] = (i>>4)%2;
+    // Actuals
+    if (server_num == 0) {
+      x[i] ^= i%2;
+      y[i] ^= (i>>1)%2;
+      actual[i] = ((i>>1)%2) * (i%2);
+    }
   }
 
   bool* z = new bool[N];
   store->multiply_BoolShares(N, x, y, z);
 
   if (server_num == 0) {
-    bool z_other;
-    recv_bool(serverfd, z_other);
-    assert((z[0] ^ z_other) == false);  // (1 ^ 1) (0 ^ 1) = 0
-    recv_bool(serverfd, z_other);
-    assert((z[1] ^ z_other) == true);   // (0 ^ 1) (1 ^ 0) = 1
+    bool* z_other = new bool[N];
+    recv_bool_batch(serverfd, z_other, N);
+    for (unsigned int i = 0; i < N; i++) {
+      assert((z[i] ^ z_other[i]) == actual[i]);
+    }
+    delete[] z_other;
   } else {
-    send_bool(serverfd, z[0]);
-    send_bool(serverfd, z[1]);
+    send_bool_batch(serverfd, z, N);
   }
   delete[] x;
   delete[] y;
   delete[] z;
+  delete[] actual;
 }
 
 void test_multiplyBoolShares_cross(const int server_num, const int serverfd,
