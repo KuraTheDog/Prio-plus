@@ -74,12 +74,14 @@ void test_HeavyConvert(const int server_num, const int serverfd,
 
   auto start = clock_start();
   std::cout << "clock start" << std::endl;
+  int sent_bytes = 0;
   if (use_ot_version) {
-    store->heavy_convert_ot(N, nbits, x, y, valid, bucket0, bucket1);
+    sent_bytes = store->heavy_convert_ot(N, nbits, x, y, valid, bucket0, bucket1);
   } else {
-    store->heavy_convert(N, nbits, x, y, valid, bucket0, bucket1);
+    sent_bytes = store->heavy_convert(N, nbits, x, y, valid, bucket0, bucket1);
   }
   std::cout << "heavy convert timing : " << sec_from(start) << std::endl;
+  std::cout << "sent_bytes = " << sent_bytes << std::endl;
 
   // recombine / test
   if (server_num == 0) {
@@ -115,10 +117,10 @@ void test_HeavyConvert(const int server_num, const int serverfd,
 
 void test_HeavyConvertMask(const int server_num, const int serverfd,
     CorrelatedStore* store) {
-  const size_t N = 8;
-  const size_t Q = 2;
-  const size_t M = 7;
-  const size_t D = 3;
+  const size_t N = 1000;
+  const size_t Q = 13;
+  const size_t M = 11;
+  const size_t D = 8;
   // Q "parallel" runs of heavy_convert
   // N inputs, Q copies, D depth, M substreams
   // |x| = |y| = N * Q * D
@@ -152,7 +154,7 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
     x alternates along d, offset by q
     y alternates every other by d, offset by q
     mask is every 3rd
-  */ 
+  */
   for (unsigned int n = 0; n < N; n++) {
     memset(&x[n * (Q * D)], n % 2, Q * D);
     memset(&y[n * (Q * D)], (n>>1) % 2, Q * D);
@@ -165,9 +167,12 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
           const size_t xy_idx = q_idx * D + d;
           x[xy_idx] ^= (d + q) % 2;
           y[xy_idx] ^= ((d>>1) + q) % 2;
+          // std::cout << "x[" << xy_idx << "] = " << (d + q) % 2 << std::endl;
+          // std::cout << "y[" << xy_idx << "] = " << ((d>>1) + q) % 2 << std::endl;
         }
         for (unsigned int m = 0; m < M; m++) {
           mask[q_idx * M + m] ^= mask_eval(n, m);
+          // std::cout << "mask[" << q_idx * M + m << "] = " << mask_eval(n, m) << std::endl;
         }
       }
     }
@@ -185,25 +190,36 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
       }
     }
   }
-  fmpz_t* y_p; new_fmpz_array(&y_p, N * Q * D);
 
-  store->check_DaBits(N * Q * D);
+  if (use_ot_version) {
+    store->check_DaBits(N * Q * D);
+  } else {
+    store->check_BoolTriples(3 * N * Q * M * D);
+    store->check_DaBits(4 * N * Q * M * D);
+  }
 
   // Run
   auto start = clock_start();
-  int sent_bytes;
-  store->b2a_single(N * Q * D, y, y_p);
-  std::cout << "heavy mask: b2a timing " << sec_from(start) << std::endl;
-  auto start2 = clock_start();
-  sent_bytes = store->heavy_convert_mask(N, Q, M, D, x, y_p, mask, valid, bucket0, bucket1);
-  std::cout << "heavy mask convert timing : " << sec_from(start2) << std::endl;
-  std::cout << "heavy mask total timing : " << sec_from(start) << std::endl;
+  std::cout << "clock start" << std::endl;
+  int64_t sent_bytes;
+  if (use_ot_version) {
+    fmpz_t* y_p; new_fmpz_array(&y_p, N * Q * D);
+    store->b2a_single(N * Q * D, y, y_p);
+    std::cout << "heavy mask: b2a timing " << sec_from(start) << std::endl;
+    auto start2 = clock_start();
+    sent_bytes = store->heavy_convert_mask(N, Q, M, D, x, y_p, mask, valid, bucket0, bucket1);
+    std::cout << "heavy mask convert timing : " << sec_from(start2) << std::endl;
+    std::cout << "heavy mask total timing : " << sec_from(start) << std::endl;
+    clear_fmpz_array(y_p, N * Q * D);
+  } else {
+    sent_bytes = store->heavy_convert_mask_one(N, Q, M, D, x, y, mask, valid, bucket0, bucket1);
+    std::cout << "heavy mask convert timing : " << sec_from(start) << std::endl;
+  }
   std::cout << "sent_bytes = " << sent_bytes << std::endl;
   delete[] x;
   delete[] y;
   delete[] mask;
   delete[] valid;
-  clear_fmpz_array(y_p, N * Q * D);
 
   // Recombine / test
   if (server_num == 0) {
@@ -218,14 +234,12 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
           const size_t idx = (q * M + m) * D + d;
           fmpz_mod_add(tmp, bucket0[idx], bucket0_other[idx], mod_ctx);
           // std::cout << "bucket0[" << q << ", " << m << ", " << d << "] = " << get_fsigned(tmp, Int_Modulus);
-          // std::cout << ", expected = " << expected0[idx];
-          // std::cout << std::endl;
+          // std::cout << ", expected = " << expected0[idx] << std::endl;
           assert(get_fsigned(tmp, Int_Modulus) == expected0[idx]);
 
           fmpz_mod_add(tmp, bucket1[idx], bucket1_other[idx], mod_ctx);
           // std::cout << "bucket1[" << q << ", " << m << ", " << d << "] = " << get_fsigned(tmp, Int_Modulus);
-          // std::cout << ", expected = " << expected1[idx];
-          // std::cout << std::endl;
+          // std::cout << ", expected = " << expected1[idx] << std::endl;
           assert(get_fsigned(tmp, Int_Modulus) == expected1[idx]);
         }
       }

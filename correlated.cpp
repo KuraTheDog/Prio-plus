@@ -492,8 +492,101 @@ int64_t CorrelatedStore::heavy_convert_ot(
   return sent_bytes;
 }
 
-// Note: Doesn't seem to error any more without?
-// However, on local, it's faster batching then doing one sent
+int64_t CorrelatedStore::heavy_convert_mask_one(
+    const size_t N, const size_t Q, const size_t M, const size_t D,
+    const bool* const x, const bool* const y, const bool* const mask,
+    const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1) {
+  /*
+  (1-2y)xm = xm - 2xym
+  (1-2y)(1-x)m = m - xm - 2ym + 2xym = m - 2ym - (xm - 2xym)
+
+  Mult 1: xm, ym
+  Mult 2: xym = x (ym)
+  While x * y is "smaller", it doesn't save work since intermediate not needed
+
+  Of note: just need m, xm, ym, xym.
+  x, y, (and xy) not needed
+  */
+  int64_t sent_bytes = 0;
+  const size_t len = N * Q * M * D;
+
+  // Check
+  check_BoolTriples(3 * len);
+  check_DaBits(4 * len);
+
+  // m, xm, ym, xym, for b2a
+  bool* const z = new bool[4 * len];
+  // Double m for easier mult
+  bool* const m_ext = new bool[2 * len];
+  bool* const xy_ext = new bool[2 * len];
+  // Could overlap more (m_ext into z), but tradeoff of can't delete early as much
+  // Alt: if multliply is broken up, can "queue" two mults and do parallel
+
+  // Align
+  for (unsigned int n = 0; n < N; n++) {
+    if (!valid[n]) continue;
+    for (unsigned int q = 0; q < Q; q++) {
+      const size_t idx = n * Q + q;
+      // x, y across M. Copies
+      // mask across D. Replicate
+      for (unsigned int m = 0; m < M; m++) {
+        const size_t sub_idx = idx * M + m;
+        memcpy(&xy_ext[sub_idx * D], &x[idx * D], D);
+        memcpy(&xy_ext[len + sub_idx * D], &y[idx * D], D);
+        memset(&z[sub_idx * D], mask[sub_idx], D);
+      }
+    }
+  }
+
+  // Mult 1: xm, ym
+  // Double copy m
+  memcpy(m_ext, z, len);
+  memcpy(&m_ext[len], z, len);
+  sent_bytes += multiply_BoolShares(2 * len, xy_ext, m_ext, &z[len]);
+  delete[] m_ext;
+
+  // Mult 2: xym = x(ym)
+  sent_bytes += multiply_BoolShares(len, xy_ext, &z[2 * len], &z[3 * len]);
+  delete[] xy_ext;
+
+  // B2A
+  fmpz_t* zp; new_fmpz_array(&zp, 4 * len);
+  sent_bytes += b2a_single(4 * len, z, zp);
+  delete[] z;
+
+  // // Testing
+  // reveal_fmpz_batch(serverfd, zp, 4 * len);
+  // for (unsigned int i = 0; i < 4 * len; i++) {
+  //   std::cout << "z2_" << server_num << "[" << i << "] = " << z[i] << std::endl;
+  //   if (server_num == 1) {
+  //     fmpz_zero(zp[i]);
+  //   } else {
+  //     // m, xm, ym, xym
+  //     std::cout << "zp[" << i << "] = " << get_fsigned(zp[i], Int_Modulus) << std::endl;
+  //   }
+  // }
+
+  // Accumulate
+  for (unsigned int i = 0; i < N; i++) {
+    if (!valid[i])
+      continue;
+    for (unsigned int j = 0; j < Q * M * D; j++) {
+      const size_t idx = i * (Q * M * D) + j;
+      // (1-2y)(1-x)m = m - xm - 2ym + 2xym
+      fmpz_mod_add(bucket0[j], bucket0[j], zp[idx], mod_ctx);
+      fmpz_mod_sub(bucket0[j], bucket0[j], zp[len + idx], mod_ctx);
+      fmpz_mod_submul_ui(bucket0[j], zp[2*len + idx], 2, mod_ctx);
+      fmpz_mod_addmul_ui(bucket0[j], zp[3*len + idx], 2, mod_ctx);
+      // (1-2y)xm = xm - 2xym
+      fmpz_mod_add(bucket1[j], bucket1[j], zp[len + idx], mod_ctx);
+      fmpz_mod_submul_ui(bucket1[j], zp[3*len + idx], 2, mod_ctx);
+    }
+  }
+
+  clear_fmpz_array(zp, 4 * len);
+
+  return sent_bytes;
+}
 
 // Note:
 // Runs into "OT Extension check failednet_recv_data"

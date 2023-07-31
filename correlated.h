@@ -208,12 +208,13 @@ public:
       const bool* const * const x, const bool* const * const y,
       bool* const * const z, bool* const carry);
 
-  // N inputs (each may be valid or not) of b values
-  // [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
-  // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
-  // |x| = |y| = N * b
-  // Index with i * b + j: (x0, ..., xb-1) for number 0.
-  // Accumulates into the buckets sized b.
+  /* N inputs (each may be valid or not) of b values
+    [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
+    00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
+    |x| = |y| = N * b
+    Index with i * b + j: (x0, ..., xb-1) for number 0.
+    Accumulates into the buckets sized b.
+  */
   // One round bool mult (N*b), one round of B2A (3*N*b)
   int64_t heavy_convert(const size_t N, const size_t b,
       const bool* const x, const bool* const y, const bool* const valid,
@@ -223,22 +224,47 @@ public:
       const bool* const x, const bool* const y, const bool* const valid,
       fmpz_t* const bucket0, fmpz_t* const bucket1);
 
-  // Q "parallel" runs of heavy_convert
-  // N inputs, Q copies, D depth, M substreams
-  // |x| = |y| = N * Q * D
-  // |mask| = N * Q * M: Substream select
-  // Valid size N
-  // buckets size : Q * M * D, accumulated into across valid N
-  // Order: N, Q, M, D
-  //   x,y = [over N (over Q (over D))]
-  //   valid = over N
-  //   mask  = [over N (over Q (over M))]
-  //   buckets = [over Q (over M (over D))]
-  // has one round of B2A (NQD) outside: (1-2y)
+
+
+  /*
+    For each of N inputs,
+      values in groups sized D
+        [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
+      cross multiply against a mask sized M
+      repeat Q times
+      accumulate across Q * M * D
+    Note that it repeats QN times, distinction is only for accumulation
+
+    Sizes (and ordering)
+    x, y = N (Q (D))
+    valid = N
+    mask = N (Q (M))
+    buckets = Q (M (D))
+    intermediate N (Q (M (D)))
+  */
+  // OT version.
+  // Requires one round of B2A (NQD) outside: (1-2y)
   // Two rounds of Ots (NQMD each): first * mask, second a double * (x, 1-x)
   int64_t heavy_convert_mask(
       const size_t N, const size_t Q, const size_t M, const size_t D,
       const bool* const x, const fmpz_t* const y_p, const bool* const mask,
+      const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1);
+  /*
+    Specific ones for levels of binary tree
+    Due to binary tree packing of bool mults (e.g. 8 done in 3 rather than 7)
+    for some "in between" amounts, can do mults outside
+  */
+  /* Single mask 
+    Two round bool mult (3NQMD), one round b2a (4 NQMD)
+    First mult to get xm, ym. Second mult to get xym
+    Then B2A on m, xm, ym, xym
+    Math: (1-2y)xm = xm - 2xym, and (1-2y)(1-x)m = m-xm-2ym-2xym
+    VS OT: More b2a (extra 4M factor).
+      but then cheaper bool mult (factor 3), versus expensive OT (factor 2)
+  */
+  int64_t heavy_convert_mask_one(
+      const size_t N, const size_t Q, const size_t M, const size_t D,
+      const bool* const x, const bool* const y, const bool* const mask,
       const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1);
 
   /* Comparisons.
