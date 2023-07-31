@@ -1014,7 +1014,7 @@ void PrecomputeStore::add_Triples(const size_t n) {
   //   for (unsigned int i = 0; i < num_to_make; i++)
   //     atriple_store.push(new_triples[i]);
   // } else {
-  std::cout << "Using lazy beaver triples" << std::endl;
+  std::cout << "Making local beaver triples" << std::endl;
   for (unsigned int i = 0; i < num_to_make; i++) {
     const BeaverTriple* const triple = generate_beaver_triple_lazy(serverfd, server_num);
     atriple_store.push(triple);
@@ -1123,20 +1123,36 @@ int64_t PrecomputeStore::gen_DaBits(const size_t N, DaBit** const dabit) {
 
 int64_t PrecomputeStore::gen_DaBits_lazy(const size_t N, DaBit** const dabit) const {
   int64_t sent_bytes = 0;
-  for (unsigned int i = 0; i < N; i++)
-    dabit[i] = new DaBit();
+  // for (unsigned int i = 0; i < N; i++)
+  //   dabit[i] = new DaBit();
+  // if (server_num == 0) {
+  //   DaBit** const dabit_other = new DaBit*[N];
+  //   for (unsigned int i = 0; i < N; i++) {
+  //     dabit_other[i] = new DaBit();
+  //     makeLocalDaBit(dabit[i], dabit_other[i]);
+  //   }
+  //   sent_bytes += send_DaBit_batch(serverfd, dabit_other, N);
+  //   for (unsigned int i = 0; i < N; i++)
+  //     delete dabit_other[i];
+  //   delete[] dabit_other;
+  // } else {
+  //   recv_DaBit_batch(serverfd, dabit, N);
+  // }
+
   if (server_num == 0) {
-    DaBit** const dabit_other = new DaBit*[N];
     for (unsigned int i = 0; i < N; i++) {
-      dabit_other[i] = new DaBit();
-      makeLocalDaBit(dabit[i], dabit_other[i]);
+      dabit[i] = new DaBit();
+      dabit[i]->b2 = ((i>>1) % 2) ^ (i % 2);
+      fmpz_set_si(dabit[i]->bp, i);
+      fmpz_mod(dabit[i]->bp, dabit[i]->bp, Int_Modulus);
     }
-    sent_bytes += send_DaBit_batch(serverfd, dabit_other, N);
-    for (unsigned int i = 0; i < N; i++)
-      delete dabit_other[i];
-    delete[] dabit_other;
   } else {
-    recv_DaBit_batch(serverfd, dabit, N);
+    for (unsigned int i = 0; i < N; i++) {
+      dabit[i] = new DaBit();
+      dabit[i]->b2 = ((i>>1) % 2);
+      fmpz_set_si(dabit[i]->bp, ((int)(i%2)) - (int)i);
+      fmpz_mod(dabit[i]->bp, dabit[i]->bp, Int_Modulus);
+    }
   }
   return sent_bytes;
 }
@@ -1162,15 +1178,20 @@ int64_t PrecomputeStore::gen_BoolTriple_lazy(const size_t N, BooleanBeaverTriple
   //   recv_BoolTriple_batch(serverfd, triples, N);
   // }
 
-  for (unsigned int i = 0; i < N; i++) {
-    // "random"
-    triples[i] = new BooleanBeaverTriple((i>>2) % 2, (i>>1) % 2, i % 2);
-    if (server_num == 1) {
-      // Actuals
-      triples[i]->a ^= (i>>4) % 2;
-      triples[i]->b ^= (i>>3) % 2;
-      // C
-      triples[i]->c ^= ((i>>3)%4) >= 3;  // should be 3
+  if (server_num == 0) {
+    for (unsigned int i = 0; i < N; i++) {
+      triples[i] = new BooleanBeaverTriple(
+        (i>>2) % 2,
+        (i>>1) % 2,
+        i % 2);
+    }
+  } else {
+    for (unsigned int i = 0; i < N; i++) {
+      triples[i] = new BooleanBeaverTriple(
+        ((i>>2) % 2) ^ ((i>>4) % 2),
+        ((i>>1) % 2) ^ ((i>>3) % 2),
+        (i % 2) ^ (((i>>3)%4) >= 3)
+      );
     }
   }
 
