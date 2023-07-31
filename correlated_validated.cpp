@@ -20,7 +20,7 @@ const AltTriple* const * const ValidateCorrelatedStore::gen_AltTriple_lazy(const
     AltTriple** const t_other = new AltTriple*[N];
     for (unsigned int i = 0; i < N; i++) {
       t_other[i] = new AltTriple();
-      NewAltTriples(t[i], t_other[i]);
+      makeLocalAltTriple(t[i], t_other[i]);
     }
     send_AltTriple_batch(serverfd, t_other, N);
     for (unsigned int i = 0; i < N; i++)

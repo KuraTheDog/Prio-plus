@@ -150,7 +150,7 @@ int send_unvalidated(const size_t n) {
 
         trip0[i] = new AltTriple();
         trip1[i] = new AltTriple();
-        NewAltTriples(trip0[i], trip1[i]);
+        makeLocalAltTriple(trip0[i], trip1[i]);
     }
 
     sent_bytes += send_DaBit_batch(sockfd0, da0, N);

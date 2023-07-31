@@ -25,7 +25,7 @@ void testSplitShare() {
 void testBeaverTriple() {
     BeaverTriple* t0 = new BeaverTriple();
     BeaverTriple* t1 = new BeaverTriple();
-    NewBeaverTriples(t0, t1);
+    makeLocalTriple(t0, t1);
 
     fmpz_t A, B, C, prod;
     fmpz_init(A);

@@ -29,7 +29,7 @@ void setup(const int server_num, const int serverfd, const size_t N,
 
       trips0[i] = new AltTriple();
       trips1[i] = new AltTriple();
-      NewAltTriples(trips0[i], trips1[i]);
+      makeLocalAltTriple(trips0[i], trips1[i]);
     }
     // Send
     send_DaBit_batch(serverfd, bits1, N);

@@ -70,7 +70,7 @@ void share_polynomials(const Circuit* const circuit, ClientPacket* const p0, Cli
     // Split outputs of input/mult gate shares.
     circuit->GetMulShares(&p0->MulShares, &p1->MulShares);
 
-    NewBeaverTriples(p0->triple, p1->triple);
+    makeLocalTriple(p0->triple, p1->triple);
 
     fmpz_clear(h0);
     fmpz_clear(h_val);

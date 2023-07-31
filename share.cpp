@@ -36,7 +36,20 @@ Cor::Cor(const Cor* const x, const Cor* const y) : Cor() {
     fmpz_mod_add(E, x->E, y->E, mod_ctx);
 }
 
-void NewBeaverTriples(BeaverTriple* const out0, BeaverTriple* const out1) {
+void makeLocalBoolTriple(BooleanBeaverTriple* const out0, BooleanBeaverTriple* const out1) {
+    fmpz_t r; fmpz_init(r);
+    fmpz_randbits(r, seed, 5);
+    out0->a = fmpz_tstbit(r, 0);
+    out1->a = fmpz_tstbit(r, 1);
+    out0->b = fmpz_tstbit(r, 2);
+    out1->b = fmpz_tstbit(r, 3);
+    out0->c = fmpz_tstbit(r, 4);
+    fmpz_clear(r);
+
+    out1->c = out0->c ^ ((out0->a ^ out1->a) & (out0->b ^ out1->b));
+}
+
+void makeLocalTriple(BeaverTriple* const out0, BeaverTriple* const out1) {
     fmpz_randm(out0->A, seed, Int_Modulus);
     fmpz_randm(out1->A, seed, Int_Modulus);
     fmpz_randm(out0->B, seed, Int_Modulus);
@@ -50,7 +63,7 @@ void NewBeaverTriples(BeaverTriple* const out0, BeaverTriple* const out1) {
     fmpz_mod_sub(out1->C, out1->C, out0->C, mod_ctx);
 }
 
-void NewAltTriples(AltTriple* const out0, AltTriple* const out1) {
+void makeLocalAltTriple(AltTriple* const out0, AltTriple* const out1) {
     fmpz_randm(out0->AB, seed, Int_Modulus);
     fmpz_randm(out1->AB, seed, Int_Modulus);
     fmpz_randm(out0->C, seed, Int_Modulus);
@@ -60,14 +73,9 @@ void NewAltTriples(AltTriple* const out0, AltTriple* const out1) {
 }
 
 void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {
-    fmpz_t two;
-    fmpz_init_set_si(two, 2);
-
     // random bit b
     fmpz_t bit;
-    fmpz_init(bit);
-    fmpz_randm(bit, seed, two);
-    fmpz_clear(two);
+    fmpz_randbits(bit, seed, 1);
 
     // random r
     /*

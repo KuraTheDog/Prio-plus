@@ -126,13 +126,13 @@ int send_ClientPacket(const int sockfd, const ClientPacket* const x,
 int recv_ClientPacket(const int sockfd, ClientPacket* const x,
                       const size_t NMul);
 
-// Only used in making lazy triples. Also batch?
 int send_BeaverTriple(const int sockfd, const BeaverTriple* const x);
 int recv_BeaverTriple(const int sockfd, BeaverTriple* const x);
 
-// Unused
-int send_BooleanBeaverTriple(const int sockfd, const BooleanBeaverTriple* const x);
-int recv_BooleanBeaverTriple(const int sockfd, BooleanBeaverTriple* const x);
+int send_BoolTriple(const int sockfd, const BooleanBeaverTriple* const x);
+int recv_BoolTriple(const int sockfd, BooleanBeaverTriple* const x);
+int send_BoolTriple_batch(const int sockfd, const BooleanBeaverTriple* const * const x, const size_t n);
+int recv_BoolTriple_batch(const int sockfd, BooleanBeaverTriple* const * const x, const size_t n);
 
 int send_AltTriple(const int sockfd, const AltTriple* const x);
 int recv_AltTriple(const int sockfd, AltTriple* const x);

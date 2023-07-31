@@ -234,6 +234,7 @@ const uint64_t* const * const intsum_ot_receiver(
 }
 
 // Ref : https://crypto.stackexchange.com/questions/41651/what-are-the-ways-to-generate-beaver-triples-for-multiplication-gate
+// TODO: rework into correlated store
 std::queue<const BooleanBeaverTriple*> gen_boolean_beaver_triples(
         const int server_num, const unsigned int m,
         OT_Wrapper* const ot0, OT_Wrapper* const ot1){
@@ -398,7 +399,7 @@ const BeaverTriple* const generate_beaver_triple_lazy(
 
     if (server_num == 0) {
         BeaverTriple* other_triple = new BeaverTriple();
-        NewBeaverTriples(triple, other_triple);
+        makeLocalTriple(triple, other_triple);
         send_BeaverTriple(serverfd, other_triple);
         delete other_triple;
     } else {

@@ -301,7 +301,9 @@ protected:
   // Securely create N new correlated items
   // Pass in pointer to array. Methods make new.
   int64_t gen_DaBits(const size_t N, DaBit** const dabit);
-  int64_t gen_DaBits_lazy(const size_t N, DaBit** const dabit);
+  int64_t gen_DaBits_lazy(const size_t N, DaBit** const dabit) const;
+
+  int64_t gen_BoolTriple_lazy(const size_t N, BooleanBeaverTriple** const triples) const;  
 
   // Add (securely or lazy generated) N items to the store, at least batch_size many
   // TODO: return sent bytes

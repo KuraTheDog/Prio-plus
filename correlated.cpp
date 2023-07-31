@@ -1027,11 +1027,19 @@ void PrecomputeStore::add_BoolTriples(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > batch_size ? n : batch_size);
   std::cout << "adding booltriples: " << num_to_make << std::endl;
-  std::queue<const BooleanBeaverTriple*> new_triples = (
-      gen_boolean_beaver_triples(server_num, num_to_make, ot0, ot1));
-  for (unsigned int i = 0; i < num_to_make; i++) {
-    btriple_store.push(new_triples.front());
-    new_triples.pop();
+  if (lazy) {
+    BooleanBeaverTriple** const triples = new BooleanBeaverTriple*[num_to_make];
+    gen_BoolTriple_lazy(num_to_make, triples);
+    for (unsigned int i = 0; i < num_to_make; i++)
+      btriple_store.push(triples[i]);
+    delete[] triples;
+  } else {
+    std::queue<const BooleanBeaverTriple*> new_triples;
+    new_triples = gen_boolean_beaver_triples(server_num, num_to_make, ot0, ot1);
+    for (unsigned int i = 0; i < num_to_make; i++) {
+      btriple_store.push(new_triples.front());
+      new_triples.pop();
+    }
   }
   std::cout << "add_BoolTriples timing : " << sec_from(start) << std::endl;
 }
@@ -1113,7 +1121,7 @@ int64_t PrecomputeStore::gen_DaBits(const size_t N, DaBit** const dabit) {
   return sent_bytes;
 }
 
-int64_t PrecomputeStore::gen_DaBits_lazy(const size_t N, DaBit** const dabit) {
+int64_t PrecomputeStore::gen_DaBits_lazy(const size_t N, DaBit** const dabit) const {
   int64_t sent_bytes = 0;
   for (unsigned int i = 0; i < N; i++)
     dabit[i] = new DaBit();
@@ -1129,6 +1137,26 @@ int64_t PrecomputeStore::gen_DaBits_lazy(const size_t N, DaBit** const dabit) {
     delete[] dabit_other;
   } else {
     recv_DaBit_batch(serverfd, dabit, N);
+  }
+  return sent_bytes;
+}
+
+int64_t PrecomputeStore::gen_BoolTriple_lazy(const size_t N, BooleanBeaverTriple** const triples) const {
+  int64_t sent_bytes = 0;
+  for (unsigned int i = 0; i < N; i++)
+    triples[i] = new BooleanBeaverTriple();
+  if (server_num == 0) {
+    BooleanBeaverTriple** const triples_other = new BooleanBeaverTriple*[N];
+    for (unsigned int i = 0; i < N; i++) {
+      triples_other[i] = new BooleanBeaverTriple();
+      makeLocalBoolTriple(triples[i], triples_other[i]);
+    }
+    sent_bytes += send_BoolTriple_batch(serverfd, triples_other, N);
+    for (unsigned int i = 0; i < N; i++)
+      delete triples_other[i];
+    delete[] triples_other;
+  } else {
+    recv_BoolTriple_batch(serverfd, triples, N);
   }
   return sent_bytes;
 }

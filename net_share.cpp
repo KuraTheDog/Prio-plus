@@ -499,17 +499,38 @@ int recv_BeaverTriple(const int sockfd, BeaverTriple* const x) {
     return total;
 }
 
-int send_BooleanBeaverTriple(const int sockfd, const BooleanBeaverTriple* const x) {
+int send_BoolTriple(const int sockfd, const BooleanBeaverTriple* const x) {
     bool buff[3] = {x->a, x->b, x->c};
     return send_bool_batch(sockfd, buff, 3);
 }
 
-int recv_BooleanBeaverTriple(const int sockfd, BooleanBeaverTriple* const x) {
+int recv_BoolTriple(const int sockfd, BooleanBeaverTriple* const x) {
     bool buff[3];
     int ret = recv_bool_batch(sockfd, buff, 3);
     x->a = buff[0];
     x->b = buff[1];
     x->c = buff[2];
+    return ret;
+}
+
+int send_BoolTriple_batch(const int sockfd, const BooleanBeaverTriple* const * const x, const size_t n) {
+    bool buff[3 * n];
+    for (unsigned int i = 0; i < n; i++) {
+        buff[3*i] = x[i]->a;
+        buff[3*i+1] = x[i]->b;
+        buff[3*i+2] = x[i]->c;
+    }
+    return send_bool_batch(sockfd, buff, 3 * n);
+}
+
+int recv_BoolTriple_batch(const int sockfd, BooleanBeaverTriple* const * const x, const size_t n) {
+    bool buff[3 * n];
+    int ret = recv_bool_batch(sockfd, buff, 3 * n);
+    for (unsigned int i = 0; i < n; i++) {
+        x[i]->a = buff[3*i];
+        x[i]->b = buff[3*i+1];
+        x[i]->c = buff[3*i+2];
+    }
     return ret;
 }
 

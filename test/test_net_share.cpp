@@ -90,12 +90,12 @@ void run_sender(int sockfd) {
     */
 
     BooleanBeaverTriple* btrip = new BooleanBeaverTriple(true, false, true);
-    n = send_BooleanBeaverTriple(sockfd, btrip);
+    n = send_BoolTriple(sockfd, btrip);
     std::cout << "send btriple \tsize: " << n << " \tvals: " << btrip->a << ", " << btrip->b << ", " << btrip->c << std::endl;
     delete btrip;
 
     BeaverTriple* const trip = new BeaverTriple();
-    NewBeaverTriples(trip, trip);
+    makeLocalTriple(trip, trip);
     n = send_BeaverTriple(sockfd, trip);
     std::cout << "send triple \tsize: " << n << " \tvals: ";
     fmpz_print(trip->A); std::cout << ", ";
@@ -218,7 +218,7 @@ void run_receiver(int sockfd) {
     */
 
     BooleanBeaverTriple* btrip = new BooleanBeaverTriple();
-    n = recv_BooleanBeaverTriple(sockfd, btrip);
+    n = recv_BoolTriple(sockfd, btrip);
     std::cout << "send btriple \tsize: " << n << " \tvals: " << btrip->a << ", " << btrip->b << ", " << btrip->c << std::endl;
     delete btrip;
 
