@@ -25,10 +25,10 @@ struct OT_Wrapper {
   // Communication costs (computed via monitoring network traffic)
   // Is bytes sent, since receiver also sends.
   // There are also one-time-setup costs, which are on server startup so not part of communication
-  const size_t bytes_sender_start = 1;
-  const size_t bytes_sender_per = 32;
-  const size_t bytes_recver_per_block = 2048;
-  const size_t bytes_recver_block_size = 128;
+  const int64_t bytes_sender_start = 1;
+  const int64_t bytes_sender_per = 32;
+  const int64_t bytes_recver_per_block = 2048;
+  const int64_t bytes_recver_block_size = 128;
 
   OT_Wrapper(const char* const address, const int port, const bool malicious = true);
   ~OT_Wrapper();
@@ -36,11 +36,11 @@ struct OT_Wrapper {
   // OT send/recv 64 bit data = datab selected from (data0, data) using b
   // If dataX_1 are set, is additional 64 bits added on, for 128 total.
   // I.e. (data, data_1) = (datab, datab_1) for choice b
-  int send(const uint64_t* const data0, const uint64_t* const data1,
-           const size_t length,
-           const uint64_t* const data0_1 = nullptr, const uint64_t* const data1_1 = nullptr);
-  int recv(uint64_t* const data, const bool* b, const size_t length,
-           uint64_t* const data_1 = nullptr);
+  int64_t send(const uint64_t* const data0, const uint64_t* const data1,
+               const size_t length,
+               const uint64_t* const data0_1 = nullptr, const uint64_t* const data1_1 = nullptr);
+  int64_t recv(uint64_t* const data, const bool* b, const size_t length,
+               uint64_t* const data_1 = nullptr);
 };
 
 // mod 0 = default 2^64

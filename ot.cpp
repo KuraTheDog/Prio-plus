@@ -17,7 +17,7 @@ OT_Wrapper::~OT_Wrapper() {
     delete io;
 }
 
-int OT_Wrapper::send(
+int64_t OT_Wrapper::send(
         const uint64_t* const data0, const uint64_t* const data1,
         const size_t length,
         const uint64_t* const data0_1, const uint64_t* const data1_1) {
@@ -42,7 +42,7 @@ int OT_Wrapper::send(
     return bytes_sender_start + bytes_sender_per * length;
 }
 
-int OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length,
+int64_t OT_Wrapper::recv(uint64_t* const data, const bool* b, const size_t length,
                      uint64_t* const data_1) {
     emp::block* const block = new emp::block[length];
     io->sync();
