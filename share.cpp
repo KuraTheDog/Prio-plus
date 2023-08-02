@@ -74,7 +74,7 @@ void makeLocalAltTriple(AltTriple* const out0, AltTriple* const out1) {
 
 void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {
     // random bit b
-    fmpz_t bit;
+    fmpz_t bit; fmpz_init(bit);
     fmpz_randbits(bit, seed, 1);
 
     // random r

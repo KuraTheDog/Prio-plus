@@ -926,13 +926,15 @@ int64_t CorrelatedStore::gen_rand_bitshare(
       for (unsigned int j = 0; j < b; j++) {
         // Just need 2 numbers summing to 0 or 1, so bp. b2 not needed.
         const DaBit* const dabit = get_DaBit();
+        // std::cout << "got dabit[" << j << "]_bp = " << fmpz_get_ui(dabit->bp) << std::endl;
         fmpz_set(rB[i * b + j], dabit->bp);
         fmpz_mod_addmul_ui(r[i], dabit->bp, 1ULL << j, mod_ctx);
         // consume the dabit
         delete dabit;
 
         // add to rB_tocheck
-        // std::cout << "rB_tocheck[" << num_invalid * b + j << "] := rB[" << i*b+j << "]" << std::endl;
+        // std::cout << "rB_tocheck[" << num_invalid * b + j << "] := rB[" << i*b+j << "]";
+        // std::cout << " = " << fmpz_get_ui(rB[i*b+j]) << std::endl;
         fmpz_set(rB_tocheck[num_invalid * b + j], rB[i * b + j]);
       }
       rB_idx[num_invalid] = i;
@@ -940,7 +942,7 @@ int64_t CorrelatedStore::gen_rand_bitshare(
       num_invalid++;
     }
 
-    log_num_invalid += num_invalid;
+    // log_num_invalid += num_invalid;
 
     // std::cout << "num invalid: " << num_invalid << " / " << N << std::endl;
     if (num_invalid == 0) {
@@ -1235,21 +1237,41 @@ int64_t PrecomputeStore::gen_DaBits_lazy(const size_t N, DaBit** const dabit) co
   //   recv_DaBit_batch(serverfd, dabit, N);
   // }
 
+  // gen_rand_bitshare uses bp, and keeps trying until it satisfies a condition.
+  // So just looping through slowly causes it to take far too long.
+  // Therefore, we do with common random instead.
+  flint_rand_t tmp_seed; flint_randinit(tmp_seed);
+  fmpz_t bit; fmpz_init(bit);
   if (server_num == 0) {
+    sent_bytes += send_seed(serverfd, tmp_seed);
     for (unsigned int i = 0; i < N; i++) {
       dabit[i] = new DaBit();
-      dabit[i]->b2 = ((i>>1) % 2) ^ (i % 2);
-      fmpz_set_si(dabit[i]->bp, i);
-      fmpz_mod(dabit[i]->bp, dabit[i]->bp, Int_Modulus);
+
+      // dabit[i]->b2 = ((i>>1) % 2) ^ (i % 2);
+      // fmpz_set_si(dabit[i]->bp, i);
+      // fmpz_mod(dabit[i]->bp, dabit[i]->bp, Int_Modulus);
+
+      fmpz_randbits(bit, seed, 1);
+      dabit[i]->b2 = ((i>>1) % 2) ^ fmpz_get_ui(bit);
+      fmpz_randm(dabit[i]->bp, tmp_seed, Int_Modulus);
+      // std::cout << "dabit " << i << " = "; dabit[i]->print();
     }
   } else {
+    recv_seed(serverfd, tmp_seed);
     for (unsigned int i = 0; i < N; i++) {
       dabit[i] = new DaBit();
       dabit[i]->b2 = ((i>>1) % 2);
-      fmpz_set_si(dabit[i]->bp, ((int)(i%2)) - (int)i);
-      fmpz_mod(dabit[i]->bp, dabit[i]->bp, Int_Modulus);
+
+      // fmpz_set_si(dabit[i]->bp, ((int)(i%2)) - (int)i);
+      // fmpz_mod(dabit[i]->bp, dabit[i]->bp, Int_Modulus);
+
+      fmpz_randbits(bit, seed, 1);
+      fmpz_randm(dabit[i]->bp, tmp_seed, Int_Modulus);
+      fmpz_mod_sub(dabit[i]->bp, bit, dabit[i]->bp, mod_ctx);
+      // std::cout << "dabit " << i << " = "; dabit[i]->print();
     }
   }
+  flint_randclear(tmp_seed);
   return sent_bytes;
 }
 

@@ -376,7 +376,10 @@ void test_cmp_bit(
     recv_fmpz_batch(serverfd, y_bits, N * bits);
   }
 
+  store->check_Triples(3 * N * bits);
+
   // Eval cmp
+  std::cout << "running" << std::endl;
   fmpz_t* ans; new_fmpz_array(&ans, N);
   store->cmp_bit(N, bits, x_bits, y_bits, ans);
 
@@ -409,9 +412,15 @@ void test_rand_bitshare(
   const size_t N = 10;
   const size_t b = nbits_mod;
 
+  store->check_DaBits(3 * N * b);
+  store->check_Triples(4 * 3 * N * b);
+
+  std::cout << "running" << std::endl;
+
   fmpz_t* r; new_fmpz_array(&r, N);
   fmpz_t* r_B; new_fmpz_array(&r_B, N * b);
   store->gen_rand_bitshare(N, r, r_B);
+  // ((PrecomputeStore*)store)->print_Sizes();
 
   if (server_num == 0) {
     fmpz_t* r_other; new_fmpz_array(&r_other, N);

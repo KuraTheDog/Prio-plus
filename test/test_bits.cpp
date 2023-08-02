@@ -184,31 +184,22 @@ void test_addBinaryShares(const size_t N, const size_t* const nbits, const int s
 void test_b2a_single(const size_t N, const int server_num, const int serverfd,
     ShareConverter* store) {
   bool* x = new bool[N];
-  memset(x, 0, N * sizeof(bool));
-  if (server_num == 0) {
-    x[0] = true; x[1] = false;
-  } else {
-    x[0] = true; x[1] = true;
+  for (unsigned int i = 0; i < N; i++) {
+    x[i] = (i+1)%2;  // common mask
+    if (server_num == 0)
+      x[i] ^= (i>>2) % 2;    // true
   }
 
   fmpz_t* xp; new_fmpz_array(&xp, N);
   store->b2a_single(N, x, xp);
 
   if (server_num == 0) {
-    fmpz_t tmp; fmpz_init(tmp);
+    reveal_fmpz_batch(serverfd, xp, N);
 
-    recv_fmpz(serverfd, tmp);
-    fmpz_mod_add(tmp, tmp, xp[0], mod_ctx);
-    assert(fmpz_equal_ui(tmp, 0));  // 1 ^ 1 = 0
-
-    recv_fmpz(serverfd, tmp);
-    fmpz_mod_add(tmp, tmp, xp[1], mod_ctx);
-    assert(fmpz_equal_ui(tmp, 1));  // 0 ^ 1 = 1
-
-    fmpz_clear(tmp);
+    for (unsigned int i = 0; i < N; i++)
+      assert(fmpz_equal_ui(xp[i], (i>>2) % 2));
   } else {
-    send_fmpz(serverfd, xp[0]);
-    send_fmpz(serverfd, xp[1]);
+    reveal_fmpz_batch(serverfd, xp, N);
   }
 
   delete[] x;
