@@ -180,6 +180,7 @@ int64_t CorrelatedStore::multiply_BoolShares(
   multiply_BoolShares_finish(N, x, y, z, de, de_other);
 
   delete[] de;
+  delete[] de_other;
 
   return sent_bytes;
 }
@@ -255,6 +256,8 @@ int64_t CorrelatedStore::multiply_BoolShares_cross(
 
   delete[] x_ext;
   delete[] y_ext;
+  delete[] de;
+  delete[] de_other;
 
   return sent_bytes;
 }
