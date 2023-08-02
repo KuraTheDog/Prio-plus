@@ -12,6 +12,7 @@ const size_t batch_size = 100; // flexible
 const bool lazy = false;
 
 const bool use_ot_version = false;
+const bool use_large = false;
 
 /*
 4 bits, for each bucket/hash combo
@@ -25,9 +26,9 @@ bit = 3, all -1 into bucket 1
 */
 
 void test_HeavyConvert(const int server_num, const int serverfd,
-                      CorrelatedStore* store) {
-  const size_t nbits = 4;
-  const size_t N = 4;
+                       CorrelatedStore* store) {
+  const size_t nbits = 16;
+  const size_t N = use_large ? 100000 : 100;
   const size_t n = nbits * N;
 
   bool* const x = new bool[n];
@@ -117,10 +118,10 @@ void test_HeavyConvert(const int server_num, const int serverfd,
 
 void test_HeavyConvertMask(const int server_num, const int serverfd,
     CorrelatedStore* store) {
-  const size_t N = 1000;
-  const size_t Q = 13;
-  const size_t M = 11;
-  const size_t D = 8;
+  const size_t N = use_large ? 1000 : 80;
+  const size_t Q = use_large ? 13 : 3;
+  const size_t M = use_large ? 11 : 5;
+  const size_t D = use_large ? 8 : 4;
   // Q "parallel" runs of heavy_convert
   // N inputs, Q copies, D depth, M substreams
   // |x| = |y| = N * Q * D

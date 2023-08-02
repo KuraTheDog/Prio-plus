@@ -120,6 +120,16 @@ protected:
   virtual const BeaverTriple* const get_Triple();
   virtual const BooleanBeaverTriple* const get_BoolTriple();
 
+  // Helper, not expected to be used outside.
+  /* N inputs across m accumulators
+    If mask: values is (m, xm, ym, xym), len 4NM
+    If no mask, values is (xm, ym, xym), len 3NM
+    Valid length N, Buckets each length M
+  */
+  void heavy_accumulate(
+      const size_t N, const size_t M, const fmpz_t* const values, const bool* const valid,
+      fmpz_t* const bucket0, fmpz_t* const bucket1, const bool use_mask = true);
+
 public:
   CorrelatedStore(const int serverfd, const int server_num,
                   OT_Wrapper* const ot0, OT_Wrapper* const ot1)
@@ -224,9 +234,7 @@ public:
       const bool* const x, const bool* const y, const bool* const valid,
       fmpz_t* const bucket0, fmpz_t* const bucket1);
 
-
-
-  /*
+  /* Mask versions
     For each of N inputs,
       values in groups sized D
         [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
