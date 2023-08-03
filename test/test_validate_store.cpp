@@ -88,7 +88,6 @@ void test_altMult(const int server_num, const int serverfd,
   delete ot1;
 }
 
-// TODO: also check checkDaBits
 void test_batchValidate(const int server_num, const int serverfd,
                         const size_t N_make, const size_t N) {
   OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : "127.0.0.1", 60051);
@@ -111,7 +110,6 @@ void test_batchValidate(const int server_num, const int serverfd,
   delete ot0;
   delete ot1;
 }
-
 
 void serverTest(const size_t N) {
   std::cout << "Running server test" << std::endl;

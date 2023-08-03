@@ -43,6 +43,8 @@ struct OT_Wrapper {
                uint64_t* const data_1 = nullptr);
 };
 
+// TODO: Currently returns share(s). Rework to return sent bytes
+
 // mod 0 = default 2^64
 uint64_t bitsum_ot_sender(
     OT_Wrapper* const ot, const bool* const shares, const bool* const valid,

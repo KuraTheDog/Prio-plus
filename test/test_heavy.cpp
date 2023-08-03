@@ -182,11 +182,13 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
   // Setup expected.
   for (unsigned int q = 0; q < Q; q++) {
     for (unsigned int d = 0; d < D; d++) {
+      // x choice
+      auto e = (d + q) % 2 ? expected1 : expected0;
       for (unsigned int m = 0; m < M; m++) {
         const size_t idx = (q * M + m) * D + d;
-        auto e = (d + q) % 2 ? expected1 : expected0;
         // Silly force "proper" negative mod
         e[idx] = ((3*M - m)%3<(N%3)) + N/3;
+        // y sign
         if (((d>>1) + q) % 2 == 1) e[idx] *= -1;
       }
     }
@@ -202,18 +204,18 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
   // Run
   auto start = clock_start();
   std::cout << "clock start" << std::endl;
-  int64_t sent_bytes;
+  int64_t sent_bytes = 0;
   if (use_ot_version) {
     fmpz_t* y_p; new_fmpz_array(&y_p, N * Q * D);
-    store->b2a_single(N * Q * D, y, y_p);
+    sent_bytes += store->b2a_single(N * Q * D, y, y_p);
     std::cout << "heavy mask: b2a timing " << sec_from(start) << std::endl;
     auto start2 = clock_start();
-    sent_bytes = store->heavy_convert_mask(N, Q, M, D, x, y_p, mask, valid, bucket0, bucket1);
+    sent_bytes += store->heavy_convert_mask(N, Q, M, D, x, y_p, mask, valid, bucket0, bucket1);
     std::cout << "heavy mask convert timing : " << sec_from(start2) << std::endl;
     std::cout << "heavy mask total timing : " << sec_from(start) << std::endl;
     clear_fmpz_array(y_p, N * Q * D);
   } else {
-    sent_bytes = store->heavy_convert_mask_one(N, Q, M, D, x, y, mask, valid, bucket0, bucket1);
+    sent_bytes += store->heavy_convert_mask_one(N, Q, M, D, x, y, mask, valid, bucket0, bucket1);
     std::cout << "heavy mask convert timing : " << sec_from(start) << std::endl;
   }
   std::cout << "sent_bytes = " << sent_bytes << std::endl;
@@ -229,21 +231,22 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
     recv_fmpz_batch(serverfd, bucket0_other, Q * M * D);
     recv_fmpz_batch(serverfd, bucket1_other, Q * M * D);
     fmpz_t tmp; fmpz_init(tmp);
-    for (unsigned int q = 0; q < Q ; q++) {
-      for (unsigned int m = 0; m < M; m++) {
-        for (unsigned int d = 0; d < D; d++) {
-          const size_t idx = (q * M + m) * D + d;
-          fmpz_mod_add(tmp, bucket0[idx], bucket0_other[idx], mod_ctx);
-          // std::cout << "bucket0[" << q << ", " << m << ", " << d << "] = " << get_fsigned(tmp, Int_Modulus);
-          // std::cout << ", expected = " << expected0[idx] << std::endl;
-          assert(get_fsigned(tmp, Int_Modulus) == expected0[idx]);
+    for (unsigned int i = 0; i < Q * M * D; i++) {
+      [[maybe_unused]] const size_t q = i / (M * D);
+      [[maybe_unused]] const size_t m = (i / D) % M;
+      [[maybe_unused]] const size_t d = i % D;
 
-          fmpz_mod_add(tmp, bucket1[idx], bucket1_other[idx], mod_ctx);
-          // std::cout << "bucket1[" << q << ", " << m << ", " << d << "] = " << get_fsigned(tmp, Int_Modulus);
-          // std::cout << ", expected = " << expected1[idx] << std::endl;
-          assert(get_fsigned(tmp, Int_Modulus) == expected1[idx]);
-        }
-      }
+      fmpz_mod_add(tmp, bucket0[i], bucket0_other[i], mod_ctx);
+      // std::cout << "bucket0[" << q << ", " << m << ", " << d << "] = ";
+      // std::cout << get_fsigned(tmp, Int_Modulus);
+      // std::cout << ", expected = " << expected0[i] << "\n";
+      assert(get_fsigned(tmp, Int_Modulus) == expected0[i]);
+
+      fmpz_mod_add(tmp, bucket1[i], bucket1_other[i], mod_ctx);
+      // std::cout << "bucket1[" << q << ", " << m << ", " << d << "] = ";
+      // std::cout << get_fsigned(tmp, Int_Modulus);
+      // std::cout << ", expected = " << expected1[i] << std::endl;
+      assert(get_fsigned(tmp, Int_Modulus) == expected1[i]);
     }
     fmpz_clear(tmp);
     clear_fmpz_array(bucket0_other, Q * M * D);
@@ -524,15 +527,11 @@ void runServerTest(const int server_num, const int serverfd) {
   // std::cout << std::endl;
 
   // random adjusting. different numbers adjust seed.
-  // Can also do different per server
+  // Different per server to desync it
   fmpz_t tmp;
   fmpz_init(tmp);
   size_t rand_adjust;
-  if (server_num == 0) {
-    rand_adjust = 1;
-  } else {
-    rand_adjust = 5;
-  }
+  rand_adjust = (server_num == 0 ? 1 : 5);
   for (unsigned int i = 0; i < rand_adjust; i++)
     fmpz_randm(tmp, seed, Int_Modulus);
   fmpz_clear(tmp);

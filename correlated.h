@@ -262,7 +262,7 @@ public:
     Due to binary tree packing of bool mults (e.g. 8 done in 3 rather than 7)
     for some "in between" amounts, can do mults outside
   */
-  /* Single mask 
+  /* Single mask
     Two round bool mult (3NQMD), one round b2a (4 NQMD)
     First mult to get xm, ym. Second mult to get xym
     Then B2A on m, xm, ym, xym

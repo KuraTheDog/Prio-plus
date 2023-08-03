@@ -46,7 +46,7 @@ struct MultiHeavyConfig {
   // R = halving layers, log(n). R = 1 is just the always survive layer #0
   // Also should have B < input size, else more efficient to just do freq
   // Countmin parameters
-  // TODO: Find weakest epsilon, based on "threshold gap"
+  // TODO: Update with latest parameter computations
 
   // root values. The rest can be derived from these
   const size_t K;

@@ -1353,7 +1353,7 @@ int64_t OTCorrelatedStore::b2a_ot(
 
   const uint64_t* const * xp;
 
-  // TODO: incorperate sent_bytes into OT
+  // TODO: incorperate sent_bytes into OT, not returned here correctly
   if (server_num == 0) {
     xp = intsum_ot_sender(ot0, x2, valid, num_bits, num_shares, num_values, mod);
   } else {

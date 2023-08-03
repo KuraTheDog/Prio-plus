@@ -50,8 +50,6 @@ CorrelatedStore* correlated_store;
 // I.e. recieve and store all, then process all.
 // TODO: Set up batching. Either every N inputs (based on space consumed), or every S seconds (figure out timer)
 
-// TODO: Consider marking all "invalid" paths as [[unlikely]], mainly for loops
-
 size_t send_out(const int sockfd, const void* const buf, const size_t len) {
     size_t ret = send(sockfd, buf, len, 0);
     if (ret <= 0) error_exit("Failed to send");
@@ -119,7 +117,6 @@ void server1_connect(int& sockfd, const int port, const int reuse = 0) {
     std::cout << "  Connected\n";
 }
 
-// TODO: can maybe batch this? I.e. get list of all tag at once.
 std::string get_tag(const int serverfd) {
     char tag_buf[TAG_LENGTH];
     recv_in(serverfd, &tag_buf[0], TAG_LENGTH);
@@ -161,9 +158,8 @@ void process_unvalidated(const std::string tag, const size_t n) {
     ((ValidateCorrelatedStore*) correlated_store)->process_Unvalidated(tag);
 }
 
+// B2A Multi with dimensions, and int share_2s
 // Currently shares_2 and shares_p are flat num_shares*num_values array.
-// TODO: Consider reworking for matrix form
-// TODO: return sent_bytes
 // TODO: split, for the sake of communication
 // TODO: move to store?
 int const share_convert(const size_t num_shares,  // # inputs
@@ -173,7 +169,7 @@ int const share_convert(const size_t num_shares,  // # inputs
                         fmpz_t* const shares_p
                         ) {
     auto start = clock_start();
-    [[maybe_unused]] int sent_bytes = 0;
+    int sent_bytes = 0;
 
     // convert
     fmpz_t* f_shares2; new_fmpz_array(&f_shares2, num_shares * num_values);
@@ -2099,7 +2095,6 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
     // For each Q, identify b (first hash)
     const size_t share_size_bucket = cfg.Q * cfg.B;
     // Layer selector.
-    // TODO: -1, since first layer is always alive. Left for easier code for now.
     const size_t share_size_layer = cfg.R;
     // Count-min
     const size_t share_size_count = cfg.countmin_cfg.d * cfg.countmin_cfg.w;
@@ -2128,8 +2123,6 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         bool* const shares_bucket = new bool[share_size_bucket];
         bool* const shares_layer = new bool[share_size_layer];
         bool* const shares_count = new bool[share_size_count];
-        // TODO: single recieve into buff, copy out? Or just store buff?
-        // possible alignment issues vs sending, need to sync properly
         cli_bytes += recv_bool_batch(clientfd, shares_sh_x, share_size_sh);
         cli_bytes += recv_bool_batch(clientfd, shares_sh_y, share_size_sh);
         cli_bytes += recv_bool_batch(clientfd, shares_bucket, share_size_bucket);
@@ -2584,7 +2577,7 @@ int main(int argc, char** argv) {
     ot0 = new OT_Wrapper(server_num == 0 ? nullptr : SERVER0_IP, 60051);
     ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
 
-    // TODO: OT disabled for now.
+    // TODO: OT disabled/not supported for now.
     if (STORE_TYPE == precompute_store) {
         correlated_store = new PrecomputeStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE);
     // } else if (STORE_TYPE == ot_store) {
