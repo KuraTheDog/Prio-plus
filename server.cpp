@@ -2317,18 +2317,9 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         // 2 rounds of OT, which can't easily fold
         // Also accumulates into buckets
         start3 = clock_start();
-        const size_t base_size = num_inputs * share_size_sh;
-        bool* share_x_ext = new bool[base_size * cfg.R];
-        fmpz_t* share_y_ext; new_fmpz_array(&share_y_ext, base_size * cfg.R);
-        for (unsigned int i = 0; i < cfg.R; i++) {
-            memcpy(&share_x_ext[i * base_size], shares_sh_x, base_size);
-            for (unsigned int j = 0; j < base_size; j++) {
-                fmpz_set(share_y_ext[i * base_size + j], shares_p[share_y_offset + j]);
-            }
-        }
         sent_bytes += correlated_store->heavy_convert_mask(
-            num_inputs, cfg.Q * cfg.R, cfg.B, cfg.SH_depth,
-            share_x_ext, share_y_ext, mask, valid, bucket0, bucket1);
+            num_inputs, cfg.Q, cfg.B * cfg.R, cfg.SH_depth,
+            shares_sh_x, &shares_p[share_y_offset], mask, valid, bucket0, bucket1);
         // Also count-min accumulation
         fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
         accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
@@ -2503,18 +2494,9 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         // 2 rounds of OT, which can't easily fold
         // Also accumulates into buckets
         start3 = clock_start();
-        const size_t base_size = num_inputs * share_size_sh;
-        bool* share_x_ext = new bool[base_size * cfg.R];
-        fmpz_t* share_y_ext; new_fmpz_array(&share_y_ext, base_size * cfg.R);
-        for (unsigned int i = 0; i < cfg.R; i++) {
-            memcpy(&share_x_ext[i * base_size], shares_sh_x, base_size);
-            for (unsigned int j = 0; j < base_size; j++) {
-                fmpz_set(share_y_ext[i * base_size + j], shares_p[share_y_offset + j]);
-            }
-        }
         sent_bytes += correlated_store->heavy_convert_mask(
-            num_inputs, cfg.Q * cfg.R, cfg.B, cfg.SH_depth,
-            share_x_ext, share_y_ext, mask, valid, bucket0, bucket1);
+            num_inputs, cfg.Q, cfg.B * cfg.R, cfg.SH_depth,
+            shares_sh_x, &shares_p[share_y_offset], mask, valid, bucket0, bucket1);
         // Also count-min accumulation
         fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
         accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
