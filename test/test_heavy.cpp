@@ -116,7 +116,7 @@ void test_HeavyConvert(const int server_num, const int serverfd,
   delete[] valid;
 }
 
-void test_HeavyConvertMask(const int server_num, const int serverfd,
+void test_HeavyConvertMask_one(const int server_num, const int serverfd,
     CorrelatedStore* store) {
   const size_t N = use_large ? 1000 : 80;
   const size_t Q = use_large ? 13 : 3;
@@ -186,8 +186,8 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
       auto e = (d + q) % 2 ? expected1 : expected0;
       for (unsigned int m = 0; m < M; m++) {
         const size_t idx = (q * M + m) * D + d;
-        // Silly force "proper" negative mod
-        e[idx] = ((3*M - m)%3<(N%3)) + N/3;
+        // 1/3 plus remainders
+        e[idx] = N/3 + ((3*M - m)%3<(N%3));
         // y sign
         if (((d>>1) + q) % 2 == 1) e[idx] *= -1;
       }
@@ -230,25 +230,27 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
     fmpz_t* bucket1_other; new_fmpz_array(&bucket1_other, Q * M * D);
     recv_fmpz_batch(serverfd, bucket0_other, Q * M * D);
     recv_fmpz_batch(serverfd, bucket1_other, Q * M * D);
-    fmpz_t tmp; fmpz_init(tmp);
+    fmpz_t tmp0; fmpz_init(tmp0);
+    fmpz_t tmp1; fmpz_init(tmp1);
     for (unsigned int i = 0; i < Q * M * D; i++) {
       [[maybe_unused]] const size_t q = i / (M * D);
       [[maybe_unused]] const size_t m = (i / D) % M;
       [[maybe_unused]] const size_t d = i % D;
 
-      fmpz_mod_add(tmp, bucket0[i], bucket0_other[i], mod_ctx);
-      // std::cout << "bucket0[" << q << ", " << m << ", " << d << "] = ";
-      // std::cout << get_fsigned(tmp, Int_Modulus);
-      // std::cout << ", expected = " << expected0[i] << "\n";
-      assert(get_fsigned(tmp, Int_Modulus) == expected0[i]);
+      fmpz_mod_add(tmp0, bucket0[i], bucket0_other[i], mod_ctx);
+      fmpz_mod_add(tmp1, bucket1[i], bucket1_other[i], mod_ctx);
 
-      fmpz_mod_add(tmp, bucket1[i], bucket1_other[i], mod_ctx);
-      // std::cout << "bucket1[" << q << ", " << m << ", " << d << "] = ";
-      // std::cout << get_fsigned(tmp, Int_Modulus);
+      // std::cout << "bucket[" << q << ", " << m << ", " << d << "]: ";
+      // std::cout << "0 = " << get_fsigned(tmp0, Int_Modulus);
+      // std::cout << ", expected = " << expected0[i] << ", \t";
+      // std::cout << "1 = " << get_fsigned(tmp1, Int_Modulus);
       // std::cout << ", expected = " << expected1[i] << std::endl;
-      assert(get_fsigned(tmp, Int_Modulus) == expected1[i]);
+
+      assert(get_fsigned(tmp0, Int_Modulus) == expected0[i]);
+      assert(get_fsigned(tmp1, Int_Modulus) == expected1[i]);
     }
-    fmpz_clear(tmp);
+    fmpz_clear(tmp0);
+    fmpz_clear(tmp1);
     clear_fmpz_array(bucket0_other, Q * M * D);
     clear_fmpz_array(bucket1_other, Q * M * D);
   } else {
@@ -257,6 +259,162 @@ void test_HeavyConvertMask(const int server_num, const int serverfd,
   }
   clear_fmpz_array(bucket0, Q * M * D);
   clear_fmpz_array(bucket1, Q * M * D);
+}
+
+void test_HeavyConvertMask_two(const int server_num, const int serverfd,
+    CorrelatedStore* store) {
+  const size_t N = use_large ? 1000 : 20;
+  const size_t Q = use_large ? 4 : 3;
+  const size_t M1 = use_large ? 9 : 2;
+  const size_t M2 = use_large ? 7 : 3;
+  const size_t D = use_large ? 8 : 4;
+
+  bool* const x = new bool[N * Q * D];
+  bool* const y = new bool[N * Q * D];
+  bool* const valid = new bool[N]; memset(valid, true, N);
+
+  // Note: Mask2 is currently "global" across Q.
+  // Won't matter since anything it mutls against has Q. But provided this way.
+  bool* mask1 = new bool[N * Q * M1];
+  bool* mask2 = new bool[N * M2];
+
+  fmpz_t* bucket0; new_fmpz_array(&bucket0, Q * M1 * M2 * D);
+  fmpz_t* bucket1; new_fmpz_array(&bucket1, Q * M1 * M2 * D);
+  int expected0[Q * M1 * M2 * D]; memset(expected0, 0, Q * M1 * M2 * D * sizeof(int));
+  int expected1[Q * M1 * M2 * D]; memset(expected1, 0, Q * M1 * M2 * D * sizeof(int));
+
+  // Setup
+  /*
+  base random:
+    x, mask1 alternate player
+    y, mask2 alternate every other player
+  actual
+    x alternates along d, offset by q
+    y alternates every other d, offset by q
+    m1: every third, offset by q
+    m2: every third, offest by n
+  */
+  for (unsigned int n = 0; n < N; n++) {
+    memset(&x[n * Q * D], n % 2, Q * D);
+    memset(&y[n * Q * D], (n>>1) % 2, Q * D);
+    memset(&mask1[n * Q * M1], n % 2, Q * M1);
+    memset(&mask2[n * M2], (n>>1) % 2, M2);
+    if (server_num == 1) {
+      for (unsigned int q = 0; q < Q; q++) {
+        const size_t q_idx = n * Q + q;
+
+        for (unsigned int d = 0; d < D; d++) {
+          x[q_idx * D + d] ^= (d + q) % 2;
+          y[q_idx * D + d] ^= ((d>>1) + q) % 2;
+        }
+
+        for (unsigned int m = 0; m < M1; m++) {
+          mask1[q_idx * M1 + m] ^= ( (m + q) % 3 == 0 );
+        }
+      }
+      for (unsigned int m = 0; m < M2; m++) {
+        mask2[n * M2 + m] ^= ( (m + n) % 3 == 0 );
+      }
+    }
+  }
+  // Expected
+  // M1: eliminate based on Q. Or loop from q%3 to M1 step by 3
+  // M2: total is ~1/3 N
+  // Y sign fine
+  for (unsigned int q = 0; q < Q; q++) {
+    // 0, 1, 2 -> 0, 2, 1
+    const size_t m1_start = (3 - q%3)%3;
+    for (unsigned int d = 0; d < D; d++) {
+      // x choice
+      auto e = (d + q) % 2 ? expected1 : expected0;
+      // M1, only when m + q = 0 mod 3
+      for (unsigned int m1 = m1_start; m1 < M1; m1 += 3) {
+        // M2 split into thirds
+        for (unsigned int m2 = 0; m2 < M2; m2++) {
+          const size_t idx = ((q * M1 + m1) * M2 + m2) * D + d;
+          // 1/3 plus remainders
+          e[idx] = ((3 * M2 - m2)%3 < (N%3)) + N/3;
+          // y sign
+          if (((d>>1) + q) % 2 == 1) e[idx] *= -1;
+        }
+      }
+    }
+  }
+
+  if (use_ot_version) {
+    store->check_DaBits(N * Q * D);
+  } else {
+    // TODO
+    return;
+  }
+
+  // Run
+  auto start = clock_start();
+  std::cout << "clock start" << std::endl;
+  int64_t sent_bytes = 0;
+  if (use_ot_version) {
+    fmpz_t* y_p; new_fmpz_array(&y_p, N * Q * D);
+    sent_bytes += store->b2a_single(N * Q * D, y, y_p);
+    std::cout << "heavy mask: b2a timing " << sec_from(start) << std::endl;
+    auto start2 = clock_start();
+    bool* combined_mask = new bool[N * Q * M1 * M2];
+    sent_bytes += store->multiply_BoolShares_cross(
+        N, Q * M1, M2, mask1, mask2, combined_mask);
+    std::cout << "heavy mask: cross timing " << sec_from(start2) << std::endl;
+    start2 = clock_start();
+    sent_bytes += store->heavy_convert_mask(N, Q, M1 * M2, D,
+        x, y_p, combined_mask, valid, bucket0, bucket1);
+    std::cout << "heavy mask: convert timing " << sec_from(start2) << std::endl;
+    delete[] combined_mask;
+    clear_fmpz_array(y_p, N * Q * D);
+  } else {
+    // TODO
+    // Expand mask2 to include Q
+  }
+  std::cout << "send_bytes: " << sent_bytes << std::endl;
+
+  // Recombine / test
+  if (server_num == 0) {
+    fmpz_t* bucket0_other; new_fmpz_array(&bucket0_other, Q * M1 * M2 * D);
+    fmpz_t* bucket1_other; new_fmpz_array(&bucket1_other, Q * M1 * M2 * D);
+    recv_fmpz_batch(serverfd, bucket0_other, Q * M1 * M2 * D);
+    recv_fmpz_batch(serverfd, bucket1_other, Q * M1 * M2 * D);
+    fmpz_t tmp0; fmpz_init(tmp0);
+    fmpz_t tmp1; fmpz_init(tmp1);
+    for (unsigned int i = 0; i < Q * M1 * M2 * D; i++) {
+      [[maybe_unused]] const size_t q = i / (M1 * M2 * D);
+      [[maybe_unused]] const size_t m1 = (i / (M2 * D)) % M1;
+      [[maybe_unused]] const size_t m2 = (i / D) % M2;
+      [[maybe_unused]] const size_t d = i % D;
+
+      fmpz_mod_add(tmp0, bucket0[i], bucket0_other[i], mod_ctx);
+      fmpz_mod_add(tmp1, bucket1[i], bucket1_other[i], mod_ctx);
+
+      // std::cout << "bucket[" << q << ", " << m1 << ", " << m2 << ", " << d << "]: ";
+      // std::cout << "0 = " << get_fsigned(tmp0, Int_Modulus);
+      // std::cout << ", expected = " << expected0[i] << ", \t";
+      // std::cout << "1 = " << get_fsigned(tmp1, Int_Modulus);
+      // std::cout << ", expected = " << expected1[i] << std::endl;
+
+      assert(get_fsigned(tmp0, Int_Modulus) == expected0[i]);
+      assert(get_fsigned(tmp1, Int_Modulus) == expected1[i]);
+    }
+    fmpz_clear(tmp0);
+    fmpz_clear(tmp1);
+    clear_fmpz_array(bucket0_other, Q * M1 * M2 * D);
+    clear_fmpz_array(bucket1_other, Q * M1 * M2 * D);
+  } else {
+    send_fmpz_batch(serverfd, bucket0, Q * M1 * M2 * D);
+    send_fmpz_batch(serverfd, bucket1, Q * M1 * M2 * D);
+  }
+
+  delete[] x;
+  delete[] y;
+  delete[] valid;
+  delete[] mask1;
+  delete[] mask2;
+  clear_fmpz_array(bucket0, Q * M1 * M2 * D);
+  clear_fmpz_array(bucket1, Q * M1 * M2 * D);
 }
 
 void test_abs_cmp(
@@ -537,7 +695,8 @@ void runServerTest(const int server_num, const int serverfd) {
   fmpz_clear(tmp);
 
   test_HeavyConvert(server_num, serverfd, store);
-  test_HeavyConvertMask(server_num, serverfd, store);
+  test_HeavyConvertMask_one(server_num, serverfd, store);
+  test_HeavyConvertMask_two(server_num, serverfd, store);
 
   // test_cmp_bit(server_num, serverfd, store);
   // test_rand_bitshare(server_num, serverfd, store);
