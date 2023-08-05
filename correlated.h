@@ -185,10 +185,6 @@ public:
   // Each of N inputs gives (a x b) cross
   // x gives column, y is row
   // so z = [x[0] * y, x[1] * y, ...] for input 1, then same for input 2, etc.
-  void multiply_BoolShares_cross_setup(
-      const size_t N, const size_t a, const size_t b,
-      const bool* x, const bool* y, bool* const z,
-      bool* const x_ext, bool* const y_ext, bool* const de);
   int64_t multiply_BoolShares_cross(
       const size_t N, const size_t a, const size_t b,
       const bool* x, const bool* y, bool* const z);

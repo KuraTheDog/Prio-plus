@@ -1541,7 +1541,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        sent_bytes += correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
+        sent_bytes += correlated_store->heavy_convert_ot(num_inputs, b, x, y, valid, bucket0, bucket1);
         delete[] x;
         delete[] y;
         std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
@@ -1601,7 +1601,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
         std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        sent_bytes += correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
+        sent_bytes += correlated_store->heavy_convert_ot(num_inputs, b, x, y, valid, bucket0, bucket1);
         delete[] x;
         delete[] y;
         std::cout << "convert+accum time: " << sec_from(start2) << std::endl;

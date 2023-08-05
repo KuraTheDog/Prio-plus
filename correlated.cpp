@@ -229,22 +229,12 @@ int64_t CorrelatedStore::multiply_ArithmeticShares(
 // Could be template, but just bool (since doesn't work on fmpz)
 void cross_fill_bool(
     const size_t N, const size_t a, const size_t b,
-    const bool* const x, const bool* const y, 
+    const bool* const x, const bool* const y,
     bool* const x_ext, bool* const y_ext) {
   for (unsigned int i = 0; i < N * a; i++) {
     memset(&x_ext[i * b], x[i], b);
     memcpy(&y_ext[i * b], &y[(i / a) * b], b);
   }
-}
-
-void CorrelatedStore::multiply_BoolShares_cross_setup(
-    const size_t N, const size_t a, const size_t b,
-    const bool* x, const bool* y, bool* const z,
-    bool* const x_ext, bool* const y_ext, bool* const de) {
-
-  cross_fill_bool(N, a, b, x, y, x_ext, y_ext);
-
-  multiply_BoolShares_setup(N * a * b, x_ext, y_ext, z, de);
 }
 
 int64_t CorrelatedStore::multiply_BoolShares_cross(
@@ -259,7 +249,8 @@ int64_t CorrelatedStore::multiply_BoolShares_cross(
   bool* de = new bool[2 * N * a * b];
   bool* de_other = new bool[2 * N * a * b];
 
-  multiply_BoolShares_cross_setup(N, a, b, x, y, z, x_ext, y_ext, de);
+  cross_fill_bool(N, a, b, x, y, x_ext, y_ext);
+  multiply_BoolShares_setup(N * a * b, x_ext, y_ext, z, de);
 
   sent_bytes += swap_bool_batch(serverfd, de, de_other, 2 * N * a * b);
 
