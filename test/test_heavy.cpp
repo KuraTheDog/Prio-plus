@@ -344,8 +344,9 @@ void test_HeavyConvertMask_two(const int server_num, const int serverfd,
   if (use_ot_version) {
     store->check_DaBits(N * Q * D);
   } else {
-    // TODO
-    return;
+    // Can also upper bound 4 * N Q M1 M2 D probably
+    store->check_BoolTriples(N * Q * (3 * M1 * M2 * D + M1 * M2 + D));
+    store->check_DaBits(4 * N * Q * M1 * M2 * D);
   }
 
   // Run
@@ -368,8 +369,13 @@ void test_HeavyConvertMask_two(const int server_num, const int serverfd,
     delete[] combined_mask;
     clear_fmpz_array(y_p, N * Q * D);
   } else {
-    // TODO
-    // Expand mask2 to include Q
+    // Expand mask2 across Q (copy for each Q).
+    bool* const mask2_ext = new bool[N * Q * M2];
+    for (unsigned int i = 0; i < N * Q; i++)
+      memcpy(&mask2_ext[i * M2], &mask2[(i / Q) * M2], M2);
+    sent_bytes += store->heavy_convert_mask_two(N, Q, M1, M2, D,
+        x, y, mask1, mask2_ext, valid, bucket0, bucket1);
+    std::cout << "heavy mask: convert timing " << sec_from(start) << std::endl;
   }
   std::cout << "send_bytes: " << sent_bytes << std::endl;
 

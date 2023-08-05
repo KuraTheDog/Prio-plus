@@ -223,15 +223,26 @@ int64_t CorrelatedStore::multiply_ArithmeticShares(
   return sent_bytes;
 }
 
+// Helper: x is N copies len a, y is N copies len b.
+// Fill out x_ext, and y_ext as N x a x b
+// So that x_ext * y_ext = (x cross y)
+// Could be template, but just bool (since doesn't work on fmpz)
+void cross_fill_bool(
+    const size_t N, const size_t a, const size_t b,
+    const bool* const x, const bool* const y, 
+    bool* const x_ext, bool* const y_ext) {
+  for (unsigned int i = 0; i < N * a; i++) {
+    memset(&x_ext[i * b], x[i], b);
+    memcpy(&y_ext[i * b], &y[(i / a) * b], b);
+  }
+}
+
 void CorrelatedStore::multiply_BoolShares_cross_setup(
     const size_t N, const size_t a, const size_t b,
     const bool* x, const bool* y, bool* const z,
     bool* const x_ext, bool* const y_ext, bool* const de) {
 
-  for (unsigned int i = 0; i < N * a; i++) {
-    memset(&x_ext[i * b], x[i], b);
-    memcpy(&y_ext[i * b], &y[(i / a) * b], b);
-  }
+  cross_fill_bool(N, a, b, x, y, x_ext, y_ext);
 
   multiply_BoolShares_setup(N * a * b, x_ext, y_ext, z, de);
 }
@@ -582,6 +593,91 @@ int64_t CorrelatedStore::heavy_convert_mask_one(
   heavy_accumulate(N, Q * M * D, zp, valid, bucket0, bucket1);
 
   clear_fmpz_array(zp, 4 * len);
+
+  return sent_bytes;
+}
+
+/*
+    Sizes (and ordering)
+    x, y = N (Q (D))
+    valid = N
+    mask1 = N (Q (M1))
+    mask2 = N (Q (M2))
+    buckets = Q (M (D))
+    intermediate N (Q (M (D)))
+*/
+int64_t CorrelatedStore::heavy_convert_mask_two(
+    const size_t N, const size_t Q, const size_t M1, const size_t M2, const size_t D,
+    const bool* const x, const bool* const y, const bool* const mask1, const bool* const mask2,
+    const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1) {
+  int sent_bytes = 0;
+
+  const size_t len_all = N * Q * M1 * M2 * D;
+  const size_t len_1 = N * Q * D + N * Q * M1 * M2;
+  // Check
+  // N Q (3 M1 M2 D + M1 M2 + D), upper bound 4 * len_all
+  check_BoolTriples(len_1 + 3 * len_all);
+  // 4 N Q M1 M2 D
+  check_DaBits(4 * len_all);
+
+  // m1 m2, x m1 m2, y m1 m2, xy m1 m2
+  bool* z = new bool[4 * len_all];
+
+  // xy normal, cross mask m1 m2
+  bool* a1 = new bool[len_1];
+  bool* b1 = new bool[len_1];
+  bool* c = new bool[len_1];
+  // copy x and y
+  for (unsigned int i = 0; i < N * Q * D; i++) {
+    memcpy(a1, x, N * Q * D);
+    memcpy(b1, y, N * Q * D);
+  }
+  // cross copy m1, m2
+  cross_fill_bool(N * Q, M1, M2, mask1, mask2, &a1[N*Q*D], &b1[N*Q*D]);
+  // Mult 1: xy, m1m2
+  sent_bytes += multiply_BoolShares(len_1, a1, b1, c);
+
+  delete[] a1;
+  delete[] b1;
+  // x, y, xy
+  bool* a2 = new bool[3 * len_all];
+  // 3 copies of m1m2
+  bool* b2 = new bool[3 * len_all];
+  // copy xy into a2. M1M2 extra
+  // m1m2: Copy into z for later. D extra
+  for (unsigned int i = 0; i < N * Q; i++) {
+    for (unsigned int j = 0; j < M1 * M2; j++) {
+      const unsigned int idx = i * M1 * M2 + j;
+      // Copy D in from x and y
+      memcpy(&a2[idx * D], &x[i * D], D);
+      memcpy(&a2[len_all + idx * D], &y[i * D], D);
+      // Copy in xy
+      memcpy(&a2[2*len_all + idx * D], &c[i * D], D);
+
+      // Replicate D from m1m2
+      memset(&z[idx * D], c[N*Q*D + idx], D);
+    }
+  }
+  // Copy 3 times into b2
+  memcpy(b2, z, len_all);
+  memcpy(&b2[len_all], z, len_all);
+  memcpy(&b2[2*len_all], z, len_all);
+
+  // mult 2: (x, y, xy) * m1m2
+  sent_bytes += multiply_BoolShares(3 * len_all, a2, b2, &z[len_all]);
+
+  delete[] a2;
+  delete[] b2;
+
+  // b2a on Z
+  fmpz_t* zp; new_fmpz_array(&zp, 4 * len_all);
+  sent_bytes += b2a_single(4 * len_all, z, zp);
+  delete[] z;
+
+  // Accumulate
+  heavy_accumulate(N, Q * M1 * M2 * D, zp, valid, bucket0, bucket1);
+
+  clear_fmpz_array(zp, 4 * len_all);
 
   return sent_bytes;
 }

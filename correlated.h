@@ -274,6 +274,33 @@ public:
       const size_t N, const size_t Q, const size_t M, const size_t D,
       const bool* const x, const bool* const y, const bool* const mask,
       const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1);
+  /* Double mask
+    If mult masks first then feed into above, is +1 mult round, for 3 mults
+    Instead can binary fold rounds to have less.
+    This is the core payoff.
+    (1-2y)xm1m2 = xm1m2 - 2xym1m2
+    (1-2y)(1-x)m1m2 = m1m2 - xm1m2 - 2ym1m2 + 2xym1m2
+    Mult 1: m1m2, xy (bonus: not full dimensions, extend after)
+    Mult 2: x(lm), y(lm), (xy)(lm)
+    One less round:
+      OT: Cross (N Q M1 M2), b2A (N Q D), OT (N Q M1 M2 D), OT (N Q M1 M2 D)
+      This: Mult (N Q (D + M1 M2)), Mult (3 N Q M1 M2 D), b2A (4 N Q M1 M2 D)
+
+    Note:
+      Here, mask1 has size N (Q (M1)), and mask2 is N (Q (M2))
+      Together, the combined mask is N Q M1 M2
+      In use case however, mask 2 is just N M2, no Q.
+      But since everything else has Q somewhere, it'll always be added in cross multiply.
+      Hence, there's no benefit to the code supporting the smaller mask2.
+
+    M2 fitter for N M2 -> N Q M2
+    for (unsigned int i = 0; i < N * Q; i++)
+      memcpy(&mask2_ext[i * M2], &mask2[(i / Q) * M2], M2);
+  */
+  int64_t heavy_convert_mask_two(
+      const size_t N, const size_t Q, const size_t M1, const size_t M2, const size_t D,
+      const bool* const x, const bool* const y, const bool* const mask1, const bool* const mask2,
+      const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1);
 
   /* Comparisons.
   Assumes modulus is large enough, so <N/2 is positive, >N/2 is negative (x-N)
