@@ -118,7 +118,7 @@ void test_HeavyConvert(const int server_num, const int serverfd,
 
 void test_HeavyConvertMask_one(const int server_num, const int serverfd,
     CorrelatedStore* store) {
-  const size_t N = use_large ? 1000 : 80;
+  const size_t N = use_large ? 10000 : 80;
   const size_t Q = use_large ? 13 : 3;
   const size_t M = use_large ? 11 : 5;
   const size_t D = use_large ? 8 : 4;
@@ -263,7 +263,7 @@ void test_HeavyConvertMask_one(const int server_num, const int serverfd,
 
 void test_HeavyConvertMask_two(const int server_num, const int serverfd,
     CorrelatedStore* store) {
-  const size_t N = use_large ? 1000 : 20;
+  const size_t N = use_large ? 10000 : 20;
   const size_t Q = use_large ? 4 : 3;
   const size_t M1 = use_large ? 9 : 2;
   const size_t M2 = use_large ? 7 : 3;

@@ -245,6 +245,10 @@ public:
     mask = N (Q (M))
     buckets = Q (M (D))
     intermediate N (Q (M (D)))
+
+    Note: Could fold in "valid" short circuits more.
+    Won't affect runtime much since done at end anyways and branch prediction.
+    Less memory copying if invalid.
   */
   // OT version.
   // Requires one round of B2A (NQD) outside: (1-2y)

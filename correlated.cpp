@@ -537,25 +537,11 @@ int64_t CorrelatedStore::heavy_convert_mask_one(
   // Alt: if multliply is broken up, can "queue" two mults and do parallel
 
   // Align
-  for (unsigned int n = 0; n < N; n++) {
-    if (!valid[n]) continue;
-    for (unsigned int q = 0; q < Q; q++) {
-      const size_t idx = n * Q + q;
-      // x, y across M. Copies
-      // mask across D. Replicate
-      for (unsigned int m = 0; m < M; m++) {
-        const size_t sub_idx = idx * M + m;
-        memcpy(&xy_ext[sub_idx * D], &x[idx * D], D);
-        memcpy(&xy_ext[len + sub_idx * D], &y[idx * D], D);
-        memset(&z[sub_idx * D], mask[sub_idx], D);
-      }
-    }
-  }
+  cross_fill_bool(N * Q, M, D, mask, x, m_ext, xy_ext);
+  cross_fill_bool(N * Q, M, D, mask, y, &m_ext[len], &xy_ext[len]);
+  memcpy(z, m_ext, len);
 
   // Mult 1: xm, ym
-  // Double copy m
-  memcpy(m_ext, z, len);
-  memcpy(&m_ext[len], z, len);
   sent_bytes += multiply_BoolShares(2 * len, xy_ext, m_ext, &z[len]);
   delete[] m_ext;
 
@@ -567,18 +553,6 @@ int64_t CorrelatedStore::heavy_convert_mask_one(
   fmpz_t* zp; new_fmpz_array(&zp, 4 * len);
   sent_bytes += b2a_single(4 * len, z, zp);
   delete[] z;
-
-  // // Testing
-  // reveal_fmpz_batch(serverfd, zp, 4 * len);
-  // for (unsigned int i = 0; i < 4 * len; i++) {
-  //   std::cout << "z2_" << server_num << "[" << i << "] = " << z[i] << std::endl;
-  //   if (server_num == 1) {
-  //     fmpz_zero(zp[i]);
-  //   } else {
-  //     // m, xm, ym, xym
-  //     std::cout << "zp[" << i << "] = " << get_fsigned(zp[i], Int_Modulus) << std::endl;
-  //   }
-  // }
 
   // Accumulate
   heavy_accumulate(N, Q * M * D, zp, valid, bucket0, bucket1);
@@ -619,10 +593,8 @@ int64_t CorrelatedStore::heavy_convert_mask_two(
   bool* b1 = new bool[len_1];
   bool* c = new bool[len_1];
   // copy x and y
-  for (unsigned int i = 0; i < N * Q * D; i++) {
-    memcpy(a1, x, N * Q * D);
-    memcpy(b1, y, N * Q * D);
-  }
+  memcpy(a1, x, N * Q * D);
+  memcpy(b1, y, N * Q * D);
   // cross copy m1, m2
   cross_fill_bool(N * Q, M1, M2, mask1, mask2, &a1[N*Q*D], &b1[N*Q*D]);
   // Mult 1: xy, m1m2
@@ -630,29 +602,14 @@ int64_t CorrelatedStore::heavy_convert_mask_two(
 
   delete[] a1;
   delete[] b1;
-  // x, y, xy
+  // (x, y, xy) * m1m2
   bool* a2 = new bool[3 * len_all];
-  // 3 copies of m1m2
   bool* b2 = new bool[3 * len_all];
-  // copy xy into a2. M1M2 extra
-  // m1m2: Copy into z for later. D extra
-  for (unsigned int i = 0; i < N * Q; i++) {
-    for (unsigned int j = 0; j < M1 * M2; j++) {
-      const unsigned int idx = i * M1 * M2 + j;
-      // Copy D in from x and y
-      memcpy(&a2[idx * D], &x[i * D], D);
-      memcpy(&a2[len_all + idx * D], &y[i * D], D);
-      // Copy in xy
-      memcpy(&a2[2*len_all + idx * D], &c[i * D], D);
 
-      // Replicate D from m1m2
-      memset(&z[idx * D], c[N*Q*D + idx], D);
-    }
-  }
-  // Copy 3 times into b2
-  memcpy(b2, z, len_all);
-  memcpy(&b2[len_all], z, len_all);
-  memcpy(&b2[2*len_all], z, len_all);
+  cross_fill_bool(N * Q, M1 * M2, D, &c[N*Q*D], x, b2, a2);
+  cross_fill_bool(N * Q, M1 * M2, D, &c[N*Q*D], y, &b2[len_all], &a2[len_all]);
+  cross_fill_bool(N * Q, M1 * M2, D, &c[N*Q*D], c, &b2[2*len_all], &a2[2*len_all]);
+  memcpy(z, b2, len_all);
 
   // mult 2: (x, y, xy) * m1m2
   sent_bytes += multiply_BoolShares(3 * len_all, a2, b2, &z[len_all]);
