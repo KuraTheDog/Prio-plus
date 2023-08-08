@@ -436,15 +436,26 @@ int64_t CorrelatedStore::heavy_convert(
 
   // x, y, xy
   bool* const z = new bool[3 * N * b];
-  fmpz_t* zp; new_fmpz_array(&zp, 3 * N * b);
   memcpy(z, x, N * b);
   memcpy(&z[N*b], y, N * b);
 
-  sent_bytes += multiply_BoolShares(N * b, x, y, &z[2*N*b]);
-  sent_bytes += b2a_single(3 * N * b, z, zp);
+  bool* buff = new bool[3 * N * b];
+  multiply_BoolShares_setup(N * b, x, y, &z[2*N*b], buff);
+  bool* buff_other = new bool[3 * N * b];
 
+  sent_bytes += swap_bool_batch(serverfd, buff, buff_other, 2 * N * b);
+
+  multiply_BoolShares_finish(N * b, x, y, &z[2*N*b], buff, buff_other);
+
+  fmpz_t* zp; new_fmpz_array(&zp, 3 * N * b);
+  b2a_single_setup(3 * N * b, z, zp, buff);
   delete[] z;
-  // Accumulate
+
+  sent_bytes += swap_bool_batch(serverfd, buff, buff_other, 3 * N * b);
+
+  b2a_single_finish(3 * N * b, zp, buff, buff_other);
+  delete[] buff;
+  delete[] buff_other;
   heavy_accumulate(N, b, zp, valid, bucket0, bucket1, false);
   clear_fmpz_array(zp, 3 * N * b);
 
@@ -523,32 +534,37 @@ int64_t CorrelatedStore::heavy_convert_mask_one(
   // m, xm, ym, xym, for b2a
   bool* const z = new bool[4 * len];
   // Double m for easier mult
-  bool* const m_ext = new bool[2 * len];
-  bool* const xy_ext = new bool[2 * len];
   // Could overlap more (m_ext into z), but tradeoff of can't delete early as much
   // Alt: if multliply is broken up, can "queue" two mults and do parallel
-
-  // Align
+  bool* const m_ext = new bool[2 * len];
+  bool* const xy_ext = new bool[2 * len];
   cross_fill_bool(N * Q, M, D, mask, x, m_ext, xy_ext);
   cross_fill_bool(N * Q, M, D, mask, y, &m_ext[len], &xy_ext[len]);
   memcpy(z, m_ext, len);
+  bool* const buff = new bool[2 * 2 * len];
+  multiply_BoolShares_setup(2 * len, xy_ext, m_ext, &z[len], buff);
+  bool* const buff_other = new bool[2 * 2 * len];
 
-  // Mult 1: xm, ym
-  sent_bytes += multiply_BoolShares(2 * len, xy_ext, m_ext, &z[len]);
+  sent_bytes += swap_bool_batch(serverfd, buff, buff_other, 2 * 2 * len);
+
+  multiply_BoolShares_finish(2 * len, xy_ext, m_ext, &z[len], buff, buff_other);
   delete[] m_ext;
+  multiply_BoolShares_setup(len, xy_ext, &z[2*len], &z[3*len], buff);
 
-  // Mult 2: xym = x(ym)
-  sent_bytes += multiply_BoolShares(len, xy_ext, &z[2 * len], &z[3 * len]);
+  sent_bytes += swap_bool_batch(serverfd, buff, buff_other, 2 * len);
+
+  multiply_BoolShares_finish(len, xy_ext, &z[2*len], &z[3*len], buff, buff_other);
   delete[] xy_ext;
-
-  // B2A
   fmpz_t* zp; new_fmpz_array(&zp, 4 * len);
-  sent_bytes += b2a_single(4 * len, z, zp);
+  b2a_single_setup(4 * len, z, zp, buff);
   delete[] z;
 
-  // Accumulate
-  heavy_accumulate(N, Q * M * D, zp, valid, bucket0, bucket1);
+  sent_bytes += swap_bool_batch(serverfd, buff, buff_other, 4 * len);
 
+  b2a_single_finish(4 * len, zp, buff, buff_other);
+  delete[] buff;
+  delete[] buff_other;
+  heavy_accumulate(N, Q * M * D, zp, valid, bucket0, bucket1);
   clear_fmpz_array(zp, 4 * len);
 
   return sent_bytes;
@@ -581,42 +597,44 @@ int64_t CorrelatedStore::heavy_convert_mask_two(
   bool* z = new bool[4 * len_all];
 
   // xy normal, cross mask m1 m2
-  bool* a1 = new bool[len_1];
-  bool* b1 = new bool[len_1];
+  bool* a = new bool[3 * len_all];
+  bool* b = new bool[3 * len_all];
   bool* c = new bool[len_1];
-  // copy x and y
-  memcpy(a1, x, N * Q * D);
-  memcpy(b1, y, N * Q * D);
-  // cross copy m1, m2
-  cross_fill_bool(N * Q, M1, M2, mask1, mask2, &a1[N*Q*D], &b1[N*Q*D]);
-  // Mult 1: xy, m1m2
-  sent_bytes += multiply_BoolShares(len_1, a1, b1, c);
+  memcpy(a, x, N * Q * D);
+  memcpy(b, y, N * Q * D);
+  cross_fill_bool(N * Q, M1, M2, mask1, mask2, &a[N*Q*D], &b[N*Q*D]);
+  bool* const buff = new bool[6 * len_all];
+  multiply_BoolShares_setup(len_1, a, b, c, buff);
+  bool* const buff_other = new bool[6 * len_all];
 
-  delete[] a1;
-  delete[] b1;
+  // mult 1: xy, m1m2
+  sent_bytes += swap_bool_batch(serverfd, buff, buff_other, 2 * len_1);
+
+  multiply_BoolShares_finish(len_1, a, b, c, buff, buff_other);
   // (x, y, xy) * m1m2
-  bool* a2 = new bool[3 * len_all];
-  bool* b2 = new bool[3 * len_all];
-
-  cross_fill_bool(N * Q, M1 * M2, D, &c[N*Q*D], x, b2, a2);
-  cross_fill_bool(N * Q, M1 * M2, D, &c[N*Q*D], y, &b2[len_all], &a2[len_all]);
-  cross_fill_bool(N * Q, M1 * M2, D, &c[N*Q*D], c, &b2[2*len_all], &a2[2*len_all]);
-  memcpy(z, b2, len_all);
+  cross_fill_bool(N * Q, M1 * M2, D, &c[N*Q*D], x, b, a);
+  cross_fill_bool(N * Q, M1 * M2, D, &c[N*Q*D], y, &b[len_all], &a[len_all]);
+  cross_fill_bool(N * Q, M1 * M2, D, &c[N*Q*D], c, &b[2*len_all], &a[2*len_all]);
+  delete[] c;
+  memcpy(z, b, len_all);
+  multiply_BoolShares_setup(3 * len_all, a, b, &z[len_all], buff);
 
   // mult 2: (x, y, xy) * m1m2
-  sent_bytes += multiply_BoolShares(3 * len_all, a2, b2, &z[len_all]);
+  sent_bytes += swap_bool_batch(serverfd, buff, buff_other, 2 * 3 * len_all);
 
-  delete[] a2;
-  delete[] b2;
-
-  // b2a on Z
+  multiply_BoolShares_finish(3 * len_all, a, b, &z[len_all], buff, buff_other);
+  delete[] a;
+  delete[] b;
   fmpz_t* zp; new_fmpz_array(&zp, 4 * len_all);
-  sent_bytes += b2a_single(4 * len_all, z, zp);
+  b2a_single_setup(4 * len_all, z, zp, buff);
   delete[] z;
 
-  // Accumulate
-  heavy_accumulate(N, Q * M1 * M2 * D, zp, valid, bucket0, bucket1);
+  sent_bytes += swap_bool_batch(serverfd, buff, buff_other, 4 * len_all);
 
+  b2a_single_finish(4 * len_all, zp, buff, buff_other);
+  delete[] buff;
+  delete[] buff_other;
+  heavy_accumulate(N, Q * M1 * M2 * D, zp, valid, bucket0, bucket1);
   clear_fmpz_array(zp, 4 * len_all);
 
   return sent_bytes;

@@ -358,7 +358,7 @@ void test_HeavyConvertMask_two(const int server_num, const int serverfd,
     sent_bytes += store->b2a_single(N * Q * D, y, y_p);
     std::cout << "heavy mask: b2a timing " << sec_from(start) << std::endl;
     auto start2 = clock_start();
-    bool* combined_mask = new bool[N * Q * M1 * M2];
+    bool* const combined_mask = new bool[N * Q * M1 * M2];
     sent_bytes += store->multiply_BoolShares_cross(
         N, Q * M1, M2, mask1, mask2, combined_mask);
     std::cout << "heavy mask: cross timing " << sec_from(start2) << std::endl;
@@ -375,6 +375,7 @@ void test_HeavyConvertMask_two(const int server_num, const int serverfd,
       memcpy(&mask2_ext[i * M2], &mask2[(i / Q) * M2], M2);
     sent_bytes += store->heavy_convert_mask_two(N, Q, M1, M2, D,
         x, y, mask1, mask2_ext, valid, bucket0, bucket1);
+    delete[] mask2_ext;
     std::cout << "heavy mask: convert timing " << sec_from(start) << std::endl;
   }
   std::cout << "send_bytes: " << sent_bytes << std::endl;
