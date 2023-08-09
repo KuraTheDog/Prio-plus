@@ -1309,19 +1309,21 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         }
         // Batch check.
         fmpz_t sum_other; fmpz_init(sum_other);
-        sent_bytes += send_fmpz(serverfd, sum);
+
         recv_fmpz(serverfd, sum_other);
 
         fmpz_mod_add(sum, sum, sum_other, mod_ctx);
         bool all_valid = fmpz_equal_ui(sum, total_inputs);
         fmpz_clear(sum);
+
+        sent_bytes += send_bool(serverfd, all_valid);
+
         if (all_valid) {
             memset(valid, true, num_inputs);
         } else {
             sent_bytes += send_fmpz_batch(serverfd, sums, num_inputs);
             recv_bool_batch(serverfd, valid, num_inputs);
         }
-
         clear_fmpz_array(sums, num_inputs);
         std::cout << "validate time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
@@ -1394,20 +1396,22 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
             fmpz_mod_add(sum, sum, sums[i], mod_ctx);
         }
         // batch check
-        fmpz_t sum_other; fmpz_init(sum_other);
         sent_bytes += send_fmpz(serverfd, sum);
-        recv_fmpz(serverfd, sum_other);
 
-        fmpz_mod_add(sum, sum, sum_other, mod_ctx);
-        bool all_valid = fmpz_equal_ui(sum, total_inputs);
         fmpz_clear(sum);
+        bool all_valid;
+
+        recv_bool(serverfd, all_valid);
+
         if (all_valid) {
             memset(valid, true, num_inputs);
         } else {
             // Batch check fails. Test single. 
             // Binary search is more rounds but (possibly) less bytes)
             fmpz_t* sums_other; new_fmpz_array(&sums_other, num_inputs);
+
             recv_fmpz_batch(serverfd, sums_other, num_inputs);
+
             for (unsigned int i = 0; i < num_inputs; i++) {
                 fmpz_mod_add(sums[i], sums[i], sums_other[i], mod_ctx);
                 valid[i] &= fmpz_is_one(sums[i]);
@@ -1516,14 +1520,6 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
             memcpy(&x[idx*b], share.second, b);
             memcpy(&y[idx*b], &(share.second[b]), b);
 
-            // std::cout << "share[" << idx << "] = ";
-            // for (unsigned int j = 0; j < b; j++)
-            //     std::cout << x[idx * b + j];
-            // std::cout << ", ";
-            // for (unsigned int j = 0; j < b; j++)
-            //     std::cout << y[idx * b + j];
-            // std::cout << std::endl;
-
             idx++;
 
             delete[] share.second;
@@ -1577,14 +1573,6 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
             share = share_map[tag];
             memcpy(&x[i * b], share, b);
             memcpy(&y[i * b], &(share[b]), b);
-
-            // std::cout << "share[" << i << "] = ";
-            // for (unsigned int j = 0; j < b; j++)
-            //     std::cout << x[i * b + j];
-            // std::cout << ", ";
-            // for (unsigned int j = 0; j < b; j++)
-            //     std::cout << y[i * b + j];
-            // std::cout << std::endl;
 
             delete[] share;
         }
@@ -1779,6 +1767,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         auto start3 = clock_start();
 
         // Single round all B2A: count, mask, y
+        // We use first part of shares_p as the countmin shares.
         const size_t convert_size = num_inputs * share_convert_size;
         fmpz_t* shares_p; new_fmpz_array(&shares_p, convert_size);
         bool* shares_2 = new bool[convert_size];
@@ -1789,10 +1778,10 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         const size_t share_y_offset = num_inputs * (share_size_count + share_size_mask);
         memcpy(&shares_2[share_y_offset], shares_sh_y, num_inputs * share_size_sh);
         delete[] shares_sh_y;
-        sent_bytes += correlated_store->b2a_single(convert_size, shares_2, shares_p);
-        delete[] shares_2;
-        // We use first part of shares_p as the countmin shares.
 
+        sent_bytes += correlated_store->b2a_single(convert_size, shares_2, shares_p);
+
+        delete[] shares_2;
         // Freq check. Batch across all inputs
         // count: num * d entries size w
         // mask: num * Q entries size mask
@@ -1802,7 +1791,6 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
                 &shares_p[num_inputs * share_size_count], &sums[cfg.countmin_cfg.d]);
         fmpz_t* sums_other; new_fmpz_array(&sums_other, cfg.Q + cfg.countmin_cfg.d);
 
-        sent_bytes += send_fmpz_batch(serverfd, sums, cfg.Q + cfg.countmin_cfg.d);
         recv_fmpz_batch(serverfd, sums_other, cfg.Q + cfg.countmin_cfg.d);
 
         bool all_valid = true;
@@ -1815,13 +1803,15 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         }
         clear_fmpz_array(sums, cfg.Q + cfg.countmin_cfg.d);
         clear_fmpz_array(sums_other, cfg.Q + cfg.countmin_cfg.d);
+
+        sent_bytes += send_bool(serverfd, all_valid);
+
         if (all_valid) {
             memset(valid, true, num_inputs);
         } else {
             memset(valid, false, num_inputs);
             std::cout << "Batch not valid. Individual check currently not implemented" << std::endl;
         }
-
         std::cout << "first B2A and freq validation time: " << sec_from(start3) << std::endl;
 
         fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
@@ -1920,10 +1910,10 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         memcpy(&shares_2[share_y_offset], shares_sh_y, num_inputs * share_size_sh);
         delete[] shares_sh_y;
         delete[] shares_count;
-        sent_bytes += correlated_store->b2a_single(convert_size, shares_2, shares_p);
-        delete[] shares_2;
-        // We just use first part of shares_p as the countmin shares.
 
+        sent_bytes += correlated_store->b2a_single(convert_size, shares_2, shares_p);
+
+        delete[] shares_2;
         // Freq check. Batch across all inputs
         // mask: num * Q entries size mask
         // count: num * d entries size w
@@ -1931,28 +1921,20 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         sum_accum(num_inputs, cfg.countmin_cfg.d, cfg.countmin_cfg.w, shares_p, sums);
         sum_accum(num_inputs, cfg.Q, cfg.B,
                 &shares_p[num_inputs * share_size_count], &sums[cfg.countmin_cfg.d]);
-        fmpz_t* sums_other; new_fmpz_array(&sums_other, cfg.Q + cfg.countmin_cfg.d);
 
         sent_bytes += send_fmpz_batch(serverfd, sums, cfg.Q + cfg.countmin_cfg.d);
-        recv_fmpz_batch(serverfd, sums_other, cfg.Q + cfg.countmin_cfg.d);
 
-        bool all_valid = true;
-        for (unsigned int j = 0; j < cfg.Q + cfg.countmin_cfg.d; j++) {
-            fmpz_mod_add(sums[j], sums[j], sums_other[j], mod_ctx);
-            if (!fmpz_equal_ui(sums[j], total_inputs)) {
-                all_valid = false;
-                break;
-            }
-        }
         clear_fmpz_array(sums, cfg.Q + cfg.countmin_cfg.d);
-        clear_fmpz_array(sums_other, cfg.Q + cfg.countmin_cfg.d);
+        bool all_valid;
+
+        recv_bool(serverfd, all_valid);
+
         if (all_valid) {
             memset(valid, true, num_inputs);
         } else {
             memset(valid, false, num_inputs);
             std::cout << "Batch not valid. Individual check currently not implemented" << std::endl;
         }
-
         std::cout << "first B2A and freq validation time: " << sec_from(start3) << std::endl;
 
         fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
@@ -2190,16 +2172,20 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         const size_t share_y_offset = num_inputs * (share_size_count + share_size_bucket);
         memcpy(&shares_2[share_y_offset], shares_sh_y, num_inputs * share_size_sh);
         delete[] shares_sh_y;
+
         sent_bytes += correlated_store->b2a_single(convert_size, shares_2, shares_p);
+
         delete[] shares_2;
         std::cout << "B2A time: " << sec_from(start3) << std::endl; start3 = clock_start();
 
         // Round 1.5: Mask multiply (AND)
         // TODO: fold into above
         bool* mask = new bool[num_inputs * share_size_bucket * share_size_layer];
+
         sent_bytes += correlated_store->multiply_BoolShares_cross(
                 num_inputs, share_size_bucket, share_size_layer,
                 shares_bucket, shares_layer, mask);
+
         // Fold R into Q (just "more copies")
         std::cout << "cross time: " << sec_from(start3) << std::endl; start3 = clock_start();
 
@@ -2212,7 +2198,6 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
                 &shares_p[num_inputs * share_size_count], &sums[cfg.countmin_cfg.d]);
         fmpz_t* sums_other; new_fmpz_array(&sums_other, cfg.Q + cfg.countmin_cfg.d);
 
-        sent_bytes += send_fmpz_batch(serverfd, sums, cfg.Q + cfg.countmin_cfg.d);
         recv_fmpz_batch(serverfd, sums_other, cfg.Q + cfg.countmin_cfg.d);
 
         bool all_valid = true;
@@ -2225,6 +2210,9 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         }
         clear_fmpz_array(sums, cfg.Q + cfg.countmin_cfg.d);
         clear_fmpz_array(sums_other, cfg.Q + cfg.countmin_cfg.d);
+
+        sent_bytes += send_bool(serverfd, all_valid);
+
         if (all_valid) {
             memset(valid, true, num_inputs);
         } else {
@@ -2364,21 +2352,14 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         sum_accum(num_inputs, cfg.countmin_cfg.d, cfg.countmin_cfg.w, shares_p, sums);
         sum_accum(num_inputs, cfg.Q, cfg.B,
                 &shares_p[num_inputs * share_size_count], &sums[cfg.countmin_cfg.d]);
-        fmpz_t* sums_other; new_fmpz_array(&sums_other, cfg.Q + cfg.countmin_cfg.d);
 
         sent_bytes += send_fmpz_batch(serverfd, sums, cfg.Q + cfg.countmin_cfg.d);
-        recv_fmpz_batch(serverfd, sums_other, cfg.Q + cfg.countmin_cfg.d);
 
-        bool all_valid = true;
-        for (unsigned int j = 0; j < cfg.Q + cfg.countmin_cfg.d; j++) {
-            fmpz_mod_add(sums[j], sums[j], sums_other[j], mod_ctx);
-            if (!fmpz_equal_ui(sums[j], total_inputs)) {
-                all_valid = false;
-                break;
-            }
-        }
         clear_fmpz_array(sums, cfg.Q + cfg.countmin_cfg.d);
-        clear_fmpz_array(sums_other, cfg.Q + cfg.countmin_cfg.d);
+        bool all_valid;
+
+        recv_bool(serverfd, all_valid);
+
         if (all_valid) {
             memset(valid, true, num_inputs);
         } else {

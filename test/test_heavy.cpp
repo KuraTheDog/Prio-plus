@@ -9,7 +9,7 @@
 
 
 const size_t batch_size = 100; // flexible
-const bool lazy = false;
+const bool lazy = true;
 
 const bool use_ot_version = false;
 const bool use_large = false;
@@ -35,7 +35,7 @@ void test_HeavyConvert(const int server_num, const int serverfd,
   bool* const y = new bool[n];
   fmpz_t* bucket0; new_fmpz_array(&bucket0, nbits);
   fmpz_t* bucket1; new_fmpz_array(&bucket1, nbits);
-  bool* const valid = new bool[N]; memset(valid, 1, N);
+  bool* const valid = new bool[N]; memset(valid, true, N);
 
   int expected0[nbits]; memset(expected0, 0, nbits * sizeof(int));
   int expected1[nbits]; memset(expected1, 0, nbits * sizeof(int));
