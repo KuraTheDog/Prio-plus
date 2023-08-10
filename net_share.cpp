@@ -347,6 +347,31 @@ int reveal_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n) {
     return sent_bytes;
 }
 
+int swap_bool_fmpz_batch(const int sockfd,
+        const bool* const x, bool* const y, const size_t n,
+        const fmpz_t* const xp, fmpz_t* yp, const size_t np) {
+    int sent_bytes = 0;
+    int recv_bytes = 0;
+
+    std::thread t_send([sockfd, x, n, xp, np, &sent_bytes]() {
+        sent_bytes += send_bool_batch(sockfd, x, n);
+        sent_bytes += send_fmpz_batch(sockfd, xp, np);
+    });
+    std::thread t_recv([sockfd, y, n, yp, np, &recv_bytes]() {
+        recv_bytes += recv_bool_batch(sockfd, y, n);
+        recv_bytes += recv_fmpz_batch(sockfd, yp, np);
+    });
+    t_send.join();
+    t_recv.join();
+
+    if (sent_bytes != recv_bytes) {
+        std::cout << "WARNING: sent " << sent_bytes << " bytes, ";
+        std::cout << "but received " << recv_bytes << " bytes" << std::endl;
+    }
+
+    return sent_bytes;
+}
+
 int send_seed(const int sockfd, const flint_rand_t x) {
     const char* const data = (const char*) &x[0];
     return send(sockfd, data, sizeof(x[0]), 0);

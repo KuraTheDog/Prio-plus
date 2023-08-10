@@ -109,6 +109,11 @@ int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n);
 int swap_fmpz_batch(const int sockfd, const fmpz_t* const x, fmpz_t* const y, const size_t n);
 int reveal_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n);
 
+// Both for round collapse, for thread wrapper
+int swap_bool_fmpz_batch(const int sockfd,
+    const bool* const x, bool* const y, const size_t n,
+    const fmpz_t* const xp, fmpz_t* yp, const size_t np);
+
 int send_seed(const int sockfd, const flint_rand_t x);
 int recv_seed(const int sockfd, flint_rand_t x);
 
