@@ -1746,7 +1746,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
     MultiFreqShare* const share0 = new MultiFreqShare[numreqs];
     MultiFreqShare* const share1 = new MultiFreqShare[numreqs];
     // Q sets of singleHeavy, each with Depth layers. (repeat across B)
-    const size_t share_size_sh = cfg.Q * cfg.SH_depth;
+    const size_t share_size_sh = cfg.Q * cfg.D;
     // For each Q, identify b (first hash)
     const size_t share_size_mask = cfg.Q * cfg.B;
     // Count-min
@@ -1782,8 +1782,8 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
 
             if (print) std::cout << "substream[" << q << "] = " << b_val << std::endl;
 
-            int offset = q * cfg.SH_depth;
-            for (unsigned int d = 0; d < cfg.SH_depth; d++) {
+            int offset = q * cfg.D;
+            for (unsigned int d = 0; d < cfg.D; d++) {
                 hash_split.eval(offset + d, real_val, hashed);
                 const bool bucket = fmpz_is_one(hashed);
                 hash_value.eval(offset + d, real_val, hashed);
@@ -1883,10 +1883,10 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs,
     HashStorePoly hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
     // Split: each SH breakdown into the pairs, bucket 0 or 1. (original was by bits)
     // Base Q*B*depth, but can repeat across B. Invertable.
-    HashStoreBit hash_split(cfg.Q, cfg.SH_depth, num_bits, 2, hash_seed_split, false);
+    HashStoreBit hash_split(cfg.Q, cfg.D, num_bits, 2, hash_seed_split, false);
     // SingleHeavy +-1 values. 4-wize independent
     // Base Q*B*depth, but can repeat across B
-    HashStorePoly hash_value(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_value, 4);
+    HashStorePoly hash_value(cfg.Q * cfg.D, num_bits, 2, hash_seed_value, 4);
     // CountMin
     CountMin count_min(cfg.countmin_cfg);
     count_min.setStore(num_bits, hash_seed_count);
@@ -1957,7 +1957,7 @@ int top_k_helper(
     MultiFreqShare* const share0 = new MultiFreqShare[numreqs];
     MultiFreqShare* const share1 = new MultiFreqShare[numreqs];
     // Q sets of singleHeavy, each with Depth layers. (repeat across B)
-    const size_t share_size_sh = cfg.Q * cfg.SH_depth;
+    const size_t share_size_sh = cfg.Q * cfg.D;
     // For each Q, identify b (first hash)
     const size_t share_size_bucket = cfg.Q * cfg.B;
     // Layer selector
@@ -1998,8 +1998,8 @@ int top_k_helper(
 
             if (print) std::cout << "substream[" << q << "] = " << b_val << std::endl;
 
-            int offset = q * cfg.SH_depth;
-            for (unsigned int d = 0; d < cfg.SH_depth; d++) {
+            int offset = q * cfg.D;
+            for (unsigned int d = 0; d < cfg.D; d++) {
                 hash_split.eval(offset + d, real_val, hashed);
                 const bool bucket = fmpz_is_one(hashed);
                 hash_value.eval(offset + d, real_val, hashed);
@@ -2112,10 +2112,10 @@ void top_k_op(const std::string protocol, const size_t numreqs,
     HashStorePoly hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
     // Split: each SH breakdown into the pairs, bucket 0 or 1. (original was by bits)
     // Base Q*B*depth, but can repeat across B. Invertable.
-    HashStoreBit hash_split(cfg.Q, cfg.SH_depth, num_bits, 2, hash_seed_split, false);
+    HashStoreBit hash_split(cfg.Q, cfg.D, num_bits, 2, hash_seed_split, false);
     // SingleHeavy +-1 values. 4-wize independent
     // Base Q*B*depth, but can repeat across B
-    HashStorePoly hash_value(cfg.Q * cfg.SH_depth, num_bits, 2, hash_seed_value, 4);
+    HashStorePoly hash_value(cfg.Q * cfg.D, num_bits, 2, hash_seed_value, 4);
     // CountMin
     CountMin count_min(cfg.countmin_cfg);
     count_min.setStore(num_bits, hash_seed_count);

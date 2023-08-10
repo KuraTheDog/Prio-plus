@@ -1657,13 +1657,13 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
     /* Init structures */
     // Q sets of singleHeavy, each with Depth layers. (repeat across B)
-    const size_t share_size_sh = cfg.Q * cfg.SH_depth;
+    const size_t share_size_sh = cfg.Q * cfg.D;
     // For each Q, identify b (first hash)
     const size_t share_size_mask = cfg.Q * cfg.B;
     // Count-min
     const size_t share_size_count = cfg.countmin_cfg.d * cfg.countmin_cfg.w;
     // SingleHeavy bucket pairs
-    const size_t num_sh = cfg.Q * cfg.B * cfg.SH_depth;
+    const size_t num_sh = cfg.Q * cfg.B * cfg.D;
     // Values being converted in B2A
     const size_t share_convert_size = share_size_sh + share_size_count + share_size_mask;
 
@@ -1813,7 +1813,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
         start3 = clock_start();
         sent_bytes += correlated_store->heavy_convert_mask(
-            num_inputs, cfg.Q, cfg.B, cfg.SH_depth,
+            num_inputs, cfg.Q, cfg.B, cfg.D,
             shares_sh_x, &shares_p[share_y_offset], shares_mask,
             valid, bucket0, bucket1);
         clear_fmpz_array(shares_p, convert_size);
@@ -1944,7 +1944,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
         start3 = clock_start();
         sent_bytes += correlated_store->heavy_convert_mask(
-            num_inputs, cfg.Q, cfg.B, cfg.SH_depth,
+            num_inputs, cfg.Q, cfg.B, cfg.D,
             shares_sh_x, &shares_p[share_y_offset], shares_mask,
             valid, bucket0, bucket1);
         clear_fmpz_array(shares_p, convert_size);
@@ -2026,7 +2026,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
 
     /* Init structures */
     // Q sets of singleHeavy, each with Depth layers. (repeat across B)
-    const size_t share_size_sh = cfg.Q * cfg.SH_depth;
+    const size_t share_size_sh = cfg.Q * cfg.D;
     // For each Q, identify b (first hash)
     const size_t share_size_bucket = cfg.Q * cfg.B;
     // Layer selector.
@@ -2034,7 +2034,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
     // Count-min
     const size_t share_size_count = cfg.countmin_cfg.d * cfg.countmin_cfg.w;
     // SingleHeavy bucket pairs
-    const size_t num_sh = cfg.R * cfg.Q * cfg.B * cfg.SH_depth;
+    const size_t num_sh = cfg.R * cfg.Q * cfg.B * cfg.D;
     // Values being converted in B2A: count, bucket, y
     const size_t share_convert_size = share_size_count + share_size_bucket + share_size_sh;
 
@@ -2222,7 +2222,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         // Also accumulates into buckets
         start3 = clock_start();
         sent_bytes += correlated_store->heavy_convert_mask(
-            num_inputs, cfg.Q, cfg.B * cfg.R, cfg.SH_depth,
+            num_inputs, cfg.Q, cfg.B * cfg.R, cfg.D,
             shares_sh_x, &shares_p[share_y_offset], mask, valid, bucket0, bucket1);
         // Also count-min accumulation
         fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
@@ -2376,7 +2376,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         // Also accumulates into buckets
         start3 = clock_start();
         sent_bytes += correlated_store->heavy_convert_mask(
-            num_inputs, cfg.Q, cfg.B * cfg.R, cfg.SH_depth,
+            num_inputs, cfg.Q, cfg.B * cfg.R, cfg.D,
             shares_sh_x, &shares_p[share_y_offset], mask, valid, bucket0, bucket1);
         // Also count-min accumulation
         fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);

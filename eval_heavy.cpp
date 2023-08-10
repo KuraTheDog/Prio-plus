@@ -305,9 +305,9 @@ void full_heavy_extract(
   ) {
   const int party = server_num + 1;
 
-  HashStoreBit hash_split(cfg.Q, cfg.SH_depth, cfg.num_bits, 2, hash_seed_split);
+  HashStoreBit hash_split(cfg.Q, cfg.D, cfg.num_bits, 2, hash_seed_split);
 
-  HeavyExtract ex(party, hash_split, cfg.R, cfg.Q, cfg.B, cfg.SH_depth);
+  HeavyExtract ex(party, hash_split, cfg.R, cfg.Q, cfg.B, cfg.D);
   // ex.print_params();
 
   ex.set_buckets(bucket0, bucket1);

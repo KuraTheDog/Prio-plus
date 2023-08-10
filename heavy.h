@@ -64,7 +64,7 @@ struct MultiHeavyConfig {
   // QB total SH instances.
 
   const size_t num_bits;
-  const size_t SH_depth;
+  const size_t D;  // SH Depth
 
   const CountMinConfig countmin_cfg;
 
@@ -77,7 +77,7 @@ struct MultiHeavyConfig {
   , B(ceil(K * ln2_inv))
   , R(layers ? layers : num_bits)
   , num_bits(num_bits)
-  , SH_depth(num_bits /*+ 1*/)  // +1 if extra constant term in SH for sanity check ec.
+  , D(num_bits /*+ 1*/)  // +1 if extra constant term in SH for sanity check ec.
   , countmin_cfg(CountMinConfig(delta, eps))
   {}
 
@@ -90,7 +90,7 @@ struct MultiHeavyConfig {
       std::cout << "\tB = substream hash range: " << B << std::endl;
       std::cout << "\tR = # halving layers: " << R << std::endl;
       std::cout << "\tnum_bits: " << num_bits << std::endl;
-      std::cout << "\tSH depth: " << SH_depth << std::endl;
+      std::cout << "\tD = SH depth: " << D << std::endl;
       countmin_cfg.print();
   }
 };
