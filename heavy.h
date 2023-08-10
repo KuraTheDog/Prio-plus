@@ -47,6 +47,7 @@ struct MultiHeavyConfig {
   // Also should have B < input size, else more efficient to just do freq
   // Countmin parameters
   // TODO: Update with latest parameter computations
+  // TODO: Warn if total space > 2^num_bits
 
   // root values. The rest can be derived from these
   const size_t K;

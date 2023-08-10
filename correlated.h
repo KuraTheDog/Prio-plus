@@ -167,6 +167,7 @@ public:
 
   // x, y, z are [N]
   // does z[i] = x[i] * y[i], as shares
+  // Note: de size 2 * N
   /* TODO: It would be cool to have a "binary-fold" multiply list
      E.g. for 5 to 8 items, do in 3 rounds via pairing
      For "heavy mask" though, would require weirdness with unfolding

@@ -160,8 +160,9 @@ void process_unvalidated(const std::string tag, const size_t n) {
 
 // B2A Multi with dimensions, and int share_2s
 // Currently shares_2 and shares_p are flat num_shares*num_values array.
-// TODO: split, for the sake of communication
-// TODO: move to store?
+// num_bits length [num_values], each saying how many bits in each, per input
+// TODO: merge num_shares and num_values, with separate num_bits translator
+// TODO: move to store and split
 int const share_convert(const size_t num_shares,  // # inputs
                         const size_t num_values,  // # values per input
                         const size_t* const num_bits,  // # bits per value
@@ -173,10 +174,8 @@ int const share_convert(const size_t num_shares,  // # inputs
 
     // convert
     fmpz_t* f_shares2; new_fmpz_array(&f_shares2, num_shares * num_values);
-    for (unsigned int i = 0; i < num_shares; i++) {
-        for (unsigned int j = 0; j < num_values; j++)
-            fmpz_set_ui(f_shares2[i * num_values + j],
-                        shares_2[i * num_values + j]);
+    for (unsigned int i = 0; i < num_shares * num_values; i++) {
+        fmpz_set_ui(f_shares2[i], shares_2[i]);
     }
 
     size_t* const bits_arr = new size_t[num_shares * num_values];
@@ -199,14 +198,12 @@ int const share_convert(const size_t num_shares,  // # inputs
 // Batch of N (snips + num_input wire/share) validations
 // Due to the nature of the final swap, both servers get the same valid array
 // TODO: round split
-const bool* const validate_snips(const size_t N,
-                                 const size_t num_inputs,
-                                 const int serverfd,
-                                 const int server_num,
-                                 Circuit* const * const circuit,
-                                 const ClientPacket* const * const packet,
-                                 const fmpz_t* const shares_p
-                                 ) {
+const bool* const validate_snips(
+        const size_t N, const size_t num_inputs,
+        const int serverfd, const int server_num,
+        Circuit* const * const circuit,
+        const ClientPacket* const * const packet,
+        const fmpz_t* const shares_p) {
     auto start = clock_start();
 
     // Setup precompute
@@ -1315,12 +1312,10 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         fmpz_mod_add(sum, sum, sum_other, mod_ctx);
         bool all_valid = fmpz_equal_ui(sum, total_inputs);
         fmpz_clear(sum);
-        if (all_valid) {
-            memset(valid, true, num_inputs);
-        } else {
+        if (!all_valid) {
             sent_bytes += send_fmpz_batch(serverfd, sums, num_inputs);
-            recv_bool_batch(serverfd, valid, num_inputs);
         }
+        recv_bool_batch(serverfd, valid, num_inputs);
 
         clear_fmpz_array(sums, num_inputs);
         std::cout << "validate time: " << sec_from(start2) << std::endl;
@@ -1404,7 +1399,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         if (all_valid) {
             memset(valid, true, num_inputs);
         } else {
-            // Batch check fails. Test single. 
+            // Batch check fails. Test single.
             // Binary search is more rounds but (possibly) less bytes)
             fmpz_t* sums_other; new_fmpz_array(&sums_other, num_inputs);
             recv_fmpz_batch(serverfd, sums_other, num_inputs);
@@ -1413,9 +1408,8 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
                 valid[i] &= fmpz_is_one(sums[i]);
             }
             clear_fmpz_array(sums_other, num_inputs);
-
-            sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
         }
+        sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
 
         clear_fmpz_array(sums, num_inputs);
         std::cout << "validate time: " << sec_from(start2) << std::endl;
@@ -1741,6 +1735,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
             tag_list[idx] = share.first;
             idx++;
         }
+        // TODO: move valid later (sync)
         recv_bool_batch(serverfd, valid, num_inputs);
         std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
@@ -1872,6 +1867,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
             tag_list[i] = tag;
             valid[i] = (share_map.find(tag) != share_map.end());
         }
+        // TODO: move valid later (sync)
         send_bool_batch(serverfd, valid, num_inputs);
         std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
@@ -2134,6 +2130,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
             tag_list[idx] = share.first;
             idx++;
         }
+        // TODO: move valid later (sync)
         recv_bool_batch(serverfd, valid, num_inputs);
         std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
@@ -2292,6 +2289,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
             tag_list[i] = tag;
             valid[i] = (share_map.find(tag) != share_map.end());
         }
+        // TODO: move valid later (sync)
         send_bool_batch(serverfd, valid, num_inputs);
         std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();

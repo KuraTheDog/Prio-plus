@@ -281,7 +281,6 @@ int64_t ValidateCorrelatedStore::check_DaBits(const size_t n) {
   // If still not enough validated, ensure enough precomputed
   if (num_validated_dabits() < n) {
     int num_to_make = n - num_validated_dabits();
-    // TODO: possibly also make enough AltTriples at the same time?
     // std::cout << "precompute checking: " << n - num_validated_dabits() << std::endl;
     // std::cout << "check_da(" << n << "), not enough validated. to_make = " << num_to_make << "\n";
     sent_bytes += PrecomputeStore::check_DaBits(num_to_make);
