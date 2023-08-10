@@ -84,6 +84,15 @@ void clear_queue(std::queue<T*> q){
   }
 };
 
+// Helper: x is N copies len a, y is N copies len b.
+// Fill out x_ext, and y_ext as N x a x b
+// So that x_ext * y_ext = (x cross y)
+// Could be template, but just bool used (since doesn't work on fmpz)
+void cross_fill_bool(
+    const size_t N, const size_t a, const size_t b,
+    const bool* const x, const bool* const y,
+    bool* const x_ext, bool* const y_ext);
+
 
 class ShareConverter {
 protected:
@@ -308,7 +317,9 @@ public:
   Return true if first < second. (so is index of larger).
   Equality is merged in, since rare/should not happen case so far.
     Specifically, if x < y then 1, if x >= y then 0
-  Returns additive shares of the comparsion
+  Returns additive shares of the comparsion.
+
+  Currently mainly replaced by garble (eval_heavy).
   */
 
   // Clear: Reveals info, not secure

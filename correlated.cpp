@@ -217,10 +217,6 @@ int64_t CorrelatedStore::multiply_ArithmeticShares(
   return sent_bytes;
 }
 
-// Helper: x is N copies len a, y is N copies len b.
-// Fill out x_ext, and y_ext as N x a x b
-// So that x_ext * y_ext = (x cross y)
-// Could be template, but just bool (since doesn't work on fmpz)
 void cross_fill_bool(
     const size_t N, const size_t a, const size_t b,
     const bool* const x, const bool* const y,
