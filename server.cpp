@@ -50,14 +50,17 @@ CorrelatedStore* correlated_store;
 // I.e. recieve and store all, then process all.
 // TODO: Set up batching. Either every N inputs (based on space consumed), or every S seconds (figure out timer)
 
-size_t send_out(const int sockfd, const void* const buf, const size_t len) {
-    size_t ret = send(sockfd, buf, len, 0);
+size_t send_tag(const int sockfd, const std::string x) {
+    int ret = send(sockfd, &x[0], TAG_LENGTH, 0);
     if (ret <= 0) error_exit("Failed to send");
     return ret;
 }
 
-size_t send_tag(const int sockfd, const std::string x) {
-    return send_out(sockfd, &x[0], TAG_LENGTH);
+std::string recv_tag(const int serverfd) {
+    char tag_buf[TAG_LENGTH];
+    recv_in(serverfd, &tag_buf[0], TAG_LENGTH);
+    std::string tag(tag_buf, tag_buf + TAG_LENGTH);
+    return tag;
 }
 
 void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port, const int reuse = 1) {
@@ -117,17 +120,9 @@ void server1_connect(int& sockfd, const int port, const int reuse = 0) {
     std::cout << "  Connected\n";
 }
 
-std::string get_tag(const int serverfd) {
-    char tag_buf[TAG_LENGTH];
-    recv_in(serverfd, &tag_buf[0], TAG_LENGTH);
-    std::string tag(tag_buf, tag_buf + TAG_LENGTH);
-    return tag;
-}
-
 int recv_unvalidated(const int clientfd, const std::string tag, const size_t n) {
-    if (STORE_TYPE != validate_store) {
+    if (STORE_TYPE != validate_store)
         return 0;
-    }
 
     // Overkill? Can be more efficient in the future. See client for more.
     const size_t N = NextPowerOfTwo(n-1);
@@ -152,9 +147,9 @@ int recv_unvalidated(const int clientfd, const std::string tag, const size_t n) 
 }
 
 void process_unvalidated(const std::string tag, const size_t n) {
-    if (STORE_TYPE != validate_store) {
+    if (STORE_TYPE != validate_store)
         return;
-    }
+
     ((ValidateCorrelatedStore*) correlated_store)->process_Unvalidated(tag);
 }
 
@@ -252,9 +247,8 @@ const bool* const validate_snips(
 void sum_accum(
         const size_t N, const size_t M, const size_t L,
         const fmpz_t* const x, fmpz_t* const accum) {
-    for (unsigned int i = 0; i < N * M * L; i++) {
+    for (unsigned int i = 0; i < N * M * L; i++)
         fmpz_mod_add(accum[(i/L)%M], accum[(i/L)%M], x[i], mod_ctx);
-    }
 }
 
 // Note: since bits, uses specific bitsum_ot, rather than normal store stuff.
@@ -315,7 +309,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
         bool* const valid = new bool[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string tag = get_tag(serverfd);
+            const std::string tag = recv_tag(serverfd);
 
             bool is_valid = (share_map.find(tag) != share_map.end());
             valid[i] = is_valid;
@@ -427,7 +421,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
         bool* const valid = new bool[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string tag = get_tag(serverfd);
+            const std::string tag = recv_tag(serverfd);
 
             bool is_valid = (share_map.find(tag) != share_map.end());
             valid[i] = is_valid;
@@ -535,7 +529,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
         bool* const valid = new bool[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string tag = get_tag(serverfd);
+            const std::string tag = recv_tag(serverfd);
             valid[i] = (share_map.find(tag) != share_map.end());
             if (!valid[i])
                 continue;
@@ -644,7 +638,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
         bool* const valid = new bool[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string tag = get_tag(serverfd);
+            const std::string tag = recv_tag(serverfd);
             valid[i] = (share_map.find(tag) != share_map.end());
             if (!valid[i])
                 continue;
@@ -828,7 +822,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
         Circuit** const circuit = new Circuit*[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string tag = get_tag(serverfd);
+            const std::string tag = recv_tag(serverfd);
             tag_list[i] = tag;
             valid[i] = (share_map.find(tag) != share_map.end());
 
@@ -1106,7 +1100,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         Circuit** const circuit = new Circuit*[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string tag = get_tag(serverfd);
+            const std::string tag = recv_tag(serverfd);
             tag_list[i] = tag;
             valid[i] = (share_map.find(tag) != share_map.end());
 
@@ -1341,7 +1335,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         bool* const valid = new bool[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string tag = get_tag(serverfd);
+            const std::string tag = recv_tag(serverfd);
             valid[i] = (share_map.find(tag) != share_map.end());
 
             // realign shares_2 to tag order
@@ -1553,7 +1547,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
 
         bool* share;
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string tag = get_tag(serverfd);
+            const std::string tag = recv_tag(serverfd);
             valid[i] = (share_map.find(tag) != share_map.end());
             if (!valid[i]) {
                 memset(&x[i * b], 0, b);
@@ -1863,7 +1857,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         bool* const shares_count = new bool[num_inputs * share_size_count];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string tag = get_tag(serverfd);
+            const std::string tag = recv_tag(serverfd);
             tag_list[i] = tag;
             valid[i] = (share_map.find(tag) != share_map.end());
         }
@@ -2285,7 +2279,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
 
         // Align by tag
         for (unsigned int i = 0; i < num_inputs; i++) {
-            const std::string tag = get_tag(serverfd);
+            const std::string tag = recv_tag(serverfd);
             tag_list[i] = tag;
             valid[i] = (share_map.find(tag) != share_map.end());
         }
