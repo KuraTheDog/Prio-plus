@@ -135,10 +135,6 @@ protected:
     If no mask, values is (xm, ym, xym), len 3NM
     Valid length N, Buckets each length M
   */
-  void heavy_accumulate(
-      const size_t N, const size_t M, const fmpz_t* const values, const bool* const valid,
-      fmpz_t* const bucket0, fmpz_t* const bucket1, const bool use_mask = true);
-
 public:
   CorrelatedStore(const int serverfd, const int server_num,
                   OT_Wrapper* const ot0, OT_Wrapper* const ot1)
@@ -223,6 +219,10 @@ public:
   [[maybe_unused]] int64_t add_BinaryShares(const size_t N, const size_t* const num_bits,
       const bool* const * const x, const bool* const * const y,
       bool* const * const z, bool* const carry);
+
+  void heavy_accumulate(const size_t N, const size_t M,
+      const fmpz_t* const values, const bool* const valid,
+      fmpz_t* const bucket0, fmpz_t* const bucket1, const bool use_mask = true);
 
   /* N inputs (each may be valid or not) of b values
     [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1

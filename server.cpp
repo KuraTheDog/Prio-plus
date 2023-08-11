@@ -1489,130 +1489,109 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
     start = clock_start();
     auto start2 = clock_start();
     int sent_bytes = 0;
-    if (server_num == 1) {
-        const size_t num_inputs = share_map.size();
-        const size_t n = num_inputs * b;
-        sent_bytes += send_size(serverfd, num_inputs);
-        bool* const valid = new bool[num_inputs];
-        bool* const x = new bool[n];
-        bool* const y = new bool[n];
+    size_t num_inputs;
 
+    if (server_num == 1) {
+        num_inputs = share_map.size();
+        sent_bytes += send_size(serverfd, num_inputs);
+    } else {
+        recv_size(serverfd, num_inputs);
+    }
+    const size_t n = num_inputs * b;
+    bool* const x = new bool[n];
+    bool* const y = new bool[n];
+    bool* const valid = new bool[num_inputs];
+    memset(valid, true, num_inputs * sizeof(bool));
+
+    /* Share sync */
+    if (server_num == 1) {
         size_t idx = 0;
         for (const auto& share : share_map) {
             sent_bytes += send_tag(serverfd, share.first);
 
             memcpy(&x[idx*b], share.second, b);
             memcpy(&y[idx*b], &(share.second[b]), b);
-
             idx++;
-
             delete[] share.second;
         }
+        // Sync valid now, since no validation needed
         recv_bool_batch(serverfd, valid, num_inputs);
-        std::cout << "tag time: " << sec_from(start2) << std::endl;
-        start2 = clock_start();
-
-        sent_bytes += correlated_store->heavy_convert_ot(num_inputs, b, x, y, valid, bucket0, bucket1);
-        delete[] x;
-        delete[] y;
-        std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
-        std::cout << "total compute time: " << sec_from(start) << std::endl;
-        std::cout << "compute bytes sent: " << sent_bytes << std::endl;
-
-        // Evaluate
-        // True means |1| is larger than |0|
-        start2 = clock_start();
-        fmpz_t* larger; new_fmpz_array(&larger, b);
-        sent_bytes = correlated_store->abs_cmp(b, bucket0, bucket1, larger);
-        sent_bytes += send_fmpz_batch(serverfd, larger, b);
-        std::cout << "evaluate time: " << sec_from(start2) << std::endl;
-        std::cout << "evaluate bytes sent: " << sent_bytes << std::endl;
-
-        clear_fmpz_array(bucket0, b);
-        clear_fmpz_array(bucket1, b);
-        // Other side has it, no more eval needed.
-
-        clear_fmpz_array(larger, b);
-        delete[] valid;
-
-        return RET_NO_ANS;
-
     } else {
-        size_t num_inputs;
-        recv_size(serverfd, num_inputs);
-        const size_t n = num_inputs * b;
-        bool* const x = new bool[n];
-        bool* const y = new bool[n];
-        bool* const valid = new bool[num_inputs];
-
-        bool* share;
         for (unsigned int i = 0; i < num_inputs; i++) {
             const std::string tag = recv_tag(serverfd);
-            valid[i] = (share_map.find(tag) != share_map.end());
+
+            valid[i] &= (share_map.find(tag) != share_map.end());
             if (!valid[i]) {
                 memset(&x[i * b], 0, b);
                 memset(&y[i * b], 0, b);
                 continue;
             }
-            share = share_map[tag];
+            bool* share = share_map[tag];
             memcpy(&x[i * b], share, b);
             memcpy(&y[i * b], &(share[b]), b);
-
             delete[] share;
         }
+        // Sync valid now, since no validation needed
         sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
-        std::cout << "tag time: " << sec_from(start2) << std::endl;
-        start2 = clock_start();
+    }
+    std::cout << "tag time: " << sec_from(start2) << std::endl;
+    start2 = clock_start();
 
-        sent_bytes += correlated_store->heavy_convert_ot(num_inputs, b, x, y, valid, bucket0, bucket1);
-        delete[] x;
-        delete[] y;
-        std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
-        std::cout << "total compute time: " << sec_from(start) << std::endl;
-        std::cout << "compute bytes sent: " << sent_bytes << std::endl;
+    /* Conversion + accumulation */
+    sent_bytes += correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
+    
+    delete[] x;
+    delete[] y;
+    std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
+    std::cout << "total compute time: " << sec_from(start) << std::endl;
+    std::cout << "compute bytes sent: " << sent_bytes << std::endl;
 
-        // Evaluate
-
-        start2 = clock_start();
-        fmpz_t* larger_0; new_fmpz_array(&larger_0, b);
-        fmpz_t* larger_1; new_fmpz_array(&larger_1, b);
-        sent_bytes = correlated_store->abs_cmp(b, bucket0, bucket1, larger_0);
-        recv_fmpz_batch(serverfd, larger_1, b);
-
+    /* Evaluation */
+    size_t num_valid = 0;
+    for (unsigned int i = 0; i < num_inputs; i++)
+        num_valid += valid[i];
+    delete[] valid;
+    std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+    if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
+        std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
         clear_fmpz_array(bucket0, b);
         clear_fmpz_array(bucket1, b);
+        return RET_INVALID;
+    }
+    fmpz_t* larger; new_fmpz_array(&larger, b);
 
-        size_t num_valid = 0;
-        for (unsigned int i = 0; i < num_inputs; i++)
-            num_valid += valid[i];
-        std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
-            std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
-            clear_fmpz_array(larger_0, b);
-            clear_fmpz_array(larger_1, b);
-            delete[] valid;
-            return RET_INVALID;
-        }
+    sent_bytes = correlated_store->abs_cmp(b, bucket0, bucket1, larger);
+
+    clear_fmpz_array(bucket0, b);
+    clear_fmpz_array(bucket1, b);
+
+    if (server_num == 1) {
+        sent_bytes += send_fmpz_batch(serverfd, larger, b);
+        clear_fmpz_array(larger, b);
+        std::cout << "evaluate time: " << sec_from(start2) << std::endl;
+        std::cout << "evaluate bytes sent: " << sent_bytes << std::endl;
+
+        return RET_NO_ANS;
+    } else {
+        fmpz_t* larger_other; new_fmpz_array(&larger_other, b);
+        recv_fmpz_batch(serverfd, larger_other, b);
 
         // fmpz_from_bool_array?
         uint64_t ans = 0;
-        bool* larger = new bool[b];
         for (unsigned int j = 0; j < b; j++) {
-            fmpz_mod_add(larger_0[j], larger_0[j], larger_1[j], mod_ctx);
-            larger[j] = fmpz_is_one(larger_0[j]);
-            // std::cout << "bucket" << (larger[j] ? 1 : 0) << "[" << j << "] is heavier" << std::endl;
-            ans |= (larger[j] << j);
+            fmpz_mod_add(larger[j], larger[j], larger_other[j], mod_ctx);
+            const bool bit = fmpz_is_one(larger[j]);
+            ans |= ( bit << j );
         }
-
-        std::cout << "evaluate time: " << sec_from(start2) << std::endl;
-        std::cout << "evaluate sent bytes: " << sent_bytes << std::endl;
 
         std::cout << "### Heavy hitter value is " << ans << std::endl;
 
-        clear_fmpz_array(larger_0, b);
-        clear_fmpz_array(larger_1, b);
-        delete[] larger;
-        delete[] valid;
+        clear_fmpz_array(larger, b);
+        clear_fmpz_array(larger_other, b);
+
+        std::cout << "evaluate time: " << sec_from(start2) << std::endl;
+        std::cout << "evaluate bytes sent: " << sent_bytes << std::endl;
+
         return RET_ANS;
     }
 }
