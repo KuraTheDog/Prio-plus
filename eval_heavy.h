@@ -296,6 +296,9 @@ struct HeavyExtract {
 };
 
 /*
+NOTE: countmin_shares gets copied into a count-min object
+And hence it gets freed at the end of full_heavy_extract. 
+
 Standard op:
 h = HeavyEval(party, count_min, total_count)
   - Count-min contains secret-shared values

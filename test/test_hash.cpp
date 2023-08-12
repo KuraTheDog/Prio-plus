@@ -96,7 +96,6 @@ void test_inverse(size_t group_size) {
     assert(ans == x);
   }
   clear_fmpz_array(values, group_size);
-  flint_randclear(hash_seed);
 }
 
 void test_countmin() {
@@ -128,7 +127,6 @@ void test_countmin() {
     // std::cout << "query(" << vals[i] << ") = " << ans << ", vs acutal " << counts[i] << std::endl;
     assert(ans == counts[i]);
   }
-  flint_randclear(hash_seed);
 }
 
 void test_half() {

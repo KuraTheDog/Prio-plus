@@ -1545,6 +1545,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
     std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
     std::cout << "total compute time: " << sec_from(start) << std::endl;
     std::cout << "compute bytes sent: " << sent_bytes << std::endl;
+    start2 = clock_start();
 
     /* Evaluation */
     size_t num_valid = 0;

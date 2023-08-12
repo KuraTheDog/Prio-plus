@@ -95,13 +95,11 @@ void HashStorePoly::print_hash(const unsigned int i) const {
 }
 
 void HashStoreBit::build_coefficients() {
-  fmpz_mod_mat_init(coeff, num_hashes, dim, output_range);
-
   // Random for all/extra outside of main solvable square
   fmpz_mod_mat_randtest(coeff, hash_seed);
 
   // Goal: For each group, first square bit is singular, for inversion purposes
-  inverses = new fmpz_mod_mat_t[num_groups];
+  if (is_solving) inverses = new fmpz_mod_mat_t[num_groups];
   fmpz_mod_mat_t window;
   for (unsigned int i = 0; i < num_groups; i++) {
     const size_t start = i * group_size;

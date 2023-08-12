@@ -17,6 +17,8 @@ Does poly(x), take first k bits, then mod output_range
 
 Could be more efficient to use fmpz_t poly, but more work.
 For degree 1, efficient enough as is
+
+Note that the fed in hash seed is freed automatically on destruction.
 */
 
 #ifndef PRIO_HASH_H
@@ -171,7 +173,7 @@ public:
     if (group_size < input_bits) {
       std::cout << "Warning: Group size " << group_size << " smaller than input bits " << input_bits << std::endl;
     }
-
+    fmpz_mod_mat_init(coeff, num_hashes, dim, output_range);
     build_coefficients();
   }
 
