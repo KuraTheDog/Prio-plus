@@ -197,7 +197,8 @@ int bit_sum_helper(const std::string protocol, const size_t numreqs,
         const std::string tag_s = make_tag(prg);
         const char* const tag = tag_s.c_str();
 
-        // std::cout << tag << ": " << std::noboolalpha << real_vals[i] << " = " << shares0[i] << " ^ " << shares1[i] << std::endl;
+        // std::cout << tag << ": " << std::noboolalpha << real_vals[i];
+        // std::cout << " = " << shares0[i] << " ^ " << shares1[i] << std::endl;
 
         memcpy(bitshare0[i].tag, &tag[0], TAG_LENGTH);
         bitshare0[i].val = share0;
@@ -1633,7 +1634,9 @@ int heavy_helper(const std::string protocol, const size_t numreqs, const double 
             hash_store.eval(j, real_val, hashed);
             // instead test if hashed is 1 using fmpz.
             bool h = fmpz_is_one(hashed);
-            // std::cout << "number " << i << " = " << real_val << ", bit " << j << " bucket " << bucket << " with value " << h << " (" << (h == 1 ? -1 : 1) << ")" << std::endl;
+            // std::cout << "number " << i << " = " << real_val << ", bit " << j;
+            // std::cout << " bucket " << bucket << " with value " << h << " (";
+            // std::cout << (h == 1 ? -1 : 1) << ")" << std::endl;
 
             // [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
             // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
@@ -1789,7 +1792,10 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
                 hash_value.eval(offset + d, real_val, hashed);
                 // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
                 const bool h = fmpz_is_one(hashed);
-                if (print) std::cout << "  depth " << d << " bucket " << bucket << " value " << h << " (" << 1-2*h << ")" << std::endl;
+                if (print) {
+                    std::cout << "  depth " << d << " bucket " << bucket << " value " << h;
+                    std::cout << " (" << 1-2*h << ")" << std::endl;
+                }
 
                 share1[i].arr[0][offset + d] ^= bucket;
                 share1[i].arr[1][offset + d] ^= h;
@@ -2005,7 +2011,10 @@ int top_k_helper(
                 hash_value.eval(offset + d, real_val, hashed);
                 // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
                 const bool h = fmpz_is_one(hashed);
-                if (print) std::cout << "  depth " << d << " bucket " << bucket << " value " << h << " (" << 1-2*h << ")" << std::endl;
+                if (print) {
+                    std::cout << "  depth " << d << " bucket " << bucket << " value " << h;
+                    std::cout << " (" << 1-2*h << ")" << std::endl;
+                }
 
                 // x, y
                 share1[i].arr[0][offset + d] ^= bucket;

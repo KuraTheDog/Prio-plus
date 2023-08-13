@@ -659,7 +659,8 @@ int64_t CorrelatedStore::heavy_convert_mask(
     [[maybe_unused]] unsigned int num_batches = ceil(1.0 * N / heavy_batch_size);
     while (num_processed < N) {
       const size_t num_remaining = N - num_processed;
-      const size_t this_batch_size = num_remaining < heavy_batch_size ? num_remaining : heavy_batch_size;
+      const size_t this_batch_size = (
+          num_remaining < heavy_batch_size ? num_remaining : heavy_batch_size);
       batch_idx++;
       // std::cout << "Starting heavy batch: " << batch_idx << " / " << num_batches << std::endl;
 
@@ -1322,7 +1323,8 @@ int64_t PrecomputeStore::gen_DaBits_lazy(const size_t N, DaBit** const dabit) co
 
 // Normal lazy: one side makes both random local, send to other
 // Very lazy version: all local (cyclic bool logic)
-int64_t PrecomputeStore::gen_BoolTriple_lazy(const size_t N, BooleanBeaverTriple** const triples) const {
+int64_t PrecomputeStore::gen_BoolTriple_lazy(
+    const size_t N, BooleanBeaverTriple** const triples) const {
   int64_t sent_bytes = 0;
 
   // for (unsigned int i = 0; i < N; i++)

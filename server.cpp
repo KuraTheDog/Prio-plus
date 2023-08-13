@@ -48,7 +48,8 @@ CorrelatedStore* correlated_store;
 
 // Note: Currently does it in a single batch.
 // I.e. recieve and store all, then process all.
-// TODO: Set up batching. Either every N inputs (based on space consumed), or every S seconds (figure out timer)
+// TODO: Set up batching. Either every N inputs (based on space consumed),
+// or every S seconds (figure out timer)
 
 size_t send_tag(const int sockfd, const std::string x) {
     int ret = send(sockfd, &x[0], TAG_LENGTH, 0);
@@ -391,7 +392,6 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
             process_unvalidated(&share.first[0], msg.num_bits);
         }
         std::cout << "tag time: " << sec_from(start2) << std::endl;
-        if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits);
         start2 = clock_start();
         fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs);
         sent_bytes += share_convert(num_inputs, 1, nbits, shares, shares_p);
@@ -432,7 +432,6 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
             process_unvalidated(tag, msg.num_bits);
         }
         std::cout << "tag time: " << sec_from(start2) << std::endl;
-        if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits);
         start2 = clock_start();
         fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs);
         sent_bytes += share_convert(num_inputs, 1, nbits, shares, shares_p);
@@ -760,7 +759,6 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
             process_unvalidated(&share.first[0], msg.num_bits * num_dabits);
         }
         std::cout << "tag time: " << sec_from(start2) << std::endl;
-        if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -829,7 +827,6 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
             process_unvalidated(tag, msg.num_bits * num_dabits);
         }
         std::cout << "tag time: " << sec_from(start2) << std::endl;
-        if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
         for (unsigned int i = 0; i < num_inputs; i++) {
             uint64_t val = 0, val2 = 0;
@@ -1023,7 +1020,6 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             process_unvalidated(&share.first[0], msg.num_bits * num_dabits);
         }
         std::cout << "tag time: " << sec_from(start2) << std::endl;
-        if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -1107,7 +1103,6 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             process_unvalidated(tag, msg.num_bits * num_dabits);
         }
         std::cout << "tag time: " << sec_from(start2) << std::endl;
-        if (STORE_TYPE == validate_store) ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits * num_dabits);
         start2 = clock_start();
 
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -1455,8 +1450,9 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
     const size_t b = msg.num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
 
-    // Not actually necessary for evaluation
-    // Could help for "verify" that hashes actually have right sign after finding the output, but it doesn't help evaluation.
+    // B Not actually necessary for evaluation
+    // Could help for "verify" that hashes actually have right sign after finding the output,
+    // but it doesn't help evaluation.
     // flint_rand_t hash_seed; flint_randinit(hash_seed);
     // recv_seed(clientfd, hash_seed);
     // HashStore hash_store(b, b, 2, hash_seed);
@@ -1943,7 +1939,8 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
 
     if (STORE_TYPE != ot_store) {
         ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * share_convert_size);
-        ((CorrelatedStore*) correlated_store)->check_BoolTriples(2 * total_inputs * share_size_bucket * share_size_layer);
+        ((CorrelatedStore*) correlated_store)->check_BoolTriples(
+                2 * total_inputs * share_size_bucket * share_size_layer);
     }
 
     fmpz_t* bucket0; new_fmpz_array(&bucket0, num_sh);
@@ -2372,11 +2369,13 @@ int main(int argc, char** argv) {
 
     // TODO: OT disabled/not supported for now.
     if (STORE_TYPE == precompute_store) {
-        correlated_store = new PrecomputeStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE);
+        correlated_store = new PrecomputeStore(
+                serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE);
     // } else if (STORE_TYPE == ot_store) {
     //     correlated_store = new OTCorrelatedStore(serverfd, server_num, ot0, ot1);
     } else if (STORE_TYPE == validate_store) {
-        correlated_store = new ValidateCorrelatedStore(serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE);
+        correlated_store = new ValidateCorrelatedStore(
+                serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE);
     } else {
         error_exit("Unknown/unsupported store type");
     }
