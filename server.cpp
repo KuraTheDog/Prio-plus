@@ -1385,9 +1385,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         fmpz_mod_add(sum, sum, sum_other, mod_ctx);
         bool all_valid = fmpz_equal_ui(sum, total_inputs);
         fmpz_clear(sum);
-        if (all_valid) {
-            memset(valid, true, num_inputs);
-        } else {
+        if (!all_valid) {
             // Batch check fails. Test single.
             // Binary search is more rounds but (possibly) less bytes)
             fmpz_t* sums_other; new_fmpz_array(&sums_other, num_inputs);
@@ -1636,6 +1634,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
             3 * total_inputs * num_sh);
     }
 
+    // Get client
     auto start2 = clock_start();
     for (unsigned int i = 0; i < total_inputs; i++) {
         char tag_c[TAG_LENGTH];
@@ -1681,11 +1680,11 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
     std::cout << "num_inputs: " << num_inputs << std::endl;
     std::string* const tag_list = new std::string[num_inputs];
-    bool* const valid = new bool[num_inputs];
     bool* const shares_sh_x = new bool[num_inputs * share_size_sh];
     bool* const shares_sh_y = new bool[num_inputs * share_size_sh];
     bool* const shares_mask = new bool[num_inputs * share_size_mask];
     bool* const shares_count = new bool[num_inputs * share_size_count];
+    bool* const valid = new bool[num_inputs];
     memset(valid, true, num_inputs * sizeof(bool));
 
     if (server_num == 1) {
@@ -1946,7 +1945,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
     fmpz_t* bucket0; new_fmpz_array(&bucket0, num_sh);
     fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);
 
-    // Read
+    // Get client
     auto start2 = clock_start();
     for (unsigned int i = 0; i < total_inputs; i++) {
         char tag_c[TAG_LENGTH];
@@ -2110,9 +2109,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         }
         clear_fmpz_array(sums, cfg.Q + cfg.countmin_cfg.d);
         clear_fmpz_array(sums_other, cfg.Q + cfg.countmin_cfg.d);
-        if (all_valid) {
-            memset(valid, true, num_inputs);
-        } else {
+        if (!all_valid) {
             memset(valid, false, num_inputs);
             std::cout << "Batch not valid. Individual check currently not implemented" << std::endl;
         }
@@ -2265,9 +2262,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         }
         clear_fmpz_array(sums, cfg.Q + cfg.countmin_cfg.d);
         clear_fmpz_array(sums_other, cfg.Q + cfg.countmin_cfg.d);
-        if (all_valid) {
-            memset(valid, true, num_inputs);
-        } else {
+        if (!all_valid) {
             memset(valid, false, num_inputs);
             std::cout << "Batch not valid. Individual check currently not implemented" << std::endl;
         }
