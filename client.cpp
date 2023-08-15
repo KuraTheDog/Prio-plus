@@ -111,7 +111,8 @@ int send_linregshare(const int server_num, const LinRegShare& share, const size_
 }
 
 // Wrapper around send, with error catching.
-int send_to_server(const int server, const void* const buffer, const size_t n, const int flags = 0) {
+int send_to_server(const int server, const void* const buffer, const size_t n,
+        const int flags = 0) {
     const int socket = (server == 0 ? sockfd0 : sockfd1);
     int ret = send(socket, buffer, n, flags);
     if (ret < 0) error_exit("Failed to send to server");
@@ -278,7 +279,8 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
         const char* const tag = tag_str.c_str();
 
         shares1[i] = real_vals[i]^shares0[i];
-        std::cout << i << ": " << std::boolalpha << shares0[i] << " ^ " << shares1[i] << " = " << real_vals[i];
+        std::cout << i << ": " << std::boolalpha << shares0[i] << " ^ " << shares1[i];
+        std::cout << " = " << real_vals[i];
         if (i == 0 or i == 2 or i == 4) {
             std::cout << " (invalid)" << std::endl;
         } else {
@@ -366,7 +368,7 @@ void int_sum(const std::string protocol, const size_t numreqs) {
     msg.type = INT_SUM_OP;
 
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << num_bits) * numreqs) < 0 ) {
-        std::cout << "Modulus should be at least " << (num_bits + LOG2(numreqs)) << " bits" << std::endl;
+        std::cout << "Modulus bits should be at least " << (num_bits + LOG2(numreqs)) << "\n";
         error_exit("Int Modulus too small");
     }
 
@@ -414,7 +416,8 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
         if (i != 1)
             shares0[i] = shares0[i] % max_int;
         shares1[i] = real_vals[i] ^ shares0[i];
-        std::cout << "real_vals[" << i << "] = " << real_vals[i] << " = " << shares0[i] << " ^ " << shares1[i];
+        std::cout << "real_vals[" << i << "] = " << real_vals[i] << " = ";
+        std::cout << shares0[i] << " ^ " << shares1[i];
         if (i <= 2 or i == 4 or i == 6) {
             std::cout << " (invalid)" << std::endl;
         } else {
@@ -920,7 +923,7 @@ int var_helper(const std::string protocol, const size_t numreqs,
 
 void var_op(const std::string protocol, const size_t numreqs) {
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
-        std::cout << "Modulus should be at least " << (2 * num_bits + LOG2(numreqs)) << " bits" << std::endl;
+        std::cout << "Modulus bits should be at least " << (2 * num_bits + LOG2(numreqs)) << "\n";
         error_exit("Int Modulus too small");
     }
 
@@ -949,7 +952,7 @@ void var_op(const std::string protocol, const size_t numreqs) {
     const double ex = 1. * sum / numreqs;
     const double ex2 = 1. * sumsquared / numreqs;
     double ans = ex2 - (ex * ex);
-    std::cout << "E[X^2] - E[X]^2 = " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
+    std::cout << "E[X^2] - E[X]^2 = " << ex2 << " - (" << ex << ")^2 = " << ans << "\n";
     if (protocol == "STDDEV")
         ans = sqrt(ans);
     std::cout << "True Ans: " << ans << std::endl;
@@ -1091,7 +1094,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
     const double ex = 1. * sum / numvalid;
     const double ex2 = 1. * sumsquared / numvalid;
     double ans = ex2 - (ex * ex);
-    std::cout << "E[X^2] - E[X]^2 = " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
+    std::cout << "E[X^2] - E[X]^2 = " << ex2 << " - (" << ex << ")^2 = " << ans << "\n";
     if (protocol == "STDDEV")
         ans = sqrt(ans);
     std::cout << "True Ans: " << ans << std::endl;
@@ -1265,7 +1268,7 @@ int linreg_helper(const std::string protocol, const size_t numreqs,
 
 void linreg_op(const std::string protocol, const size_t numreqs, const size_t degree) {
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
-        std::cout << "Modulus should be at least " << (2 * num_bits + LOG2(numreqs)) << " bits" << std::endl;
+        std::cout << "Modulus bits should be at least " << (2 * num_bits + LOG2(numreqs)) << "\n";
         error_exit("Int Modulus too small");
     }
 
@@ -1793,7 +1796,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
                 // 00 = (0, 1), 01 = (0, -1), 10 = (1, 0), 11 = (-1, 0)
                 const bool h = fmpz_is_one(hashed);
                 if (print) {
-                    std::cout << "  depth " << d << " bucket " << bucket << " value " << h;
+                    std::cout << " depth " << d << " bucket " << bucket << " value " << h;
                     std::cout << " (" << 1-2*h << ")" << std::endl;
                 }
 
@@ -1805,7 +1808,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
         // Count-min
         for (unsigned int d = 0; d < count_min.cfg.d; d++) {
             count_min.store->eval(d, real_val, hashed);
-            if (print) std::cout << "  count[" << d << "] = " << fmpz_get_ui(hashed) << std::endl;
+            if (print) std::cout << " count[" << d << "] = " << fmpz_get_ui(hashed) << std::endl;
             share1[i].arr[3][d * count_min.cfg.w + fmpz_get_ui(hashed)] ^= 1;
         }
 
@@ -1855,7 +1858,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
 void multi_heavy_op(const std::string protocol, const size_t numreqs,
                     const double delta, const double eps, const size_t K) {
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
-        std::cout << "Modulus should be at least " << (2 * num_bits + LOG2(numreqs)) << " bits" << std::endl;
+        std::cout << "Modulus bits should be at least " << (2 * num_bits + LOG2(numreqs)) << "\n";
         throw std::invalid_argument("Int Modulus too small");
     }
     if (delta <= 0 or delta > 1)
@@ -2033,7 +2036,7 @@ int top_k_helper(
         // Count-min
         for (unsigned int d = 0; d < count_min.cfg.d; d++) {
             count_min.store->eval(d, real_val, hashed);
-            if (print) std::cout << "  count[" << d << "] = " << fmpz_get_ui(hashed) << std::endl;
+            if (print) std::cout << "  count[" << d << "] = " << fmpz_get_ui(hashed) << "\n";
             share1[i].arr[4][d * count_min.cfg.w + fmpz_get_ui(hashed)] ^= 1;
         }
 
@@ -2083,7 +2086,7 @@ int top_k_helper(
 void top_k_op(const std::string protocol, const size_t numreqs,
               const double delta, const double eps, const size_t K) {
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
-        std::cout << "Modulus should be at least " << (2 * num_bits + LOG2(numreqs)) << " bits" << std::endl;
+        std::cout << "Modulus bits should be at least " << (2 * num_bits + LOG2(numreqs)) << "\n";
         throw std::invalid_argument("Int Modulus too small");
     }
     if (delta <= 0 or delta > 1)

@@ -152,7 +152,8 @@ void HeavyEval::get_frequencies() {
   }
 }
 
-void HeavyEval::return_top_K(const size_t K, uint64_t* const topValues, uint64_t* const topFreqs) {
+void HeavyEval::return_top_K(const size_t K,
+    uint64_t* const topValues, uint64_t* const topFreqs) {
   for (unsigned int i = 0; i < K; i++) {
     IntegerPair pair = freq_and_vals[num_values - 1 - i];
     topValues[i] = pair.y.reveal<uint64_t>();
@@ -265,7 +266,8 @@ void HeavyExtract::print_buckets(bool print) const {
     int64_t x1 = bucket1[i].reveal<int64_t>();
     x0 -= x0 < m/2 ? 0 : m;
     x1 -= x1 < m/2 ? 0 : m;
-    if (print) std::cout << "buckets[" << i << "] = " << x0 << " vs " << x1 << std::endl;
+    if (print)
+      std::cout << "buckets[" << i << "] = " << x0 << " vs " << x1 << std::endl;
   }
 }
 
@@ -287,7 +289,8 @@ void HeavyExtract::print_cmp(bool print) const {
 void HeavyExtract::print_candidates(bool print) const {
   for (unsigned int i = 0; i < R * Q * B; i++) {
     int64_t x = candidates[i].reveal<int64_t>();
-    if (print) std::cout << "Candidate " << i << " / " << R * Q * B << " = " << x << std::endl;
+    if (print)
+      std::cout << "Candidate " << i << " / " << R * Q * B << " = " << x << std::endl;
   }
 }
 

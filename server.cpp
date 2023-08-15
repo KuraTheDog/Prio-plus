@@ -1535,7 +1535,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
 
     /* Conversion + accumulation */
     sent_bytes += correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
-    
+
     delete[] x;
     delete[] y;
     std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
@@ -1867,7 +1867,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
         clear_fmpz_array(bucket0, num_sh);
         clear_fmpz_array(bucket1, num_sh);
-        clear_fmpz_array(countmin_accum, share_size_count); 
+        clear_fmpz_array(countmin_accum, share_size_count);
         return RET_INVALID;
     }
 
@@ -1881,7 +1881,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     clear_fmpz_array(bucket0, num_sh);
     clear_fmpz_array(bucket1, num_sh);
     // Not needed, since freed within extract
-    // clear_fmpz_array(countmin_accum, share_size_count); 
+    // clear_fmpz_array(countmin_accum, share_size_count);
 
     std::cout << "Top K = " << K << " values and freqs, decreasing\n";
     for (unsigned int i = 0; i < K; i++) {
