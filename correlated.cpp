@@ -589,9 +589,6 @@ int64_t CorrelatedStore::heavy_convert_mask_two(
   // 4 N Q M1 M2 D
   check_DaBits(4 * len_all);
 
-  // m1 m2, x m1 m2, y m1 m2, xy m1 m2
-  bool* z = new bool[4 * len_all];
-
   // xy normal, cross mask m1 m2
   bool* a = new bool[3 * len_all];
   bool* b = new bool[3 * len_all];
@@ -612,6 +609,8 @@ int64_t CorrelatedStore::heavy_convert_mask_two(
   cross_fill_bool(N * Q, M1 * M2, D, &c[N*Q*D], y, &b[len_all], &a[len_all]);
   cross_fill_bool(N * Q, M1 * M2, D, &c[N*Q*D], c, &b[2*len_all], &a[2*len_all]);
   delete[] c;
+  // m1 m2, x m1 m2, y m1 m2, xy m1 m2
+  bool* z = new bool[4 * len_all];
   memcpy(z, b, len_all);
   multiply_BoolShares_setup(3 * len_all, a, b, &z[len_all], buff);
 

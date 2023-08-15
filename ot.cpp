@@ -290,7 +290,8 @@ std::queue<const BooleanBeaverTriple*> gen_boolean_beaver_triples(
 // Slow. OT per bit
 // Not batched, but we also don't really want to do this
 /*
-BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, OT_Wrapper* const ot0, OT_Wrapper* const ot1) {
+BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num,
+        OT_Wrapper* const ot0, OT_Wrapper* const ot1) {
 
     // auto start = clock_start();
 
@@ -299,7 +300,8 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, O
     const size_t n = fmpz_clog_ui(Int_Modulus, 2);
     // For n > 128, need multiple blocks to represent a fmpz_t value
     if (n > 128) {
-        std::cout << "Int_Modulus is " << n << " bits, which is more than 128, the maximum that the current generate_beaver_triple can handle." << std::endl;
+        std::cout << "Int_Modulus is " << n << " bits, which is more than 128"
+        std::cout << "the maximum that the current generate_beaver_triple can handle." << std::endl;
         return triple;
     }
 
@@ -307,7 +309,8 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num, O
 
     uint64_t r0_block[n], r1_block[n], s_block[n];
     // TODO: replace this with Random OT instead.
-    // Note: Random OT seems to break. Running 20 varop 8 twice has the second run make bad triples. Future runs line up again. Desync issues?
+    // Note: Random OT seems to break. Running 20 varop 8 twice has the second run make bad triples.
+    // Future runs line up again. Desync issues?
     prg.random_block(r0_block, n);
     prg.random_block(r1_block, n);
 

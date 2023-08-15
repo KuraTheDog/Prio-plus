@@ -1641,24 +1641,24 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         cli_bytes += recv_in(clientfd, &tag_c[0], TAG_LENGTH);
         const std::string tag(tag_c, tag_c+TAG_LENGTH);
 
-        bool* const share_sh_x = new bool[share_size_sh];
-        bool* const share_sh_y = new bool[share_size_sh];
-        bool* const share_mask = new bool[share_size_mask];
-        bool* const share_count = new bool[share_size_count];
-        cli_bytes += recv_bool_batch(clientfd, share_sh_x, share_size_sh);
-        cli_bytes += recv_bool_batch(clientfd, share_sh_y, share_size_sh);
-        cli_bytes += recv_bool_batch(clientfd, share_mask, share_size_mask);
-        cli_bytes += recv_bool_batch(clientfd, share_count, share_size_count);
+        bool* const shares_sh_x = new bool[share_size_sh];
+        bool* const shares_sh_y = new bool[share_size_sh];
+        bool* const shares_mask = new bool[share_size_mask];
+        bool* const shares_count = new bool[share_size_count];
+        cli_bytes += recv_bool_batch(clientfd, shares_sh_x, share_size_sh);
+        cli_bytes += recv_bool_batch(clientfd, shares_sh_y, share_size_sh);
+        cli_bytes += recv_bool_batch(clientfd, shares_mask, share_size_mask);
+        cli_bytes += recv_bool_batch(clientfd, shares_count, share_size_count);
 
         if (share_map.find(tag) != share_map.end()) {
-            delete[] share_sh_x;
-            delete[] share_sh_y;
-            delete[] share_mask;
-            delete[] share_count;
+            delete[] shares_sh_x;
+            delete[] shares_sh_y;
+            delete[] shares_mask;
+            delete[] shares_count;
             continue;
         }
 
-        share_map[tag] = {share_sh_x, share_sh_y, share_mask, share_count};
+        share_map[tag] = {shares_sh_x, shares_sh_y, shares_mask, shares_count};
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
@@ -1720,12 +1720,12 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
     /* Conversion, accumulation */
     /* Stages:
-    Validate each b (share_mask) is frequency vector. With B2A to check sum to 1
-    "Validate H_q vector correct". share_sh. Not needed for R=1, is just entry
+    Validate each b (shares_mask) is frequency vector. With B2A to check sum to 1
+    "Validate H_q vector correct". shares_sh. Not needed for R=1, is just entry
     (joint share validity)
-    Update Countmin with share_count (and freq check in parallel)
+    Update Countmin with shares_count (and freq check in parallel)
     For each (q, b):
-      final mask = share_sh & R_mask.
+      final mask = shares_sh & R_mask.
       SH update, except OT multiply [z] by mask.
 
     Round 1: B2A count (use+valid), mask (valid), first convert mult
@@ -1737,58 +1737,56 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     count: B2A for validation and accumulation
     */
 
-    // 2 * num_inputs, 4*heavy_len + num*(count + mask)
-    const size_t heavy_len = num_inputs * cfg.Q * cfg.B * cfg.D;
-    const size_t share_p_len = num_inputs * (share_size_count + share_size_mask);
-    bool* const send_buff = new bool[4 * heavy_len + share_p_len];
-    bool* const recv_buff = new bool[4 * heavy_len + share_p_len];
-    fmpz_t* shares_p; new_fmpz_array(&shares_p, share_p_len);
-    // Core data for heavy eval
-    bool* const z = new bool[4*heavy_len];
+    // 2 * num_inputs, 4*len_all + num*(count + mask)
+    const size_t len_all = num_inputs * cfg.Q * cfg.B * cfg.D;
+    const size_t len_p = num_inputs * (share_size_count + share_size_mask);
+    bool* const send_buff = new bool[4 * len_all + len_p];
+    bool* const recv_buff = new bool[4 * len_all + len_p];
+    fmpz_t* shares_p; new_fmpz_array(&shares_p, len_p);
 
     // Setup convert stage 1
-    bool* const m_ext = new bool[2*heavy_len];
-    bool* const xy_ext = new bool[2*heavy_len];
+    bool* const m_ext = new bool[2*len_all];
+    bool* const xy_ext = new bool[2*len_all];
     cross_fill_bool(num_inputs * cfg.Q, cfg.B, cfg.D,
             shares_mask, shares_sh_x, m_ext, xy_ext);
     delete[] shares_sh_x;
     cross_fill_bool(num_inputs * cfg.Q, cfg.B, cfg.D,
-            shares_mask, shares_sh_y, &m_ext[heavy_len], &xy_ext[heavy_len]);
+            shares_mask, shares_sh_y, &m_ext[len_all], &xy_ext[len_all]);
     delete[] shares_sh_y;
-    memcpy(z, m_ext, heavy_len);
-    // 4*heavy_len into send buff
-    correlated_store->multiply_BoolShares_setup(2*heavy_len, xy_ext, m_ext,
-            &z[heavy_len], send_buff);
+    bool* const z = new bool[4*len_all];
+    memcpy(z, m_ext, len_all);
+    // 4*len_all into send buff
+    correlated_store->multiply_BoolShares_setup(2*len_all, xy_ext, m_ext,
+            &z[len_all], send_buff);
     // B2A setup
-    std::cout << "b2a setup 1: " << num_inputs * share_size_count << std::endl;
     correlated_store->b2a_single_setup(num_inputs * share_size_count,
-            shares_count, shares_p, &send_buff[4*heavy_len]);
+            shares_count, shares_p, &send_buff[4*len_all]);
     delete[] shares_count;
-    std::cout << "b2a setup 2: " << num_inputs * share_size_mask << std::endl;
     correlated_store->b2a_single_setup(num_inputs * share_size_mask,
             shares_mask, &shares_p[num_inputs * share_size_count],
-            &send_buff[4*heavy_len + num_inputs * share_size_count]);
+            &send_buff[4*len_all + num_inputs * share_size_count]);
     delete[] shares_mask;
 
-    /* Round 1: B2A count, B2A mask, convert mult 1 */
+    /* Round 1: convert mult 1, B2A count, B2A mask */
     sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff,
-            4*heavy_len + share_p_len);
+            4*len_all + len_p);
+    std::cout << "Round 1 time: " << sec_from(start3) << std::endl;
     start3 = clock_start();
 
     // Finish B2A
     correlated_store->b2a_single_finish(num_inputs * share_size_count,
-            shares_p, &send_buff[4*heavy_len], &recv_buff[4*heavy_len]);
+            shares_p, &send_buff[4*len_all], &recv_buff[4*len_all]);
     correlated_store->b2a_single_finish(num_inputs * share_size_mask,
             &shares_p[num_inputs * share_size_count],
-            &send_buff[4*heavy_len + num_inputs * share_size_count],
-            &recv_buff[4*heavy_len + num_inputs * share_size_count]);
+            &send_buff[4*len_all + num_inputs * share_size_count],
+            &recv_buff[4*len_all + num_inputs * share_size_count]);
     // Finish convert stage 1, setup convert stage 2
-    correlated_store->multiply_BoolShares_finish(2*heavy_len, xy_ext, m_ext,
-            &z[heavy_len], send_buff, recv_buff);
+    correlated_store->multiply_BoolShares_finish(2*len_all, xy_ext, m_ext,
+            &z[len_all], send_buff, recv_buff);
     delete[] m_ext;
-    correlated_store->multiply_BoolShares_setup(heavy_len, xy_ext,
-            &z[2*heavy_len], &z[3*heavy_len], send_buff);
-    // 2*heavy_len into send buff
+    correlated_store->multiply_BoolShares_setup(len_all, xy_ext,
+            &z[2*len_all], &z[3*len_all], send_buff);
+    // 2*len_all into send buff
     fmpz_t* sums; new_fmpz_array(&sums, cfg.Q + cfg.countmin_cfg.d);
     sum_accum(num_inputs, cfg.countmin_cfg.d, cfg.countmin_cfg.w, shares_p, sums);
     sum_accum(num_inputs, cfg.Q, cfg.B,
@@ -1797,7 +1795,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
 
     /* Round 2: freq valid values, second convert mult */
     sent_bytes += swap_bool_fmpz_batch(serverfd,
-            send_buff, recv_buff, 2 * heavy_len,
+            send_buff, recv_buff, 2 * len_all,
             sums, sums_other, cfg.Q + cfg.countmin_cfg.d);
     std::cout << "Round 2 time: " << sec_from(start3) << std::endl;
     start3 = clock_start();
@@ -1816,22 +1814,22 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     }
     memcpy(send_buff, valid, num_inputs);
     // Finish convert stage 2, setup convert stage 3
-    correlated_store->multiply_BoolShares_finish(heavy_len, xy_ext,
-            &z[2*heavy_len], &z[3*heavy_len], send_buff, recv_buff);
+    correlated_store->multiply_BoolShares_finish(len_all, xy_ext,
+            &z[2*len_all], &z[3*len_all], send_buff, recv_buff);
     delete[] xy_ext;
-    fmpz_t* zp; new_fmpz_array(&zp, 4 * heavy_len);
-    std::cout << "b2a setup 2: " << 4 * heavy_len << std::endl;
-    correlated_store->b2a_single_setup(4 * heavy_len, z, zp, &send_buff[num_inputs]);
+    fmpz_t* zp; new_fmpz_array(&zp, 4 * len_all);
+    std::cout << "b2a setup 2: " << 4 * len_all << std::endl;
+    correlated_store->b2a_single_setup(4 * len_all, z, zp, &send_buff[num_inputs]);
     delete[] z;
 
     /* Round 3: convert stage 3 (b2a), valid swap */
     sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff,
-            num_inputs + 4 * heavy_len);
+            num_inputs + 4 * len_all);
     std::cout << "Round 3 time: " << sec_from(start3) << std::endl;
     start3 = clock_start();
 
     // Finish heavy convert
-    correlated_store->b2a_single_finish(4 * heavy_len, zp,
+    correlated_store->b2a_single_finish(4 * len_all, zp,
             &send_buff[num_inputs], &recv_buff[num_inputs]);
     delete[] send_buff;
     // Merge valid
@@ -1844,11 +1842,11 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);
     correlated_store->heavy_accumulate(num_inputs, cfg.Q * cfg.B * cfg.D, zp,
             valid, bucket0, bucket1);
-    clear_fmpz_array(zp, 4 * heavy_len);
+    clear_fmpz_array(zp, 4 * len_all);
     // Count-min accum
     fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
     accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
-    clear_fmpz_array(shares_p, share_p_len);
+    clear_fmpz_array(shares_p, len_p);
 
     std::cout << "accum time: " << sec_from(start3) << std::endl;
     std::cout << "total accum time: " << sec_from(start2) << std::endl;
@@ -1990,7 +1988,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
     Stages:
     - Validate bucket (freq), sum to 1 via B2A
     - TODO: validate layer?
-    - update count-min with share_count
+    - update count-min with shares_count
     - cross product AND: bucket[qb] and layer[r]
     - for each (r, q, b)
         - mask = bucket[qb] & layer[r]
