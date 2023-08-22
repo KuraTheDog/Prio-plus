@@ -1742,7 +1742,6 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     const size_t len_p = num_inputs * (share_size_count + share_size_mask);
     bool* const send_buff = new bool[4 * len_all + len_p];
     bool* const recv_buff = new bool[4 * len_all + len_p];
-    fmpz_t* shares_p; new_fmpz_array(&shares_p, len_p);
 
     // Setup convert stage 1
     bool* const m_ext = new bool[2*len_all];
@@ -1759,6 +1758,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     correlated_store->multiply_BoolShares_setup(2*len_all, xy_ext, m_ext,
             &z[len_all], send_buff);
     // B2A setup
+    fmpz_t* shares_p; new_fmpz_array(&shares_p, len_p);
     correlated_store->b2a_single_setup(num_inputs * share_size_count,
             shares_count, shares_p, &send_buff[4*len_all]);
     delete[] shares_count;
@@ -1786,7 +1786,6 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     delete[] m_ext;
     correlated_store->multiply_BoolShares_setup(len_all, xy_ext,
             &z[2*len_all], &z[3*len_all], send_buff);
-    // 2*len_all into send buff
     fmpz_t* sums; new_fmpz_array(&sums, cfg.Q + cfg.countmin_cfg.d);
     sum_accum(num_inputs, cfg.countmin_cfg.d, cfg.countmin_cfg.w, shares_p, sums);
     sum_accum(num_inputs, cfg.Q, cfg.B,
@@ -1800,6 +1799,10 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     std::cout << "Round 2 time: " << sec_from(start3) << std::endl;
     start3 = clock_start();
 
+    // Finish convert stage 2
+    correlated_store->multiply_BoolShares_finish(len_all, xy_ext,
+            &z[2*len_all], &z[3*len_all], send_buff, recv_buff);
+    delete[] xy_ext;
     // Finish freq, update valid
     bool all_valid = true;
     for (unsigned int j = 0; j < cfg.Q + cfg.countmin_cfg.d; j++) {
@@ -1813,10 +1816,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         std::cout << "Batch not valid. Individual check currently not implemented\n";
     }
     memcpy(send_buff, valid, num_inputs);
-    // Finish convert stage 2, setup convert stage 3
-    correlated_store->multiply_BoolShares_finish(len_all, xy_ext,
-            &z[2*len_all], &z[3*len_all], send_buff, recv_buff);
-    delete[] xy_ext;
+    // setup convert stage 3
     fmpz_t* zp; new_fmpz_array(&zp, 4 * len_all);
     std::cout << "b2a setup 2: " << 4 * len_all << std::endl;
     correlated_store->b2a_single_setup(4 * len_all, z, zp, &send_buff[num_inputs]);

@@ -604,7 +604,7 @@ int64_t CorrelatedStore::heavy_convert_mask_two(
   sent_bytes += swap_bool_batch(serverfd, buff, buff_other, 2 * len_1);
 
   multiply_BoolShares_finish(len_1, a, b, c, buff, buff_other);
-  // (x, y, xy) * m1m2
+  // (x, y, xy) * m1m2. Reuse a and b
   cross_fill_bool(N * Q, M1 * M2, D, &c[N*Q*D], x, b, a);
   cross_fill_bool(N * Q, M1 * M2, D, &c[N*Q*D], y, &b[len_all], &a[len_all]);
   cross_fill_bool(N * Q, M1 * M2, D, &c[N*Q*D], c, &b[2*len_all], &a[2*len_all]);
