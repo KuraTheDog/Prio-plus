@@ -3,7 +3,6 @@
 #include <iostream>
 
 #include "../circuit.h"
-#include "../constants.h"
 #include "../share.h"
 #include "../client.h"
 #include "../server.h"
@@ -26,7 +25,7 @@ void test_CheckVar() {
   Gate 4: addition gate, x^2 - y = 0, checked to be 0
   */
   bool eval = var_circuit->Eval(inp);
-  std::cout << "Eval: " << eval << std::endl;
+  std::cout << "Eval: " << std::boolalpha << eval << std::endl;
 
   // Setup packets
   size_t N = NextPowerOfTwo(var_circuit->NumMulGates());
@@ -83,8 +82,8 @@ void test_CheckVar() {
 
   std::cout << "out0 : "; fmpz_print(out0); std::cout << ", out1 : "; fmpz_print(out1); std::cout << std::endl;
 
-  assert(result == 1);
   std::cout << "Result : " << std::boolalpha << result << std::endl;
+  assert(result == 1);
 
   std::cout << "^v^v^ Shared validation: " << std::endl;
   fmpz_t tmp, rgr;

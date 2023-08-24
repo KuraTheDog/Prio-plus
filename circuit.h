@@ -50,6 +50,16 @@ Gate* const MulByNegOne(Gate* const gate) {
     return out;
 }
 
+// Since prime modulus, should never fail for positive
+Gate* const DivByConst(Gate* const gate, const uint64_t c) {
+    Gate* const out = new Gate(Gate_MulConst, gate);
+
+    fmpz_set_ui(out->Constant, c);
+    fmpz_mod_inv(out->Constant, out->Constant, mod_ctx);
+
+    return out;
+}
+
 struct Circuit {
     std::vector<Gate*> gates;        // All gates
     // std::vector<Gate*> outputs;      // only used by unused
@@ -82,6 +92,10 @@ struct Circuit {
 
     void addZeroGate(Gate* const zerogate) {
         result_zero.push_back(zerogate);
+    }
+
+    size_t last_gate() {
+        return gates.size() - 1;
     }
 
     // Evals circuit on the input, returns if all result_zero gates are zero.
@@ -190,18 +204,23 @@ struct Circuit {
         }
     }
 
-    // Adds Gate[i] * Gate[j] = Gate[k] to circuit
-    void AddCheckMulEqual(const size_t i, const size_t j, const size_t k) {
-        Gate* const mul = new Gate(Gate_Mul, gates[i], gates[j]);
-        Gate* const inv = MulByNegOne(gates[k]);
-        Gate* const add = new Gate(Gate_Add, mul, inv);
+    void AddCheckEqual(const size_t i, const size_t j) {
+        Gate* const inv = MulByNegOne(gates[j]);
+        Gate* const add = new Gate(Gate_Add, gates[i], inv);
 
-        addGate(mul);
         addGate(inv);
         addGate(add);
         addZeroGate(add);
+    }
 
-        // std::cout << "[" << i << "] * [" << j << "] = [" << k << "]\n";
+    // Adds Gate[i] * Gate[j] = Gate[k] to circuit
+    void AddCheckMulEqual(const size_t i, const size_t j, const size_t k) {
+        Gate* const mul = new Gate(Gate_Mul, gates[i], gates[j]);
+
+        addGate(mul);
+
+        const size_t mul_idx = last_gate();
+        AddCheckEqual(mul_idx, k);
     }
 };
 

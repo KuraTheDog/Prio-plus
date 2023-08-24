@@ -12,7 +12,8 @@ void test_CheckLinReg() {
   Circuit* linreg_circuit = CheckLinReg(2);
 
   // Set inputs
-  fmpz_t inp[4];
+  const size_t num_inputs = 4;
+  fmpz_t inp[num_inputs];
   fmpz_init(inp[0]); fmpz_set_si(inp[0], 2);  // x
   fmpz_init(inp[1]); fmpz_set_si(inp[1], 3);  // y
   fmpz_init(inp[2]); fmpz_set_si(inp[2], 4);  // x^2
@@ -20,7 +21,7 @@ void test_CheckLinReg() {
 
   // Check x * y = xy, x * x = x^2
   bool eval = linreg_circuit->Eval(inp);
-  std::cout << "Eval: " << eval << std::endl;
+  std::cout << "Eval: " << std::boolalpha << eval << std::endl;
 
   // Setup packets
   size_t N = NextPowerOfTwo(linreg_circuit->NumMulGates());
@@ -32,16 +33,12 @@ void test_CheckLinReg() {
   std::cout << "p1" << std::endl; p1->print();
 
   // Set arithmetic shares
-  fmpz_t inp0[4];
-  fmpz_t inp1[4];
-  fmpz_init(inp0[0]); fmpz_init(inp1[0]);
-  SplitShare(inp[0], inp0[0], inp1[0]);
-  fmpz_init(inp0[1]); fmpz_init(inp1[1]);
-  SplitShare(inp[1], inp0[1], inp1[1]);
-  fmpz_init(inp0[2]); fmpz_init(inp1[2]);
-  SplitShare(inp[2], inp0[2], inp1[2]);
-  fmpz_init(inp0[3]); fmpz_init(inp1[3]);
-  SplitShare(inp[3], inp0[3], inp1[3]);
+  fmpz_t inp0[num_inputs];
+  fmpz_t inp1[num_inputs];
+  for (unsigned int i = 0; i < num_inputs; i++) {
+    fmpz_init(inp0[i]); fmpz_init(inp1[i]);
+    SplitShare(inp[i], inp0[i], inp1[i]);
+  }
 
   std::cout << "------ Running through validity checks" << std::endl;
 
@@ -81,8 +78,8 @@ void test_CheckLinReg() {
 
   std::cout << "out0 : "; fmpz_print(out0); std::cout << ", out1 : "; fmpz_print(out1); std::cout << std::endl;
 
-  assert(result == 1);
   std::cout << "Result : " << std::boolalpha << result << std::endl;
+  assert(result == 1);
 
   std::cout << "^v^v^ Shared validation: " << std::endl;
   fmpz_t tmp, rgr;
@@ -114,7 +111,7 @@ void test_CheckLinReg() {
 
   delete p0;
   delete p1;
-  for (unsigned int i = 0; i < 4; i++) {
+  for (unsigned int i = 0; i < num_inputs; i++) {
     fmpz_clear(inp[i]);
     fmpz_clear(inp0[i]);
     fmpz_clear(inp1[i]);
