@@ -98,28 +98,32 @@ struct Circuit {
                 // fmpz_print(gates[i]->WireValue); std::cout << std::endl;
                 break;
             case Gate_Add:
-                fmpz_mod_add(gates[i]->WireValue, gates[i]->ParentL->WireValue, gates[i]->ParentR->WireValue, mod_ctx);
+                fmpz_mod_add(gates[i]->WireValue, gates[i]->ParentL->WireValue,
+                        gates[i]->ParentR->WireValue, mod_ctx);
                 // std::cout << "  EVAL Add \tGate " << i << "  -  ";
                 // fmpz_print(gates[i]->ParentL->WireValue); std::cout << ", ";
                 // fmpz_print(gates[i]->ParentR->WireValue); std::cout << " -> ";
                 // fmpz_print(gates[i]->WireValue); std::cout << std::endl;
                 break;
             case Gate_Mul:
-                fmpz_mod_mul(gates[i]->WireValue, gates[i]->ParentL->WireValue, gates[i]->ParentR->WireValue, mod_ctx);
+                fmpz_mod_mul(gates[i]->WireValue, gates[i]->ParentL->WireValue,
+                        gates[i]->ParentR->WireValue, mod_ctx);
                 // std::cout << "  EVAL Mul \tGate " << i << "  -  ";
                 // fmpz_print(gates[i]->ParentL->WireValue); std::cout << ", ";
                 // fmpz_print(gates[i]->ParentR->WireValue); std::cout << " -> ";
                 // fmpz_print(gates[i]->WireValue); std::cout << std::endl;
                 break;
             case Gate_AddConst:
-                fmpz_mod_add(gates[i]->WireValue, gates[i]->ParentL->WireValue, gates[i]->Constant, mod_ctx);
+                fmpz_mod_add(gates[i]->WireValue, gates[i]->ParentL->WireValue,
+                        gates[i]->Constant, mod_ctx);
                 // std::cout << "  EVAL add con \tGate " << i << "  -  ";
                 // fmpz_print(gates[i]->ParentL->WireValue); std::cout << ", const ";
                 // fmpz_print(gates[i]->Constant); std::cout << " -> ";
                 // fmpz_print(gates[i]->WireValue); std::cout << std::endl;
                 break;
             case Gate_MulConst:
-                fmpz_mod_mul(gates[i]->WireValue, gates[i]->ParentL->WireValue, gates[i]->Constant, mod_ctx);
+                fmpz_mod_mul(gates[i]->WireValue, gates[i]->ParentL->WireValue,
+                        gates[i]->Constant, mod_ctx);
                 // std::cout << "  EVAL mul con \tGate " << i << "  -  ";
                 // fmpz_print(gates[i]->ParentL->WireValue); std::cout << ", const ";
                 // fmpz_print(gates[i]->Constant); std::cout << " -> ";
@@ -162,7 +166,8 @@ struct Circuit {
                 inp_idx++;
                 break;
             case Gate_Add:
-                fmpz_mod_add(gate->WireValue, gate->ParentL->WireValue, gate->ParentR->WireValue, mod_ctx);
+                fmpz_mod_add(gate->WireValue, gate->ParentL->WireValue,
+                        gate->ParentR->WireValue, mod_ctx);
                 break;
             case Gate_Mul:
                 fmpz_set(gate->WireValue, p->MulShares[mul_idx]);
@@ -170,12 +175,14 @@ struct Circuit {
                 break;
             case Gate_AddConst:
                 if (server_num == 0)
-                    fmpz_mod_add(gate->WireValue, gate->ParentL->WireValue, gate->Constant, mod_ctx);
+                    fmpz_mod_add(gate->WireValue, gate->ParentL->WireValue,
+                            gate->Constant, mod_ctx);
                 else
                     fmpz_set(gate->WireValue, gate->ParentL->WireValue);
                 break;
             case Gate_MulConst:
-                fmpz_mod_mul(gate->WireValue, gate->ParentL->WireValue, gate->Constant, mod_ctx);
+                fmpz_mod_mul(gate->WireValue, gate->ParentL->WireValue,
+                        gate->Constant, mod_ctx);
                 break;
             default:
                 break;
@@ -204,9 +211,12 @@ Circuit* AndCircuits(std::vector<Circuit*>& circuits) {
     Circuit* out = new Circuit();
 
     for (unsigned int i = 0; i < circuits.size(); i++) {
-        out->gates.insert(out->gates.end(), circuits[i]->gates.begin(), circuits[i]->gates.end());
-        out->outputs.insert(out->outputs.end(), circuits[i]->outputs.begin(), circuits[i]->outputs.end());
-        out->result_zero.insert(out->result_zero.end(), circuits[i]->result_zero.begin(), circuits[i]->result_zero.end());
+        out->gates.insert(out->gates.end(), circuits[i]->gates.begin(),
+                circuits[i]->gates.end());
+        out->outputs.insert(out->outputs.end(), circuits[i]->outputs.begin(),
+                circuits[i]->outputs.end());
+        out->result_zero.insert(out->result_zero.end(),
+                circuits[i]->result_zero.begin(), circuits[i]->result_zero.end());
     }
 
     return out;
@@ -255,24 +265,7 @@ Circuit* const CheckLinReg(const size_t degree) {
 
 const double* const SolveLinReg(
         const size_t degree, const uint64_t* const x, const uint64_t* const y) {
-
     size_t idx = degree;
-
-    // const size_t num_x = degree - 1;
-    // std::cout << "n = " << x[0] << std::endl;
-    // for (unsigned int i = 0; i < num_x; i++)
-    //     std::cout << "x_" << i << " = " << x[i + 1] << std::endl;
-    // std::cout << "y = " << y[0] << std::endl;
-
-    // for (unsigned int i = 0; i < num_x; i++) {
-    //     for (unsigned int j = i; j < num_x; j++) {
-    //         std::cout << "x_" << i << " * " << "x_" << j << " = " << x[idx] << std::endl;
-    //         idx++;
-    //     }
-    // }
-
-    // for (unsigned int i = 0; i < num_x; i++)
-    //     std::cout << "x_" << i << " * y = " << y[i + 1] << std::endl;
 
     fmpq_mat_t X; fmpq_mat_init(X, degree, degree);
     fmpq_mat_t Y; fmpq_mat_init(Y, degree, 1);
@@ -294,22 +287,12 @@ const double* const SolveLinReg(
         }
     }
 
-    // std::cout << "X: ";
-    // fmpq_mat_print(X);
-    // std::cout << "Y: ";
-    // fmpq_mat_print(Y);
-
     int ret = fmpq_mat_inv(X, X);
     if (ret == 0) {
         std::cout << "WARNING: X is singular" << std::endl;
     }
-    // std::cout << "X^-1: ";
-    // fmpq_mat_print(X);
 
     fmpq_mat_mul(Y, X, Y);
-    // std::cout << "X^-1 Y: ";
-    // fmpq_mat_print(Y);
-
 
     double* ans = new double[degree];
     for (unsigned int i = 0; i < degree; i++)

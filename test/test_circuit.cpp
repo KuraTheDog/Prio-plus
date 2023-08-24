@@ -10,22 +10,13 @@
 
 void test_CheckVar() {
   std::cout << "Testing CheckVar Eval and share_polynomials" << std::endl;
-  fmpz_t inp[2];
-  fmpz_init(inp[0]);
-  fmpz_init(inp[1]);
-
-  fmpz_set_si(inp[0], 9);  // Set first input to 9
-  fmpz_set_si(inp[1], 81);  // Set second to 81
-
-  // Will be done with share conversion
-  fmpz_t inp0[2];
-  fmpz_t inp1[2];
-  fmpz_init(inp0[0]); fmpz_init(inp1[0]);
-  SplitShare(inp[0], inp0[0], inp1[0]);
-  fmpz_init(inp0[1]); fmpz_init(inp1[1]);
-  SplitShare(inp[1], inp0[1], inp1[1]);
-
   Circuit* var_circuit = CheckVar();  // x^2 == y
+
+  fmpz_t inp[2];
+
+  fmpz_init(inp[0]); fmpz_set_si(inp[0], 9);   // Set first input to 9
+  fmpz_init(inp[1]); fmpz_set_si(inp[1], 81);  // Set second to 81
+
   // Eval to verify 9^2 = 81
   /*
   Gate 0: input gate, x = 9
@@ -37,19 +28,22 @@ void test_CheckVar() {
   bool eval = var_circuit->Eval(inp);
   std::cout << "Eval: " << eval << std::endl;
 
+  // Setup packets
   size_t N = NextPowerOfTwo(var_circuit->NumMulGates());
-
-  // One mult gate (#2). Next power of 2 is 2 (N).
   ClientPacket* p0 = new ClientPacket(var_circuit->NumMulGates());
   ClientPacket* p1 = new ClientPacket(var_circuit->NumMulGates());
   share_polynomials(var_circuit, p0, p1);
   delete var_circuit;
+  std::cout << "p0" << std::endl; p0->print();
+  std::cout << "p1" << std::endl; p1->print();
 
-  std::cout << "p0" << std::endl;
-  p0->print();
-
-  std::cout << "p1" << std::endl;
-  p1->print();
+  // Set arithmetic shares
+  fmpz_t inp0[2];
+  fmpz_t inp1[2];
+  fmpz_init(inp0[0]); fmpz_init(inp1[0]);
+  SplitShare(inp[0], inp0[0], inp1[0]);
+  fmpz_init(inp0[1]); fmpz_init(inp1[1]);
+  SplitShare(inp[1], inp0[1], inp1[1]);
 
   std::cout << "------ Running through validity checks" << std::endl;
 
@@ -72,17 +66,11 @@ void test_CheckVar() {
 
   Checker* checker_1 = new Checker(var_circuit1, 1, p1, pre1, inp1, true);
 
-  std::cout << "checkers made" << std::endl;
-
   auto corshare0 = checker_0->CorFn();
   auto corshare1 = checker_1->CorFn();
 
-  std::cout << "corshares made" << std::endl;
-
   Cor* cor0 = new Cor(corshare0, corshare1);
   Cor* cor1 = new Cor(corshare0, corshare1);
-
-  std::cout << "cor made" << std::endl;
 
   fmpz_t out0, out1;
   fmpz_init(out0);
@@ -135,8 +123,7 @@ void test_CheckVar() {
   fmpz_clear(inp[1]); fmpz_clear(inp0[1]); fmpz_clear(inp1[1]);
 }
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
   init_constants();
 
   test_CheckVar();

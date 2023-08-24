@@ -11,37 +11,27 @@ void test_CheckLinReg() {
   std::cout << "Testing CheckLinReg Eval and share_polynomials" << std::endl;
   Circuit* linreg_circuit = CheckLinReg(2);
 
+  // Set inputs
   fmpz_t inp[4];
-  fmpz_init(inp[0]);
-  fmpz_init(inp[1]);
-  fmpz_init(inp[2]);
-  fmpz_init(inp[3]);
+  fmpz_init(inp[0]); fmpz_set_si(inp[0], 2);  // x
+  fmpz_init(inp[1]); fmpz_set_si(inp[1], 3);  // y
+  fmpz_init(inp[2]); fmpz_set_si(inp[2], 4);  // x^2
+  fmpz_init(inp[3]); fmpz_set_si(inp[3], 6);  // xy
 
-  fmpz_set_si(inp[0], 2);  // x
-  fmpz_set_si(inp[1], 3);  // y
-  fmpz_set_si(inp[2], 4);  // x^2
-  fmpz_set_si(inp[3], 6);  // xy
-
+  // Check x * y = xy, x * x = x^2
   bool eval = linreg_circuit->Eval(inp);
   std::cout << "Eval: " << eval << std::endl;
 
+  // Setup packets
   size_t N = NextPowerOfTwo(linreg_circuit->NumMulGates());
-
-  /*
-  One mult gate (#2). Next power of 2 is 2 (N).
-  */
   ClientPacket* p0 = new ClientPacket(linreg_circuit->NumMulGates());
   ClientPacket* p1 = new ClientPacket(linreg_circuit->NumMulGates());
   share_polynomials(linreg_circuit, p0, p1);
   delete linreg_circuit;
+  std::cout << "p0" << std::endl; p0->print();
+  std::cout << "p1" << std::endl; p1->print();
 
-  std::cout << "p0" << std::endl;
-  p0->print();
-
-  std::cout << "p1" << std::endl;
-  p1->print();
-
-  // Will be done with share conversion
+  // Set arithmetic shares
   fmpz_t inp0[4];
   fmpz_t inp1[4];
   fmpz_init(inp0[0]); fmpz_init(inp1[0]);
@@ -131,8 +121,7 @@ void test_CheckLinReg() {
   }
 }
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
   init_constants();
 
   test_CheckLinReg();
