@@ -109,9 +109,9 @@ public:
 
   // Convert N single-bit values
   virtual int64_t b2a_single(const size_t N, const bool* const x, fmpz_t* const xp) = 0;
-  // Convert N values, with each x[i] having num_bits[i] bits.
-  virtual int64_t b2a_multi(const size_t N, const size_t* const num_bits,
-                        const fmpz_t* const x, fmpz_t* const xp) = 0;
+  // Convert N values, with each x[i] having num_bits bits.
+  virtual int64_t b2a_multi(const size_t N, const size_t num_bits,
+                            const uint64_t* const x, fmpz_t* const xp) = 0;
   virtual ~ShareConverter() {};
 };
 
@@ -160,15 +160,16 @@ public:
 
   // Multiple bits values.
   // One round, for each bit consuming a dabit and sending 1 bit.
-  // Boolean shares stored as numbers in x, with x[i] length num_bits[i]
+  // x[i] is length num_bits boolean share
+  // Different num_bits can be done with parallel runs.
   void b2a_multi_setup(
-      const size_t N, const size_t total_bits, const size_t* const num_bits,
-      const fmpz_t* const x, fmpz_t* const flat_xp, bool* const v);
+      const size_t N, const size_t num_bits,
+      const uint64_t* const x, fmpz_t* const flat_xp, bool* const v);
   void b2a_multi_finish(
-      const size_t N, const size_t total_bits, const size_t* const num_bits,
+      const size_t N, const size_t num_bits,
       fmpz_t* const xp, fmpz_t* const flat_xp, const bool* const v, const bool* const v_other);
-  int64_t b2a_multi(const size_t N, const size_t* const num_bits,
-      const fmpz_t* const x, fmpz_t* const xp);
+  int64_t b2a_multi(const size_t N, const size_t num_bits,
+      const uint64_t* const x, fmpz_t* const xp);
 
   // x, y, z are [N]
   // does z[i] = x[i] * y[i], as shares
@@ -429,12 +430,13 @@ public:
 
   int64_t b2a_single(const size_t N, const bool* const x, fmpz_t* const xp);
   // Multiple bits. Use a dabit per bit in parallel, so one round
-  int64_t b2a_multi(const size_t N, const size_t* const num_bits,
-      const fmpz_t* const x, fmpz_t* const xp);
+  int64_t b2a_multi(const size_t N, const size_t num_bits,
+      const uint64_t* const x, fmpz_t* const xp);
 
+  // Num_bits left as array, since harder to unpack OT
   int64_t b2a_ot(const size_t num_shares, const size_t num_values,
       const size_t* const num_bits,
-      const fmpz_t* const x, fmpz_t* const xp,
+      const uint64_t* const x, fmpz_t* const xp,
       const size_t mod = 0);
 
   void print_Sizes() const {};

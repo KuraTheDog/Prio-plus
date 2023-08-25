@@ -154,43 +154,6 @@ void process_unvalidated(const std::string tag, const size_t n) {
     ((ValidateCorrelatedStore*) correlated_store)->process_Unvalidated(tag);
 }
 
-// B2A Multi with dimensions, and int share_2s
-// Currently shares_2 and shares_p are flat num_shares*num_values array.
-// num_bits length [num_values], each saying how many bits in each, per input
-// TODO: merge num_shares and num_values, with separate num_bits translator
-// TODO: move to store and split
-int const share_convert(const size_t num_shares,  // # inputs
-                        const size_t num_values,  // # values per input
-                        const size_t* const num_bits,  // # bits per value
-                        const uint64_t* const shares_2,
-                        fmpz_t* const shares_p
-                        ) {
-    auto start = clock_start();
-    int sent_bytes = 0;
-
-    // convert
-    fmpz_t* f_shares2; new_fmpz_array(&f_shares2, num_shares * num_values);
-    for (unsigned int i = 0; i < num_shares * num_values; i++) {
-        fmpz_set_ui(f_shares2[i], shares_2[i]);
-    }
-
-    size_t* const bits_arr = new size_t[num_shares * num_values];
-    // num_bits 1 char, so this is fine
-    for (unsigned int i = 0; i < num_shares; i++)
-        memcpy(&bits_arr[i * num_values], num_bits, num_values * sizeof(size_t));
-
-    sent_bytes += correlated_store->b2a_multi(
-        num_shares * num_values, bits_arr, f_shares2, shares_p);
-
-    delete[] bits_arr;
-
-    clear_fmpz_array(f_shares2, num_shares * num_values);
-
-    std::cout << "Share convert time: " << sec_from(start) << std::endl;
-
-    return sent_bytes;
-}
-
 // Batch of N (snips + num_input wire/share) validations
 // Due to the nature of the final swap, both servers get the same valid array
 // TODO: round split
@@ -350,7 +313,6 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     const size_t num_bits = msg.num_bits;
     const uint64_t max_val = 1ULL << num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
-    const size_t nbits[1] = {num_bits};
 
     int cli_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
@@ -418,7 +380,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "tag time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
     fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs);
-    sent_bytes += share_convert(num_inputs, 1, nbits, shares, shares_p);
+    sent_bytes += correlated_store->b2a_multi(num_inputs, num_bits, shares, shares_p);
     std::cout << "convert time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
 
@@ -672,9 +634,9 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
     std::unordered_map<std::string, sharetype> share_map;
 
     VarShare share;
-    const uint64_t max_val = 1ULL << msg.num_bits;
+    const size_t num_bits = msg.num_bits;
+    const uint64_t max_val = 1ULL << num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
-    const size_t nbits[2] = {msg.num_bits, msg.num_bits * 2};
     const size_t num_dabits = 3;
 
     // Just for getting sizes
@@ -701,7 +663,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
         }
         share_map[tag] = {share.val, share.val_squared, packet};
 
-        cli_bytes += recv_unvalidated(clientfd, tag, msg.num_bits * num_dabits);
+        cli_bytes += recv_unvalidated(clientfd, tag, num_bits * num_dabits);
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
@@ -709,7 +671,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
     if (STORE_TYPE != ot_store)
-        ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits * num_dabits);
+        ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * num_bits * num_dabits);
 
     start = clock_start();
     auto start2 = clock_start();
@@ -733,12 +695,12 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
         for (const auto& share : share_map) {
             sent_bytes += send_tag(serverfd, share.first);
 
-            std::tie(shares[2 * i], shares[2 * i + 1], packet[i]) = share.second;
+            std::tie(shares[i], shares[num_inputs + i], packet[i]) = share.second;
             circuit[i] = CheckVar();
 
             i++;
 
-            process_unvalidated(&share.first[0], msg.num_bits * num_dabits);
+            process_unvalidated(&share.first[0], num_bits * num_dabits);
         }
     } else {
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -746,22 +708,38 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
 
             valid[i] = (share_map.find(tag) != share_map.end());            
             if (valid[i]) {
-                std::tie(shares[2 * i], shares[2 * i + 1], packet[i]) = share_map[tag];
+                std::tie(shares[i], shares[num_inputs + i], packet[i]) = share_map[tag];
             } else {
                 packet[i] = new ClientPacket(NMul);  // mock empty packet
             }
             circuit[i] = CheckVar();
 
-            process_unvalidated(tag, msg.num_bits * num_dabits);
+            process_unvalidated(tag, num_bits * num_dabits);
         }
     }
     std::cout << "tag time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
 
+    fmpz_t* flat_xp_1; new_fmpz_array(&flat_xp_1, num_inputs * num_bits);
+    bool* const v = new bool[num_inputs * num_bits * 3];
+    correlated_store->b2a_multi_setup(num_inputs, num_bits, shares, flat_xp_1, v);
+    fmpz_t* flat_xp_2; new_fmpz_array(&flat_xp_2, num_inputs * num_bits * 2);
+    correlated_store->b2a_multi_setup(num_inputs, 2 * num_bits, &shares[num_inputs],
+            flat_xp_2, &v[num_inputs * num_bits]);
+    delete[] shares;
+    bool* const v_other = new bool[num_inputs * num_bits * 3];
+
+    sent_bytes += swap_bool_batch(serverfd, v, v_other, num_inputs * num_bits * 3);
+
     fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * 2);
-
-    sent_bytes += share_convert(num_inputs, 2, nbits, shares, shares_p);
-
+    correlated_store->b2a_multi_finish(num_inputs, num_bits, shares_p, flat_xp_1, v, v_other);
+    clear_fmpz_array(flat_xp_1, num_inputs * num_bits);
+    correlated_store->b2a_multi_finish(num_inputs, 2 * num_bits, &shares_p[num_inputs],
+            flat_xp_2, &v[num_inputs * num_bits], &v_other[num_inputs * num_bits]);
+    clear_fmpz_array(flat_xp_2, num_inputs * num_bits * 2);
+    delete[] v;
+    delete[] v_other;
+    transpose_fmpz_array(shares_p, num_inputs, 2);
     std::cout << "convert time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
 
@@ -774,7 +752,6 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
     }
     delete[] circuit;
     delete[] packet;
-    delete[] shares;
 
     if (server_num == 1) {
         recv_bool_batch(serverfd, valid, num_inputs);
@@ -846,11 +823,12 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     typedef std::tuple <uint64_t*, uint64_t, uint64_t*, uint64_t*, ClientPacket*> sharetype;
     std::unordered_map<std::string, sharetype> share_map;
 
-    const uint64_t max_val = 1ULL << msg.num_bits;
+    const size_t num_bits = msg.num_bits;
+    const uint64_t max_val = 1ULL << num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
     size_t nbits[num_fields];
     for (unsigned int i = 0; i < num_fields; i++)
-        nbits[i] = msg.num_bits * (i >= degree ? 2 : 1);
+        nbits[i] = num_bits * (i >= degree ? 2 : 1);
 
     // Just for getting sizes
     Circuit* const mock_circuit = CheckLinReg(degree);
@@ -903,7 +881,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
         share_map[tag] = {share.x_vals, share.y, share.x2_vals, share.xy_vals, packet};
 
-        cli_bytes += recv_unvalidated(clientfd, tag, msg.num_bits * num_dabits);
+        cli_bytes += recv_unvalidated(clientfd, tag, num_bits * num_dabits);
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
@@ -911,7 +889,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
     if (STORE_TYPE != ot_store)
-        ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits * num_dabits);
+        ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * num_bits * num_dabits);
 
     start = clock_start();
     auto start2 = clock_start();
@@ -952,7 +930,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             delete std::get<2>(share.second);
             delete std::get<3>(share.second);
 
-            process_unvalidated(&share.first[0], msg.num_bits * num_dabits);
+            process_unvalidated(&share.first[0], num_bits * num_dabits);
         }
     } else {
         for (unsigned int i = 0; i < num_inputs; i++) {
@@ -977,16 +955,43 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             }
             circuit[i] = CheckLinReg(degree);
 
-            process_unvalidated(tag, msg.num_bits * num_dabits);
+            process_unvalidated(tag, num_bits * num_dabits);
         }
     }
 
     std::cout << "tag time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
 
-    fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * num_fields);
+    const size_t num_1 = degree;
+    const size_t num_2 = num_fields - num_1;
+    const size_t total = num_bits * (num_1 + 2 * num_2);
+    uint64_t* const shares_transposed = new uint64_t[num_inputs * num_fields];
+    for (unsigned int i = 0; i < num_inputs; i++) {
+        for (unsigned int j = 0; j < num_fields; j++) {
+            shares_transposed[j * num_inputs + i] = shares[i * num_fields + j];
+        }
+    }
+    delete[] shares;
+    fmpz_t* flat_xp_1; new_fmpz_array(&flat_xp_1, num_inputs * num_1 * num_bits);
+    bool* const v = new bool[num_inputs * total];
+    correlated_store->b2a_multi_setup(num_inputs * num_1, num_bits, shares_transposed, flat_xp_1, v);
+    fmpz_t* flat_xp_2; new_fmpz_array(&flat_xp_2, num_inputs * num_2 * 2 * num_bits);
+    correlated_store->b2a_multi_setup(num_inputs * num_2, 2 * num_bits,
+        &shares_transposed[num_inputs * num_1], flat_xp_2, &v[num_inputs * num_1 * num_bits]);
+    // delete[] shares_transposed;
+    bool* const v_other = new bool[num_inputs * total];
 
-    sent_bytes += share_convert(num_inputs, num_fields, nbits, shares, shares_p);
+    sent_bytes += swap_bool_batch(serverfd, v, v_other, num_inputs * total);
+
+    fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * num_fields);
+    correlated_store->b2a_multi_finish(num_inputs * num_1, num_bits, shares_p, flat_xp_1, v, v_other);
+    clear_fmpz_array(flat_xp_1, num_inputs * num_1 * num_bits);
+    correlated_store->b2a_multi_finish(num_inputs * num_2, 2 * num_bits, &shares_p[num_inputs * num_1],
+            flat_xp_2, &v[num_inputs * num_1 * num_bits], &v_other[num_inputs * num_1 * num_bits]);
+    clear_fmpz_array(flat_xp_2, num_inputs * num_2 * 2 * num_bits);
+    delete[] v;
+    delete[] v_other;
+    transpose_fmpz_array(shares_p, num_inputs, num_fields);
 
     std::cout << "convert time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
@@ -1001,7 +1006,6 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     }
     delete[] circuit;
     delete[] packet;
-    delete[] shares;
 
     if (server_num == 1) {
         recv_bool_batch(serverfd, valid, num_inputs);

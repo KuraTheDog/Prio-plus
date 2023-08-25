@@ -207,20 +207,14 @@ void test_b2a_single(const size_t N, const int server_num, const int serverfd,
   clear_fmpz_array(xp, N);
 }
 
-void test_b2a_multi(const size_t N, const size_t* const nbits, const int server_num, const int serverfd,
+void test_b2a_multi(const size_t N, const int server_num, const int serverfd,
     ShareConverter* store) {
-  fmpz_t* x; new_fmpz_array(&x, N);
-
-  if (server_num == 0) {
-    fmpz_set_ui(x[0], 3);
-    fmpz_set_ui(x[1], 5);
-  } else {
-    fmpz_set_ui(x[0], 6);
-    fmpz_set_ui(x[1], 4);
-  }
+  uint64_t x[N];
+  x[0] = server_num == 0 ? 3 : 6;
+  x[1] = server_num == 0 ? 5 : 4;
 
   fmpz_t* xp; new_fmpz_array(&xp, N);
-  store->b2a_multi(N, nbits, x, xp);
+  store->b2a_multi(N, num_bits, x, xp);
 
   if (server_num == 0) {
     fmpz_t tmp; fmpz_init(tmp);
@@ -239,7 +233,6 @@ void test_b2a_multi(const size_t N, const size_t* const nbits, const int server_
     send_fmpz(serverfd, xp[1]);
   }
 
-  clear_fmpz_array(x, N);
   clear_fmpz_array(xp, N);
 }
 
@@ -273,13 +266,13 @@ void runServerTest(const int server_num, const int serverfd) {
     test_b2a_single(N, server_num, serverfd, store_pre);
     std::cout << "b2a da single timing : " << sec_from(start) << std::endl; start = clock_start();
 
-    test_b2a_multi(N, bits_arr, server_num, serverfd, store_pre);
+    test_b2a_multi(N, server_num, serverfd, store_pre);
     std::cout << "b2a da multi timing : " << sec_from(start) << std::endl; start = clock_start();
 
     test_b2a_single(N, server_num, serverfd, store_ot);
     std::cout << "b2a ot single timing : " << sec_from(start) << std::endl; start = clock_start();
 
-    test_b2a_multi(N, bits_arr, server_num, serverfd, store_ot);
+    test_b2a_multi(N, server_num, serverfd, store_ot);
     std::cout << "b2a ot multi timing : " << sec_from(start) << std::endl; start = clock_start();
   }
 

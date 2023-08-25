@@ -75,61 +75,57 @@ int64_t CorrelatedStore::b2a_single(const size_t N, const bool* const x, fmpz_t*
 }
 
 void CorrelatedStore::b2a_multi_setup(
-    const size_t N, const size_t total_bits, const size_t* const num_bits,
-    const fmpz_t* const x, fmpz_t* const flat_xp, bool* const v) {
-  bool* const x2 = new bool[total_bits];
+    const size_t N, const size_t num_bits,
+    const uint64_t* const x, fmpz_t* const flat_xp, bool* const v) {
+  bool* const x2 = new bool[N * num_bits];
 
   size_t offset = 0;
   for (unsigned int i = 0; i < N; i++) {
-    for (unsigned int j = 0; j < num_bits[i]; j++)
-      x2[j + offset] = fmpz_tstbit(x[i], j);
-    offset += num_bits[i];
+    for (unsigned int j = 0; j < num_bits; j++)
+      x2[j + offset] = (x[i] >> j)%2;
+    offset += num_bits;
   }
 
-  b2a_single_setup(total_bits, x2, flat_xp, v);
+  b2a_single_setup(N * num_bits, x2, flat_xp, v);
   delete[] x2;
 }
 
 void CorrelatedStore::b2a_multi_finish(
-    const size_t N, const size_t total_bits, const size_t* const num_bits,
+    const size_t N, const size_t num_bits,
     fmpz_t* const xp, fmpz_t* const flat_xp,
     const bool* const v, const bool* const v_other
   ) {
 
-  b2a_single_finish(total_bits, flat_xp, v, v_other);
+  b2a_single_finish(N * num_bits, flat_xp, v, v_other);
 
   size_t offset = 0;
   for (unsigned int i = 0; i < N; i++) {
     fmpz_set_ui(xp[i], 0);
-    for (unsigned int j = 0; j < num_bits[i]; j++) {
+    for (unsigned int j = 0; j < num_bits; j++) {
       fmpz_mod_addmul_ui(xp[i], flat_xp[j + offset], (1ULL << j), mod_ctx);
     }
-    offset += num_bits[i];
+    offset += num_bits;
   }
 }
 
 int64_t CorrelatedStore::b2a_multi(
-    const size_t N, const size_t* const num_bits,
-    const fmpz_t* const x, fmpz_t* const xp) {
+    const size_t N, const size_t num_bits,
+    const uint64_t* const x, fmpz_t* const xp) {
   int64_t sent_bytes = 0;
 
-  size_t total_bits = 0;
-  for (unsigned int i = 0; i < N; i++)
-    total_bits += num_bits[i];
+  check_DaBits(N * num_bits);
 
-  check_DaBits(total_bits);
+  fmpz_t* flat_xp; new_fmpz_array(&flat_xp, N * num_bits);
+  bool* const v = new bool[N * num_bits];
+  b2a_multi_setup(N, num_bits, x, flat_xp, v);
+  bool* const v_other = new bool[N * num_bits];
 
-  fmpz_t* flat_xp; new_fmpz_array(&flat_xp, total_bits);
-  bool* const v = new bool[total_bits];
-  b2a_multi_setup(N, total_bits, num_bits, x, flat_xp, v);
-  bool* const v_other = new bool[total_bits];
+  sent_bytes += swap_bool_batch(serverfd, v, v_other, N * num_bits);
 
-  sent_bytes += swap_bool_batch(serverfd, v, v_other, total_bits);
-
-  b2a_multi_finish(N, total_bits, num_bits, xp, flat_xp, v, v_other);
+  b2a_multi_finish(N, num_bits, xp, flat_xp, v, v_other);
   delete[] v;
   delete[] v_other;
-  clear_fmpz_array(flat_xp, total_bits);
+  clear_fmpz_array(flat_xp, N * num_bits);
 
   return sent_bytes;
 }
@@ -1368,28 +1364,28 @@ int64_t PrecomputeStore::gen_BoolTriple_lazy(
 
 
 int64_t OTCorrelatedStore::b2a_multi(
-    const size_t N, const size_t* const num_bits,
-    const fmpz_t* const x, fmpz_t* const xp) {
-  return b2a_ot(1, N, num_bits, x, xp, fmpz_get_ui(Int_Modulus));
+    const size_t N, const size_t num_bits,
+    const uint64_t* const x, fmpz_t* const xp) {
+  size_t bit_arr[N];
+  for (unsigned int i = 0; i < N; i++)
+    bit_arr[i] = num_bits;
+  return b2a_ot(1, N, bit_arr, x, xp, fmpz_get_ui(Int_Modulus));
 }
 
 int64_t OTCorrelatedStore::b2a_single(
     const size_t N, const bool* const x, fmpz_t* const xp) {
-  size_t num_bits[N];
-  fmpz_t* x2; new_fmpz_array(&x2, N);
-  for (unsigned int i = 0; i < N; i++) {
-    fmpz_set_ui(x2[i], (int) x[i]);
-    num_bits[i] = 1;
-  }
-  int ret = b2a_multi(N, num_bits, x2, xp);
-  clear_fmpz_array(x2, N);
+  uint64_t* const x2 = new uint64_t[N];
+  for (unsigned int i = 0; i < N; i++)
+    x2[i] = x[i];
+  int64_t ret = b2a_multi(N, 1, x2, xp);
+  delete[] x2;
   return ret;
 }
 
 // Using intsum_ot, multiple bits
 int64_t OTCorrelatedStore::b2a_ot(
     const size_t num_shares, const size_t num_values, const size_t* const num_bits,
-    const fmpz_t* const x, fmpz_t* const xp_out, const size_t mod) {
+    const uint64_t* const x, fmpz_t* const xp_out, const size_t mod) {
   int64_t sent_bytes = 0;
 
   uint64_t** const x2 = new uint64_t*[num_shares];
@@ -1398,7 +1394,7 @@ int64_t OTCorrelatedStore::b2a_ot(
     x2[i] = new uint64_t[num_values];
     valid[i] = true;
     for (unsigned int j = 0; j < num_values; j++) {
-      x2[i][j] = fmpz_get_ui(x[i * num_values + j]);
+      x2[i][j] = x[i * num_values + j];
     }
   }
 
