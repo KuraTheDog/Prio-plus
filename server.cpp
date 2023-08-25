@@ -265,7 +265,6 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
     for (unsigned int i = 0; i < total_inputs; i++) {
         cli_bytes += recv_in(clientfd, &share, sizeof(BitShare));
         const std::string tag(share.tag, share.tag + TAG_LENGTH);
-        // recv_unvalidated(clientfd, 1, tag);
         if (share_map.find(tag) != share_map.end())
             continue;
         share_map[tag] = share.val;
@@ -2242,8 +2241,8 @@ int main(int argc, char** argv) {
     while(1) {
         if (STORE_TYPE != ot_store) {
             ((PrecomputeStore*) correlated_store)->maybe_Update();
-            ((PrecomputeStore*) correlated_store)->print_Sizes();
         }
+        correlated_store->print_Sizes();
 
         socklen_t addrlen = sizeof(addr);
 

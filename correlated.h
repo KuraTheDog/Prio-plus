@@ -362,6 +362,8 @@ public:
   virtual int64_t check_DaBits(const size_t n = 0) = 0;
   virtual void check_Triples(const size_t n = 0) = 0;
   virtual void check_BoolTriples(const size_t n = 0) = 0;
+
+  virtual void print_Sizes() const = 0;
 };
 
 // A Cache of correlated bits of different types
@@ -434,6 +436,9 @@ public:
       const size_t* const num_bits,
       const fmpz_t* const x, fmpz_t* const xp,
       const size_t mod = 0);
+
+  void print_Sizes() const {};
+  void maybe_Update() {};
 };
 
 #endif
