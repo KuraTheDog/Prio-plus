@@ -35,10 +35,11 @@ protected:
   std::unordered_map<std::string, pairtype> unvalidated_pairs;
 
   // TODO: some way to bulk generate alt triples (e.g. OT).
+  // If unvalidated, can draw from validated as backup
   const AltTriple* get_AltTriple(const bool validated);
   const AltTriple* const * const gen_AltTriple(const size_t N);
   const AltTriple* const * const gen_AltTriple_lazy(const size_t N);
-  void add_AltTriples(const size_t n, const bool validated);
+  void add_AltTriples(const size_t n);
 
   const DaBit* const get_DaBit() override;
 
@@ -75,6 +76,8 @@ public:
     unvalidated_pairs.clear();
   }
 
+  // if unvalidated, checks both stores.
+  // If validated, checks only validated store
   void check_AltTriple(const size_t n, const bool validated);
   // Takes in list for convenience. just checks for #valid and #unvalid
   void check_AltTriple(const size_t n, const bool* const validated);
@@ -105,9 +108,9 @@ public:
   Depends on how many num_unvalid there are.
   a) N' <= num_unvalid
       Then it can make the largest power of 2 it can using only unvalid.
-  b) N' >= num_unvalid
+  b) N' > num_unvalid
       Uses "dummy" zero dabits to pad unvalid dabits.
-      May use additional precomputed alt-triples.
+      Pulls extra alt-triples from precomputed.
 
   Loosely:
   Takes N unvalidated DaBits and N' unvalidated altTriples

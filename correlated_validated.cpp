@@ -35,21 +35,23 @@ const AltTriple* const * const ValidateCorrelatedStore::gen_AltTriple_lazy(const
 const AltTriple* ValidateCorrelatedStore::get_AltTriple(const bool validated) {
   check_AltTriple(1, validated);
 
-  std::queue<const AltTriple*>& q = validated ? alt_triple_store : unvalidated_alt_triple_store;
+  if (!validated and unvalidated_alt_triple_store.size() > 0) {
+    const AltTriple* const t = unvalidated_alt_triple_store.front();
+    unvalidated_alt_triple_store.pop();
+    return t;
+  }
 
-  const AltTriple* const t = q.front();
-  q.pop();
+  const AltTriple* const t = alt_triple_store.front();
+  alt_triple_store.pop();
   return t;
 }
 
 void ValidateCorrelatedStore::check_AltTriple(const size_t n, const bool validated) {
-  std::queue<const AltTriple*>& q = validated ? alt_triple_store : unvalidated_alt_triple_store;
-  // std::cout << "checking " << n << (validated?" ":" un");
-  // std::cout << "validated AltTriples, have: " << q.size() << std::endl;
-  if (q.size() < n) {
-    // std::cout << "Calling " << (validated?" ":" un") << " check_AltTriples(" << n << ")";
-    // std::cout << ", only have " << q.size() << "\n";
-    add_AltTriples(n - q.size(), validated);
+  size_t num = alt_triple_store.size();
+  if (!validated)
+    num += unvalidated_alt_triple_store.size();
+  if (num < n) {
+    add_AltTriples(n - num);
   }
 }
 
@@ -58,18 +60,22 @@ void ValidateCorrelatedStore::check_AltTriple(const size_t n, const bool* const 
   size_t val_count = 0;
   for (unsigned int i = 0; i < n; i++)
     val_count += (size_t) validated[i];
-  check_AltTriple(val_count, true);
-  check_AltTriple(n - val_count, false);
+
+  // If not enough unval (need n - val), then more val
+  if (unvalidated_alt_triple_store.size() < n - val_count) {
+    val_count += (n - val_count) - unvalidated_alt_triple_store.size();
+  }
+  if (alt_triple_store.size() < val_count) {
+    add_AltTriples(val_count - alt_triple_store.size());
+  }
 }
 
-void ValidateCorrelatedStore::add_AltTriples(const size_t n, const bool validated) {
+void ValidateCorrelatedStore::add_AltTriples(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > alt_triple_batch_size ? n : alt_triple_batch_size);
 
-  std::cout << "adding " << num_to_make << (validated?" ":" un");
-  std::cout << "validated AltTriples" << std::endl;
+  std::cout << "adding " << num_to_make << " AltTriples" << std::endl;
   const AltTriple* const * t;
-  std::queue<const AltTriple*>& q = validated ? alt_triple_store : unvalidated_alt_triple_store;
 
   if (lazy)
     t = gen_AltTriple_lazy(num_to_make);
@@ -77,7 +83,7 @@ void ValidateCorrelatedStore::add_AltTriples(const size_t n, const bool validate
     t = gen_AltTriple(num_to_make);
 
   for (unsigned int i = 0; i < num_to_make; i++)
-    q.push(t[i]);
+    alt_triple_store.push(t[i]);
   delete[] t;
 
   std::cout << "add_AltTriples timing : " << sec_from(start) << std::endl;
@@ -177,6 +183,9 @@ int64_t ValidateCorrelatedStore::batch_Validate(const size_t target) {
   check_AltTriple(N, false);
   // Also have a normal validated one, i.e. from outside
   check_AltTriple(1, true);
+
+  // std::cout << "batch Val post check sizes:\n";
+  // print_Sizes();
 
   // More variable setup
   mult_eval_manager.check_eval_point(2);
