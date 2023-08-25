@@ -915,17 +915,22 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
     start = clock_start();
     auto start2 = clock_start();
-
     int sent_bytes = 0;
+    size_t num_inputs;
 
     if (server_num == 1) {
-        const size_t num_inputs = share_map.size();
+        num_inputs = share_map.size();
         sent_bytes += send_size(serverfd, num_inputs);
+    } else {
+        recv_size(serverfd, num_inputs);
+    }
 
-        uint64_t* const shares = new uint64_t[num_inputs * num_fields];
-        ClientPacket** const packet = new ClientPacket*[num_inputs];
-        Circuit** const circuit = new Circuit*[num_inputs];
+    uint64_t* const shares = new uint64_t[num_inputs * num_fields];
+    bool* const valid = new bool[num_inputs];
+    ClientPacket** const packet = new ClientPacket*[num_inputs];
+    Circuit** const circuit = new Circuit*[num_inputs];
 
+    if (server_num == 1) {
         size_t i = 0;
         for (const auto& share : share_map) {
             sent_bytes += send_tag(serverfd, share.first);
@@ -949,66 +954,11 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
             process_unvalidated(&share.first[0], msg.num_bits * num_dabits);
         }
-        std::cout << "tag time: " << sec_from(start2) << std::endl;
-        start2 = clock_start();
-
-        fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * num_fields);
-        sent_bytes += share_convert(num_inputs, num_fields, nbits, shares, shares_p);
-        std::cout << "convert time: " << sec_from(start2) << std::endl;
-        start2 = clock_start();
-        const bool* const snip_valid = validate_snips(
-            num_inputs, num_fields, serverfd, server_num, circuit,
-            packet, shares_p);
-
-        bool* const valid = new bool[num_inputs];
-        recv_bool_batch(serverfd, valid, num_inputs);
-
-        for (unsigned int i = 0; i < num_inputs; i++) {
-            valid[i] &= snip_valid[i];
-
-            delete circuit[i];
-            delete packet[i];
-        }
-        delete[] snip_valid;
-        delete[] circuit;
-        delete[] packet;
-        delete[] shares;
-        std::cout << "validate time: " << sec_from(start2) << std::endl;
-        start2 = clock_start();
-
-        // Convert
-        fmpz_t* b; new_fmpz_array(&b, num_fields);
-        accumulate(num_inputs, num_fields, shares_p, valid, b);
-        delete[] valid;
-        clear_fmpz_array(shares_p, num_inputs * num_fields);
-
-        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
-        std::cout << "total compute time: " << sec_from(start) << std::endl;
-
-        send_fmpz_batch(serverfd, b, num_fields);
-
-        clear_fmpz_array(b, num_fields);
-
-        std::cout << "sent non-snip server bytes: " << sent_bytes << std::endl;
-
-        return RET_NO_ANS;
     } else {
-        size_t num_inputs;
-        recv_size(serverfd, num_inputs);
-
-        uint64_t* const shares = new uint64_t[num_inputs * num_fields];
-        ClientPacket** const packet = new ClientPacket*[num_inputs];
-
-        bool* const valid = new bool[num_inputs];
-        Circuit** const circuit = new Circuit*[num_inputs];
-
         for (unsigned int i = 0; i < num_inputs; i++) {
             const std::string tag = recv_tag(serverfd);
+
             valid[i] = (share_map.find(tag) != share_map.end());
-
-            process_unvalidated(tag, msg.num_bits * num_dabits);
-
-            circuit[i] = CheckLinReg(degree);
             if (valid[i]) {
                 memcpy(&shares[num_fields * i],
                    std::get<0>(share_map[tag]), num_x * sizeof(uint64_t));
@@ -1025,99 +975,96 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             } else {
                 packet[i] = new ClientPacket(NMul);
             }
-        }
-        std::cout << "tag time: " << sec_from(start2) << std::endl;
-        start2 = clock_start();
+            circuit[i] = CheckLinReg(degree);
 
-        fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * num_fields);
-        sent_bytes += share_convert(num_inputs, num_fields, nbits, shares, shares_p);
-        std::cout << "convert time: " << sec_from(start2) << std::endl;
-        start2 = clock_start();
-        const bool* const snip_valid = validate_snips(
+            process_unvalidated(tag, msg.num_bits * num_dabits);
+        }
+    }
+
+    std::cout << "tag time: " << sec_from(start2) << std::endl;
+    start2 = clock_start();
+
+    fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * num_fields);
+
+    sent_bytes += share_convert(num_inputs, num_fields, nbits, shares, shares_p);
+
+    std::cout << "convert time: " << sec_from(start2) << std::endl;
+    start2 = clock_start();
+
+    const bool* const snip_valid = validate_snips(
             num_inputs, num_fields, serverfd, server_num, circuit,
             packet, shares_p);
 
-        for (unsigned int i = 0; i < num_inputs; i++) {
+    for (unsigned int i = 0; i < num_inputs; i++) {
+        delete circuit[i];
+        delete packet[i];
+    }
+    delete[] circuit;
+    delete[] packet;
+    delete[] shares;
+
+    if (server_num == 1) {
+        recv_bool_batch(serverfd, valid, num_inputs);
+
+        for (unsigned int i = 0; i < num_inputs; i++)
+            valid[i] &= snip_valid[i];
+    } else {
+        for (unsigned int i = 0; i < num_inputs; i++)
             valid[i] &= snip_valid[i];
 
-            delete circuit[i];
-            delete packet[i];
-        }
-        // Send valid back, to also encapsulate pre-snip valid[]
         sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
-        delete[] snip_valid;
-        delete[] circuit;
-        delete[] packet;
-        delete[] shares;
-        std::cout << "validate time: " << sec_from(start2) << std::endl;
-        start2 = clock_start();
-
-        // Convert
-        fmpz_t* a; new_fmpz_array(&a, num_fields);
-        size_t num_valid = accumulate(num_inputs, num_fields, shares_p, valid, a);
-
-        delete[] valid;
-        clear_fmpz_array(shares_p, num_inputs * num_fields);
-
-        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
-        std::cout << "total compute time: " << sec_from(start) << std::endl;
-        start2 = clock_start();
-
-        uint64_t* const x_accum = new uint64_t[degree + num_quad];
-        memset(x_accum, 0, (degree + num_quad) * sizeof(uint64_t));
-        uint64_t* const y_accum = new uint64_t[degree];
-        memset(y_accum, 0, (degree) * sizeof(uint64_t));
-
-        fmpz_t b; fmpz_init(b);
-
-        x_accum[0] = num_valid;
-        for (unsigned int j = 0; j < num_x; j++) {
-            recv_fmpz(serverfd, b);
-            fmpz_mod_add(b, b, a[j], mod_ctx);
-            x_accum[1 + j] = fmpz_get_si(b);
-        }
-        recv_fmpz(serverfd, b);
-        fmpz_mod_add(b, b, a[num_x], mod_ctx);
-        y_accum[0] = fmpz_get_si(b);
-
-        for (unsigned int j = 0; j < num_quad; j++) {
-            recv_fmpz(serverfd, b);
-            fmpz_mod_add(b, b, a[degree + j], mod_ctx);
-            x_accum[1 + num_x + j] = fmpz_get_si(b);
-        }
-        for (unsigned int j = 0; j < num_x; j++) {
-            recv_fmpz(serverfd, b);
-            fmpz_mod_add(b, b, a[degree + num_quad + j], mod_ctx);
-            y_accum[1 + j] = fmpz_get_si(b);
-        }
-
-        clear_fmpz_array(a, num_fields);
-        fmpz_clear(b);
-
-        std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "sent non-snip server bytes: " << sent_bytes << std::endl;
-        if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
-            std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
-            delete[] x_accum;
-            delete[] y_accum;
-            return RET_INVALID;
-        }
-
-        const double* const c = SolveLinReg(degree, x_accum, y_accum);
-        std::cout << "Estimate: y = ";
-        for (unsigned int i = 0; i < degree; i++) {
-            if (i > 0) std::cout << " + ";
-            std::cout << c[i];
-            if (i > 0) std::cout << " * x_" << (i-1);
-        }
-        std::cout << std::endl;
-        std::cout << "eval time: " << sec_from(start2) << std::endl;
-        delete[] x_accum;
-        delete[] y_accum;
-        delete[] c;
-
-        return RET_ANS;
     }
+    delete[] snip_valid;
+    std::cout << "validate time: " << sec_from(start2) << std::endl;
+    start2 = clock_start();
+
+    fmpz_t* b; new_fmpz_array(&b, num_fields);
+    size_t num_valid = accumulate(num_inputs, num_fields, shares_p, valid, b);
+    delete[] valid;
+    clear_fmpz_array(shares_p, num_inputs * num_fields);
+    std::cout << "accumulate time: " << sec_from(start2) << std::endl;
+    start2 = clock_start();
+
+    std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+    std::cout << "total compute time: " << sec_from(start) << std::endl;
+    std::cout << "sent non-snip server bytes: " << sent_bytes << std::endl;
+    if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
+        std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+        clear_fmpz_array(b, num_fields);
+        return RET_INVALID;
+    }
+
+    reveal_fmpz_batch(serverfd, b, num_fields);
+
+    uint64_t* const x_accum = new uint64_t[degree + num_quad];
+    memset(x_accum, 0, (degree + num_quad) * sizeof(uint64_t));
+    uint64_t* const y_accum = new uint64_t[degree];
+    memset(y_accum, 0, (degree) * sizeof(uint64_t));
+
+    x_accum[0] = num_valid;
+    for (unsigned int j = 0; j < num_x; j++)
+        x_accum[1 + j] = fmpz_get_si(b[j]);
+    y_accum[0] = fmpz_get_si(b[num_x]);
+    for (unsigned int j = 0; j < num_quad; j++)
+        x_accum[1 + num_x + j] = fmpz_get_si(b[degree + j]);
+    for (unsigned int j = 0; j < num_x; j++)
+        y_accum[1 + j] = fmpz_get_si(b[degree + num_quad + j]);
+    clear_fmpz_array(b, num_fields);
+
+    const double* const c = SolveLinReg(degree, x_accum, y_accum);
+    std::cout << "Estimate: y = ";
+    for (unsigned int i = 0; i < degree; i++) {
+        if (i > 0) std::cout << " + ";
+        std::cout << c[i];
+        if (i > 0) std::cout << " * x_" << (i-1);
+    }
+    std::cout << std::endl;
+    std::cout << "eval time: " << sec_from(start2) << std::endl;
+    delete[] x_accum;
+    delete[] y_accum;
+    delete[] c;
+
+    return RET_ANS;
 }
 
 returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
