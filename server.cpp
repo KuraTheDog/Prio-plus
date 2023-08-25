@@ -474,11 +474,11 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
         const size_t num_inputs = share_map.size();
         sent_bytes += send_size(serverfd, num_inputs);
         uint64_t b = 0;
-        std::string* const tag_list = new std::string[num_inputs];
+        uint64_t* const shares = new uint64_t[num_inputs];
         size_t idx = 0;
         for (const auto& share : share_map) {
             sent_bytes += send_tag(serverfd, share.first);
-            tag_list[idx] = share.first;
+            shares[idx] = share.second;
             idx++;
         }
         std::cout << "tag time: " << sec_from(start2) << std::endl;
@@ -489,12 +489,12 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
         for (unsigned int i = 0; i < num_inputs; i++) {
             if (!other_valid[i])
                 continue;
-            b ^= share_map[tag_list[i]];
+            b ^= shares[i];
         }
         delete[] other_valid;
+        delete[] shares;
 
         send_uint64(serverfd, b);
-        delete[] tag_list;
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << sent_bytes << std::endl;
@@ -581,11 +581,11 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
         sent_bytes += send_size(serverfd, num_inputs);
         uint64_t b[B+1];
         memset(b, 0, sizeof(b));
-        std::string* const tag_list = new std::string[num_inputs];
+        uint64_t** const ordered_shares = new uint64_t*[num_inputs];
         size_t idx = 0;
         for (const auto& share : share_map) {
             sent_bytes += send_tag(serverfd, share.first);
-            tag_list[idx] = share.first;
+            ordered_shares[idx] = share.second;
             idx++;
         }
         std::cout << "tag time: " << sec_from(start2) << std::endl;
@@ -596,11 +596,11 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
             if (!other_valid[i])
                 continue;
             for (unsigned int j = 0; j <= B; j++)
-                b[j] ^= share_map[tag_list[i]][j];
+                b[j] ^= ordered_shares[i][j];
         }
         delete[] other_valid;
         delete[] shares;
-        delete[] tag_list;
+        delete[] ordered_shares;
         send_uint64_batch(serverfd, b, B+1);
 
         std::cout << "convert time: " << sec_from(start2) << std::endl;
@@ -724,28 +724,21 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
 
         uint64_t* const shares = new uint64_t[2 * num_inputs];
         ClientPacket** const packet = new ClientPacket*[num_inputs];
-
-        std::string* const tag_list = new std::string[num_inputs];
         Circuit** const circuit = new Circuit*[num_inputs];
 
-        size_t idx = 0;
+        size_t i = 0;
         for (const auto& share : share_map) {
             sent_bytes += send_tag(serverfd, share.first);
-            tag_list[idx] = share.first;
-            idx++;
+
+            std::tie(shares[2 * i], shares[2 * i + 1], packet[i]) = share.second;
+            circuit[i] = CheckVar();
+
+            i++;
 
             process_unvalidated(&share.first[0], msg.num_bits * num_dabits);
         }
         std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
-
-        for (unsigned int i = 0; i < num_inputs; i++) {
-            uint64_t val = 0, val2 = 0;
-            std::tie(val, val2, packet[i]) = share_map[tag_list[i]];
-            circuit[i] = CheckVar();
-            shares[2 * i] = val;
-            shares[2 * i + 1] = val2;
-        }
         fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * 2);
         sent_bytes += share_convert(num_inputs, 2, nbits, shares, shares_p);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
@@ -763,7 +756,6 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
             delete packet[i];
         }
         delete[] snip_valid;
-        delete[] tag_list;
         delete[] circuit;
         delete[] packet;
         delete[] shares;
@@ -794,29 +786,23 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
         ClientPacket** const packet = new ClientPacket*[num_inputs];
 
         bool* const valid = new bool[num_inputs];
-        std::string* const tag_list = new std::string[num_inputs];
         Circuit** const circuit = new Circuit*[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             const std::string tag = recv_tag(serverfd);
-            tag_list[i] = tag;
             valid[i] = (share_map.find(tag) != share_map.end());
+            
+            if (valid[i]) {
+                std::tie(shares[2 * i], shares[2 * i + 1], packet[i]) = share_map[tag];
+            } else {
+                packet[i] = new ClientPacket(NMul);  // mock empty packet
+            }
+            circuit[i] = CheckVar();
 
             process_unvalidated(tag, msg.num_bits * num_dabits);
         }
         std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
-        for (unsigned int i = 0; i < num_inputs; i++) {
-            uint64_t val = 0, val2 = 0;
-            if (valid[i]) {
-                std::tie(val, val2, packet[i]) = share_map[tag_list[i]];
-            } else {
-                packet[i] = new ClientPacket(NMul);  // mock empty packet
-            }
-            circuit[i] = CheckVar();
-            shares[2 * i] = val;
-            shares[2 * i + 1] = val2;
-        }
         fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * 2);
         sent_bytes += share_convert(num_inputs, 2, nbits, shares, shares_p);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
@@ -833,7 +819,6 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
         // Send valid back, to also encapsulate pre-snip valid[]
         sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
         delete[] snip_valid;
-        delete[] tag_list;
         delete[] circuit;
         delete[] packet;
         delete[] shares;
@@ -985,42 +970,34 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
         uint64_t* const shares = new uint64_t[num_inputs * num_fields];
         ClientPacket** const packet = new ClientPacket*[num_inputs];
-
-        std::string* const tag_list = new std::string[num_inputs];
         Circuit** const circuit = new Circuit*[num_inputs];
 
-        size_t idx = 0;
+        size_t i = 0;
         for (const auto& share : share_map) {
             sent_bytes += send_tag(serverfd, share.first);
-            tag_list[idx] = share.first;
-            idx++;
+
+            circuit[i] = CheckLinReg(degree);
+
+            memcpy(&shares[num_fields * i],
+                   std::get<0>(share.second), num_x * sizeof(uint64_t));
+            shares[num_fields * i + num_x] = std::get<1>(share.second);
+            memcpy(&shares[num_fields * i + num_x + 1],
+                   std::get<2>(share.second), num_quad * sizeof(uint64_t));
+            memcpy(&shares[num_fields * i + num_x + num_quad + 1],
+                   std::get<3>(share.second), num_x * sizeof(uint64_t));
+            packet[i] = std::get<4>(share.second);
+
+            i++;
+
+            delete std::get<0>(share.second);
+            delete std::get<2>(share.second);
+            delete std::get<3>(share.second);
 
             process_unvalidated(&share.first[0], msg.num_bits * num_dabits);
         }
         std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        for (unsigned int i = 0; i < num_inputs; i++) {
-            uint64_t* x_vals;
-            uint64_t y_val = 0;
-            uint64_t* x2_vals;
-            uint64_t* xy_vals;
-
-            std::tie(x_vals, y_val, x2_vals, xy_vals, packet[i]) = share_map[tag_list[i]];
-            circuit[i] = CheckLinReg(degree);
-
-            memcpy(&shares[num_fields * i],
-                   x_vals, num_x * sizeof(uint64_t));
-            shares[num_fields * i + num_x] = y_val;
-            memcpy(&shares[num_fields * i + num_x + 1],
-                   x2_vals, num_quad * sizeof(uint64_t));
-            memcpy(&shares[num_fields * i + num_x + num_quad + 1],
-                   xy_vals, num_x * sizeof(uint64_t));
-
-            delete x_vals;
-            delete x2_vals;
-            delete xy_vals;
-        }
         fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * num_fields);
         sent_bytes += share_convert(num_inputs, num_fields, nbits, shares, shares_p);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
@@ -1039,7 +1016,6 @@ returnType linreg_op(const initMsg msg, const int clientfd,
             delete packet[i];
         }
         delete[] snip_valid;
-        delete[] tag_list;
         delete[] circuit;
         delete[] packet;
         delete[] shares;
@@ -1070,45 +1046,35 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         ClientPacket** const packet = new ClientPacket*[num_inputs];
 
         bool* const valid = new bool[num_inputs];
-        std::string* const tag_list = new std::string[num_inputs];
         Circuit** const circuit = new Circuit*[num_inputs];
 
         for (unsigned int i = 0; i < num_inputs; i++) {
             const std::string tag = recv_tag(serverfd);
-            tag_list[i] = tag;
             valid[i] = (share_map.find(tag) != share_map.end());
 
             process_unvalidated(tag, msg.num_bits * num_dabits);
+
+            circuit[i] = CheckLinReg(degree);
+            if (valid[i]) {
+                memcpy(&shares[num_fields * i],
+                   std::get<0>(share_map[tag]), num_x * sizeof(uint64_t));
+                shares[num_fields * i + num_x] = std::get<1>(share_map[tag]);
+                memcpy(&shares[num_fields * i + num_x + 1],
+                       std::get<2>(share_map[tag]), num_quad * sizeof(uint64_t));
+                memcpy(&shares[num_fields * i + num_x + num_quad + 1],
+                       std::get<3>(share_map[tag]), num_x * sizeof(uint64_t));
+                packet[i] = std::get<4>(share_map[tag]);
+
+                delete std::get<0>(share_map[tag]);
+                delete std::get<2>(share_map[tag]);
+                delete std::get<3>(share_map[tag]);
+            } else {
+                packet[i] = new ClientPacket(NMul);
+            }
         }
         std::cout << "tag time: " << sec_from(start2) << std::endl;
         start2 = clock_start();
 
-        for (unsigned int i = 0; i < num_inputs; i++) {
-            uint64_t* x_vals;
-            uint64_t y_val = 0;
-            uint64_t* x2_vals;
-            uint64_t* xy_vals;
-            if (valid[i]) {
-                std::tie(x_vals, y_val, x2_vals, xy_vals, packet[i]) = share_map[tag_list[i]];
-            } else {
-                x_vals = new uint64_t[num_x];
-                x2_vals = new uint64_t[num_quad];
-                xy_vals = new uint64_t[num_x];
-                packet[i] = new ClientPacket(NMul);
-            }
-            circuit[i] = CheckLinReg(degree);
-            memcpy(&shares[num_fields * i],
-                   x_vals, num_x * sizeof(uint64_t));
-            shares[num_fields * i + num_x] = y_val;
-            memcpy(&shares[num_fields * i + num_x + 1],
-                   x2_vals, num_quad * sizeof(uint64_t));
-            memcpy(&shares[num_fields * i + num_x + num_quad + 1],
-                   xy_vals, num_x * sizeof(uint64_t));
-
-            delete x_vals;
-            delete x2_vals;
-            delete xy_vals;
-        }
         fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * num_fields);
         sent_bytes += share_convert(num_inputs, num_fields, nbits, shares, shares_p);
         std::cout << "convert time: " << sec_from(start2) << std::endl;
@@ -1126,7 +1092,6 @@ returnType linreg_op(const initMsg msg, const int clientfd,
         // Send valid back, to also encapsulate pre-snip valid[]
         sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
         delete[] snip_valid;
-        delete[] tag_list;
         delete[] circuit;
         delete[] packet;
         delete[] shares;
@@ -1657,7 +1622,6 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     }
 
     std::cout << "num_inputs: " << num_inputs << std::endl;
-    std::string* const tag_list = new std::string[num_inputs];
     bool* const shares_sh_x = new bool[num_inputs * share_size_sh];
     bool* const shares_sh_y = new bool[num_inputs * share_size_sh];
     bool* const shares_mask = new bool[num_inputs * share_size_mask];
@@ -1666,32 +1630,42 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     memset(valid, true, num_inputs * sizeof(bool));
 
     if (server_num == 1) {
-        size_t idx = 0;
+        size_t i = 0;
         for (const auto& share : share_map) {
             sent_bytes += send_tag(serverfd, share.first);
-            tag_list[idx] = share.first;
-            idx++;
+
+            bool* a; bool* b; bool* c; bool* d;
+            std::tie(a, b, c, d) = share.second;
+            memcpy(&shares_sh_x[i * share_size_sh], a, share_size_sh);
+            memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
+            memcpy(&shares_mask[i * share_size_mask], c, share_size_mask);
+            memcpy(&shares_count[i * share_size_count], d, share_size_count);
+            delete a;
+            delete b;
+            delete c;
+            delete d;
+
+            i++;
         }
     } else {
         for (unsigned int i = 0; i < num_inputs; i++) {
             const std::string tag = recv_tag(serverfd);
-            tag_list[i] = tag;
+
             valid[i] &= (share_map.find(tag) != share_map.end());
+            if (!valid[i]) continue;
+
+            bool* a; bool* b; bool* c; bool* d;
+            std::tie(a, b, c, d) = share_map[tag];
+            memcpy(&shares_sh_x[i * share_size_sh], a, share_size_sh);
+            memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
+            memcpy(&shares_mask[i * share_size_mask], c, share_size_mask);
+            memcpy(&shares_count[i * share_size_count], d, share_size_count);
+            delete a;
+            delete b;
+            delete c;
+            delete d;
         }
     }
-    for (unsigned int i = 0; i < num_inputs; i++) {
-        bool* a; bool* b; bool* c; bool* d;
-        std::tie(a, b, c, d) = share_map[tag_list[i]];
-        memcpy(&shares_sh_x[i * share_size_sh], a, share_size_sh);
-        memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
-        memcpy(&shares_mask[i * share_size_mask], c, share_size_mask);
-        memcpy(&shares_count[i * share_size_count], d, share_size_count);
-        delete a;
-        delete b;
-        delete c;
-        delete d;
-    }
-    delete[] tag_list;
     std::cout << "tag time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
     auto start3 = clock_start();
@@ -1969,7 +1943,6 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
     }
 
     std::cout << "num_inputs: " << num_inputs << std::endl;
-    std::string* const tag_list = new std::string[num_inputs];
     bool* const shares_sh_x = new bool[num_inputs * share_size_sh];
     bool* const shares_sh_y = new bool[num_inputs * share_size_sh];
     bool* const shares_bucket = new bool[num_inputs * share_size_bucket];
@@ -1979,35 +1952,46 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
     memset(valid, true, num_inputs * sizeof(bool));
 
     if (server_num == 1) {
-        size_t idx = 0;
+        size_t i = 0;
         for (const auto& share : share_map) {
             sent_bytes += send_tag(serverfd, share.first);
-            tag_list[idx] = share.first;
-            idx++;
+
+            bool* a; bool* b; bool* c; bool* d; bool* e;
+            std::tie(a, b, c, d, e) = share.second;
+            memcpy(&shares_sh_x[i * share_size_sh], a, share_size_sh);
+            memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
+            memcpy(&shares_bucket[i * share_size_bucket], c, share_size_bucket);
+            memcpy(&shares_layer[i * share_size_layer], d, share_size_layer);
+            memcpy(&shares_count[i * share_size_count], e, share_size_count);
+            delete a;
+            delete b;
+            delete c;
+            delete d;
+            delete e;
+
+            i++;
         }
     } else {
         for (unsigned int i = 0; i < num_inputs; i++) {
             const std::string tag = recv_tag(serverfd);
-            tag_list[i] = tag;
+
             valid[i] &= (share_map.find(tag) != share_map.end());
+            if (!valid[i]) continue;
+
+            bool* a; bool* b; bool* c; bool* d; bool* e;
+            std::tie(a, b, c, d, e) = share_map[tag];
+            memcpy(&shares_sh_x[i * share_size_sh], a, share_size_sh);
+            memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
+            memcpy(&shares_bucket[i * share_size_bucket], c, share_size_bucket);
+            memcpy(&shares_layer[i * share_size_layer], d, share_size_layer);
+            memcpy(&shares_count[i * share_size_count], e, share_size_count);
+            delete a;
+            delete b;
+            delete c;
+            delete d;
+            delete e;
         }
     }
-    for (unsigned int i = 0; i < num_inputs; i++) {
-        if (!valid[i]) continue;
-        bool* a; bool* b; bool* c; bool* d; bool* e;
-        std::tie(a, b, c, d, e) = share_map[tag_list[i]];
-        memcpy(&shares_sh_x[i * share_size_sh], a, share_size_sh);
-        memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
-        memcpy(&shares_bucket[i * share_size_bucket], c, share_size_bucket);
-        memcpy(&shares_layer[i * share_size_layer], d, share_size_layer);
-        memcpy(&shares_count[i * share_size_count], e, share_size_count);
-        delete a;
-        delete b;
-        delete c;
-        delete d;
-        delete e;
-    }
-    delete[] tag_list;
     std::cout << "tag time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
     auto start3 = clock_start();
