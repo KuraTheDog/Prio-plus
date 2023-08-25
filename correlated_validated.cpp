@@ -47,7 +47,8 @@ void ValidateCorrelatedStore::check_AltTriple(const size_t n, const bool validat
   // std::cout << "checking " << n << (validated?" ":" un");
   // std::cout << "validated AltTriples, have: " << q.size() << std::endl;
   if (q.size() < n) {
-    // std::cout << "Calling check_AltTriples(" << n << "), only have " << q.size() << "\n";
+    // std::cout << "Calling " << (validated?" ":" un") << " check_AltTriples(" << n << ")";
+    // std::cout << ", only have " << q.size() << "\n";
     add_AltTriples(n - q.size(), validated);
   }
 }
@@ -63,7 +64,6 @@ void ValidateCorrelatedStore::check_AltTriple(const size_t n, const bool* const 
 
 void ValidateCorrelatedStore::add_AltTriples(const size_t n, const bool validated) {
   auto start = clock_start();
-  // std::cout << "Calling add_AltTriples(" << n << ")\n";
   const size_t num_to_make = (n > alt_triple_batch_size ? n : alt_triple_batch_size);
 
   std::cout << "adding " << num_to_make << (validated?" ":" un");
@@ -175,6 +175,8 @@ int64_t ValidateCorrelatedStore::batch_Validate(const size_t target) {
 
   // Should always be synced, but just in case. Maybe complain instead?
   check_AltTriple(N, false);
+  // Also have a normal validated one, i.e. from outside
+  check_AltTriple(1, true);
 
   // More variable setup
   mult_eval_manager.check_eval_point(2);
@@ -310,5 +312,13 @@ void ValidateCorrelatedStore::print_Sizes() const {
   std::cout << "  Precomputed: " << dabit_store.size() << "\n";
   std::cout << "  Unvalidated: " << unvalidated_dabit_store.size() << "\n";
   std::cout << "  Validated:   " << validated_dabit_store.size() << "\n";
-  std::cout << " Unvalidated Alt Triples: " << unvalidated_alt_triple_store.size() << std::endl;
+  std::cout << " Alt Triples: \n";
+  std::cout << "  Unvalidated: " << unvalidated_alt_triple_store.size() << "\n";
+  std::cout << "  Validated:   " << alt_triple_store.size() << "\n";
+  std::cout << " unvalidated_pairs: " << unvalidated_pairs.size() << std::endl;
+}
+
+void ValidateCorrelatedStore::maybe_Update() {
+  PrecomputeStore::maybe_Update();
+  check_AltTriple(batch_size, true);
 }

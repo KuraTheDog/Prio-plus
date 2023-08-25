@@ -6,6 +6,7 @@
 #include "utils.h"
 
 class ValidateCorrelatedStore : public PrecomputeStore {
+protected:
   const size_t min_batch_size;
   const size_t alt_triple_batch_size;
 
@@ -65,8 +66,8 @@ public:
     for (auto it = unvalidated_pairs.begin(); it != unvalidated_pairs.end(); ++it) {
       pairtype p = it->second;
       for (unsigned int i = 0; i < std::get<0>(p); i++) {
-        delete std::get<1>(p);
-        delete std::get<2>(p);
+        delete std::get<1>(p)[i];
+        delete std::get<2>(p)[i];
       }
       delete[] std::get<1>(p);
       delete[] std::get<2>(p);
@@ -128,6 +129,7 @@ public:
   MultCheckPreComp* get_Precomp(const size_t N);
 
   void print_Sizes() const override;
+  void maybe_Update() override; // Precompute if not enough.
 
   size_t num_validated_dabits() const {
     return validated_dabit_store.size();

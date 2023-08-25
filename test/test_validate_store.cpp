@@ -33,8 +33,8 @@ void setup(const int server_num, const int serverfd, const size_t N,
     }
     // Send
     send_DaBit_batch(serverfd, bits1, N);
+    send_AltTriple_batch(serverfd, trips1, N);
     for (unsigned int i = 0; i < N; i++) {
-      send_AltTriple(serverfd, trips1[i]);
 
       store.add_Unvalidated(bits0[i], trips0[i]);
 
@@ -49,11 +49,14 @@ void setup(const int server_num, const int serverfd, const size_t N,
       trips1[i] = new AltTriple();
     }
     recv_DaBit_batch(serverfd, bits1, N);
+    recv_AltTriple_batch(serverfd, trips1, N);
     for (unsigned int i = 0; i < N; i++) {
-       recv_AltTriple(serverfd, trips1[i]);
-       store.add_Unvalidated(bits1[i], trips1[i]);
+      store.add_Unvalidated(bits1[i], trips1[i]);
     }
   }
+
+  // And one validated
+  store.check_AltTriple(1, true);
 }
 
 void test_altMult(const int server_num, const int serverfd,
@@ -82,6 +85,8 @@ void test_altMult(const int server_num, const int serverfd,
     assert(fmpz_equal_ui(z[i], (i+1)*(i+1) * 10));
   }
 
+  store.print_Sizes();
+
   clear_fmpz_array(x, N);
   clear_fmpz_array(z, N);
   delete ot0;
@@ -97,16 +102,91 @@ void test_batchValidate(const int server_num, const int serverfd,
   ValidateCorrelatedStore store(serverfd, server_num, ot0, ot1, N_make, lazy);
 
   setup(server_num, serverfd, N, store);
-  // store.print_Sizes();
+  if (server_num == 0) {
+    std::cout << "Post setup" << std::endl;
+    store.print_Sizes();
+  }
 
   store.batch_Validate();
 
-  std::cout << "Assert " << server_num << ", Numvalidated = " << store.num_validated_dabits() << std::endl;
-
+  std::cout << "Assert server " << server_num << ", Numvalidated = " << store.num_validated_dabits() << std::endl;
   assert(store.num_validated_dabits() == N);
 
-  store.print_Sizes();
+  if (server_num == 0) store.print_Sizes();
 
+  delete ot0;
+  delete ot1;
+}
+
+void test_pairs(const int server_num, const int serverfd) {
+  OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : "127.0.0.1", 60051);
+  OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : "127.0.0.1", 60052);
+
+  ValidateCorrelatedStore store(serverfd, server_num, ot0, ot1, 1, lazy);
+
+  // Setup
+  if (server_num == 0) {
+    DaBit* bits0[2];
+    DaBit* bits1[2];
+    AltTriple* trips0[2];
+    AltTriple* trips1[2];
+
+    bits0[0] = new DaBit(); bits1[0] = new DaBit(); makeLocalDaBit(bits0[0], bits1[0]);
+    bits0[1] = new DaBit(); bits1[1] = new DaBit(); makeLocalDaBit(bits0[1], bits1[1]);
+    trips0[0] = new AltTriple(); trips1[0] = new AltTriple(); makeLocalAltTriple(trips0[0], trips1[0]);
+    trips0[1] = new AltTriple(); trips1[1] = new AltTriple(); makeLocalAltTriple(trips0[1], trips1[1]);
+
+    send_DaBit_batch(serverfd, bits1, 2);
+    send_AltTriple_batch(serverfd, trips1, 2);
+    delete bits1[0]; delete bits1[1];
+    delete trips1[0]; delete trips1[1];
+
+    DaBit** bits; AltTriple** trips;
+    bits = new DaBit*[1]; trips = new AltTriple*[1];
+    bits[0] = bits0[0]; trips[0] = trips0[0];
+    store.queue_Unvalidated(bits, trips, "first", 1);
+    bits = new DaBit*[1]; trips = new AltTriple*[1];
+    bits[0] = bits0[1]; trips[0] = trips0[1];
+    store.queue_Unvalidated(bits, trips, "second", 1);
+  } else {
+    DaBit* bits1[2];
+    AltTriple* trips1[2];
+    bits1[0] = new DaBit(); bits1[1] = new DaBit();
+    trips1[0] = new AltTriple(); trips1[1] = new AltTriple();
+    recv_DaBit_batch(serverfd, bits1, 2);
+    recv_AltTriple_batch(serverfd, trips1, 2);
+
+    // Reverse order
+    DaBit** bits; AltTriple** trips;
+    bits = new DaBit*[1]; trips = new AltTriple*[1];
+    bits[0] = bits1[1]; trips[0] = trips1[1];
+    store.queue_Unvalidated(bits, trips, "second", 1);
+    bits = new DaBit*[1]; trips = new AltTriple*[1];
+    bits[0] = bits1[0]; trips[0] = trips1[0];
+    store.queue_Unvalidated(bits, trips, "first", 1);
+  }
+
+  // store.print_Sizes();
+
+  store.process_Unvalidated("first");
+
+  // store.print_Sizes();
+
+  // Sanity check that the one pulled is synced up.
+  // Stuff's protected, so do another alt mult
+  fmpz_t* x; new_fmpz_array(&x, 1);
+  fmpz_t* z; new_fmpz_array(&z, 1);
+  fmpz_set_ui(x[0], server_num == 0 ? 3 : 5);
+  bool validated[1] = {false};
+
+  store.multiply_AltShares(1, x, z, validated);
+
+  reveal_fmpz_batch(serverfd, z, 1);
+
+  assert(fmpz_equal_ui(z[0], 15));
+
+  clear_fmpz_array(x, 1);
+  clear_fmpz_array(z, 1);
   delete ot0;
   delete ot1;
 }
@@ -120,8 +200,8 @@ void serverTest(const size_t N) {
     int cli_sockfd = init_sender();
 
     test_altMult(0, cli_sockfd, N, N);
-
     test_batchValidate(0, cli_sockfd, N, N);
+    test_pairs(0, cli_sockfd);
 
     close(cli_sockfd);
   } else {
@@ -134,8 +214,8 @@ void serverTest(const size_t N) {
     fmpz_clear(tmp);
 
     test_altMult(1, newsockfd, N, N);
-
     test_batchValidate(1, newsockfd, N, N);
+    test_pairs(1, newsockfd);
 
     close(newsockfd);
   }
@@ -152,7 +232,6 @@ int main(int argc, char* argv[]) {
   }
 
   serverTest(N);
-
 
   RootManager(1).clearCache();
   clear_constants();
