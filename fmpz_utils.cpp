@@ -40,6 +40,17 @@ void copy_fmpz_array(fmpz_t* const dest, const fmpz_t* const src, const size_t N
     fmpz_set(dest[i],src[i]);
 }
 
+void transpose_fmpz_array(fmpz_t* const arr, const size_t N, const size_t M) {
+  fmpz_t* tmp; new_fmpz_array(&tmp, N * M);
+  copy_fmpz_array(tmp, arr, N * M);
+  for (unsigned int i = 0; i < N; i++) {
+    for (unsigned int j = 0; j < M; j++) {
+      fmpz_set(arr[i * M + j], tmp[j * N + i]);
+    }
+  }
+  clear_fmpz_array(tmp, N * M);
+}
+
 // Turn bool (bit) array into fmpz_t
 void fmpz_from_bool_array(fmpz_t x, const bool* const arr, const size_t n) {
   fmpz_zero(x);

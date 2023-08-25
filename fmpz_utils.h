@@ -19,6 +19,9 @@ void clear_fmpz_array(fmpz_t* arr, const size_t N);
 
 void copy_fmpz_array(fmpz_t* dest, const fmpz_t* const src, const size_t N);
 
+// N * M -> M * N
+void transpose_fmpz_array(fmpz_t* const arr, const size_t N, const size_t M);
+
 void fmpz_from_bool_array(fmpz_t x, const bool* const arr, const size_t n);
 
 // n bit fmpz, with n up to 256
