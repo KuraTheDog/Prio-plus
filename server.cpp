@@ -47,7 +47,7 @@ CorrelatedStore* correlated_store;
 #define LAZY_PRECOMPUTE false
 
 // Note: Currently does it in a single batch.
-// I.e. recieve and store all, then process all.
+// I.e. receive and store all, then process all.
 // TODO: Set up batching. Either every N inputs (based on space consumed),
 // or every S seconds (figure out timer)
 

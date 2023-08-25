@@ -11,7 +11,7 @@ protected:
   const size_t alt_triple_batch_size;
 
   // Pre: for batch validate
-  // unval: recieved
+  // unval: received
   // val: for computation
   /* Inherited
   std::queue<const DaBit*> dabit_store;

@@ -90,7 +90,7 @@ Server 0 needs to be started before server 1.
 1. Servers do initial communication and precomputation
 2. Client produces shares
 3. Client connects to servers, sends corresponding shares
-4. Servers recieve all shares
+4. Servers receive all shares
 5. For each share, servers check if public keys line up
 6. If relevant, servers use daBit or OT share conversion to convert the values to arithmetic shares, for aggregation and SNIPS
 7. If relevent, servers run validations on shares, including SNIPS

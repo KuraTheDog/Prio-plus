@@ -14,7 +14,7 @@ Swap:
   Return is sent_bytes (which should be received bytes. Complains if not).
 Reveal:
   similar, except also aggregates to reveal the shares.
-  Both send [x]. Sets [x] = [this.x] "+" [recieved other x]
+  Both send [x]. Sets [x] = [this.x] "+" [received other x]
   For bool, "+" is bitwise XOR. For arith, is modular sum
 */
 
@@ -50,7 +50,7 @@ string: best it can do is base 62, so 62/256 ~ 25% space efficiency. So needs ~4
 // Reduces number of bits to send fmpz
 #define FIXED_FMPZ_SIZE true
 
-// We batch things together into single send/recieves, to reduce rounds/overhead (mainly recv wrapper I think).
+// We batch things together into single send/receives, to reduce rounds/overhead (mainly recv wrapper I think).
 // However, it segfaults if given too large batches. So this makes sure batches are capped
 #define MAX_FMPZ_BATCH  1000000
 #define MAX_DABIT_BATCH 320000
