@@ -447,6 +447,7 @@ int reveal_Cor_batch(const int sockfd, Cor* const * const x, const size_t n) {
         fmpz_set(x[i]->E, buff[i + n]);
     }
 
+    clear_fmpz_array(buff, 2 * n);
     return sent_bytes;
 }
 
