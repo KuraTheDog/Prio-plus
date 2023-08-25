@@ -347,9 +347,10 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     auto start = clock_start();
 
     IntShare share;
-    const uint64_t max_val = 1ULL << msg.num_bits;
+    const size_t num_bits = msg.num_bits;
+    const uint64_t max_val = 1ULL << num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
-    const size_t nbits[1] = {msg.num_bits};
+    const size_t nbits[1] = {num_bits};
 
     int cli_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
@@ -363,7 +364,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
 
         // std::cout << "share[" << i << "] = " << share.val << std::endl;
 
-        cli_bytes += recv_unvalidated(clientfd, tag, msg.num_bits);
+        cli_bytes += recv_unvalidated(clientfd, tag, num_bits);
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
@@ -371,7 +372,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
     if (STORE_TYPE != ot_store)
-        ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * msg.num_bits);
+        ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * num_bits);
 
     start = clock_start();
     auto start2 = clock_start();
@@ -395,7 +396,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
             shares[i] = share.second;
             i++;
 
-            process_unvalidated(&share.first[0], msg.num_bits);
+            process_unvalidated(&share.first[0], num_bits);
         }
         // Sync valid now, since no validation needed
         recv_bool_batch(serverfd, valid, num_inputs);
@@ -409,7 +410,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
                 continue;
             shares[i] = share_map[tag];
 
-            process_unvalidated(tag, msg.num_bits);
+            process_unvalidated(tag, num_bits);
         }
         sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
     }
@@ -1913,7 +1914,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         ((CorrelatedStore*) correlated_store)->check_DaBits(
                 total_inputs * (share_size_count + share_size_bucket + 4 * num_sh));
         ((CorrelatedStore*) correlated_store)->check_BoolTriples(
-                total_inputs * (3 * num_sh + share_size_sh 
+                total_inputs * (3 * num_sh + share_size_sh
                                 + share_size_bucket * share_size_layer));
     }
 
@@ -2047,7 +2048,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
             shares_bucket, &shares_p[num_inputs * share_size_count],
             &send_buff[2*len_part + num_inputs * share_size_count]);
     delete[] shares_bucket;
-    
+
     /* Round 1: convert mult 1, B2A count, B2A mask */
     sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff,
             2*len_part + len_p);
