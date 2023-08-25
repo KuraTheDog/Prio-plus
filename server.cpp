@@ -376,13 +376,20 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
 
     start = clock_start();
     auto start2 = clock_start();
-
     int sent_bytes = 0;
+    size_t num_inputs;
 
     if (server_num == 1) {
-        const size_t num_inputs = share_map.size();
+        num_inputs = share_map.size();
         sent_bytes += send_size(serverfd, num_inputs);
-        uint64_t* const shares = new uint64_t[num_inputs];
+    } else {
+        recv_size(serverfd, num_inputs);
+    }
+    uint64_t* const shares = new uint64_t[num_inputs];
+    bool* const valid = new bool[num_inputs];
+
+    /* Share Sync */
+    if (server_num == 1) {
         int i = 0;
         for (const auto& share : share_map) {
             sent_bytes += send_tag(serverfd, share.first);
@@ -391,35 +398,9 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
 
             process_unvalidated(&share.first[0], msg.num_bits);
         }
-        std::cout << "tag time: " << sec_from(start2) << std::endl;
-        start2 = clock_start();
-        fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs);
-        sent_bytes += share_convert(num_inputs, 1, nbits, shares, shares_p);
-        std::cout << "convert time: " << sec_from(start2) << std::endl;
-        start2 = clock_start();
-
-        bool* const valid = new bool[num_inputs];
+        // Sync valid now, since no validation needed
         recv_bool_batch(serverfd, valid, num_inputs);
-
-        fmpz_t* b; new_fmpz_array(&b, 1);
-        accumulate(num_inputs, 1, shares_p, valid, b);
-        clear_fmpz_array(shares_p, num_inputs);
-        delete[] shares;
-        delete[] valid;
-
-        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
-
-        send_fmpz(serverfd, b[0]);
-        clear_fmpz_array(b, 1);
-        std::cout << "total compute time: " << sec_from(start) << std::endl;
-        std::cout << "sent server bytes: " << sent_bytes << std::endl;
-        return RET_NO_ANS;
     } else {
-        size_t num_inputs;
-        recv_size(serverfd, num_inputs);
-        uint64_t* const shares = new uint64_t[num_inputs];
-        bool* const valid = new bool[num_inputs];
-
         for (unsigned int i = 0; i < num_inputs; i++) {
             const std::string tag = recv_tag(serverfd);
 
@@ -431,38 +412,35 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
 
             process_unvalidated(tag, msg.num_bits);
         }
-        std::cout << "tag time: " << sec_from(start2) << std::endl;
-        start2 = clock_start();
-        fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs);
-        sent_bytes += share_convert(num_inputs, 1, nbits, shares, shares_p);
-        std::cout << "convert time: " << sec_from(start2) << std::endl;
-        start2 = clock_start();
-
         sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
-
-        fmpz_t* a; new_fmpz_array(&a, 1);
-        size_t num_valid = accumulate(num_inputs, 1, shares_p, valid, a);
-        clear_fmpz_array(shares_p, num_inputs);
-        delete[] shares;
-        delete[] valid;
-
-        fmpz_t b; fmpz_init(b);
-        recv_fmpz(serverfd, b);
-        std::cout << "accumulate time: " << sec_from(start2) << std::endl;
-        std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-        std::cout << "total compute time: " << sec_from(start) << std::endl;
-        std::cout << "sent server bytes: " << sent_bytes << std::endl;
-        if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
-            std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
-            return RET_INVALID;
-        }
-
-        fmpz_mod_add(b, b, a[0], mod_ctx);
-        clear_fmpz_array(a, 1);
-        ans = fmpz_get_ui(b);
-        fmpz_clear(b);
-        return RET_ANS;
     }
+
+    std::cout << "tag time: " << sec_from(start2) << std::endl;
+    start2 = clock_start();
+    fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs);
+    sent_bytes += share_convert(num_inputs, 1, nbits, shares, shares_p);
+    std::cout << "convert time: " << sec_from(start2) << std::endl;
+    start2 = clock_start();
+
+    fmpz_t* b; new_fmpz_array(&b, 1);
+    int num_valid = accumulate(num_inputs, 1, shares_p, valid, b);
+    clear_fmpz_array(shares_p, num_inputs);
+    delete[] shares;
+    delete[] valid;
+    std::cout << "accumulate time: " << sec_from(start2) << std::endl;
+
+    std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+    std::cout << "total compute time: " << sec_from(start) << std::endl;
+    std::cout << "sent server bytes: " << sent_bytes << std::endl;
+    if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
+        std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+        return RET_INVALID;
+    }
+
+    reveal_fmpz_batch(serverfd, b, 1);
+    ans = fmpz_get_ui(b[0]);
+    clear_fmpz_array(b, 1);
+    return RET_ANS;
 }
 
 // For AND and OR
