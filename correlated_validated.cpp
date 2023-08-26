@@ -157,16 +157,10 @@ void ValidateCorrelatedStore::process_Unvalidated(const std::string tag) {
   delete[] std::get<2>(lists);
 }
 
-int64_t ValidateCorrelatedStore::batch_Validate(const size_t target) {
-  int64_t sent_bytes = 0;
-
-  // Step 0: Setup
-
-  // Param setup
+void ValidateCorrelatedStore::batch_Validate_param(
+    const size_t target, size_t& N, size_t& num_val) {
   const size_t target_2 = NextPowerOfTwo(target - 1);
   const size_t num_unval = unvalidated_dabit_store.size();
-  size_t N;        // num to make, power of 2, including dummies
-  size_t num_val;  // how many to validate
   if (target_2 <= num_unval) {
     // Make as many as possible within unval
     // Largest power of 2 <= num_unval
@@ -178,40 +172,33 @@ int64_t ValidateCorrelatedStore::batch_Validate(const size_t target) {
     N = NextPowerOfTwo(num_unval - 1);
     num_val = num_unval;
   }
+}
 
+void ValidateCorrelatedStore::batch_Validate_setup(
+    const size_t N, const size_t num_val, fmpz_t* const points, fmpz_t* const pointsMult,
+    bool* const use_validated, const DaBit** const candidates) {
+  mult_eval_manager.check_eval_point(2);
   // Should always be synced, but just in case. Maybe complain instead?
   check_AltTriple(N, false);
   // Also have a normal validated one, i.e. from outside
   check_AltTriple(1, true);
 
-  // std::cout << "batch Val post check sizes:\n";
-  // print_Sizes();
-
-  // More variable setup
-  mult_eval_manager.check_eval_point(2);
-  MultCheckPreComp* chk = mult_eval_manager.get_Precomp(N);
-
-  const DaBit* candidates[num_val];
-
   // Setup polynomial points
   // Note that new_fmpz_array zero initializes, which give "dummy" dabits.
   fmpz_t* pointsF; new_fmpz_array(&pointsF, N);
-  fmpz_t* pointsG; new_fmpz_array(&pointsG, 2*N);
   for (unsigned int i = 0; i < num_val; i++) {
     const DaBit* const bit = unvalidated_dabit_store.front();
     unvalidated_dabit_store.pop();
 
     // *2 on server0 only
     fmpz_set_ui(pointsF[i], (1 + (server_num == 0)) * (int) bit->b2);
-    fmpz_set_ui(pointsG[2*i], (int) bit->b2);
-    fmpz_mod_sub(pointsG[2*i], pointsG[2*i], bit->bp, mod_ctx);
 
     candidates[i] = bit;
   }
 
   // F on sigma, and extra points
   fmpz_t sigmaF; fmpz_init(sigmaF);
-  chk->Eval(pointsF, sigmaF);
+  mult_eval_manager.get_Precomp(N)->Eval(pointsF, sigmaF);
   fmpz_t* const polyF = interpolate_N_inv(N, pointsF);
   clear_fmpz_array(pointsF, N);
   fmpz_t* paddedF; new_fmpz_array(&paddedF, 2*N);
@@ -222,48 +209,43 @@ int64_t ValidateCorrelatedStore::batch_Validate(const size_t target) {
 
   // Multiply evalF's to get G points
   // Also multiply sigmaF at the same time, as validated
-  fmpz_t* points; new_fmpz_array(&points, N+1);
   for (unsigned int i = 0; i < N; i++)
     fmpz_set(points[i], evalsF[2*i+1]);
   clear_fmpz_array(evalsF, N);
   fmpz_set(points[N], sigmaF);
   // Only the final one needs to be validated.
-  bool use_validated[N+1];
   memset(use_validated, 0, sizeof(bool)*N);
   use_validated[N] = true;
-  fmpz_t* pointsMult; new_fmpz_array(&pointsMult, N+1);
+}
 
-  // Step 1: Both multiplies
-  sent_bytes += multiply_AltShares(N+1, points, pointsMult, use_validated);
-
+void ValidateCorrelatedStore::batch_Validate_process(
+    const size_t N, const size_t num_val, const fmpz_t* const pointsMult,
+    const DaBit** const candidates, fmpz_t diff
+  ) {
   // Step 2: Process and evaluate
-  clear_fmpz_array(points, N+1);
+  fmpz_t* pointsG; new_fmpz_array(&pointsG, 2*N);
+  for (unsigned int i = 0; i < num_val; i++) {
+    fmpz_set_ui(pointsG[2*i], (int) candidates[i]->b2);
+    fmpz_mod_sub(pointsG[2*i], pointsG[2*i], candidates[i]->bp, mod_ctx);
+  }
   for (unsigned int i = 0; i < N; i++) {
     fmpz_set(pointsG[2*i+1], pointsMult[i]);
   }
-  fmpz_set(sigmaF, pointsMult[N]);
-  clear_fmpz_array(pointsMult, N+1);
+  fmpz_t sigmaF; fmpz_init_set(sigmaF, pointsMult[N]);
 
   // Final eval
   // sigmaF0 * sigmaF1 = sigmaG0 + sigmaG1
   // Already did mult, so just add to same, aka differences sum to 0
   fmpz_t sigmaG; fmpz_init(sigmaG);
-  chk->Eval2(pointsG, sigmaG);
+  mult_eval_manager.get_Precomp(N)->Eval2(pointsG, sigmaG);
   clear_fmpz_array(pointsG, 2*N);
-  fmpz_t diff; fmpz_init(diff);
   fmpz_mod_sub(diff, sigmaF, sigmaG, mod_ctx);
   fmpz_clear(sigmaF);
   fmpz_clear(sigmaG);
+}
 
-  // Step 3: Reveal differences
-  fmpz_t diff_other; fmpz_init(diff_other);
-  sent_bytes += send_fmpz(serverfd, diff);
-  recv_fmpz(serverfd, diff_other);
-
-  // Step 4: Check if differences sum to 0
-  fmpz_mod_add(diff, diff, diff_other, mod_ctx);
-  fmpz_clear(diff_other);
-
+void ValidateCorrelatedStore::batch_Validate_finish(
+    const size_t num_val, fmpz_t diff, const DaBit** const candidates) {
   if (fmpz_is_zero(diff)) {
     // std::cout << "batch validate is valid" << std::endl;
     // Only push those corresponding to original unvalidated
@@ -277,7 +259,41 @@ int64_t ValidateCorrelatedStore::batch_Validate(const size_t target) {
     }
     // Assuming called through check_DaBits, it will then proceed to use precomputed daBits instead.
   }
+}
 
+int64_t ValidateCorrelatedStore::batch_Validate(const size_t target) {
+  int64_t sent_bytes = 0;
+
+  // Step 0: Setup
+
+  // Param setup
+  size_t N;        // num to make, power of 2, including dummies
+  size_t num_val;  // how many to validate
+  batch_Validate_param(target, N, num_val);
+
+  // std::cout << "batch Val post check sizes:\n";
+  // print_Sizes();
+
+  const DaBit** const candidates = new const DaBit*[num_val];
+  fmpz_t* points; new_fmpz_array(&points, N+1);
+  fmpz_t* pointsMult; new_fmpz_array(&pointsMult, N+1);
+  bool use_validated[N+1];
+  batch_Validate_setup(N, num_val, points, pointsMult, use_validated, candidates);
+
+  // Step 1: Both multiplies
+  sent_bytes += multiply_AltShares(N+1, points, pointsMult, use_validated);
+
+  clear_fmpz_array(points, N+1);
+  fmpz_t diff; fmpz_init(diff);
+  batch_Validate_process(N, num_val, pointsMult, candidates, diff);
+  clear_fmpz_array(pointsMult, N+1);
+
+  // Step 3: Reveal differences
+  sent_bytes += reveal_fmpz(serverfd, diff);
+
+  batch_Validate_finish(num_val, diff, candidates);
+
+  delete[] candidates;
   fmpz_clear(diff);
 
   return sent_bytes;

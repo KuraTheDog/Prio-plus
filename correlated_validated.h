@@ -124,6 +124,13 @@ public:
   Round 2: Reveal
     Swap computed (fg - h)(sigma)
   */
+  // N: num to make, power of 2, including dummies, num_val: how many to validate
+  void batch_Validate_param(const size_t target, size_t& N, size_t& num_val);
+  void batch_Validate_setup(const size_t N, const size_t num_val, fmpz_t* const points,
+      fmpz_t* const pointsMult, bool* const use_validated, const DaBit** const candidates);
+  void batch_Validate_process(const size_t N, const size_t num_val, const fmpz_t* const pointsMult,
+    const DaBit** const candidates, fmpz_t diff);
+  void batch_Validate_finish(const size_t num_val, fmpz_t diff, const DaBit** const candidates);
   int64_t batch_Validate(const size_t N);
   int64_t batch_Validate() {
     return batch_Validate(min_batch_size);
