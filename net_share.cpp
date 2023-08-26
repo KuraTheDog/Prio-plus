@@ -255,6 +255,25 @@ int recv_fmpz(const int sockfd, fmpz_t x) {
     return total;
 }
 
+int reveal_fmpz(const int sockfd, fmpz_t x) {
+    int sent_bytes = 0;
+    int recv_bytes = 0;
+    fmpz_t tmp; fmpz_init(tmp);
+
+    std::thread t_send([sockfd, x, &sent_bytes]() {
+        sent_bytes += send_fmpz(sockfd, x);
+    });
+    std::thread t_recv([sockfd, &tmp, &recv_bytes]() {
+        recv_bytes += recv_fmpz(sockfd, tmp);
+    });
+    t_send.join();
+    t_recv.join();
+    fmpz_mod_add(x, x, tmp, mod_ctx);
+    fmpz_clear(tmp);
+
+    return sent_bytes;
+}
+
 int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n) {
     int total = 0, ret;
     if (!FIXED_FMPZ_SIZE) {
