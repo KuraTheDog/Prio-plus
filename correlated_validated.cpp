@@ -89,25 +89,17 @@ void ValidateCorrelatedStore::add_AltTriples(const size_t n) {
   std::cout << "add_AltTriples timing : " << sec_from(start) << std::endl;
 }
 
-// [z] = x * x'
-/*
-Trip: (ab, c), (ab', c'), with ab * ab' = c + c'
-diff = x - ab, diff' = x' - ab'
-swap diff
-z_0 = (diff' * trip->AB) + trip->C
-z_1 = (diff * x_1) + trip->C
-*/
-int64_t ValidateCorrelatedStore::multiply_AltShares(
-    const size_t N, const fmpz_t* const x, fmpz_t* const z,
-    const bool* const validated) {
-  int64_t sent_bytes = 0;
-  fmpz_t* diff; new_fmpz_array(&diff, N);
-
-  // only used by server 1, save trip->AB value
-  fmpz_t* a; new_fmpz_array(&a, N);
-
+void ValidateCorrelatedStore::multiply_AltShares_setup(
+    const size_t N, const bool* const validated, const fmpz_t* const x,
+    fmpz_t* const z, fmpz_t* const diff, fmpz_t* const a) {
   check_AltTriple(N, validated);
 
+  /*
+  Trip: (ab, c), (ab', c'), with ab * ab' = c + c'
+  diff = x - ab, diff' = x' - ab'
+  z_0 = (diff' * trip->AB) + trip->C
+  z_1 = (diff * x_1) + trip->C
+  */
   for (unsigned int i = 0; i < N; i++) {
     const AltTriple* trip = get_AltTriple(validated[i]);
 
@@ -120,14 +112,23 @@ int64_t ValidateCorrelatedStore::multiply_AltShares(
 
     delete trip;
   }
+}
 
+int64_t ValidateCorrelatedStore::multiply_AltShares(
+    const size_t N, const fmpz_t* const x, fmpz_t* const z,
+    const bool* const validated) {
+  int64_t sent_bytes = 0;
+  fmpz_t* diff; new_fmpz_array(&diff, N);
+  fmpz_t* a; new_fmpz_array(&a, N);
+  multiply_AltShares_setup(N, validated, x, z, diff, a);
   fmpz_t* diff_other; new_fmpz_array(&diff_other, N);
+
   sent_bytes += swap_fmpz_batch(serverfd, diff, diff_other, N);
 
+  clear_fmpz_array(diff, N);
   for (unsigned int i = 0; i < N; i++) {
     fmpz_mod_addmul(z[i], diff_other[i], a[i], mod_ctx);
   }
-  clear_fmpz_array(diff, N);
   clear_fmpz_array(diff_other, N);
   clear_fmpz_array(a, N);
 
@@ -175,8 +176,8 @@ void ValidateCorrelatedStore::batch_Validate_param(
 }
 
 void ValidateCorrelatedStore::batch_Validate_setup(
-    const size_t N, const size_t num_val, fmpz_t* const points, fmpz_t* const pointsMult,
-    bool* const use_validated, const DaBit** const candidates) {
+    const size_t N, const size_t num_val, fmpz_t* const pointsMult,
+    fmpz_t* const delta, fmpz_t* const a, const DaBit** const candidates) {
   mult_eval_manager.check_eval_point(2);
   // Should always be synced, but just in case. Maybe complain instead?
   check_AltTriple(N, false);
@@ -209,19 +210,30 @@ void ValidateCorrelatedStore::batch_Validate_setup(
 
   // Multiply evalF's to get G points
   // Also multiply sigmaF at the same time, as validated
+  fmpz_t* points; new_fmpz_array(&points, N+1);
   for (unsigned int i = 0; i < N; i++)
     fmpz_set(points[i], evalsF[2*i+1]);
   clear_fmpz_array(evalsF, N);
   fmpz_set(points[N], sigmaF);
   // Only the final one needs to be validated.
+  bool use_validated[N+1];
   memset(use_validated, 0, sizeof(bool)*N);
   use_validated[N] = true;
+
+  multiply_AltShares_setup(N+1, use_validated, points, pointsMult, delta, a);
+
+  clear_fmpz_array(points, N+1);
 }
 
 void ValidateCorrelatedStore::batch_Validate_process(
-    const size_t N, const size_t num_val, const fmpz_t* const pointsMult,
+    const size_t N, const size_t num_val, fmpz_t* const pointsMult,
+    const fmpz_t* const delta_other, const fmpz_t* const a,
     const DaBit** const candidates, fmpz_t diff
   ) {
+  // Finish Alt Multipily
+  for (unsigned int i = 0; i < N+1; i++)
+    fmpz_mod_addmul(pointsMult[i], delta_other[i], a[i], mod_ctx);
+
   // Step 2: Process and evaluate
   fmpz_t* pointsG; new_fmpz_array(&pointsG, 2*N);
   for (unsigned int i = 0; i < num_val; i++) {
@@ -264,8 +276,6 @@ void ValidateCorrelatedStore::batch_Validate_finish(
 int64_t ValidateCorrelatedStore::batch_Validate(const size_t target) {
   int64_t sent_bytes = 0;
 
-  // Step 0: Setup
-
   // Param setup
   size_t N;        // num to make, power of 2, including dummies
   size_t num_val;  // how many to validate
@@ -275,17 +285,22 @@ int64_t ValidateCorrelatedStore::batch_Validate(const size_t target) {
   // print_Sizes();
 
   const DaBit** const candidates = new const DaBit*[num_val];
-  fmpz_t* points; new_fmpz_array(&points, N+1);
   fmpz_t* pointsMult; new_fmpz_array(&pointsMult, N+1);
-  bool use_validated[N+1];
-  batch_Validate_setup(N, num_val, points, pointsMult, use_validated, candidates);
+  fmpz_t* delta; new_fmpz_array(&delta, N+1);
+  fmpz_t* a; new_fmpz_array(&a, N+1);
+  batch_Validate_setup(N, num_val, pointsMult, delta, a, candidates);
+  fmpz_t* delta_other; new_fmpz_array(&delta_other, N+1);
 
   // Step 1: Both multiplies
-  sent_bytes += multiply_AltShares(N+1, points, pointsMult, use_validated);
+  sent_bytes += swap_fmpz_batch(serverfd, delta, delta_other, N+1);
+  // sent_bytes += multiply_AltShares(N+1, points, pointsMult, use_validated);
 
-  clear_fmpz_array(points, N+1);
+  // Finish multiply alt shares
+  clear_fmpz_array(delta, N+1);
   fmpz_t diff; fmpz_init(diff);
-  batch_Validate_process(N, num_val, pointsMult, candidates, diff);
+  batch_Validate_process(N, num_val, pointsMult, delta_other, a, candidates, diff);
+  clear_fmpz_array(delta_other, N+1);
+  clear_fmpz_array(a, N+1);
   clear_fmpz_array(pointsMult, N+1);
 
   // Step 3: Reveal differences
