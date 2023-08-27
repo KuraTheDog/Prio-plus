@@ -376,29 +376,45 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
             process_unvalidated(tag, num_bits);
         }
     }
-    bool* valid_other = new bool[num_inputs];
-
-    swap_bool_batch(serverfd, valid, valid_other, num_inputs);
-
-    for (unsigned int i = 0; i < num_inputs; i++)
-        valid[i] &= valid_other[i];
-    delete[] valid_other;
     std::cout << "tag time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
 
     fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs);
+    fmpz_t* flat_xp; new_fmpz_array(&flat_xp, num_inputs * num_bits);
+    bool* send_buff = new bool[2 * num_inputs];
+    bool* recv_buff = new bool[2 * num_inputs];
 
     if (STORE_TYPE == validate_store) {
         // TODO: batch validation in parallel with conversion
         ValidateCorrelatedStore* s = (ValidateCorrelatedStore*) correlated_store;
+
         s->batch_Validate(num_inputs * num_bits);
 
-        sent_bytes += s->b2a_multi(num_inputs, num_bits, shares, shares_p);
+        correlated_store->b2a_multi_setup(num_inputs, num_bits, shares, flat_xp, send_buff);
+        memcpy(&send_buff[num_inputs], valid, num_inputs);
+
+        sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff, 2 * num_inputs);
+
+        correlated_store->b2a_multi_finish(num_inputs, num_bits, shares_p, flat_xp, send_buff, recv_buff);
+        delete[] send_buff;
+        clear_fmpz_array(flat_xp, num_inputs * num_bits);
+        for (unsigned int i = 0; i < num_inputs; i++)
+            valid[i] &= recv_buff[num_inputs + i];
+        delete[] recv_buff;
     } else {
-        sent_bytes += correlated_store->b2a_multi(num_inputs, num_bits, shares, shares_p);
+        correlated_store->b2a_multi_setup(num_inputs, num_bits, shares, flat_xp, send_buff);
+        memcpy(&send_buff[num_inputs], valid, num_inputs);
+
+        sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff, 2 * num_inputs);
+
+        correlated_store->b2a_multi_finish(num_inputs, num_bits, shares_p, flat_xp, send_buff, recv_buff);
+        delete[] send_buff;
+        clear_fmpz_array(flat_xp, num_inputs * num_bits);
+        for (unsigned int i = 0; i < num_inputs; i++)
+            valid[i] &= recv_buff[num_inputs + i];
+        delete[] recv_buff;      
     }
-    // TODO
-    // First, merge b2a and valid swap into one round
+
     // Then marge in batch validation (two rounds)
     sent_bytes += correlated_store->b2a_multi(num_inputs, num_bits, shares, shares_p);
 
