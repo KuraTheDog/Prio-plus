@@ -333,8 +333,11 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "bytes from client: " << cli_bytes << std::endl;
     std::cout << "receive time: " << sec_from(start) << std::endl;
 
-    if (STORE_TYPE != ot_store)
+    if (STORE_TYPE == precompute_store)
         ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * num_bits);
+
+    std::cout << "Sizes after recv:" << std::endl;
+    correlated_store->print_Sizes();
 
     start = clock_start();
     auto start2 = clock_start();
@@ -360,8 +363,6 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
 
             process_unvalidated(&share.first[0], num_bits);
         }
-        // Sync valid now, since no validation needed
-        recv_bool_batch(serverfd, valid, num_inputs);
     } else {
         for (unsigned int i = 0; i < num_inputs; i++) {
             const std::string tag = recv_tag(serverfd);
@@ -374,13 +375,33 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
 
             process_unvalidated(tag, num_bits);
         }
-        sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
     }
+    bool* valid_other = new bool[num_inputs];
 
+    swap_bool_batch(serverfd, valid, valid_other, num_inputs);
+
+    for (unsigned int i = 0; i < num_inputs; i++)
+        valid[i] &= valid_other[i];
+    delete[] valid_other;
     std::cout << "tag time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
+
     fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs);
+
+    if (STORE_TYPE == validate_store) {
+        // TODO: batch validation in parallel with conversion
+        ValidateCorrelatedStore* s = (ValidateCorrelatedStore*) correlated_store;
+        s->batch_Validate(num_inputs * num_bits);
+
+        sent_bytes += s->b2a_multi(num_inputs, num_bits, shares, shares_p);
+    } else {
+        sent_bytes += correlated_store->b2a_multi(num_inputs, num_bits, shares, shares_p);
+    }
+    // TODO
+    // First, merge b2a and valid swap into one round
+    // Then marge in batch validation (two rounds)
     sent_bytes += correlated_store->b2a_multi(num_inputs, num_bits, shares, shares_p);
+
     std::cout << "convert time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
 
