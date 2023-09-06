@@ -16,12 +16,12 @@ const bool lazy = true;
 
 void setup(const int server_num, const int serverfd, const size_t N,
            ValidateCorrelatedStore& store) {
+  DaBit** bits1 = new DaBit*[N];
+  AltTriple** trips1= new AltTriple*[N];
   if (server_num == 0) {
     // Gen
     DaBit* bits0[N];
-    DaBit* bits1[N];
     AltTriple* trips0[N];
-    AltTriple* trips1[N];
     for (unsigned int i = 0; i < N; i++) {
       bits0[i] = new DaBit();
       bits1[i] = new DaBit();
@@ -42,8 +42,6 @@ void setup(const int server_num, const int serverfd, const size_t N,
       delete trips1[i];
     }
   } else {
-    DaBit* bits1[N];
-    AltTriple* trips1[N];
     for (unsigned int i = 0; i < N; i++) {
       bits1[i] = new DaBit();
       trips1[i] = new AltTriple();
@@ -54,6 +52,8 @@ void setup(const int server_num, const int serverfd, const size_t N,
       store.add_Unvalidated(bits1[i], trips1[i]);
     }
   }
+  delete[] bits1;
+  delete[] trips1;
 
   // And one validated
   store.check_AltTriple(1, true);

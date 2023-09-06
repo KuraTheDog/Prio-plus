@@ -29,7 +29,7 @@ void test_multiplyBoolShares(const size_t N, const int server_num, const int ser
     if (server_num == 0) {
       x[i] ^= i%2;
       y[i] ^= (i>>1)%2;
-      actual[i] = ((i>>1)%2) * (i%2);
+      actual[i] = ((i>>1)%2) && (i%2);
     }
   }
 

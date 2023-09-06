@@ -103,6 +103,7 @@ void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1) {
 }
 
 // Deprecated
+/*
 void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n) {
     DaBit* const bit0 = new DaBit();
     DaBit* const bit1 = new DaBit();
@@ -128,3 +129,4 @@ void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n) {
     delete bit0;
     delete bit1;
 }
+*/

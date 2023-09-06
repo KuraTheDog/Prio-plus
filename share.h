@@ -204,6 +204,6 @@ void makeLocalTriple(BeaverTriple* const out0, BeaverTriple* const out1);
 void makeLocalAltTriple(AltTriple* const out0, AltTriple* const out1);
 
 void makeLocalDaBit(DaBit* const bit0, DaBit* const bit1);
-[[deprecated]] void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n);
+// [[deprecated]] void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n);
 
 #endif

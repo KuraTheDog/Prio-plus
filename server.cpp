@@ -412,7 +412,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
         clear_fmpz_array(flat_xp, num_inputs * num_bits);
         for (unsigned int i = 0; i < num_inputs; i++)
             valid[i] &= recv_buff[num_inputs + i];
-        delete[] recv_buff;      
+        delete[] recv_buff;
     }
 
     // Then marge in batch validation (two rounds)
@@ -743,7 +743,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
         for (unsigned int i = 0; i < num_inputs; i++) {
             const std::string tag = recv_tag(serverfd);
 
-            valid[i] = (share_map.find(tag) != share_map.end());            
+            valid[i] = (share_map.find(tag) != share_map.end());
             if (valid[i]) {
                 std::tie(shares[i], shares[num_inputs + i], packet[i]) = share_map[tag];
             } else {
@@ -863,9 +863,6 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     const size_t num_bits = msg.num_bits;
     const uint64_t max_val = 1ULL << num_bits;
     const unsigned int total_inputs = msg.num_of_inputs;
-    size_t nbits[num_fields];
-    for (unsigned int i = 0; i < num_fields; i++)
-        nbits[i] = num_bits * (i >= degree ? 2 : 1);
 
     // Just for getting sizes
     Circuit* const mock_circuit = CheckLinReg(degree);

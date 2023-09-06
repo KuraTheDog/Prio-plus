@@ -710,6 +710,7 @@ int recv_DaBit_batch(const int sockfd, DaBit* const * const x, const size_t n) {
     return total;
 }
 
+/*
 int send_EdaBit(const int sockfd, const EdaBit* const x, const size_t nbits) {
     int total = 0, ret;
     ret = send_fmpz(sockfd, x->r);
@@ -769,3 +770,4 @@ int recv_EdaBit_batch(const int sockfd, EdaBit* const * const x, const size_t nb
 
     return total;
 }
+*/
