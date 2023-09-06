@@ -102,7 +102,7 @@ void test_sort_complex(int party) {
   sort(freq, size, val);
 
   // Reveal
-  for(int i = 0; i < size; ++i) {
+  for(unsigned int i = 0; i < size; ++i) {
     int64_t v = val[i].reveal<int64_t>();
     int64_t f = freq[i].reveal<int64_t>();
     if (party == ALICE) {
@@ -425,7 +425,8 @@ void run(int party, int port) {
   // NetIO* io = new NetIO(party==BOB ? nullptr : "127.0.0.1", port);
   // Somehow new io, and ot1->io dont' like to work.
   NetIO* io = ot0->io;
-  std::cout << "Party " << party << " setting up io with addr " << (party==BOB ? "none" : "127.0.0.1") << " and port " << port << std::endl;
+  std::cout << "Party " << party << " setting up io with addr ";
+  std::cout << (party==BOB ? "none" : "127.0.0.1") << " and port " << port << std::endl;
 
   setup_semi_honest(io, party);
   std::cout << "Party " << party << " semi-honest for garble set up" << std::endl;

@@ -109,7 +109,8 @@ void test_batchValidate(const int server_num, const int serverfd,
 
   store.batch_Validate();
 
-  std::cout << "Assert server " << server_num << ", Numvalidated = " << store.num_validated_dabits() << std::endl;
+  std::cout << "Assert server " << server_num << ", Numvalidated = ";
+  std::cout << store.num_validated_dabits() << std::endl;
   assert(store.num_validated_dabits() == N);
 
   if (server_num == 0) store.print_Sizes();

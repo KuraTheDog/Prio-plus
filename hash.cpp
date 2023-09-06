@@ -16,8 +16,9 @@ HashStore::HashStore(
   fmpz_init_set_ui(input_range, 1ULL << input_bits);
   hash_seed[0] = hash_seed_arg[0];
 
-  // std::cout << "Made hash store num_hashes: " << num_hashes << ", input_range: 2^" << input_bits;
-  // std::cout << " -> output_range: " << hash_range << " (" << output_bits << " bits)" << std::endl;
+  // std::cout << "Made hash store num_hashes: " << num_hashes << ", input_range: 2^";
+  // std::cout << input_bits << " -> output_range: " << hash_range;
+  // std::cout << " (" << output_bits << " bits)" << std::endl;
 }
 
 void HashStore::print() const {

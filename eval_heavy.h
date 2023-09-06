@@ -115,7 +115,8 @@ struct HeavyEval {
   size_t num_values;
   // Sized input_bits
   Integer* values = nullptr;
-  bool values_is_new = true;  // if values is Integer[] from elsewhere, don't double delete
+  // if values is Integer[] from elsewhere, don't double delete
+  bool values_is_new = true;
   // Frequencies are Sized freq_bits
   // Tuple <freq, val> for sorting purposes
   IntegerPair* freq_and_vals = nullptr;

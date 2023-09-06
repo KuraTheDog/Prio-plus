@@ -80,7 +80,7 @@ void test_CheckVar() {
 
   bool result = AddToZero(out0, out1);
 
-  std::cout << "out0 : "; fmpz_print(out0); std::cout << ", out1 : "; fmpz_print(out1); std::cout << std::endl;
+  std::cout << "out0 : " << fmpz_get_ui(out0) << ", out1 : " << fmpz_get_ui(out1) << std::cout << std::endl;
 
   std::cout << "Result : " << std::boolalpha << result << std::endl;
   assert(result == 1);

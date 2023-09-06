@@ -171,7 +171,8 @@ public:
     // std::cout << "  dim : " << dim << ", validate: " << group_size - dim << std::endl;
 
     if (group_size < input_bits) {
-      std::cout << "Warning: Group size " << group_size << " smaller than input bits " << input_bits << std::endl;
+      std::cout << "Warning: Group size " << group_size;
+      std::cout << " is smaller than input bits " << input_bits << std::endl;
     }
     fmpz_mod_mat_init(coeff, num_hashes, dim, output_range);
     build_coefficients();

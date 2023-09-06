@@ -69,7 +69,8 @@ struct MultiHeavyConfig {
 
   const CountMinConfig countmin_cfg;
 
-  MultiHeavyConfig(size_t K, double delta, size_t num_bits, double eps, size_t layers = 0)
+  MultiHeavyConfig(size_t K, double delta, size_t num_bits, double eps,
+      size_t layers = 0)
   : K(K)
   , delta(delta)
   , eps(eps)
@@ -156,7 +157,8 @@ struct CountMin {
       // std::cout << "hash_" << i << "(" << x << ") = " << hx << std::endl;
       size_t idx = i * cfg.w + hx;
       fmpz_add_ui(counts[idx], counts[idx], amount);
-      // std::cout << "adding " << amount << " to " << idx << " = [" << i << ", " << hx << "]" << std::endl;
+      // std::cout << "adding " << amount << " to " << idx;
+      // std::cout << " = [" << i << ", " << hx << "]" << std::endl;
     }
     fmpz_clear(out);
   }
@@ -179,7 +181,8 @@ struct CountMin {
       store->eval(i, x, out);
       unsigned int hx = fmpz_get_ui(out);
       unsigned int freq = fmpz_get_ui(counts[i * cfg.w + hx]);
-      // std::cout << "h_" << i << "(" << x << ") = " << hx << ", freq = " << freq << std::endl;
+      // std::cout << "h_" << i << "(" << x << ") = ";
+      // std::cout << hx << ", freq = " << freq << std::endl;
       if (freq < min_count) {
         min_count = freq;
       }

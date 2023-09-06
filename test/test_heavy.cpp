@@ -484,8 +484,12 @@ void test_abs_cmp(
       }
       bool actual = fmpz_cmp(v0_tmp, v1_tmp) < 0;
 
-      std::cout << i << ": |" << get_fsigned(v0, Int_Modulus) << (fmpz_is_one(larger[i]) ? "| < |" : "| > |") << get_fsigned(v1, Int_Modulus) << "|, \tactual: " << (actual ? "<" : ">") << std::endl;
-      // std::cout << "(" << fmpz_get_ui(val0[i]) << " + " << fmpz_get_ui(val0_other[i]) << ") = " << get_fsigned(v0, Int_Modulus) << " vs " << get_fsigned(v1, Int_Modulus) << " = (" << fmpz_get_ui(val1[i]) << " + " << fmpz_get_ui(val1_other[i]) << ")\n";
+      std::cout << i << ": |" << get_fsigned(v0, Int_Modulus);
+      std::cout << (fmpz_is_one(larger[i]) ? "| < |" : "| > |") << get_fsigned(v1, Int_Modulus);
+      std::cout << "|, \tactual: " << (actual ? "<" : ">") << std::endl;
+      // std::cout << "(" << fmpz_get_ui(val0[i]) << " + " << fmpz_get_ui(val0_other[i]) << ") = ";
+      // std::cout << get_fsigned(v0, Int_Modulus) << " vs " << get_fsigned(v1, Int_Modulus) << " = (";
+      // std::cout << fmpz_get_ui(val1[i]) << " + " << fmpz_get_ui(val1_other[i]) << ")\n";
       assert(fmpz_is_one(larger[i]) == actual);
     }
     fmpz_clear(v0);
@@ -531,8 +535,10 @@ void test_cmp_bit(
           fmpz_add_ui(y_bits_other[idx], y_bits_other[idx], (y >> b) % 2);
 
           // std::cout << " bit " << b << ", idx = " << idx << std::endl;
-          // std::cout << "  x bit: " << ((x >> b) % 2) << " = " << fmpz_get_ui(x_bits[idx]) << " + " << fmpz_get_ui(x_bits_other[idx]) << std::endl;
-          // std::cout << "  y bit: " << ((y >> b) % 2) << " = " << fmpz_get_ui(y_bits[idx]) << " + " << fmpz_get_ui(y_bits_other[idx]) << std::endl;
+          // std::cout << "  x bit: " << ((x >> b) % 2) << " = " << fmpz_get_ui(x_bits[idx]);
+          // std::cout << " + " << fmpz_get_ui(x_bits_other[idx]) << std::endl;
+          // std::cout << "  y bit: " << ((y >> b) % 2) << " = " << fmpz_get_ui(y_bits[idx]);
+          // std::cout << " + " << fmpz_get_ui(y_bits_other[idx]) << std::endl;
         }
       }
     }
@@ -562,7 +568,9 @@ void test_cmp_bit(
       for (unsigned int y = 0; y < max; y++) {
         size_t idx = x * max + y;
         fmpz_mod_add(tmp, ans[idx], ans_other[idx], mod_ctx);
-        std::cout << x << (fmpz_is_one(tmp) ? " <  " : " >= " ) << y << " (" << fmpz_get_ui(ans[idx]) << " + " << fmpz_get_ui(ans_other[idx]) << " = " << fmpz_get_ui(tmp) << ") " << std::endl;
+        std::cout << x << (fmpz_is_one(tmp) ? " <  " : " >= " ) << y;
+        std::cout << " (" << fmpz_get_ui(ans[idx]) << " + " << fmpz_get_ui(ans_other[idx]);
+        std::cout << " = " << fmpz_get_ui(tmp) << ") " << std::endl;
       }
     }
     clear_fmpz_array(ans_other, N);
@@ -611,8 +619,8 @@ void test_rand_bitshare(
       fmpz_zero(r[i]);  // reuse as array
       for (int j = b - 1; j >= 0; --j) {  // For printing binary
         fmpz_mod_add(bit, r_B[i * b + j], r_B_other[i * b + j], mod_ctx);
-        // std::cout << " bit " << j << " = " << fmpz_get_ui(bit) << " (" << fmpz_get_ui(r_B[i * b + j]) << " + " << fmpz_get_ui(r_B_other[i * b + j]) << ")" << std::endl;
-        // std::cout << fmpz_get_ui(bit);
+        // std::cout << " bit " << j << " = " << fmpz_get_ui(bit) << " (" << fmpz_get_ui(r_B[i * b + j]);
+        // std::cout << " + " << fmpz_get_ui(r_B_other[i * b + j]) << ")" << std::endl;
         fmpz_addmul_ui(r[i], bit, 1ULL << j);
       }
       // std::cout << std::endl;
@@ -649,7 +657,8 @@ void test_sign(
       fmpz_randm(x[i], seed, Int_Modulus);
       fmpz_randm(other[i], seed, Int_Modulus);
       fmpz_mod_add(actual[i], x[i], other[i], mod_ctx);
-      // std::cout << "val[" << i << "] = " << fmpz_get_ui(actual[i]) << " = " << fmpz_get_ui(x[i]) << " + " << fmpz_get_ui(other[i]) << std::endl;
+      // std::cout << "val[" << i << "] = " << fmpz_get_ui(actual[i]) << " = ";
+      // std::cout << fmpz_get_ui(x[i]) << " + " << fmpz_get_ui(other[i]) << std::endl;
     }
     send_fmpz_batch(serverfd, other, N);
   } else {
@@ -666,8 +675,12 @@ void test_sign(
     fmpz_t tmp; fmpz_init(tmp);
     for (unsigned int i = 0; i < N; i++) {
       fmpz_mod_add(tmp, s[i], other[i], mod_ctx);
-      // std::cout << "val[" << i << "] = " << fmpz_get_ui(actual[i]) << " has least sig bit " << fmpz_get_ui(tmp) << " = " << fmpz_get_ui(s[i]) << " + " << fmpz_get_ui(other[i]) << std::endl;
-      std::cout << "val[" << i << "] = " << get_fsigned(actual[i], Int_Modulus) << " (" << fmpz_get_ui(actual[i]) << ") is " << (fmpz_is_one(tmp) == 1 ? "negative" : "non-negative") << std::endl;
+      // std::cout << "val[" << i << "] = " << fmpz_get_ui(actual[i]);
+      // std::cout << " has least sig bit " << fmpz_get_ui(tmp) << " = " << fmpz_get_ui(s[i]);
+      // std::cout << " + " << fmpz_get_ui(other[i]) << std::endl;
+      std::cout << "val[" << i << "] = " << get_fsigned(actual[i], Int_Modulus) << " (";
+      std::cout << fmpz_get_ui(actual[i]) << ") is ";
+      std::cout << (fmpz_is_one(tmp) == 1 ? "negative" : "non-negative") << std::endl;
     }
 
     fmpz_clear(tmp);

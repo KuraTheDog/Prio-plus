@@ -648,7 +648,8 @@ int64_t CorrelatedStore::heavy_convert_mask(
   const size_t heavy_batch_size = HEAVY_BATCH_SIZE_BASE / (Q * M * D) + 1;
 
   if (N > heavy_batch_size) {
-    // std::cout << "heavy convert total: " << N << ", heavy batch size: " << heavy_batch_size << "\n";
+    // std::cout << "heavy convert total: " << N;
+    // std::cout << ", heavy batch size: " << heavy_batch_size << "\n";
     size_t num_processed = 0;
     size_t batch_idx = 0;
     [[maybe_unused]] unsigned int num_batches = ceil(1.0 * N / heavy_batch_size);

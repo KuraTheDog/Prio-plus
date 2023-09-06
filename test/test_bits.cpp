@@ -97,8 +97,8 @@ void test_multiplyBoolShares_cross(const int server_num, const int serverfd,
   delete[] z;
 }
 
-void test_addBinaryShares(const size_t N, const size_t* const nbits, const int server_num, const int serverfd,
-    PrecomputeStore* store) {
+void test_addBinaryShares(const size_t N, const size_t* const nbits,
+    const int server_num, const int serverfd, PrecomputeStore* store) {
   bool** const x = new bool*[N];
   bool** const y = new bool*[N];
   bool** const z = new bool*[N];
