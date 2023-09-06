@@ -75,10 +75,10 @@ void test_hash(int party, flint_rand_t hash_seed) {
 }
 
 void test_sort_complex(int party) {
-  int mod_val = 513;
+  const unsigned int mod_val = 513;
   Integer mod(32, mod_val, PUBLIC);
 
-  int size = 10;
+  const size_t size = 10;
   Integer *val_A = new Integer[size];
   Integer *val_B = new Integer[size];
   Integer *val = new Integer[size];
@@ -118,16 +118,16 @@ void test_sort_complex(int party) {
 }
 
 void test_index(int party) {
-  int mod_val = 513;
+  const unsigned int mod_val = 513;
   Integer mod(32, mod_val, PUBLIC);
 
-  int size = 10;
+  const size_t size = 10;
   Integer* arr_A = new Integer[size];
   Integer* arr_B = new Integer[size];
   Integer* arr = new Integer[size];
 
-  int idx = 3;
-  int actual;
+  const unsigned int idx = 3;
+  unsigned int actual = 0;
 
   // Input
   Integer index = Integer(32, idx, PUBLIC);
@@ -210,7 +210,7 @@ void test_full_sort(int party, flint_rand_t hash_seed) {
   Randomness is synced, so shares can be made locally.
   */
   fmpz_t share; fmpz_init(share);
-  const int num_buckets = count_min.cfg.w * count_min.cfg.d;
+  const unsigned int num_buckets = count_min.cfg.w * count_min.cfg.d;
   for (unsigned int i = 0; i < num_buckets; i++) {
     fmpz_randm(share, seed, Int_Modulus);
     if (party == ALICE) {
