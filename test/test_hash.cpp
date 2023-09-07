@@ -15,9 +15,7 @@ void run_hash(HashStore &store, unsigned int i) {
   if (max > 8) max = 8;
   for (unsigned int j = 0; j < max; j++) {
     store.eval(i, j, out);
-    std::cout << "Eval_" << i << "(" << j << ") \t= ";
-    fmpz_print(out);
-    std::cout << std::endl;
+    std::cout << "Eval_" << i << "(" << j << ") \t= " << fmpz_get_ui(out) << "\n";
   }
   fmpz_clear(out);
 }
@@ -138,9 +136,9 @@ void test_half() {
   HashStoreHalf store(num_bits, hash_seed);
 
   for (unsigned int i = 0; i < num_bits+1; i++) {
-    int n = 0;
+    unsigned int n = 0;
     for (unsigned int x = 0; x < (1 << num_bits); x++)
-      n += (int) store.survives(i, x);
+      n += (unsigned int) store.survives(i, x);
     // Right number of survivors. Odd ax+b forces to be true.
     // std::cout << i << ", " << n << std::endl;
     assert(n == 1ULL << (num_bits - i));
