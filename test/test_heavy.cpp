@@ -718,6 +718,12 @@ void runServerTest(const int server_num, const int serverfd) {
   test_HeavyConvertMask_one(server_num, serverfd, store);
   test_HeavyConvertMask_two(server_num, serverfd, store);
 
+  // Comparisons require actually random triples for random numbers
+  if (lazy) {
+    delete store;
+    store = new PrecomputeStore(serverfd, server_num, ot0, ot1, batch_size, false);
+  }
+
   // test_cmp_bit(server_num, serverfd, store);
   // test_rand_bitshare(server_num, serverfd, store);
   // test_sign(server_num, serverfd, store);
