@@ -28,9 +28,9 @@ void init_constants() {
     fmpz_clear(tmp);
 
     std::cout << "Init constants:\n";
-    std::cout << "  Int_Modulus = "; fmpz_print(Int_Modulus); std::cout << "\n";
+    std::cout << "  Int_Modulus = " << fmpz_get_ui(Int_Modulus) << "\n";
     std::cout << "      # bits: " << nbits_mod << std::endl;
-    std::cout << "  Int_Gen = "; fmpz_print(Int_Gen); std::cout << "\n";
+    std::cout << "  Int_Gen = " << fmpz_get_ui(Int_Gen) << "\n";
     std::cout << "  twoOrder = " << twoOrder << std::endl;
 
     flint_randinit(seed);

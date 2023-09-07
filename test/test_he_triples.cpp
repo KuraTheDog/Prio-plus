@@ -173,10 +173,10 @@ void runLocal(size_t N) {
       std::cout << i << " does not match" << std::endl;
       std::cout << "[a] * [b] = (" << a[i] << " + " << a2[i] << ")";
       std::cout << " * (" << b[i] << " + " << b2[i] << ")";
-      std::cout << "\n = "; fmpz_print(tmp);
-      std::cout << "\n  [c] = ("; fmpz_print(c_val);
-      std::cout << " + "; fmpz_print(c_val);
-      std::cout << ")\n = "; fmpz_print(tmp2); std::cout << std::endl;
+      std::cout << "\n = " << fmpz_get_ui(tmp);
+      std::cout << "\n  [c] = (" << fmpz_get_ui(c_val);
+      std::cout << " + " << fmpz_get_ui(c_val);
+      std::cout << ")\n = " << fmpz_get_ui(tmp2) << "\n";
     }
   }
 }
@@ -199,16 +199,12 @@ void runServerTest(const int server_num, const int serverfd, const size_t N) {
   std::cout << server_num << " generated " << triples.size() << " triples in: ";
   std::cout << sec_from(start) << "s" << std::endl; start = clock_start();
 
-  std::cout << server_num << "'s triple 0: ";
-  fmpz_print(triples[0]->A); std::cout << ", ";
-  fmpz_print(triples[0]->B); std::cout << ", ";
-  fmpz_print(triples[0]->C); std::cout << std::endl;
+  std::cout << server_num << "'s triple 0: " << fmpz_get_ui(triples[0]->A) << ", ";
+  std::cout << fmpz_get_ui(triples[0]->B) << ", " << fmpz_get_ui(triples[0]->C) << std::endl;
 
   if (N > 1) {
-    std::cout << server_num << "'s triple " << N-1 << ": ";
-    fmpz_print(triples[N-1]->A); std::cout << ", ";
-    fmpz_print(triples[N-1]->B); std::cout << ", ";
-    fmpz_print(triples[N-1]->C); std::cout << std::endl;
+    std::cout << server_num << "'s triple " << N-1 << ": " << fmpz_get_ui(triples[N-1]->A) << ", ";
+    std::cout << fmpz_get_ui(triples[N-1]->B) << ", " << fmpz_get_ui(triples[N-1]->C) << std::endl;
   }
 
   for (unsigned int idx = 0; idx < N; idx++) {
@@ -232,14 +228,13 @@ void runServerTest(const int server_num, const int serverfd, const size_t N) {
         } else {
           std::cout << "All valid. Math of N-1: " << std::endl;
         }
-        std::cout << "actual product: ("; fmpz_print(triple->A);
-        std::cout << " + "; fmpz_print(other_triple->A);
-        std::cout << ") * ("; fmpz_print(triple->B);
-        std::cout << " + "; fmpz_print(other_triple->B);
-        std::cout << ") = \n"; fmpz_print(tmp);
-        std::cout << std::endl;
-        fmpz_print(triple->C); std::cout << " + "; fmpz_print(other_triple->C);
-        std::cout << " = \n"; fmpz_print(tmp2); std::cout << std::endl;
+        std::cout << "actual product: (" << fmpz_get_ui(triple->A);
+        std::cout << " + " << fmpz_get_ui(other_triple->A);
+        std::cout << ") * (" << fmpz_get_ui(triple->B);
+        std::cout << " + " << fmpz_get_ui(other_triple->B);
+        std::cout << ") = \n" << fmpz_get_ui(tmp) << "\n";
+        std::cout << fmpz_get_ui(triple->C) << " + " << fmpz_get_ui(other_triple->C);
+        std::cout << " = \n" << fmpz_get_ui(tmp2); std::cout << std::endl;
       }
       delete other_triple;
       delete triples[idx];

@@ -45,7 +45,7 @@ void test_CheckLinReg() {
   fmpz_t randomX;
   fmpz_init(randomX);
   fmpz_randm(randomX, seed, Int_Modulus);
-  std::cout << "Random X: "; fmpz_print(randomX); std::cout << std::endl;
+  std::cout << "Random X: " << fmpz_get_ui(randomX) << std::endl;
 
   Circuit* linreg_circuit0 = CheckLinReg(2);
   MultCheckPreComp* pre0 = new MultCheckPreComp(N);
@@ -76,7 +76,7 @@ void test_CheckLinReg() {
 
   bool result = AddToZero(out0, out1);
 
-  std::cout << "out0 : "; fmpz_print(out0); std::cout << ", out1 : "; fmpz_print(out1); std::cout << std::endl;
+  std::cout << "out0 : " << fmpz_get_ui(out0) << ", out1 : " << fmpz_get_ui(out1) << std::endl;
 
   std::cout << "Result : " << std::boolalpha << result << std::endl;
   assert(result == 1);
@@ -86,14 +86,14 @@ void test_CheckLinReg() {
   fmpz_init(rgr);
   fmpz_init(tmp);
   fmpz_mod_add(tmp, checker_0->evalF, checker_1->evalF, mod_ctx);
-  std::cout << "f(r) = "; fmpz_print(tmp); std::cout << std::endl;
+  std::cout << "f(r) = " << fmpz_get_ui(tmp) << std::endl;
   fmpz_mod_add(rgr, checker_0->evalG, checker_1->evalG, mod_ctx);
-  std::cout << "r * g(r) = "; fmpz_print(rgr); std::cout << std::endl;
+  std::cout << "r * g(r) = " << fmpz_get_ui(rgr) << std::endl;
   fmpz_mod_mul(tmp, tmp, rgr, mod_ctx);
-  std::cout << "r * f(r) * g(r) = "; fmpz_print(tmp); std::cout << std::endl;
+  std::cout << "r * f(r) * g(r) = " << fmpz_get_ui(tmp) << std::endl;
 
   fmpz_mod_add(tmp, checker_0->evalH, checker_1->evalH, mod_ctx);
-  std::cout << "r * h(r) = "; fmpz_print(tmp); std::cout << std::endl;
+  std::cout << "r * h(r) = " << fmpz_get_ui(tmp) << std::endl;
 
   fmpz_clear(out0);
   fmpz_clear(out1);

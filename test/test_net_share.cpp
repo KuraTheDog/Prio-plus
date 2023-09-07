@@ -64,29 +64,26 @@ void run_sender(int sockfd) {
     // Small number
     fmpz_set_d(number, 12345);
     n = send_fmpz(sockfd, number);
-    std::cout << "send fmpz \tsize: " << n << " \tval: ";
-    fmpz_print(number); std::cout << std::endl;
+    std::cout << "send fmpz \tsize: " << n << " \tval: " << fmpz_get_ui(number) << std::endl;
 
     fmpz_t* arr; new_fmpz_array(&arr, 2);
     fmpz_set_ui(arr[0], 123454321);
     fmpz_set_ui(arr[1], 987000789);
     n = send_fmpz_batch(sockfd, arr, 2);
-    std::cout << "send fmpz[] \tsize: " << n << " \tval: "; fmpz_print(arr[0]);
-    std::cout << ", "; fmpz_print(arr[1]); std::cout << std::endl;
+    std::cout << "send fmpz[] \tsize: " << n << " \tval: " << fmpz_get_ui(arr[0]);
+    std::cout << ", " << fmpz_get_ui(arr[1]) << std::endl;
     clear_fmpz_array(arr, 2);
 
     /*  Does not work, currently using fixed fmpz size
     // Large unsigned long
     fmpz_set_ui(number, 12345678900987654321ul);
     n = send_fmpz(sockfd, number);
-    std::cout << "send fmpz \tsize: " << n << " \tval: ";
-    fmpz_print(number); std::cout << std::endl;
+    std::cout << "send fmpz \tsize: " << n << " \tval: " << fmpz_get_ui(number) << std::endl;
 
     // Very large multi-limbed number
     fmpz_set_str(number, "3141592653589793238462643383279502884197169399", 10);
     n = send_fmpz(sockfd, number);
-    std::cout << "send fmpz \tsize: " << n << " \tval: ";
-    fmpz_print(number); std::cout << std::endl;
+    std::cout << "send fmpz \tsize: " << n << " \tval: " << fmpz_get_ui(number) << std::endl;
     */
 
     BooleanBeaverTriple* btrip = new BooleanBeaverTriple(true, false, true);
@@ -97,24 +94,22 @@ void run_sender(int sockfd) {
     BeaverTriple* const trip = new BeaverTriple();
     makeLocalTriple(trip, trip);
     n = send_BeaverTriple(sockfd, trip);
-    std::cout << "send triple \tsize: " << n << " \tvals: ";
-    fmpz_print(trip->A); std::cout << ", ";
-    fmpz_print(trip->B); std::cout << ", ";
-    fmpz_print(trip->C); std::cout << std::endl;
+    std::cout << "send triple \tsize: " << n << " \tvals: " << fmpz_get_ui(trip->A) << ", ";
+    std::cout << fmpz_get_ui(trip->B) << ", " << fmpz_get_ui(trip->C) << std::endl;
     delete trip;
 
     ClientPacket* const packet = new ClientPacket(1);
     fmpz_set_si(packet->f0_s, 10);
     n = send_ClientPacket(sockfd, packet, 1);
     std::cout << "send packet \tsize: " << n << " \tf0_s: ";
-    fmpz_print(packet->f0_s); std::cout << std::endl;
+    std::cout << fmpz_get_ui(packet->f0_s) << std::endl;
     delete packet;
 
     ClientPacket* const packet2 = new ClientPacket(2);
     fmpz_set_si(packet2->f0_s, 20);
     n = send_ClientPacket(sockfd, packet2, 2);
     std::cout << "send packet \tsize: " << n << " \tf0_s = ";
-    fmpz_print(packet2->f0_s); std::cout << std::endl;
+    std::cout << fmpz_get_ui(packet2->f0_s) << std::endl;
     delete packet2;
 
     // size_t edasize = 8;
@@ -133,20 +128,18 @@ void run_sender(int sockfd) {
     // fmpz_mod_poly_randtest(f, seed, 5);
     // n = send_poly(sockfd, f);
     // std::cout << "send X \tsize: " << n << " \tpoly: ";
-    // fmpz_mod_poly_print_pretty(f, "x"); std::cout << std::endl;
+    // fmpz_mod_poly_print_pretty(f, "x") << std::endl;
 
     flint_rand_t this_seed; flint_randinit(this_seed);
     n = send_seed(sockfd, this_seed);
-    std::cout << "send seed \tsize: " << n << " \tnext random: ";
     fmpz_randm(number, this_seed, Int_Modulus);
-    fmpz_print(number); std::cout << std::endl;
+    std::cout << "send seed \tsize: " << n << " \tnext random: " << fmpz_get_ui(number) << std::endl;
     flint_randclear(this_seed);
 
     // Sanity: sending numbers still works
     fmpz_set_d(number, 54321);
     n = send_fmpz(sockfd, number);
-    std::cout << "send fmpz \tsize: " << n << " \tfmpz: ";
-    fmpz_print(number); std::cout << std::endl;
+    std::cout << "send fmpz \tsize: " << n << " \tfmpz: " << fmpz_get_ui(number) << std::endl;
 
     fmpz_clear(number);
 }
@@ -198,23 +191,22 @@ void run_receiver(int sockfd) {
     std::cout << "recv string \tsize: " << n << " \tval: " << s << std::endl;
 
     n = recv_fmpz(sockfd, number);
-    std::cout << "recv fmpz \tsize: " << n << " \tval: ";
-    fmpz_print(number); std::cout << std::endl;
+    std::cout << "recv fmpz \tsize: " << n << " \tval: " << fmpz_get_ui(number) << std::endl;
 
     fmpz_t* arr; new_fmpz_array(&arr, 2);
     n = recv_fmpz_batch(sockfd, arr, 2);
-    std::cout << "recv fmpz[] \tsize: " << n << " \tval: "; fmpz_print(arr[0]);
-    std::cout << ", "; fmpz_print(arr[1]); std::cout << std::endl;
+    std::cout << "recv fmpz[] \tsize: " << n << " \tval: " << fmpz_get_ui(arr[0]);
+    std::cout << ", " << fmpz_get_ui(arr[1]) << std::endl;
     clear_fmpz_array(arr, 2);
 
     /*
     n = recv_fmpz(sockfd, number);
     std::cout << "recv fmpz \tsize: " << n << " \tval: ";
-    fmpz_print(number); std::cout << std::endl;
+    fmpz_get_ui(number) << std::endl;
 
     n = recv_fmpz(sockfd, number);
     std::cout << "recv fmpz \tsize: " << n << " \tval: ";
-    fmpz_print(number); std::cout << std::endl;
+    fmpz_get_ui(number) << std::endl;
     */
 
     BooleanBeaverTriple* btrip = new BooleanBeaverTriple();
@@ -224,22 +216,18 @@ void run_receiver(int sockfd) {
 
     BeaverTriple* trip = new BeaverTriple();
     n = recv_BeaverTriple(sockfd, trip);
-    std::cout << "recv triple \tsize: " << n << " \tvals: ";
-    fmpz_print(trip->A); std::cout << ", ";
-    fmpz_print(trip->B); std::cout << ", ";
-    fmpz_print(trip->C); std::cout << std::endl;
+    std::cout << "recv triple \tsize: " << n << " \tvals: " << fmpz_get_ui(trip->A) << ", ";
+    std::cout << fmpz_get_ui(trip->B) << ", " << fmpz_get_ui(trip->C) << std::endl;
     delete trip;
 
     ClientPacket* packet = new ClientPacket(1);
     n = recv_ClientPacket(sockfd, packet, 1);
-    std::cout << "recv packet \tsize: " << n << " \tf0_s: ";
-    fmpz_print(packet->f0_s); std::cout << std::endl;
+    std::cout << "recv packet \tsize: " << n << " \tf0_s: " << fmpz_get_ui(packet->f0_s) << std::endl;
     delete packet;
 
     ClientPacket* packet2 = new ClientPacket(2);
     n = recv_ClientPacket(sockfd, packet2, 2);
-    std::cout << "recv packet \tsize: " << n << " \tf0_s: ";
-    fmpz_print(packet2->f0_s); std::cout << std::endl;
+    std::cout << "recv packet \tsize: " << n << " \tf0_s: " << fmpz_get_ui(packet2->f0_s) << std::endl;
     delete packet2;
 
     // size_t edasize = 8;
@@ -253,21 +241,19 @@ void run_receiver(int sockfd) {
     // fmpz_mod_poly_t f; fmpz_mod_poly_init(f, number);
     // n = recv_poly(sockfd, f);
     // std::cout << "recv X \tsize: " << n << " \tpoly: ";
-    // fmpz_mod_poly_print_pretty(f, "x"); std::cout << std::endl;
+    // fmpz_mod_poly_print_pretty(f, "x") << std::endl;
 
     flint_rand_t this_seed; flint_randinit(this_seed);
     // offset from default seed
     fmpz_randm(number, this_seed, Int_Modulus);
     fmpz_randm(number, this_seed, Int_Modulus);
     n = recv_seed(sockfd, this_seed);
-    std::cout << "recv seed \tsize: " << n << " \tnext random: ";
     fmpz_randm(number, this_seed, Int_Modulus);
-    fmpz_print(number); std::cout << std::endl;
+    std::cout << "recv seed \tsize: " << n << " \tnext random: " << fmpz_get_ui(number) << std::endl;
     flint_randclear(this_seed);
 
     n = recv_fmpz(sockfd, number);
-    std::cout << "recv fmpz \tsize: " << n << " \tval: ";
-    fmpz_print(number); std::cout << std::endl;
+    std::cout << "recv fmpz \tsize: " << n << " \tval: " << fmpz_get_ui(number) << std::endl;
 
     fmpz_clear(number);
 }

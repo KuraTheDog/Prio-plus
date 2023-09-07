@@ -117,9 +117,9 @@ struct ClientPacket {
             fmpz_print(MulShares[i]);
         }
         std::cout << "}\n";
-        std::cout << " f0_s = "; fmpz_print(f0_s); std::cout << "\n";
-        std::cout << " g0_s = "; fmpz_print(g0_s); std::cout << "\n";
-        std::cout << " h0_s = "; fmpz_print(h0_s); std::cout << "\n";
+        std::cout << " f0_s = " << fmpz_get_ui(f0_s) << "\n";
+        std::cout << " g0_s = " << fmpz_get_ui(g0_s) << "\n";
+        std::cout << " h0_s = " << fmpz_get_ui(h0_s) << "\n";
         std::cout << " h_points = {";
         for (unsigned int i = 0; i < N; i++) {
             if (i > 0)
@@ -143,7 +143,7 @@ struct DaBit {
     }
 
     void print() const {
-        std::cout << " [b]_p = "; fmpz_print(bp); std::cout << "\n";
+        std::cout << " [b]_p = " << fmpz_get_ui(bp) << "\n";
         std::cout << " [b]_2 = " << b2 << std::endl;
     }
 };
