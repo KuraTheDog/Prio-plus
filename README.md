@@ -61,7 +61,7 @@ Server 0 needs to be started before server 1.
 
 * Ports and max bits need to be consistent across runs and both servers and the client.
 * `max_bits` is used for int based summations, and must match the server value in this case.
-  * For MAXOP, client `max_bits` instead determines the max value (e.g. 7 -> 128), and does not have to match the servers.
+  * For MAX, client `max_bits` instead determines the max value (e.g. 7 -> 128), and does not have to match the servers.
 * For server communication, `server0_port` tells Server 0 which port to open, and server 1 which port of server 0 is open.
 
 ### Usage example
@@ -69,7 +69,7 @@ Server 0 needs to be started before server 1.
 0. Run `cd build` and `make`
 1. For the first server, run `./bin/server 0 8800 8888` to start it
 2. For the second server, run `./bin/server 1 8801 8888` to start it (in another window / instance / computer)
-3. Use e.g. `./bin/client 10 8800 8801 VAROP 8` to run a meta-client that sends out client messages (in another window / instance / computer)
+3. Use e.g. `./bin/client 10 8800 8801 VAR 8` to run a meta-client that sends out client messages (in another window / instance / computer)
 3. Repeat step 4 as desired with different parameters
 
 ## Supported protocols
