@@ -2158,6 +2158,7 @@ int main(int argc, char** argv) {
     // Reuse IO from OT
     garbleIO = ot0->io;
     setup_semi_honest(garbleIO, server_num + 1);
+    garbleIO->flush();
 
     int sockfd, newsockfd;
     sockaddr_in addr;
