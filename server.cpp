@@ -352,6 +352,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     }
     uint64_t* const shares = new uint64_t[num_inputs];
     bool* const valid = new bool[num_inputs];
+    memset(valid, true, num_inputs * sizeof(bool));
 
     /* Share Sync */
     if (server_num == 1) {
@@ -724,6 +725,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
 
     uint64_t* const shares = new uint64_t[2 * num_inputs];
     bool* const valid = new bool[num_inputs];
+    memset(valid, true, num_inputs * sizeof(bool));
     ClientPacket** const packet = new ClientPacket*[num_inputs];
     Circuit** const circuit = new Circuit*[num_inputs];
 
@@ -939,6 +941,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
 
     uint64_t* const shares = new uint64_t[num_inputs * num_fields];
     bool* const valid = new bool[num_inputs];
+    memset(valid, true, num_inputs * sizeof(bool));
     ClientPacket** const packet = new ClientPacket*[num_inputs];
     Circuit** const circuit = new Circuit*[num_inputs];
 
