@@ -165,8 +165,8 @@ public:
   // One round, for each consuming a dabit and sending 1 bit.
   void b2a_single_setup(
       const size_t N, const bool* const x, fmpz_t* const xp, bool* const v);
-  void b2a_single_finish(
-      const size_t N, fmpz_t* const xp, const bool* const v, const bool* const v_other);
+  void b2a_single_finish(const size_t N, fmpz_t* const xp,
+      const bool* const v, const bool* const v_other) const;
   int64_t b2a_single(const size_t N, const bool* const x, fmpz_t* const xp);
 
   // Multiple bits values.
@@ -176,9 +176,9 @@ public:
   void b2a_multi_setup(
       const size_t N, const size_t num_bits,
       const uint64_t* const x, fmpz_t* const flat_xp, bool* const v);
-  void b2a_multi_finish(
-      const size_t N, const size_t num_bits,
-      fmpz_t* const xp, fmpz_t* const flat_xp, const bool* const v, const bool* const v_other);
+  void b2a_multi_finish(const size_t N, const size_t num_bits,
+      fmpz_t* const xp, fmpz_t* const flat_xp,
+      const bool* const v, const bool* const v_other) const;
   int64_t b2a_multi(const size_t N, const size_t num_bits,
       const uint64_t* const x, fmpz_t* const xp);
 
@@ -194,7 +194,7 @@ public:
       const bool* const x, const bool* const y, bool* const z, bool* const de);
   void multiply_BoolShares_finish(const size_t N,
       const bool* const x, const bool* const y, bool* const z,
-      const bool* const de, const bool* const de_other);
+      const bool* const de, const bool* const de_other) const;
   int64_t multiply_BoolShares(const size_t N,
       const bool* const x, const bool* const y, bool* const z);
   int64_t multiply_ArithmeticShares(const size_t N,
@@ -234,7 +234,7 @@ public:
 
   void heavy_accumulate(const size_t N, const size_t M,
       const fmpz_t* const values, const bool* const valid,
-      fmpz_t* const bucket0, fmpz_t* const bucket1, const bool use_mask = true);
+      fmpz_t* const bucket0, fmpz_t* const bucket1, const bool use_mask = true) const;
 
   /* N inputs (each may be valid or not) of b values
     [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1
@@ -336,7 +336,7 @@ public:
 
   // Clear: Reveals info, not secure
   // True if [x] > c
-  bool* cmp_c_clear(const size_t N, const fmpz_t* const x, const fmpz_t* const c);
+  bool* cmp_c_clear(const size_t N, const fmpz_t* const x, const fmpz_t* const c) const;
   // True if [x] > [y]
   int64_t cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
   // Given [x], sets out = [|x|] via negating if [x] < 0

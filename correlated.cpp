@@ -42,7 +42,7 @@ void CorrelatedStore::b2a_single_setup(
 
 void CorrelatedStore::b2a_single_finish(
     const size_t N, fmpz_t* const xp,
-    const bool* const v, const bool* const v_other) {
+    const bool* const v, const bool* const v_other) const {
   for (unsigned int i = 0; i < N; i++) {
     // [x]_p = v + [b]_p - 2 v [b]_p. Note v only added for one server.
     // So since server_num in {0, 1}, we add it when v = 1
@@ -92,8 +92,7 @@ void CorrelatedStore::b2a_multi_setup(
 void CorrelatedStore::b2a_multi_finish(
     const size_t N, const size_t num_bits,
     fmpz_t* const xp, fmpz_t* const flat_xp,
-    const bool* const v, const bool* const v_other
-  ) {
+    const bool* const v, const bool* const v_other) const {
 
   b2a_single_finish(N * num_bits, flat_xp, v, v_other);
 
@@ -143,7 +142,7 @@ void CorrelatedStore::multiply_BoolShares_setup(
 
 void CorrelatedStore::multiply_BoolShares_finish(
     const size_t N, const bool* const x, const bool* const y, bool* const z,
-    const bool* const de, const bool* const de_other) {
+    const bool* const de, const bool* const de_other) const {
 
   for (unsigned int i = 0; i < N; i++) {
     bool d = de[i] ^ de_other[i];
@@ -391,7 +390,7 @@ int64_t CorrelatedStore::multiply_BoolArithFlat(
 
 void CorrelatedStore::heavy_accumulate(
     const size_t N, const size_t M, const fmpz_t* const values, const bool* const valid,
-    fmpz_t* const bucket0, fmpz_t* const bucket1, const bool use_mask) {
+    fmpz_t* const bucket0, fmpz_t* const bucket1, const bool use_mask) const {
   // Branch prediction should make this fine
   size_t offset = use_mask ? N * M : 0;
   // If no mask, use constant 1
@@ -741,9 +740,8 @@ int64_t CorrelatedStore::heavy_convert_mask(
 // WARNING: Just does x in clear. Early version for debug/test
 // [x] > c for known c, shares [x]
 // Treats > N/2 as negative
-bool* CorrelatedStore::cmp_c_clear(const size_t N,
-                                   const fmpz_t* const x,
-                                   const fmpz_t* const c) {
+bool* CorrelatedStore::cmp_c_clear(
+    const size_t N, const fmpz_t* const x, const fmpz_t* const c) const {
   bool* const ans = new bool[N];
 
   fmpz_t half; fmpz_init(half); fmpz_cdiv_q_ui(half, Int_Modulus, 2);
@@ -1226,7 +1224,7 @@ void PrecomputeStore::maybe_Update() {
 // Nearly COT, except delta is changing
 // random choice and random base, but also random delta matters
 // TODO: Work on larger values. Currently assumes mod is uint64_t.
-int64_t PrecomputeStore::gen_DaBits(const size_t N, DaBit** const dabit) {
+int64_t PrecomputeStore::gen_DaBits(const size_t N, DaBit** const dabit) const {
   int64_t sent_bytes = 0;
   emp::PRG prg;
   const size_t mod = fmpz_get_ui(Int_Modulus);
@@ -1267,7 +1265,8 @@ int64_t PrecomputeStore::gen_DaBits(const size_t N, DaBit** const dabit) {
   return sent_bytes;
 }
 
-int64_t PrecomputeStore::gen_DaBits_lazy(const size_t N, DaBit** const dabit) const {
+int64_t PrecomputeStore::gen_DaBits_lazy(
+    const size_t N, DaBit** const dabit) const {
   int64_t sent_bytes = 0;
   // for (unsigned int i = 0; i < N; i++)
   //   dabit[i] = new DaBit();
