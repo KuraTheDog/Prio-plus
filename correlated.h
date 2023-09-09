@@ -65,10 +65,10 @@ n) delete vars. could fit into finish, but clearer outside
 /* Lazy levels: Speedups for debugging/testing via skipping some work
 0 (default): Standard security
 1: Locally generate correlated randomness (use shared seed, or iterate over possible values)
+2: Doesn't precompute, locally make a small amount at a time when requested (save space)
 
 Others considered:
 0.5 make all on one, send to other
-2: Doesn't precompute, locally make 1 at a time when requested (save space)
 3: give null when requested. prob overkill
 */
 

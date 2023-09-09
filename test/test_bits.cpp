@@ -12,7 +12,7 @@ const size_t batch_size = 100; // flexible
 const size_t N = 80;           // Must be >= 2
 
 const size_t num_bits = 3;     // Must be >= 3
-const bool lazy = false;
+const int lazy = 1;
 
 void test_multiplyBoolShares(const size_t N, const int server_num, const int serverfd,
     PrecomputeStore* store) {

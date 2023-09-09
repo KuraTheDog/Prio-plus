@@ -1129,12 +1129,15 @@ void PrecomputeStore::check_Triples(const size_t n) {
   if (atriple_store.size() < n) add_Triples(n - atriple_store.size());
 }
 
+#define LAZY_2_MAX_SIZE 100
+
 int64_t PrecomputeStore::add_DaBits(const size_t n) {
   auto start = clock_start();
   int64_t sent_bytes = 0;
-  const size_t num_to_make = (n > batch_size ? n : batch_size);
+  size_t num_to_make = (n > batch_size ? n : batch_size);
+  if (lazy == 2) num_to_make = LAZY_2_MAX_SIZE;
   // const size_t num_to_make = n;  // Use this to make "end to end" easier to benchmark
-  std::cout << "adding dabits: " << num_to_make << std::endl;
+  if (lazy < 2) std::cout << "adding dabits: " << num_to_make << std::endl;
   DaBit** const dabits = new DaBit*[num_to_make];
 
   if (lazy > 0) {
@@ -1145,35 +1148,37 @@ int64_t PrecomputeStore::add_DaBits(const size_t n) {
   for (unsigned int i = 0; i < num_to_make; i++)
     dabit_store.push(dabits[i]);
   delete[] dabits;
-  std::cout << "add_DaBits timing : " << sec_from(start) << std::endl;
+  if (lazy < 2) std::cout << "add_DaBits timing : " << sec_from(start) << std::endl;
   return sent_bytes;
 }
 
 int64_t PrecomputeStore::add_Triples(const size_t n) {
   auto start = clock_start();
   int64_t sent_bytes = 0;
-  const size_t num_to_make = (n > batch_size ? n : batch_size);
-  std::cout << "adding triples: " << num_to_make << std::endl;
+  size_t num_to_make = (n > batch_size ? n : batch_size);
+  if (lazy == 2) num_to_make = LAZY_2_MAX_SIZE;
+  if (lazy < 2) std::cout << "adding triples: " << num_to_make << std::endl;
   BeaverTriple** const triples = new BeaverTriple*[num_to_make];
   // if (triple_gen) {  // not null pointer
   //   std::vector<BeaverTriple*> new_triples = triple_gen->generateTriples(num_to_make);
   //   for (unsigned int i = 0; i < num_to_make; i++)
   //     atriple_store.push(new_triples[i]);
   // } else {
-  std::cout << "Making local beaver triples" << std::endl;
+  if (lazy < 2) std::cout << "Making local beaver triples" << std::endl;
   sent_bytes += gen_Triple_lazy(num_to_make, triples);
   for (unsigned int i = 0; i < num_to_make; i++) {
     atriple_store.push(triples[i]);
   }
   delete[] triples;
-  std::cout << "add_Triples timing : " << sec_from(start) << std::endl;
+  if (lazy < 2) std::cout << "add_Triples timing : " << sec_from(start) << std::endl;
   return sent_bytes;
 }
 
 void PrecomputeStore::add_BoolTriples(const size_t n) {
   auto start = clock_start();
-  const size_t num_to_make = (n > batch_size ? n : batch_size);
-  std::cout << "adding booltriples: " << num_to_make << std::endl;
+  size_t num_to_make = (n > batch_size ? n : batch_size);
+  if (lazy == 2) num_to_make = LAZY_2_MAX_SIZE;
+  if (lazy < 2) std::cout << "adding booltriples: " << num_to_make << std::endl;
   if (lazy > 0) {
     BooleanBeaverTriple** const triples = new BooleanBeaverTriple*[num_to_make];
     gen_BoolTriple_lazy(num_to_make, triples);
@@ -1188,7 +1193,7 @@ void PrecomputeStore::add_BoolTriples(const size_t n) {
       new_triples.pop();
     }
   }
-  std::cout << "add_BoolTriples timing : " << sec_from(start) << std::endl;
+  if (lazy < 2) std::cout << "add_BoolTriples timing : " << sec_from(start) << std::endl;
 }
 
 void PrecomputeStore::print_Sizes() const {
