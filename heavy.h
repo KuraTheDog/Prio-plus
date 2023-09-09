@@ -69,11 +69,11 @@ struct MultiHeavyConfig {
 
   const CountMinConfig countmin_cfg;
 
-  MultiHeavyConfig(size_t K, double delta, size_t num_bits, double eps,
+  MultiHeavyConfig(size_t K, double delta, size_t num_bits, double eps_arg,
       size_t layers = 0)
   : K(K)
   , delta(delta)
-  , eps(eps)
+  , eps(eps_arg)
   , delta_inv((unsigned int) floor(1/delta))
   , Q(LOG2(delta_inv))
   , B(ceil(K * ln2_inv))

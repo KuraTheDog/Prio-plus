@@ -1724,7 +1724,6 @@ returnType multi_heavy_op(const initMsg msg,
     memcpy(send_buff, valid, num_inputs);
     // setup convert stage 3
     fmpz_t* zp; new_fmpz_array(&zp, 4 * len_all);
-    std::cout << "b2a setup 2: " << 4 * len_all << std::endl;
     correlated_store->b2a_single_setup(4 * len_all, z, zp, &send_buff[num_inputs]);
     delete[] z;
 
