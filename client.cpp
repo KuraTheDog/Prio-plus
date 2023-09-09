@@ -1755,7 +1755,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
         bool print = (check_idx == i);
         // bool print = true;
 
-        real_val = distribution.sample();
+        real_val = distribution.sample(4 * count_size);
         real_val %= max_int;
         // real_val = 3;
         if (real_val <= count_size)
@@ -1975,7 +1975,7 @@ int top_k_helper(
     for (unsigned int i = 0; i < numreqs; i++) {
         bool print = (check_idx == i);
 
-        real_val = distribution.sample();
+        real_val = distribution.sample(4 * count_size);
         real_val %= max_int;
         // real_val = 1;
         if (real_val <= count_size)
