@@ -1125,9 +1125,10 @@ void PrecomputeStore::check_BoolTriples(const size_t n) {
     add_BoolTriples(n - btriple_store.size());
 }
 
-void PrecomputeStore::check_Triples(const size_t n) {
+int64_t PrecomputeStore::check_Triples(const size_t n) {
   if (atriple_store.size() < n and lazy < 3)
-    add_Triples(n - atriple_store.size());
+    return add_Triples(n - atriple_store.size());
+  return 0;
 }
 
 int64_t PrecomputeStore::add_DaBits(const size_t n) {

@@ -372,7 +372,7 @@ public:
   // Check: Check if enough to make n.
   // If not enough, generates enough (can over-generate)
   virtual int64_t check_DaBits(const size_t n = 0) = 0;
-  virtual void check_Triples(const size_t n = 0) = 0;
+  virtual int64_t check_Triples(const size_t n = 0) = 0;
   virtual void check_BoolTriples(const size_t n = 0) = 0;
 
   virtual void print_Sizes() const = 0;
@@ -433,7 +433,7 @@ public:
   virtual void maybe_Update(); // Precompute if not enough.
 
   virtual int64_t check_DaBits(const size_t n = 0);
-  virtual void check_Triples(const size_t n = 0);
+  virtual int64_t check_Triples(const size_t n = 0);
   virtual void check_BoolTriples(const size_t n = 0);
 };
 
