@@ -46,6 +46,11 @@ const BooleanBeaverTriple* const CorrelatedStore::get_BoolTriple() {
 
 void CorrelatedStore::b2a_single_setup(
     const size_t N, const bool* const x, fmpz_t* const xp, bool* const v) {
+  if (lazy == 3) {
+    memcpy(v, x, N);
+    // xp default zero values
+    return;
+  }
   for (unsigned int i = 0; i < N; i++) {
     const DaBit* const dabit = get_DaBit();
     v[i] = x[i] ^ dabit->b2;
@@ -147,6 +152,12 @@ int64_t CorrelatedStore::b2a_multi(
 void CorrelatedStore::multiply_BoolShares_setup(
     const size_t N, const bool* const x, const bool* const y, bool* const z,
     bool* const de) {
+  if (lazy == 3) {
+    memcpy(de, x, N);
+    memcpy(&de[N], y, N);
+    memset(z, 0, N);
+    return;
+  }
   for (unsigned int i = 0; i < N; i++) {
     const BooleanBeaverTriple* const triple = get_BoolTriple();
     de[i] = x[i] ^ triple->a;
