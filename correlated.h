@@ -66,10 +66,10 @@ n) delete vars. could fit into finish, but clearer outside
 0 (default): Standard security
 1: Locally generate correlated randomness (use shared seed, or iterate over possible values)
 2: Doesn't precompute, locally make a small amount at a time when requested (save space)
+3: give zero/simplest when requested. Skips queue entirely
 
 Others considered:
 0.5 make all on one, send to other
-3: give null when requested. prob overkill
 */
 
 // Selector
@@ -398,6 +398,11 @@ protected:
   int64_t add_DaBits(const size_t n = 0);
   int64_t add_Triples(const size_t n = 0);
   void add_BoolTriples(const size_t n = 0);
+
+  // Copied for bypass option
+  const DaBit* const get_DaBit();
+  const BeaverTriple* const get_Triple();
+  const BooleanBeaverTriple* const get_BoolTriple();
 
 public:
 
