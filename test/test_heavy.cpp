@@ -719,6 +719,7 @@ void runServerTest(const int server_num, const int serverfd) {
   test_HeavyConvertMask_two(server_num, serverfd, store);
 
   // Comparisons require actually random triples for random numbers
+  // Not sure why this is needed, lazy should be random enough...?
   if (lazy) {
     delete store;
     store = new PrecomputeStore(serverfd, server_num, ot0, ot1, batch_size, false);

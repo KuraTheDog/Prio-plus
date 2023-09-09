@@ -1280,38 +1280,19 @@ int64_t PrecomputeStore::gen_DaBits_lazy(const size_t N, DaBit** const dabit) co
   // gen_rand_bitshare uses bp, and keeps trying until it satisfies a condition.
   // So just looping through slowly causes it to take far too long.
   // Therefore, we do with common random instead.
-  flint_rand_t tmp_seed; flint_randinit(tmp_seed);
+  // test_heavy seems to still not work with this, though. odd.
   fmpz_t bit; fmpz_init(bit);
-  if (server_num == 0) {
-    sent_bytes += send_seed(serverfd, tmp_seed);
-    for (unsigned int i = 0; i < N; i++) {
-      dabit[i] = new DaBit();
-
-      // dabit[i]->b2 = ((i>>1) % 2) ^ (i % 2);
-      // fmpz_set_si(dabit[i]->bp, i);
-      // fmpz_mod(dabit[i]->bp, dabit[i]->bp, Int_Modulus);
-
-      fmpz_randbits(bit, seed, 1);
-      dabit[i]->b2 = ((i>>1) % 2) ^ fmpz_get_ui(bit);
-      fmpz_randm(dabit[i]->bp, tmp_seed, Int_Modulus);
-      // std::cout << "dabit " << i << " = "; dabit[i]->print();
-    }
-  } else {
-    recv_seed(serverfd, tmp_seed);
-    for (unsigned int i = 0; i < N; i++) {
-      dabit[i] = new DaBit();
-      dabit[i]->b2 = ((i>>1) % 2);
-
-      // fmpz_set_si(dabit[i]->bp, ((int)(i%2)) - (int)i);
-      // fmpz_mod(dabit[i]->bp, dabit[i]->bp, Int_Modulus);
-
-      fmpz_randbits(bit, seed, 1);
-      fmpz_randm(dabit[i]->bp, tmp_seed, Int_Modulus);
+  for (unsigned int i = 0; i < N; i++) {
+    dabit[i] = new DaBit();
+    fmpz_randbits(bit, lazy_seed, 1);  // actual
+    fmpz_randm(dabit[i]->bp, lazy_seed, Int_Modulus);  // mask
+    dabit[i]->b2 = ((i>>1) % 2);  // "Random" mask
+    if (server_num == 0) {
+      dabit[i]->b2 ^= fmpz_get_ui(bit);
       fmpz_mod_sub(dabit[i]->bp, bit, dabit[i]->bp, mod_ctx);
-      // std::cout << "dabit " << i << " = "; dabit[i]->print();
     }
   }
-  flint_randclear(tmp_seed);
+  fmpz_clear(bit);
   return sent_bytes;
 }
 

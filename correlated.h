@@ -58,6 +58,7 @@ n) delete vars. could fit into finish, but clearer outside
 
 #include "constants.h"
 // #include "he_triples.h"
+#include "net_share.h"
 #include "ot.h"
 #include "share.h"
 
@@ -373,6 +374,7 @@ class PrecomputeStore : public CorrelatedStore {
 protected:
   const size_t batch_size;
   const bool lazy;  // Lazy (efficient but insecure) generation for behavior testing.
+  mutable flint_rand_t lazy_seed;  // Since seeds are modified when used
 
   // Securely create N new correlated items
   // Pass in pointer to array. Methods make new.
@@ -399,10 +401,18 @@ public:
   {
     if (lazy) {
       std::cout << "Doing fast but insecure correlated value generation" << std::endl;
+      flint_randinit(lazy_seed);
+      if (server_num == 0) {
+        send_seed(serverfd, lazy_seed);
+      } else {
+        recv_seed(serverfd, lazy_seed);
+      }
     }
   };
 
-  ~PrecomputeStore() {};
+  ~PrecomputeStore() {
+    if (lazy) flint_randclear(lazy_seed);
+  };
 
   virtual void print_Sizes() const;
   virtual void maybe_Update(); // Precompute if not enough.
