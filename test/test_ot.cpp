@@ -33,7 +33,7 @@ void run_server0(const size_t m) {
 
   if (test_base) {
     std::cout << "Testing basic send/recv" << std::endl;
-    uint64_t* data0 = new uint64_t[N]; memset(data0, 0, N * sizeof(uint64_t)); 
+    uint64_t* data0 = new uint64_t[N]; memset(data0, 0, N * sizeof(uint64_t));
     uint64_t* data0_1 = new uint64_t[N]; memset(data0_1, 0, N * sizeof(uint64_t));
     uint64_t* data1 = new uint64_t[N]; memset(data1, 0, N * sizeof(uint64_t));
     uint64_t* data1_1 = new uint64_t[N]; memset(data1_1, 0, N * sizeof(uint64_t));

@@ -162,9 +162,9 @@ int64_t CorrelatedStore::multiply_BoolShares(
 
   check_BoolTriples(N);
 
-  bool* de = new bool[2 * N];
+  bool* const de = new bool[2 * N];
   multiply_BoolShares_setup(N, x, y, z, de);
-  bool* de_other = new bool[2 * N];
+  bool* const de_other = new bool[2 * N];
 
   sent_bytes += swap_bool_batch(serverfd, de, de_other, 2 * N);
 
@@ -230,12 +230,12 @@ int64_t CorrelatedStore::multiply_BoolShares_cross(
 
   check_BoolTriples(2 * N * a * b);
 
-  bool* x_ext = new bool[N * a * b];
-  bool* y_ext = new bool[N * a * b];
+  bool* const x_ext = new bool[N * a * b];
+  bool* const y_ext = new bool[N * a * b];
   cross_fill_bool(N, a, b, x, y, x_ext, y_ext);
-  bool* de = new bool[2 * N * a * b];
+  bool* const de = new bool[2 * N * a * b];
   multiply_BoolShares_setup(N * a * b, x_ext, y_ext, z, de);
-  bool* de_other = new bool[2 * N * a * b];
+  bool* const de_other = new bool[2 * N * a * b];
 
   sent_bytes += swap_bool_batch(serverfd, de, de_other, 2 * N * a * b);
 
@@ -431,9 +431,9 @@ int64_t CorrelatedStore::heavy_convert(
   memcpy(z, x, N * b);
   memcpy(&z[N*b], y, N * b);
 
-  bool* buff = new bool[3 * N * b];
+  bool* const buff = new bool[3 * N * b];
   multiply_BoolShares_setup(N * b, x, y, &z[2*N*b], buff);
-  bool* buff_other = new bool[3 * N * b];
+  bool* const buff_other = new bool[3 * N * b];
 
   sent_bytes += swap_bool_batch(serverfd, buff, buff_other, 2 * N * b);
 
@@ -586,9 +586,9 @@ int64_t CorrelatedStore::heavy_convert_mask_two(
   check_DaBits(4 * len_all);
 
   // xy normal, cross mask m1 m2
-  bool* a = new bool[3 * len_all];
-  bool* b = new bool[3 * len_all];
-  bool* c = new bool[len_1];
+  bool* const a = new bool[3 * len_all];
+  bool* const b = new bool[3 * len_all];
+  bool* const c = new bool[len_1];
   memcpy(a, x, N * Q * D);
   memcpy(b, y, N * Q * D);
   cross_fill_bool(N * Q, M1, M2, mask1, mask2, &a[N*Q*D], &b[N*Q*D]);
@@ -606,7 +606,7 @@ int64_t CorrelatedStore::heavy_convert_mask_two(
   cross_fill_bool(N * Q, M1 * M2, D, &c[N*Q*D], c, &b[2*len_all], &a[2*len_all]);
   delete[] c;
   // m1 m2, x m1 m2, y m1 m2, xy m1 m2
-  bool* z = new bool[4 * len_all];
+  bool* const z = new bool[4 * len_all];
   memcpy(z, b, len_all);
   multiply_BoolShares_setup(3 * len_all, a, b, &z[len_all], buff);
 
@@ -677,8 +677,8 @@ int64_t CorrelatedStore::heavy_convert_mask(
   [[maybe_unused]] auto start = clock_start();
 
   fmpz_t* z_base; new_fmpz_array(&z_base, N * Q * M * D);
-  bool* x_extended = new bool[N * Q * M * D];
-  bool* mask_extended = new bool[N * Q * M * D];
+  bool* const x_extended = new bool[N * Q * M * D];
+  bool* const mask_extended = new bool[N * Q * M * D];
 
   fmpz_t z; fmpz_init(z);
 
@@ -945,7 +945,7 @@ int64_t CorrelatedStore::gen_rand_bitshare(
 
   // for validation checking
   fmpz_t* rB_tocheck; new_fmpz_array(&rB_tocheck, N * b);
-  size_t* rB_idx = new size_t[N];
+  size_t* const rB_idx = new size_t[N];
   fmpz_t* r_lt_p_other; new_fmpz_array(&r_lt_p_other, N);
 
   // Track which are already set

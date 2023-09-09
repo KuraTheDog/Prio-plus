@@ -69,7 +69,7 @@ Integer HeavyEval::min(Integer* array) {
 }
 
 Integer HeavyEval::get_freq(Integer input) {
-  Integer* estimates = new Integer[num_hashes];
+  Integer* const estimates = new Integer[num_hashes];
 
   for (unsigned int i = 0; i < num_hashes; i++) {
     Integer hash_val = eval_hash(input, i);
@@ -197,16 +197,15 @@ void HeavyEval::print_values(bool print) const {
   }
 }
 
+// TODO: Somehow this is the slowest part? Just a lot of declares
 void HeavyExtract::set_bucket(const int idx, const fmpz_t* const bucket) {
-  Integer* target = idx ? bucket1 : bucket0;
+  Integer* const target = idx ? bucket1 : bucket0;
 
   for (unsigned int i = 0; i < R * Q * B * D; i++) {
     uint64_t val = fmpz_get_ui(bucket[i]);
     Integer a(share_bits, party == ALICE ? val : 0, ALICE);
     Integer b(share_bits, party == BOB ? val : 0, BOB);
-    // Since > N/2 is negative, subtract out mod to shift it
     target[i] = (a + b) % mod;
-    // No resize, since negatives.
   }
 }
 

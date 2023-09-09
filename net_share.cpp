@@ -100,7 +100,7 @@ int swap_bool_batch(const int sockfd, const bool* const x, bool* const y, const 
 int reveal_bool_batch(const int sockfd, bool* const x, const size_t n) {
     int sent_bytes = 0;
 
-    bool* buff = new bool[n];
+    bool* const buff = new bool[n];
 
     sent_bytes += swap_bool_batch(sockfd, x, buff, n);
 

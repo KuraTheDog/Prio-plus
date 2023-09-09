@@ -1764,8 +1764,8 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
         return RET_INVALID;
     }
 
-    uint64_t* top_values = new uint64_t[K];
-    uint64_t* top_freqs = new uint64_t[K];
+    uint64_t* const top_values = new uint64_t[K];
+    uint64_t* const top_freqs = new uint64_t[K];
 
     full_heavy_extract(server_num, cfg, bucket0, bucket1, hash_seed_split, hash_seed_count,
             countmin_accum, num_inputs, top_values, top_freqs);
@@ -2084,8 +2084,8 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
         return RET_INVALID;
     }
 
-    uint64_t* top_values = new uint64_t[K];
-    uint64_t* top_freqs = new uint64_t[K];
+    uint64_t* const top_values = new uint64_t[K];
+    uint64_t* const top_freqs = new uint64_t[K];
 
     full_heavy_extract(server_num, cfg, bucket0, bucket1, hash_seed_split, hash_seed_count,
             countmin_accum, num_inputs, top_values, top_freqs);
