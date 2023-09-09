@@ -54,7 +54,8 @@ void CorrelatedStore::b2a_single_finish(
   }
 }
 
-int64_t CorrelatedStore::b2a_single(const size_t N, const bool* const x, fmpz_t* const xp) {
+int64_t CorrelatedStore::b2a_single(const size_t N,
+    const bool* const x, fmpz_t* const xp) {
   int64_t sent_bytes = 0;
 
   check_DaBits(N);
@@ -414,7 +415,8 @@ void CorrelatedStore::heavy_accumulate(
 }
 
 // Note: N, b difference only for accumulate.
-// But comes into play more with masks later and lines up with OT, so left in for matching
+// But comes into play more with masks later and lines up with OT
+// so left in for matching/comparison
 int64_t CorrelatedStore::heavy_convert(
     const size_t N, const size_t b,
     const bool* const x, const bool* const y, const bool* const valid,
@@ -571,7 +573,8 @@ int64_t CorrelatedStore::heavy_convert_mask_one(
 */
 int64_t CorrelatedStore::heavy_convert_mask_two(
     const size_t N, const size_t Q, const size_t M1, const size_t M2, const size_t D,
-    const bool* const x, const bool* const y, const bool* const mask1, const bool* const mask2,
+    const bool* const x, const bool* const y,
+    const bool* const mask1, const bool* const mask2,
     const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1) {
   int sent_bytes = 0;
 
@@ -656,7 +659,8 @@ int64_t CorrelatedStore::heavy_convert_mask(
       const size_t this_batch_size = (
           num_remaining < heavy_batch_size ? num_remaining : heavy_batch_size);
       batch_idx++;
-      // std::cout << "Starting heavy batch: " << batch_idx << " / " << num_batches << std::endl;
+      // std::cout << "Starting heavy batch: " << batch_idx << " / ";
+      // std::cout << num_batches << std::endl;
 
       sent_bytes += heavy_convert_mask(this_batch_size, Q, M, D,
         &x[num_processed * Q * D],
@@ -707,7 +711,8 @@ int64_t CorrelatedStore::heavy_convert_mask(
   // Round 1: mask * z
   // Note: Can't straight multiply masks, since this does tricks for x * z
   fmpz_t* z_masked; new_fmpz_array(&z_masked, N * Q * M * D);
-  sent_bytes += multiply_BoolArith(N, Q * M * D, mask_extended, z_base, z_masked, nullptr, valid);
+  sent_bytes += multiply_BoolArith(N, Q * M * D, mask_extended, z_base, z_masked,
+      nullptr, valid);
   delete[] mask_extended;
   clear_fmpz_array(z_base, N * Q * M * D);
   // std::cout << "  mask mul time: " << sec_from(start) << "\n"; start = clock_start();
@@ -718,7 +723,8 @@ int64_t CorrelatedStore::heavy_convert_mask(
   // Would require extra to allow for "both 0" case with mask
   fmpz_t* buff0; new_fmpz_array(&buff0, N * Q * M * D);
   fmpz_t* buff1; new_fmpz_array(&buff1, N * Q * M * D);
-  sent_bytes += multiply_BoolArith(N, Q * M * D, x_extended, z_masked, buff1, buff0, valid);
+  sent_bytes += multiply_BoolArith(N, Q * M * D, x_extended, z_masked,
+      buff1, buff0, valid);
   delete[] x_extended;
   clear_fmpz_array(z_masked, N * Q * M * D);
   // std::cout << "  xz mul time: " << sec_from(start) << "\n"; start = clock_start();
@@ -966,14 +972,16 @@ int64_t CorrelatedStore::gen_rand_bitshare(
       for (unsigned int j = 0; j < b; j++) {
         // Just need 2 numbers summing to 0 or 1, so bp. b2 not needed.
         const DaBit* const dabit = get_DaBit();
-        // std::cout << "got dabit[" << j << "]_bp = " << fmpz_get_ui(dabit->bp) << std::endl;
+        // std::cout << "got dabit[" << j << "]_bp = ";
+        // std::cout << fmpz_get_ui(dabit->bp) << std::endl;
         fmpz_set(rB[i * b + j], dabit->bp);
         fmpz_mod_addmul_ui(r[i], dabit->bp, 1ULL << j, mod_ctx);
         // consume the dabit
         delete dabit;
 
         // add to rB_tocheck
-        // std::cout << "rB_tocheck[" << num_invalid * b + j << "] := rB[" << i*b+j << "]";
+        // std::cout << "rB_tocheck[" << num_invalid * b + j;
+        // std::cout << "] := rB[" << i*b+j << "]";
         // std::cout << " = " << fmpz_get_ui(rB[i*b+j]) << std::endl;
         fmpz_set(rB_tocheck[num_invalid * b + j], rB[i * b + j]);
       }

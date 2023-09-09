@@ -29,6 +29,10 @@
 
 // Fail if more than this fraction of clients provide invalid inputs
 #define INVALID_THRESHOLD 0.5
+void print_too_many_invalid() {
+std::cout << "Failing, This is less than the invalid threshold of ";
+    std::cout << INVALID_THRESHOLD << std::endl;
+}
 
 MultEvalManager* mult_eval_manager;
 
@@ -294,7 +298,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
         std::cout << "convert time: " << sec_from(start2) << std::endl;
         std::cout << "total compute time: " << sec_from(start) << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
-            std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+            print_too_many_invalid();
             return RET_INVALID;
         }
 
@@ -396,7 +400,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
 
         sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff, 2 * num_inputs);
 
-        correlated_store->b2a_multi_finish(num_inputs, num_bits, shares_p, flat_xp, send_buff, recv_buff);
+        correlated_store->b2a_multi_finish(num_inputs, num_bits,
+                shares_p, flat_xp, send_buff, recv_buff);
         delete[] send_buff;
         clear_fmpz_array(flat_xp, num_inputs * num_bits);
         for (unsigned int i = 0; i < num_inputs; i++)
@@ -408,7 +413,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
 
         sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff, 2 * num_inputs);
 
-        correlated_store->b2a_multi_finish(num_inputs, num_bits, shares_p, flat_xp, send_buff, recv_buff);
+        correlated_store->b2a_multi_finish(num_inputs, num_bits,
+                shares_p, flat_xp, send_buff, recv_buff);
         delete[] send_buff;
         clear_fmpz_array(flat_xp, num_inputs * num_bits);
         for (unsigned int i = 0; i < num_inputs; i++)
@@ -433,7 +439,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "total compute time: " << sec_from(start) << std::endl;
     std::cout << "sent server bytes: " << sent_bytes << std::endl;
     if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
-        std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+        print_too_many_invalid();
         clear_fmpz_array(b, 1);
         return RET_INVALID;
     }
@@ -530,7 +536,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
         std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << sent_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
-            std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+            print_too_many_invalid();
             return RET_INVALID;
         }
 
@@ -639,7 +645,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
         std::cout << "total compute time: " << sec_from(start) << std::endl;
         std::cout << "sent server bytes: " << sent_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
-            std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+            print_too_many_invalid();
             return RET_INVALID;
         }
 
@@ -818,7 +824,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
     std::cout << "total compute time: " << sec_from(start) << std::endl;
     std::cout << "sent non-snip server bytes: " << sent_bytes << std::endl;
     if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
-        std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+        print_too_many_invalid();
         clear_fmpz_array(b, 2);
         return RET_INVALID;
     }
@@ -1011,7 +1017,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     delete[] shares;
     fmpz_t* flat_xp_1; new_fmpz_array(&flat_xp_1, num_inputs * num_1 * num_bits);
     bool* const v = new bool[num_inputs * total];
-    correlated_store->b2a_multi_setup(num_inputs * num_1, num_bits, shares_transposed, flat_xp_1, v);
+    correlated_store->b2a_multi_setup(num_inputs * num_1, num_bits,
+            shares_transposed, flat_xp_1, v);
     fmpz_t* flat_xp_2; new_fmpz_array(&flat_xp_2, num_inputs * num_2 * 2 * num_bits);
     correlated_store->b2a_multi_setup(num_inputs * num_2, 2 * num_bits,
         &shares_transposed[num_inputs * num_1], flat_xp_2, &v[num_inputs * num_1 * num_bits]);
@@ -1021,10 +1028,12 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     sent_bytes += swap_bool_batch(serverfd, v, v_other, num_inputs * total);
 
     fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * num_fields);
-    correlated_store->b2a_multi_finish(num_inputs * num_1, num_bits, shares_p, flat_xp_1, v, v_other);
+    correlated_store->b2a_multi_finish(num_inputs * num_1, num_bits,
+            shares_p, flat_xp_1, v, v_other);
     clear_fmpz_array(flat_xp_1, num_inputs * num_1 * num_bits);
-    correlated_store->b2a_multi_finish(num_inputs * num_2, 2 * num_bits, &shares_p[num_inputs * num_1],
-            flat_xp_2, &v[num_inputs * num_1 * num_bits], &v_other[num_inputs * num_1 * num_bits]);
+    correlated_store->b2a_multi_finish(num_inputs * num_2, 2 * num_bits,
+            &shares_p[num_inputs * num_1], flat_xp_2,
+            &v[num_inputs * num_1 * num_bits], &v_other[num_inputs * num_1 * num_bits]);
     clear_fmpz_array(flat_xp_2, num_inputs * num_2 * 2 * num_bits);
     delete[] v;
     delete[] v_other;
@@ -1070,7 +1079,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     std::cout << "total compute time: " << sec_from(start) << std::endl;
     std::cout << "sent non-snip server bytes: " << sent_bytes << std::endl;
     if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
-        std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+        print_too_many_invalid();
         clear_fmpz_array(b, num_fields);
         return RET_INVALID;
     }
@@ -1302,7 +1311,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
         std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
         std::cout << "sent server bytes: " << sent_bytes << std::endl;
         if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
-            std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+            print_too_many_invalid();
             clear_fmpz_array(b, max_inp);
             clear_fmpz_array(a, max_inp);
             return RET_INVALID;
@@ -1325,7 +1334,8 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     }
 }
 
-returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num) {
+returnType heavy_op(const initMsg msg,
+        const int clientfd, const int serverfd, const int server_num) {
     auto start = clock_start();
 
     std::unordered_map<std::string, bool*> share_map;
@@ -1433,7 +1443,7 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
     delete[] valid;
     std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
     if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
-        std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+        print_too_many_invalid();
         clear_fmpz_array(bucket0, b);
         clear_fmpz_array(bucket1, b);
         return RET_INVALID;
@@ -1476,7 +1486,8 @@ returnType heavy_op(const initMsg msg, const int clientfd, const int serverfd, c
     }
 }
 
-returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num) {
+returnType multi_heavy_op(const initMsg msg,
+        const int clientfd, const int serverfd, const int server_num) {
     auto start = clock_start();
 
     typedef std::tuple <bool*, bool*, bool*, bool*> sharetype;
@@ -1756,7 +1767,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
     delete[] valid;
     if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
-        std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+        print_too_many_invalid();
         clear_fmpz_array(bucket0, num_sh);
         clear_fmpz_array(bucket1, num_sh);
         clear_fmpz_array(countmin_accum, share_size_count);
@@ -1787,7 +1798,8 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     return RET_ANS;
 }
 
-returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, const int server_num) {
+returnType top_k_op(const initMsg msg,
+        const int clientfd, const int serverfd, const int server_num) {
     auto start = clock_start();
 
     typedef std::tuple <bool*, bool*, bool*, bool*, bool*> sharetype;
@@ -2019,7 +2031,8 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
     start3 = clock_start();
 
     // Finish convert stage 2
-    correlated_store->multiply_BoolShares_finish(3 * len_all, a, b, &z[len_all], send_buff, recv_buff);
+    correlated_store->multiply_BoolShares_finish(3 * len_all,
+            a, b, &z[len_all], send_buff, recv_buff);
     delete[] a;
     delete[] b;
     // Finish freq, update valid
@@ -2047,7 +2060,8 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
     start3 = clock_start();
 
     // Finish heavy convert
-    correlated_store->b2a_single_finish(4 * len_all, zp, &send_buff[num_inputs], &recv_buff[num_inputs]);
+    correlated_store->b2a_single_finish(4 * len_all, zp,
+            &send_buff[num_inputs], &recv_buff[num_inputs]);
     delete[] send_buff;
     // Merge valid
     for (unsigned int i = 0; i < num_inputs; i++) {
@@ -2076,7 +2090,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
     std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
     delete[] valid;
     if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
-        std::cout << "Failing, This is less than the invalid threshold of " << INVALID_THRESHOLD << std::endl;
+        print_too_many_invalid();
         clear_fmpz_array(bucket0, num_sh);
         clear_fmpz_array(bucket1, num_sh);
         clear_fmpz_array(countmin_accum, share_size_count);

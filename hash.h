@@ -212,7 +212,8 @@ public:
   //   Returns number of INVALID checks. 0 is best
   int solve(const unsigned int group_num, const fmpz_t* const values, uint64_t& ans) const;
   // Finds ans, in the corresponding vector form.
-  void solve_shares(const unsigned int group_num, const fmpz_t* const values, fmpz_t* const ans) const;
+  void solve_shares(const unsigned int group_num,
+      const fmpz_t* const values, fmpz_t* const ans) const;
   // Given "vector" representation vec, extracts answer into ans
   // Also uses extras from values to validate.
   // Note that if not inconsistency solving, then values is unused

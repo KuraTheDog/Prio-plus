@@ -363,7 +363,8 @@ void int_sum(const std::string protocol, const size_t numreqs) {
     msg.type = INT_SUM_OP;
 
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << num_bits) * numreqs) < 0 ) {
-        std::cout << "Modulus bits should be at least " << (num_bits + LOG2(numreqs)) << "\n";
+        std::cout << "Modulus bits should be at least ";
+        std::cout << (num_bits + LOG2(numreqs)) << "\n";
         error_exit("Int Modulus too small");
     }
 
@@ -911,7 +912,8 @@ int var_helper(const std::string protocol, const size_t numreqs,
 
 void var_op(const std::string protocol, const size_t numreqs) {
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
-        std::cout << "Modulus bits should be at least " << (2 * num_bits + LOG2(numreqs)) << "\n";
+        std::cout << "Modulus bits should be at least ";
+        std::cout << (2 * num_bits + LOG2(numreqs)) << "\n";
         error_exit("Int Modulus too small");
     }
 
@@ -1019,7 +1021,8 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         shares1_squared[i] = squared ^ shares0_squared[i];
 
         std::cout << i << ": " << real_vals[i] << " = " << shares0[i] << "^" << shares1[i];
-        std::cout << ", " << squared << " = " << shares0_squared[i] << "^" << shares1_squared[i];
+        std::cout << ", " << squared << " = ";
+        std::cout << shares0_squared[i] << "^" << shares1_squared[i];
         if (i <= 9 or i == 11 or i == 13) {
             std::cout << " (invalid)" << std::endl;
         } else {
@@ -1058,8 +1061,8 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
         Circuit* const circuit = CheckVar();
         // Run through circuit to set wires
         circuit->Eval(inp);
-        ClientPacket* p0 = new ClientPacket(NMul);
-        ClientPacket* p1 = new ClientPacket(NMul);
+        ClientPacket* const p0 = new ClientPacket(NMul);
+        ClientPacket* const p1 = new ClientPacket(NMul);
         share_polynomials(circuit, p0, p1);
         delete circuit;
         if (i == 5)
@@ -1793,7 +1796,8 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
         // Count-min
         for (unsigned int d = 0; d < count_min.cfg.d; d++) {
             count_min.store->eval(d, real_val, hashed);
-            if (print) std::cout << " count[" << d << "] = " << fmpz_get_ui(hashed) << std::endl;
+            if (print)
+                std::cout << " count[" << d << "] = " << fmpz_get_ui(hashed) << std::endl;
             share1[i].arr[3][d * count_min.cfg.w + fmpz_get_ui(hashed)] ^= 1;
         }
 
@@ -1855,7 +1859,7 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs,
     int sent_bytes = 0;
     // For display: how many to print out (max(2K, 10))
     const size_t count_size = (2*K) > 10 ? (2*K) : 10;
-    uint64_t* count = new uint64_t[count_size + 1];
+    uint64_t* const count = new uint64_t[count_size + 1];
     memset(count, 0, (count_size + 1) * sizeof(uint64_t));
 
     initMsg msg;
@@ -2022,7 +2026,8 @@ int top_k_helper(
         // Count-min
         for (unsigned int d = 0; d < count_min.cfg.d; d++) {
             count_min.store->eval(d, real_val, hashed);
-            if (print) std::cout << "  count[" << d << "] = " << fmpz_get_ui(hashed) << "\n";
+            if (print)
+                std::cout << "  count[" << d << "] = " << fmpz_get_ui(hashed) << "\n";
             share1[i].arr[4][d * count_min.cfg.w + fmpz_get_ui(hashed)] ^= 1;
         }
 
@@ -2084,7 +2089,7 @@ void top_k_op(const std::string protocol, const size_t numreqs,
     int sent_bytes = 0;
     // For display: how many to print out (max(2K, 10))
     const size_t count_size = (2*K) > 10 ? (2*K) : 10;
-    uint64_t* count = new uint64_t[count_size + 1];
+    uint64_t* const count = new uint64_t[count_size + 1];
     memset(count, 0, (count_size + 1) * sizeof(uint64_t));
 
     initMsg msg;
