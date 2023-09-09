@@ -2,7 +2,6 @@
 
 #include <netinet/in.h>
 #include <sys/socket.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 #include <cstdlib>

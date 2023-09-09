@@ -1,7 +1,5 @@
 #include "he_triples.h"
 
-#include <sys/wait.h>
-
 #include <string>
 
 // Serializing

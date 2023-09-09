@@ -1,7 +1,5 @@
 #include "correlated.h"
 
-#include <sys/wait.h>
-
 #include <iostream>
 
 #include "constants.h"
