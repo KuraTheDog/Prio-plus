@@ -5,6 +5,7 @@
 #include "../fmpz_utils.h"
 #include "../hash.h"
 #include "../heavy.h"
+#include "../zipf.h"
 
 const size_t input_bits = 3;
 const size_t output_range = 5;
@@ -145,6 +146,28 @@ void test_half() {
   }
 }
 
+void test_zipf() {
+  const int support = 10000;
+  const double exponent = 1.03;
+
+  ZipF distribution(support, exponent);
+
+  const int N = 1000000;
+  const int K = 15;
+  int count[K];
+  memset(count, 0, K * sizeof(int));
+
+  std::cout << "Zipf(" << support << ", " << exponent << ")\n";
+
+  for (unsigned int i = 0; i < N; i++) {
+    int val = distribution.sample(5 * K);
+    if (val < K) count[val] += 1;
+  }
+  for (unsigned int i = 0; i < K; i++) {
+    std::cout << "Zipf[" << i << "] = " << count[i] << " -> " << 1. * count[i] / N << "\n";
+  }
+}
+
 int main(int argc, char** argv){
   test_seed_sync();
 
@@ -153,4 +176,6 @@ int main(int argc, char** argv){
   test_inverse(0);
 
   test_half();
+
+  test_zipf();
 }

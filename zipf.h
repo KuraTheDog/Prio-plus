@@ -45,7 +45,10 @@ public:
 
   ~ZipF() {}
 
-  uint64_t sample() {
+  // If set, uniform-ish after cutoff
+  // For e.g. top K, don't care about details of rare values, just that they aren't heavy
+  // So uniform-ish (conditioning on z large enough to pass cutoff)
+  uint64_t sample(const uint64_t cutoff = 0) {
     std::uniform_real_distribution<double> dis(0.0, 1.0);
     const double z = dis(gen);
     // double z = rand() / RAND_MAX;  // Low set of possible values, not optimal
@@ -59,6 +62,12 @@ public:
         // std::cout << "returning " << i << std::endl;
         return i;
       }
+
+      // Not returning 0, since a decent total fraction is outside of cutoff usually
+      // But it also means it doesn't impact first [cutoff] values, which is good
+      // So need to distribute to not add a new heavy
+      if (cutoff > 0 and i > cutoff)
+        return (uint64_t) (z * support);
     }
 
     // std::cout << "returning 0" << std::endl;
