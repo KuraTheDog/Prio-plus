@@ -37,16 +37,25 @@ int recv_bool(const int sockfd, bool& x) {
 }
 
 int send_bool_batch(const int sockfd, const bool* const x, const size_t n) {
+    int total = 0, ret;
+
+    if (n > MAX_BOOL_BATCH) {
+        total += send_bool_batch(sockfd, x, MAX_BOOL_BATCH);
+        auto new_x = &x[MAX_BOOL_BATCH];
+        total += send_bool_batch(sockfd, new_x, n - MAX_BOOL_BATCH);
+        return total;
+    }
+
     const size_t len = (n+7) / 8;  // Number of bytes to hold n, aka ceil(n/8)
     char* const buff = new char[len];
-
     memset(buff, 0, sizeof(char) * len);
 
     for (unsigned int i = 0; i < n; i++)
         if (x[i])
             buff[i / 8] ^= (1ULL << (i % 8));
 
-    int ret = send(sockfd, buff, len, 0);
+    ret = send(sockfd, buff, len, 0);
+    if (ret <= 0) return ret; else total += ret;
 
     delete[] buff;
 

@@ -52,6 +52,7 @@ string: best it can do is base 62, so 62/256 ~ 25% space efficiency. So needs ~4
 
 // We batch things together into single send/receives, to reduce rounds/overhead (mainly recv wrapper I think).
 // However, it segfaults if given too large batches. So this makes sure batches are capped
+#define MAX_BOOL_BATCH  64000000
 #define MAX_FMPZ_BATCH  1000000
 #define MAX_DABIT_BATCH 320000
 
