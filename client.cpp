@@ -178,7 +178,7 @@ int send_unvalidated(const size_t n) {
 }
 
 int bit_sum_helper(const std::string protocol, const size_t numreqs,
-                   unsigned int &ans, const initMsg* const msg_ptr = nullptr) {
+                   unsigned int &ans) {
     auto start = clock_start();
     int sent_bytes = 0;
 
@@ -211,10 +211,6 @@ int bit_sum_helper(const std::string protocol, const size_t numreqs,
         std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
     start = clock_start();
-    if (msg_ptr != nullptr) {
-        sent_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
-        sent_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
-    }
     for (unsigned int i = 0; i < numreqs; i++) {
         sent_bytes += send_to_server(0, &bitshare0[i], sizeof(BitShare));
         sent_bytes += send_to_server(1, &bitshare1[i], sizeof(BitShare));
@@ -236,12 +232,15 @@ void bit_sum(const std::string protocol, const size_t numreqs) {
     msg.num_of_inputs = numreqs;
     msg.type = BIT_SUM_OP;
 
+    sent_bytes += send_to_server(0, &msg, sizeof(initMsg));
+    sent_bytes += send_to_server(1, &msg, sizeof(initMsg));
+
     if (CLIENT_BATCH) {
-        sent_bytes += bit_sum_helper(protocol, numreqs, ans, &msg);
+        sent_bytes += bit_sum_helper(protocol, numreqs, ans);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            sent_bytes += bit_sum_helper(protocol, 1, ans, i == 0 ? &msg : nullptr);
+            sent_bytes += bit_sum_helper(protocol, 1, ans);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
@@ -309,7 +308,7 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
 }
 
 int int_sum_helper(const std::string protocol, const size_t numreqs,
-                   uint64_t &ans, const initMsg* const msg_ptr = nullptr) {
+                   uint64_t &ans) {
     auto start = clock_start();
     int sent_bytes = 0;
 
@@ -341,10 +340,6 @@ int int_sum_helper(const std::string protocol, const size_t numreqs,
         std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
     start = clock_start();
-    if (msg_ptr != nullptr) {
-        sent_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
-        sent_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
-    }
     for (unsigned int i = 0; i < numreqs; i++) {
         sent_bytes += send_to_server(0, &intshare0[i], sizeof(IntShare));
         sent_bytes += send_to_server(1, &intshare1[i], sizeof(IntShare));
@@ -372,12 +367,15 @@ void int_sum(const std::string protocol, const size_t numreqs) {
         error_exit("Int Modulus too small");
     }
 
+    sent_bytes += send_to_server(0, &msg, sizeof(initMsg));
+    sent_bytes += send_to_server(1, &msg, sizeof(initMsg));
+
     if (CLIENT_BATCH) {
-        sent_bytes += int_sum_helper(protocol, numreqs, ans, &msg);
+        sent_bytes += int_sum_helper(protocol, numreqs, ans);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            sent_bytes += int_sum_helper(protocol, 1, ans, i == 0 ? &msg : nullptr);
+            sent_bytes += int_sum_helper(protocol, 1, ans);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
@@ -453,7 +451,7 @@ void int_sum_invalid(const std::string protocol, const size_t numreqs) {
 }
 
 int xor_helper(const std::string protocol, const size_t numreqs,
-                  bool &ans, const initMsg* const msg_ptr = nullptr) {
+                  bool &ans) {
     auto start = clock_start();
     int sent_bytes = 0;
 
@@ -495,10 +493,6 @@ int xor_helper(const std::string protocol, const size_t numreqs,
     if (numreqs > 1)
         std::cout << "batch make:\t" << sec_from(start) << std::endl;
     start = clock_start();
-    if (msg_ptr != nullptr) {
-        sent_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
-        sent_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
-    }
     for (unsigned int i = 0; i < numreqs; i++) {
         sent_bytes += send_to_server(0, &intshare0[i], sizeof(IntShare));
         sent_bytes += send_to_server(1, &intshare1[i], sizeof(IntShare));
@@ -527,13 +521,15 @@ void xor_op(const std::string protocol, const size_t numreqs) {
     } else {
         return;
     }
+    sent_bytes += send_to_server(0, &msg, sizeof(initMsg));
+    sent_bytes += send_to_server(1, &msg, sizeof(initMsg));
 
     if (CLIENT_BATCH) {
-        sent_bytes += xor_helper(protocol, numreqs, ans, &msg);
+        sent_bytes += xor_helper(protocol, numreqs, ans);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            sent_bytes += xor_helper(protocol, 1, ans, i == 0 ? &msg : nullptr);
+            sent_bytes += xor_helper(protocol, 1, ans);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
@@ -630,8 +626,7 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
 }
 
 int max_helper(const std::string protocol, const size_t numreqs,
-                  const unsigned int B, uint64_t &ans,
-                  const initMsg* const msg_ptr = nullptr) {
+                  const unsigned int B, uint64_t &ans) {
     auto start = clock_start();
     int sent_bytes = 0;
 
@@ -688,10 +683,6 @@ int max_helper(const std::string protocol, const size_t numreqs,
         std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
     start = clock_start();
-    if (msg_ptr != nullptr) {
-        sent_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
-        sent_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
-    }
     for (unsigned int i = 0; i < numreqs; i++) {
         sent_bytes += send_maxshare(0, maxshare0[i], B);
         sent_bytes += send_maxshare(1, maxshare1[i], B);
@@ -726,13 +717,15 @@ void max_op(const std::string protocol, const size_t numreqs) {
     } else {
         return;
     }
+    sent_bytes += send_to_server(0, &msg, sizeof(initMsg));
+    sent_bytes += send_to_server(1, &msg, sizeof(initMsg));
 
     if (CLIENT_BATCH) {
-        sent_bytes += max_helper(protocol, numreqs, B, ans, &msg);
+        sent_bytes += max_helper(protocol, numreqs, B, ans);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            sent_bytes += max_helper(protocol, 1, B, ans, i == 0 ? &msg : nullptr);
+            sent_bytes += max_helper(protocol, 1, B, ans);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
@@ -770,8 +763,8 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
     uint64_t shares1[B+1];
     prg.random_data(values, numreqs * sizeof(uint64_t));
 
-    send_to_server(0, &msg, sizeof(initMsg), 0);
-    send_to_server(1, &msg, sizeof(initMsg), 0);
+    send_to_server(0, &msg, sizeof(initMsg));
+    send_to_server(1, &msg, sizeof(initMsg));
 
     std::string tag_str = "";
 
@@ -831,8 +824,7 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
 }
 
 int var_helper(const std::string protocol, const size_t numreqs,
-                  uint64_t& sum, uint64_t& sumsquared,
-                  const initMsg* const msg_ptr = nullptr) {
+                  uint64_t& sum, uint64_t& sumsquared) {
     auto start = clock_start();
     int sent_bytes = 0;
 
@@ -891,10 +883,6 @@ int var_helper(const std::string protocol, const size_t numreqs,
         std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
     start = clock_start();
-    if (msg_ptr != nullptr) {
-        sent_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
-        sent_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
-    }
     for (unsigned int i = 0; i < numreqs; i++) {
         sent_bytes += send_to_server(0, &varshare0[i], sizeof(VarShare));
         sent_bytes += send_to_server(1, &varshare1[i], sizeof(VarShare));
@@ -939,13 +927,15 @@ void var_op(const std::string protocol, const size_t numreqs) {
     } else {
         return;
     }
+    sent_bytes += send_to_server(0, &msg, sizeof(initMsg));
+    sent_bytes += send_to_server(1, &msg, sizeof(initMsg));
 
     if (CLIENT_BATCH) {
-        sent_bytes += var_helper(protocol, numreqs, sum, sumsquared, &msg);
+        sent_bytes += var_helper(protocol, numreqs, sum, sumsquared);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            sent_bytes += var_helper(protocol, 1, sum, sumsquared, i == 0 ? &msg : nullptr);
+            sent_bytes += var_helper(protocol, 1, sum, sumsquared);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
@@ -1105,9 +1095,7 @@ void var_op_invalid(const std::string protocol, const size_t numreqs) {
 }
 
 int linreg_helper(const std::string protocol, const size_t numreqs,
-                   const size_t degree,
-                   uint64_t* const x_accum, uint64_t* const y_accum,
-                   const initMsg* const msg_ptr = nullptr) {
+                   const size_t degree, uint64_t* const x_accum, uint64_t* const y_accum) {
     auto start = clock_start();
 
     const size_t num_x = degree - 1;
@@ -1229,13 +1217,6 @@ int linreg_helper(const std::string protocol, const size_t numreqs,
         std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
     start = clock_start();
-    if (msg_ptr != nullptr) {
-        sent_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
-        sent_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
-
-        sent_bytes += send_size(sockfd0, degree);
-        sent_bytes += send_size(sockfd1, degree);
-    }
     for (unsigned int i = 0; i < numreqs; i++) {
         sent_bytes += send_linregshare(0, linshare0[i], degree);
         sent_bytes += send_linregshare(1, linshare1[i], degree);
@@ -1268,7 +1249,8 @@ int linreg_helper(const std::string protocol, const size_t numreqs,
 
 void linreg_op(const std::string protocol, const size_t numreqs, const size_t degree) {
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
-        std::cout << "Modulus bits should be at least " << (2 * num_bits + LOG2(numreqs)) << "\n";
+        std::cout << "Modulus bits should be at least ";
+        std::cout << (2 * num_bits + LOG2(numreqs)) << "\n";
         error_exit("Int Modulus too small");
     }
 
@@ -1290,13 +1272,17 @@ void linreg_op(const std::string protocol, const size_t numreqs, const size_t de
     msg.num_of_inputs = numreqs;
     msg.type = LINREG_OP;
 
+    sent_bytes += send_to_server(0, &msg, sizeof(initMsg));
+    sent_bytes += send_to_server(1, &msg, sizeof(initMsg));
+    sent_bytes += send_size(sockfd0, degree);
+    sent_bytes += send_size(sockfd1, degree);
+
     if (CLIENT_BATCH) {
-        sent_bytes += linreg_helper(protocol, numreqs, degree, x_accum, y_accum, &msg);
+        sent_bytes += linreg_helper(protocol, numreqs, degree, x_accum, y_accum);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            sent_bytes += linreg_helper(protocol, 1, degree, x_accum, y_accum,
-                                        i == 0 ? &msg : nullptr);
+            sent_bytes += linreg_helper(protocol, 1, degree, x_accum, y_accum);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
@@ -1521,7 +1507,7 @@ void freq_init(bool*& arr0, bool*& arr1, const size_t share_size, emp::PRG& prg)
 }
 
 int freq_helper(const std::string protocol, const size_t numreqs,
-                uint64_t* counts, const initMsg* const msg_ptr = nullptr) {
+                uint64_t* counts) {
     auto start = clock_start();
     int sent_bytes = 0;
 
@@ -1552,10 +1538,6 @@ int freq_helper(const std::string protocol, const size_t numreqs,
         std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
     start = clock_start();
-    if (msg_ptr != nullptr) {
-        sent_bytes += send_to_server(0, msg_ptr, sizeof(initMsg));
-        sent_bytes += send_to_server(1, msg_ptr, sizeof(initMsg));
-    }
     for (unsigned int i = 0; i < numreqs; i++) {
         sent_bytes += send_freqshare(0, freqshare0[i], max_int);
         sent_bytes += send_freqshare(1, freqshare1[i], max_int);
@@ -1583,12 +1565,15 @@ void freq_op(const std::string protocol, const size_t numreqs) {
     msg.max_inp = max_int;
     msg.type = FREQ_OP;
 
+    sent_bytes += send_to_server(0, &msg, sizeof(initMsg));
+    sent_bytes += send_to_server(1, &msg, sizeof(initMsg));
+
     if (CLIENT_BATCH) {
-        sent_bytes += freq_helper(protocol, numreqs, count, &msg);
+        sent_bytes += freq_helper(protocol, numreqs, count);
     } else {
         auto start = clock_start();
         for (unsigned int i = 0; i < numreqs; i++)
-            sent_bytes += freq_helper(protocol, 1, count, i == 0 ? &msg : nullptr);
+            sent_bytes += freq_helper(protocol, 1, count);
         std::cout << "make+send:\t" << sec_from(start) << std::endl;
     }
 
@@ -1858,7 +1843,8 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
 void multi_heavy_op(const std::string protocol, const size_t numreqs,
                     const double delta, const double eps, const size_t K) {
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
-        std::cout << "Modulus bits should be at least " << (2 * num_bits + LOG2(numreqs)) << "\n";
+        std::cout << "Modulus bits should be at least ";
+        std::cout << (2 * num_bits + LOG2(numreqs)) << "\n";
         throw std::invalid_argument("Int Modulus too small");
     }
     if (delta <= 0 or delta > 1)
@@ -2086,7 +2072,8 @@ int top_k_helper(
 void top_k_op(const std::string protocol, const size_t numreqs,
               const double delta, const double eps, const size_t K) {
     if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
-        std::cout << "Modulus bits should be at least " << (2 * num_bits + LOG2(numreqs)) << "\n";
+        std::cout << "Modulus bits should be at least ";
+        std::cout << (2 * num_bits + LOG2(numreqs)) << "\n";
         throw std::invalid_argument("Int Modulus too small");
     }
     if (delta <= 0 or delta > 1)
