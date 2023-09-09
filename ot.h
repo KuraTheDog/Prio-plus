@@ -71,11 +71,11 @@ std::queue<const BooleanBeaverTriple*> gen_boolean_beaver_triples(
     const int server_num, const unsigned int m,
     OT_Wrapper* const ot0, OT_Wrapper* const ot1);
 
+// Slow. Uses an OT per bit
+// Could be improved with batching (currently makes only one)
+// But probably preferrable using Semi-homomorphic encryption
 const BeaverTriple* const generate_beaver_triple(
     const int serverfd, const int server_num,
     OT_Wrapper* const ot0, OT_Wrapper* const ot1);
-
-const BeaverTriple* const generate_beaver_triple_lazy(
-    const int serverfd, const int server_num);
 
 #endif

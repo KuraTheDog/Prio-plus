@@ -1149,22 +1149,25 @@ int64_t PrecomputeStore::add_DaBits(const size_t n) {
   return sent_bytes;
 }
 
-void PrecomputeStore::add_Triples(const size_t n) {
+int64_t PrecomputeStore::add_Triples(const size_t n) {
   auto start = clock_start();
+  int64_t sent_bytes = 0;
   const size_t num_to_make = (n > batch_size ? n : batch_size);
   std::cout << "adding triples: " << num_to_make << std::endl;
+  BeaverTriple** const triples = new BeaverTriple*[num_to_make];
   // if (triple_gen) {  // not null pointer
   //   std::vector<BeaverTriple*> new_triples = triple_gen->generateTriples(num_to_make);
   //   for (unsigned int i = 0; i < num_to_make; i++)
   //     atriple_store.push(new_triples[i]);
   // } else {
   std::cout << "Making local beaver triples" << std::endl;
+  sent_bytes += gen_Triple_lazy(num_to_make, triples);
   for (unsigned int i = 0; i < num_to_make; i++) {
-    const BeaverTriple* const triple = generate_beaver_triple_lazy(serverfd, server_num);
-    atriple_store.push(triple);
-    // }
+    atriple_store.push(triples[i]);
   }
+  delete[] triples;
   std::cout << "add_Triples timing : " << sec_from(start) << std::endl;
+  return sent_bytes;
 }
 
 void PrecomputeStore::add_BoolTriples(const size_t n) {
@@ -1301,6 +1304,33 @@ int64_t PrecomputeStore::gen_DaBits_lazy(
   }
   fmpz_clear(bit);
   return sent_bytes;
+}
+
+int64_t PrecomputeStore::gen_Triple_lazy(
+    const size_t N, BeaverTriple** const triples) const {
+  fmpz_t a; fmpz_init(a);
+  fmpz_t b; fmpz_init(b);
+  fmpz_t c; fmpz_init(c);
+  for (unsigned int i = 0; i < N; i++) {
+    triples[i] = new BeaverTriple;
+    // Random masks
+    fmpz_randm(triples[i]->A, lazy_seed, Int_Modulus);
+    fmpz_randm(triples[i]->B, lazy_seed, Int_Modulus);
+    fmpz_randm(triples[i]->C, lazy_seed, Int_Modulus);
+    // Actuals
+    fmpz_randm(a, lazy_seed, Int_Modulus);
+    fmpz_randm(b, lazy_seed, Int_Modulus);
+    fmpz_randm(c, lazy_seed, Int_Modulus);
+    if (server_num == 0) {
+      fmpz_mod_sub(triples[i]->A, a, triples[i]->A, mod_ctx);
+      fmpz_mod_sub(triples[i]->B, b, triples[i]->B, mod_ctx);
+      fmpz_mod_sub(triples[i]->C, c, triples[i]->C, mod_ctx);
+    }
+  }
+  fmpz_clear(a);
+  fmpz_clear(b);
+  fmpz_clear(c);
+  return 0;
 }
 
 // Normal lazy: one side makes both random local, send to other

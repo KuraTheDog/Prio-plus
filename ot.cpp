@@ -1,7 +1,7 @@
 #include "ot.h"
 
 #include "constants.h"
-#include "net_share.h"
+// #include "net_share.h"
 #include "utils.h"
 
 #if OT_TYPE == EMP_IKNP
@@ -287,8 +287,6 @@ std::queue<const BooleanBeaverTriple*> gen_boolean_beaver_triples(
     return ans;
 }
 
-// Slow. OT per bit
-// Not batched, but we also don't really want to do this
 /*
 BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num,
         OT_Wrapper* const ot0, OT_Wrapper* const ot1) {
@@ -325,7 +323,7 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num,
     // OT random r0/r1 based on bits of a into s
     // s[i] = (ai == 1) ? r1[i] : r0[i]
 
-    // std::cout << "setup : " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    // std::cout << "setup : " << sec_from(start) << std::endl;
     // start = clock_start();
 
 
@@ -337,7 +335,7 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num,
         ot1->recv(s_block, a_arr, n);
     }
 
-    // std::cout << "OT timing: " << (((float)time_from(start))/CLOCKS_PER_SEC) << std::endl;
+    // std::cout << "OT timing: " << sec_from(start) << std::endl;
 
     fmpz_t t; fmpz_init(t); fmpz_zero(t);  // sum 2^i ti
     fmpz_t q; fmpz_init(q); fmpz_zero(q);  // sum 2^i r0
@@ -394,20 +392,3 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num,
     return triple;
 }
 */
-
-// Simple beaver triple generation. Fast but unsafe.
-const BeaverTriple* const generate_beaver_triple_lazy(
-        const int serverfd, const int server_num) {
-    BeaverTriple* const triple = new BeaverTriple();
-
-    if (server_num == 0) {
-        BeaverTriple* other_triple = new BeaverTriple();
-        makeLocalTriple(triple, other_triple);
-        send_BeaverTriple(serverfd, other_triple);
-        delete other_triple;
-    } else {
-        recv_BeaverTriple(serverfd, triple);
-    }
-
-    return triple;
-}
