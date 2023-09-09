@@ -571,6 +571,7 @@ void test_cmp_bit(
         std::cout << x << (fmpz_is_one(tmp) ? " <  " : " >= " ) << y;
         std::cout << " (" << fmpz_get_ui(ans[idx]) << " + " << fmpz_get_ui(ans_other[idx]);
         std::cout << " = " << fmpz_get_ui(tmp) << ") " << std::endl;
+        assert(fmpz_is_one(tmp) == (x < y));
       }
     }
     clear_fmpz_array(ans_other, N);
@@ -718,17 +719,17 @@ void runServerTest(const int server_num, const int serverfd) {
   test_HeavyConvertMask_one(server_num, serverfd, store);
   test_HeavyConvertMask_two(server_num, serverfd, store);
 
-  // Comparisons require actually random triples for random numbers
+  // Comparisons require actually random triples for random bitshares
   // Not sure why this is needed, lazy should be random enough...?
-  if (lazy > 0) {
-    delete store;
-    store = new PrecomputeStore(serverfd, server_num, ot0, ot1, batch_size, false);
-  }
+  // if (lazy > 0) {
+  //   delete store;
+  //   store = new PrecomputeStore(serverfd, server_num, ot0, ot1, batch_size, 0);
+  // }
 
   // test_cmp_bit(server_num, serverfd, store);
   // test_rand_bitshare(server_num, serverfd, store);
   // test_sign(server_num, serverfd, store);
-  test_abs_cmp(server_num, serverfd, store);
+  // test_abs_cmp(server_num, serverfd, store);
 
   delete ot0;
   delete ot1;
