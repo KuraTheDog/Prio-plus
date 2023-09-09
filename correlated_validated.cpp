@@ -71,7 +71,7 @@ void ValidateCorrelatedStore::check_AltTriple(const size_t n, const bool* const 
 
 void ValidateCorrelatedStore::add_AltTriples(const size_t n) {
   auto start = clock_start();
-  const size_t num_to_make = (n > alt_triple_batch_size ? n : alt_triple_batch_size);
+  const size_t num_to_make = fmax(n, alt_triple_batch_size);
 
   std::cout << "adding " << num_to_make << " AltTriples" << std::endl;
   const AltTriple* const * t;

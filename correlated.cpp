@@ -262,7 +262,7 @@ int64_t CorrelatedStore::add_BinaryShares(
   size_t max_bits = 0;
   size_t total_bits = 0;
   for (unsigned int i = 0; i < N; i++) {
-    max_bits = (num_bits[i] > max_bits ? num_bits[i] : max_bits);
+    max_bits = fmax(num_bits[i], max_bits);
     total_bits += num_bits[i];
   }
 
@@ -655,8 +655,7 @@ int64_t CorrelatedStore::heavy_convert_mask(
     [[maybe_unused]] unsigned int num_batches = ceil(1.0 * N / heavy_batch_size);
     while (num_processed < N) {
       const size_t num_remaining = N - num_processed;
-      const size_t this_batch_size = (
-          num_remaining < heavy_batch_size ? num_remaining : heavy_batch_size);
+      const size_t this_batch_size = fmin(num_remaining, heavy_batch_size);
       batch_idx++;
       // std::cout << "Starting heavy batch: " << batch_idx << " / ";
       // std::cout << num_batches << std::endl;
@@ -1134,7 +1133,7 @@ void PrecomputeStore::check_Triples(const size_t n) {
 int64_t PrecomputeStore::add_DaBits(const size_t n) {
   auto start = clock_start();
   int64_t sent_bytes = 0;
-  size_t num_to_make = (n > batch_size ? n : batch_size);
+  size_t num_to_make = fmax(n, batch_size);
   if (lazy == 2) num_to_make = LAZY_2_MAX_SIZE;
   // const size_t num_to_make = n;  // Use this to make "end to end" easier to benchmark
   if (lazy < 2) std::cout << "adding dabits: " << num_to_make << std::endl;
@@ -1155,7 +1154,7 @@ int64_t PrecomputeStore::add_DaBits(const size_t n) {
 int64_t PrecomputeStore::add_Triples(const size_t n) {
   auto start = clock_start();
   int64_t sent_bytes = 0;
-  size_t num_to_make = (n > batch_size ? n : batch_size);
+  size_t num_to_make = fmax(n, batch_size);
   if (lazy == 2) num_to_make = LAZY_2_MAX_SIZE;
   if (lazy < 2) std::cout << "adding triples: " << num_to_make << std::endl;
   BeaverTriple** const triples = new BeaverTriple*[num_to_make];
@@ -1176,7 +1175,7 @@ int64_t PrecomputeStore::add_Triples(const size_t n) {
 
 void PrecomputeStore::add_BoolTriples(const size_t n) {
   auto start = clock_start();
-  size_t num_to_make = (n > batch_size ? n : batch_size);
+  size_t num_to_make = fmax(n, batch_size);
   if (lazy == 2) num_to_make = LAZY_2_MAX_SIZE;
   if (lazy < 2) std::cout << "adding booltriples: " << num_to_make << std::endl;
   if (lazy > 0) {

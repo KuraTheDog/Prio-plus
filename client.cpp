@@ -284,7 +284,7 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
             std::cout << " (invalid)" << std::endl;
         } else {
             std::cout << std::endl;
-            ans += (real_vals[i] ? 1 : 0);
+            ans += (int) real_vals[i];
         }
 
         memcpy(share0.tag, &tag[0], TAG_LENGTH);
@@ -647,9 +647,9 @@ int max_helper(const std::string protocol, const size_t numreqs,
         value = value % (B + 1);
 
         if (protocol == "MAX")
-            ans = (value > ans ? value : ans);
+            ans = fmax(value, ans);
         if (protocol == "MIN")
-            ans = (value < ans ? value : ans);
+            ans = fmin(value, ans);
 
         prg.random_data(or_encoded_array, (B+1)*sizeof(uint64_t));
         prg.random_data(share0, (B+1)*sizeof(uint64_t));
@@ -778,9 +778,9 @@ void max_op_invalid(const std::string protocol, const size_t numreqs) {
         } else {
             std::cout << std::endl;
             if (protocol == "MAX")
-                ans = (values[i] > ans? values[i] : ans);
+                ans = fmax(values[i], ans);
             if (protocol == "MIN")
-                ans = (values[i] < ans? values[i] : ans);
+                ans = fmin(values[i], ans);
         }
 
         prg.random_data(or_encoded_array, (B+1)*sizeof(uint64_t));
@@ -1729,9 +1729,9 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
 
     const uint64_t support = 10000;
     const double exponent = 1.1;
-    ZipF distribution(support < max_int ? support : max_int, exponent);
+    ZipF distribution(fmin(support, max_int), exponent);
 
-    const size_t count_size = (2*cfg.K) > 10 ? (2*cfg.K) : 10;
+    const size_t count_size = fmax(2*cfg.K, 10);
 
     uint64_t real_val;
     fmpz_t hashed; fmpz_init(hashed);
@@ -1858,7 +1858,7 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs,
 
     int sent_bytes = 0;
     // For display: how many to print out (max(2K, 10))
-    const size_t count_size = (2*K) > 10 ? (2*K) : 10;
+    const size_t count_size = fmax(2*K, 10);
     uint64_t* const count = new uint64_t[count_size + 1];
     memset(count, 0, (count_size + 1) * sizeof(uint64_t));
 
@@ -1942,9 +1942,9 @@ int top_k_helper(
 
     const uint64_t support = 10000;
     const double exponent = 1.1;
-    ZipF distribution(support < max_int ? support : max_int, exponent);
+    ZipF distribution(fmin(support, max_int), exponent);
 
-    const size_t count_size = (2*cfg.K) > 10 ? (2*cfg.K) : 10;
+    const size_t count_size = fmax(2 * cfg.K, 10);
 
     /* TODO: Can we "reuse" masks across R?
         I.e. do full (share, Q). Then delete half, reuse randomness, etc.
@@ -2088,7 +2088,7 @@ void top_k_op(const std::string protocol, const size_t numreqs,
 
     int sent_bytes = 0;
     // For display: how many to print out (max(2K, 10))
-    const size_t count_size = (2*K) > 10 ? (2*K) : 10;
+    const size_t count_size = fmax(2 * K, 10);
     uint64_t* const count = new uint64_t[count_size + 1];
     memset(count, 0, (count_size + 1) * sizeof(uint64_t));
 

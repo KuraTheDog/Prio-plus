@@ -51,7 +51,7 @@ void runLocal(size_t N) {
   // cryptoContext->Enable(LEVELEDSHE);
 
   int64_t maxrand = 1L << 50;
-  maxrand = (plaintextModulus < maxrand ? plaintextModulus : maxrand) - 1;
+  maxrand = fmin(plaintextModulus, maxrand) - 1;
 
   std::cout << "plaintextModulus: " << plaintextModulus << std::endl;
 
