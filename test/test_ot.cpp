@@ -33,10 +33,14 @@ void run_server0(const size_t m) {
 
   if (test_base) {
     std::cout << "Testing basic send/recv" << std::endl;
-    uint64_t* data0 = new uint64_t[N]; data0[0] = 10; data0[1] = 20;
-    uint64_t* data0_1 = new uint64_t[N]; data0_1[0] = 11; data0_1[1] = 21;
-    uint64_t* data1 = new uint64_t[N]; data1[0] = 1000; data1[1] = 2000;
-    uint64_t* data1_1 = new uint64_t[N]; data1_1[0] = 1001; data1_1[1] = 2001;
+    uint64_t* data0 = new uint64_t[N]; memset(data0, 0, N * sizeof(uint64_t)); 
+    uint64_t* data0_1 = new uint64_t[N]; memset(data0_1, 0, N * sizeof(uint64_t));
+    uint64_t* data1 = new uint64_t[N]; memset(data1, 0, N * sizeof(uint64_t));
+    uint64_t* data1_1 = new uint64_t[N]; memset(data1_1, 0, N * sizeof(uint64_t));
+    data0[0] = 10; data0[1] = 20;
+    data0_1[0] = 11; data0_1[1] = 21;
+    data1[0] = 1000; data1[1] = 2000;
+    data1_1[0] = 1001; data1_1[1] = 2001;
     ot0->send(data0, data1, N, data0_1, data1_1);
   }
 
@@ -88,7 +92,7 @@ void run_server1(const size_t m) {
   if (test_base) {
     uint64_t* data = new uint64_t[N];
     uint64_t* data_1 = new uint64_t[N];
-    bool* c = new bool[N]; c[0] = false; c[1] = true;
+    bool* c = new bool[N]; memset(c, 0, N); c[0] = false; c[1] = true;
     ot0->recv(data, c, N, data_1);
     assert(data[0] == 10); assert(data_1[0] == 11);
     assert(data[1] == 2000); assert(data_1[1] == 2001);

@@ -382,8 +382,9 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
 
     fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs);
     fmpz_t* flat_xp; new_fmpz_array(&flat_xp, num_inputs * num_bits);
-    bool* send_buff = new bool[2 * num_inputs];
-    bool* recv_buff = new bool[2 * num_inputs];
+    bool* const send_buff = new bool[2 * num_inputs * num_bits];
+    bool* const recv_buff = new bool[2 * num_inputs * num_bits];
+    memset(recv_buff, 0, 2 * num_inputs * num_bits);
 
     if (STORE_TYPE == validate_store) {
         // TODO: batch validation in parallel with conversion
@@ -1636,6 +1637,7 @@ returnType multi_heavy_op(const initMsg msg, const int clientfd, const int serve
     const size_t len_p = num_inputs * (share_size_count + share_size_mask);
     bool* const send_buff = new bool[4 * len_all + len_p];
     bool* const recv_buff = new bool[4 * len_all + len_p];
+    memset(recv_buff, 0, 4 * len_all + len_p);
 
     // Setup convert stage 1
     bool* const m_ext = new bool[2*len_all];
@@ -1954,6 +1956,7 @@ returnType top_k_op(const initMsg msg, const int clientfd, const int serverfd, c
     const size_t len_p = num_inputs * (share_size_count + share_size_bucket);
     bool* const send_buff = new bool[6 * len_all];
     bool* const recv_buff = new bool[6 * len_all];
+    memset(recv_buff, 0, 6 * len_all);
 
     // Setup convert stage 1: xy normal, cross B, R
     bool* const a = new bool[3 * len_all];

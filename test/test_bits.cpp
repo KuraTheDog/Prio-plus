@@ -210,6 +210,7 @@ void test_b2a_single(const size_t N, const int server_num, const int serverfd,
 void test_b2a_multi(const size_t N, const int server_num, const int serverfd,
     ShareConverter* store) {
   uint64_t x[N];
+  memset(x, 0, N * sizeof(uint64_t));
   x[0] = server_num == 0 ? 3 : 6;
   x[1] = server_num == 0 ? 5 : 4;
 
