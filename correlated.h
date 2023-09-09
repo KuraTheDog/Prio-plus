@@ -110,12 +110,15 @@ protected:
   const int server_num;
   const int serverfd;
 
+  const int lazy;
+
 public:
 
   ShareConverter(
-      const int serverfd, const int server_num)
+      const int serverfd, const int server_num, const int lazy = 0)
   : server_num(server_num)
   , serverfd(serverfd)
+  , lazy(lazy)
   {};
 
   // Convert N single-bit values
@@ -148,8 +151,8 @@ protected:
   */
 public:
   CorrelatedStore(const int serverfd, const int server_num,
-                  OT_Wrapper* const ot0, OT_Wrapper* const ot1)
-  : ShareConverter(serverfd, server_num)
+                  OT_Wrapper* const ot0, OT_Wrapper* const ot1, const int lazy = 0)
+  : ShareConverter(serverfd, server_num, lazy)
   , ot0(ot0)
   , ot1(ot1)
   {
@@ -383,7 +386,6 @@ public:
 class PrecomputeStore : public CorrelatedStore {
 protected:
   const size_t batch_size;
-  const int lazy;  // Lazy (efficient but insecure) generation for behavior testing.
   mutable flint_rand_t lazy_seed;  // Since seeds are modified when used
 
   // Securely create N new correlated items
@@ -399,20 +401,14 @@ protected:
   int64_t add_Triples(const size_t n = 0);
   void add_BoolTriples(const size_t n = 0);
 
-  // Copied for bypass option
-  const DaBit* const get_DaBit();
-  const BeaverTriple* const get_Triple();
-  const BooleanBeaverTriple* const get_BoolTriple();
-
 public:
 
   PrecomputeStore(const int serverfd, const int server_num,
                   OT_Wrapper* const ot0, OT_Wrapper* const ot1,
                   const size_t batch_size,
                   const int lazy = 0)
-  : CorrelatedStore(serverfd, server_num, ot0, ot1)
+  : CorrelatedStore(serverfd, server_num, ot0, ot1, lazy)
   , batch_size(batch_size)
-  , lazy(lazy)
   {
     if (lazy > 0) {
       std::cout << "Doing fast but insecure correlated value generation" << std::endl;

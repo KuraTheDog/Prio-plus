@@ -8,6 +8,12 @@
 #include "utils.h"
 
 const DaBit* const CorrelatedStore::get_DaBit() {
+  if (lazy == 3) {
+    DaBit* dabit = new DaBit();
+    fmpz_zero(dabit->bp); dabit->b2 = 0;
+    return dabit;
+  }
+
   check_DaBits(1);
   const DaBit* const ans = dabit_store.front();
   dabit_store.pop();
@@ -15,6 +21,12 @@ const DaBit* const CorrelatedStore::get_DaBit() {
 }
 
 const BeaverTriple* const CorrelatedStore::get_Triple() {
+  if (lazy == 3) {
+    BeaverTriple* triple = new BeaverTriple();
+    fmpz_zero(triple->A); fmpz_zero(triple->B); fmpz_zero(triple->C);
+    return triple;
+  }
+
   check_Triples(1);
   const BeaverTriple* const ans = atriple_store.front();
   atriple_store.pop();
@@ -22,6 +34,10 @@ const BeaverTriple* const CorrelatedStore::get_Triple() {
 }
 
 const BooleanBeaverTriple* const CorrelatedStore::get_BoolTriple() {
+  if (lazy == 3) {
+    return new BooleanBeaverTriple(0, 0, 0);
+  }
+
   check_BoolTriples(1);
   const BooleanBeaverTriple* const ans = btriple_store.front();
   btriple_store.pop();
@@ -1194,34 +1210,6 @@ void PrecomputeStore::add_BoolTriples(const size_t n) {
     }
   }
   if (lazy < 2) std::cout << "add_BoolTriples timing : " << sec_from(start) << std::endl;
-}
-
-const DaBit* const PrecomputeStore::get_DaBit() {
-  if (lazy == 3) {
-    DaBit* dabit = new DaBit();
-    fmpz_zero(dabit->bp); dabit->b2 = 0;
-    return dabit;
-  }
-
-  return CorrelatedStore::get_DaBit();
-}
-
-const BeaverTriple* const PrecomputeStore::get_Triple() {
-  if (lazy == 3) {
-    BeaverTriple* triple = new BeaverTriple();
-    fmpz_zero(triple->A); fmpz_zero(triple->B); fmpz_zero(triple->C);
-    return triple;
-  }
-
-  return CorrelatedStore::get_Triple();
-}
-
-const BooleanBeaverTriple* const PrecomputeStore::get_BoolTriple() {
-  if (lazy == 3) {
-    return new BooleanBeaverTriple(0, 0, 0);
-  }
-
-  return CorrelatedStore::get_BoolTriple();
 }
 
 void PrecomputeStore::print_Sizes() const {
