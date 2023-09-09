@@ -1,6 +1,5 @@
 #include "correlated_validated.h"
 
-#include <sys/wait.h>
 #include <iostream>
 
 #include "net_share.h"
@@ -77,7 +76,7 @@ void ValidateCorrelatedStore::add_AltTriples(const size_t n) {
   std::cout << "adding " << num_to_make << " AltTriples" << std::endl;
   const AltTriple* const * t;
 
-  if (lazy)
+  if (lazy > 0)
     t = gen_AltTriple_lazy(num_to_make);
   else
     t = gen_AltTriple(num_to_make);

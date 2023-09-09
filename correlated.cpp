@@ -1131,7 +1131,7 @@ int64_t PrecomputeStore::add_DaBits(const size_t n) {
   std::cout << "adding dabits: " << num_to_make << std::endl;
   DaBit** const dabits = new DaBit*[num_to_make];
 
-  if (lazy) {
+  if (lazy > 0) {
     sent_bytes += gen_DaBits_lazy(num_to_make, dabits);
   } else {
     sent_bytes += gen_DaBits(num_to_make, dabits);
@@ -1165,7 +1165,7 @@ void PrecomputeStore::add_BoolTriples(const size_t n) {
   auto start = clock_start();
   const size_t num_to_make = (n > batch_size ? n : batch_size);
   std::cout << "adding booltriples: " << num_to_make << std::endl;
-  if (lazy) {
+  if (lazy > 0) {
     BooleanBeaverTriple** const triples = new BooleanBeaverTriple*[num_to_make];
     gen_BoolTriple_lazy(num_to_make, triples);
     for (unsigned int i = 0; i < num_to_make; i++)

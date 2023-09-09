@@ -12,7 +12,7 @@
 #include "../interp.h"
 
 const size_t rand_adjust = 5;
-const bool lazy = true;
+const int lazy = 1;
 
 void setup(const int server_num, const int serverfd, const size_t N,
            ValidateCorrelatedStore& store) {

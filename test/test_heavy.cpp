@@ -9,7 +9,7 @@
 
 
 const size_t batch_size = 100; // flexible
-const bool lazy = true;
+const int lazy = 1;
 
 const bool use_ot_version = false;
 const bool use_large = false;
@@ -720,7 +720,7 @@ void runServerTest(const int server_num, const int serverfd) {
 
   // Comparisons require actually random triples for random numbers
   // Not sure why this is needed, lazy should be random enough...?
-  if (lazy) {
+  if (lazy > 0) {
     delete store;
     store = new PrecomputeStore(serverfd, server_num, ot0, ot1, batch_size, false);
   }

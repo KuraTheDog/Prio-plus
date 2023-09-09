@@ -62,6 +62,16 @@ n) delete vars. could fit into finish, but clearer outside
 #include "ot.h"
 #include "share.h"
 
+/* Lazy levels: Speedups for debugging/testing via skipping some work
+0 (default): Standard security
+1: Locally generate correlated randomness (use shared seed, or iterate over possible values)
+
+Others considered:
+0.5 make all on one, send to other
+2: Doesn't precompute, locally make 1 at a time when requested (save space)
+3: give null when requested. prob overkill
+*/
+
 // Selector
 enum StoreType {
   precompute_store,
@@ -373,7 +383,7 @@ public:
 class PrecomputeStore : public CorrelatedStore {
 protected:
   const size_t batch_size;
-  const bool lazy;  // Lazy (efficient but insecure) generation for behavior testing.
+  const int lazy;  // Lazy (efficient but insecure) generation for behavior testing.
   mutable flint_rand_t lazy_seed;  // Since seeds are modified when used
 
   // Securely create N new correlated items
@@ -394,12 +404,12 @@ public:
   PrecomputeStore(const int serverfd, const int server_num,
                   OT_Wrapper* const ot0, OT_Wrapper* const ot1,
                   const size_t batch_size,
-                  const bool lazy = false)
+                  const int lazy = 0)
   : CorrelatedStore(serverfd, server_num, ot0, ot1)
   , batch_size(batch_size)
   , lazy(lazy)
   {
-    if (lazy) {
+    if (lazy > 0) {
       std::cout << "Doing fast but insecure correlated value generation" << std::endl;
       flint_randinit(lazy_seed);
       if (server_num == 0) {
@@ -411,7 +421,7 @@ public:
   };
 
   ~PrecomputeStore() {
-    if (lazy) flint_randclear(lazy_seed);
+    if (lazy > 0) flint_randclear(lazy_seed);
   };
 
   virtual void print_Sizes() const;

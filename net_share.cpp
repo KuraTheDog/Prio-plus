@@ -286,7 +286,6 @@ int reveal_fmpz(const int sockfd, fmpz_t x) {
 int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n) {
     int total = 0, ret;
     if (!FIXED_FMPZ_SIZE) {
-        // Lazy version
         for (unsigned int i = 0; i < n; i++) {
             ret += send_fmpz(sockfd, x[i]);
             if (ret <= 0) return ret; else total += ret;
@@ -315,7 +314,6 @@ int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n) {
     int total = 0, ret;
 
     if (!FIXED_FMPZ_SIZE) {
-        // Lazy version
         for (unsigned int i = 0; i < n; i++) {
             ret += recv_fmpz(sockfd, x[i]);
             if (ret <= 0) return ret; else total += ret;

@@ -48,7 +48,7 @@ public:
   ValidateCorrelatedStore(const int serverfd, const int server_num,
       OT_Wrapper* const ot0, OT_Wrapper* const ot1,
       const size_t batch_size,
-      const bool lazy = false)
+      const int lazy = 0)
   : PrecomputeStore(serverfd, server_num, ot0, ot1, batch_size, lazy)
   , min_batch_size(NextPowerOfTwo(batch_size-1))
   , alt_triple_batch_size(batch_size)

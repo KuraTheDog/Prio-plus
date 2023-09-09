@@ -43,7 +43,7 @@ CorrelatedStore* correlated_store;
 // #define CACHE_SIZE 262144
 // #define CACHE_SIZE 2097152
 // If set, does fast but insecure offline precompute.
-#define LAZY_PRECOMPUTE false
+const int lazy_precompute = 0;
 
 // Note: Currently does it in a single batch.
 // I.e. receive and store all, then process all.
@@ -2147,12 +2147,12 @@ int main(int argc, char** argv) {
     // TODO: OT disabled/not supported for now.
     if (STORE_TYPE == precompute_store) {
         correlated_store = new PrecomputeStore(
-                serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE);
+                serverfd, server_num, ot0, ot1, CACHE_SIZE, lazy_precompute);
     // } else if (STORE_TYPE == ot_store) {
     //     correlated_store = new OTCorrelatedStore(serverfd, server_num, ot0, ot1);
     } else if (STORE_TYPE == validate_store) {
         correlated_store = new ValidateCorrelatedStore(
-                serverfd, server_num, ot0, ot1, CACHE_SIZE, LAZY_PRECOMPUTE);
+                serverfd, server_num, ot0, ot1, CACHE_SIZE, lazy_precompute);
     } else {
         error_exit("Unknown/unsupported store type");
     }
