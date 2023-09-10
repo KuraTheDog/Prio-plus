@@ -1966,6 +1966,9 @@ int top_k_helper(
     const size_t num_pieces = 5;
     const size_t sizes[num_pieces] = {share_size_sh, share_size_sh,
             share_size_bucket, share_size_layer, share_size_count};
+    size_t total_size = 0;
+    for (unsigned int j = 0; j < num_pieces; j++)
+        total_size += sizes[j];
 
     // Make
     uint64_t real_val;
@@ -2042,13 +2045,17 @@ int top_k_helper(
         std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
     // Send
+    bool* const buff0 = new bool[total_size];
+    bool* const buff1 = new bool[total_size];
     for (unsigned int i = 0; i < numreqs; i++) {
         sent_bytes += send_tag(sockfd0, share0[i].tag);
         sent_bytes += send_tag(sockfd1, share1[i].tag);
 
+        size_t offset = 0;
         for (unsigned int j = 0; j < num_pieces; j++) {
-            sent_bytes += send_bool_batch(sockfd0, share0[i].arr[j], sizes[j]);
-            sent_bytes += send_bool_batch(sockfd1, share1[i].arr[j], sizes[j]);
+            memcpy(&buff0[offset], share0[i].arr[j], sizes[j] * sizeof(bool));
+            memcpy(&buff1[offset], share1[i].arr[j], sizes[j] * sizeof(bool));
+            offset += sizes[j];
 
             if (i == check_idx) {
                 std::cout << "share0,1[" << i << ", " << j << "] = ";
@@ -2063,8 +2070,14 @@ int top_k_helper(
         }
         delete[] share0[i].arr;
         delete[] share1[i].arr;
+
+        sent_bytes += send_bool_batch(sockfd0, buff0, total_size);
+        sent_bytes += send_bool_batch(sockfd1, buff1, total_size);
+
     }
 
+    delete[] buff0;
+    delete[] buff1;
     delete[] share0;
     delete[] share1;
 

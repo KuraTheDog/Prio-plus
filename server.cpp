@@ -1966,7 +1966,7 @@ returnType top_k_op(const initMsg msg,
     bool* const c = new bool[len_part];
     memcpy(a, shares_sh_x, num_inputs * cfg.Q * cfg.D);
     memcpy(b, shares_sh_y, num_inputs * cfg.Q * cfg.D);
-    cross_fill_bool(num_inputs, cfg.B * cfg.Q, cfg.R, shares_bucket, shares_layer,
+    cross_fill_bool(num_inputs, cfg.Q * cfg.B, cfg.R, shares_bucket, shares_layer,
             &a[num_inputs * cfg.Q * cfg.D], &b[num_inputs * cfg.Q * cfg.D]);
     delete[] shares_layer;
     correlated_store->multiply_BoolShares_setup(len_part, a, b, c, send_buff);
