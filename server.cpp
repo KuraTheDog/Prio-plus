@@ -1593,10 +1593,10 @@ returnType multi_heavy_op(const initMsg msg,
             memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
             memcpy(&shares_mask[i * share_size_mask], c, share_size_mask);
             memcpy(&shares_count[i * share_size_count], d, share_size_count);
-            delete a;
-            delete b;
-            delete c;
-            delete d;
+            delete[] a;
+            delete[] b;
+            delete[] c;
+            delete[] d;
 
             i++;
         }
@@ -1613,10 +1613,10 @@ returnType multi_heavy_op(const initMsg msg,
             memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
             memcpy(&shares_mask[i * share_size_mask], c, share_size_mask);
             memcpy(&shares_count[i * share_size_count], d, share_size_count);
-            delete a;
-            delete b;
-            delete c;
-            delete d;
+            delete[] a;
+            delete[] b;
+            delete[] c;
+            delete[] d;
         }
     }
     std::cout << "tag time: " << sec_from(start2) << std::endl;
@@ -1917,11 +1917,11 @@ returnType top_k_op(const initMsg msg,
             memcpy(&shares_bucket[i * share_size_bucket], c, share_size_bucket);
             memcpy(&shares_layer[i * share_size_layer], d, share_size_layer);
             memcpy(&shares_count[i * share_size_count], e, share_size_count);
-            delete a;
-            delete b;
-            delete c;
-            delete d;
-            delete e;
+            delete[] a;
+            delete[] b;
+            delete[] c;
+            delete[] d;
+            delete[] e;
 
             i++;
         }
@@ -1939,11 +1939,11 @@ returnType top_k_op(const initMsg msg,
             memcpy(&shares_bucket[i * share_size_bucket], c, share_size_bucket);
             memcpy(&shares_layer[i * share_size_layer], d, share_size_layer);
             memcpy(&shares_count[i * share_size_count], e, share_size_count);
-            delete a;
-            delete b;
-            delete c;
-            delete d;
-            delete e;
+            delete[] a;
+            delete[] b;
+            delete[] c;
+            delete[] d;
+            delete[] e;
         }
     }
     std::cout << "tag time: " << sec_from(start2) << std::endl;
@@ -1974,7 +1974,7 @@ returnType top_k_op(const initMsg msg,
     bool* const c = new bool[len_part];
     memcpy(a, shares_sh_x, num_inputs * cfg.Q * cfg.D);
     memcpy(b, shares_sh_y, num_inputs * cfg.Q * cfg.D);
-    cross_fill_bool(num_inputs * cfg.Q, cfg.B, cfg.R, shares_bucket, shares_layer,
+    cross_fill_bool(num_inputs, cfg.B * cfg.Q, cfg.R, shares_bucket, shares_layer,
             &a[num_inputs * cfg.Q * cfg.D], &b[num_inputs * cfg.Q * cfg.D]);
     delete[] shares_layer;
     correlated_store->multiply_BoolShares_setup(len_part, a, b, c, send_buff);
