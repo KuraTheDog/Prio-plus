@@ -45,7 +45,40 @@ struct FreqVal {
 
   FreqVal(){};
   FreqVal(uint64_t f, Integer v): f(f), v(v) {};
+
+  FreqVal(const FreqVal& other) {
+    f = other.f;
+    v = other.v;
+  };
+  inline Bit operator>(const FreqVal & rhs) const {
+    if (f > rhs.f)
+      return Bit(true);
+    if (f < rhs.f)
+      return Bit(false);
+    return (v > rhs.v);
+  };
+  inline FreqVal operator^=(const FreqVal& rhs) {
+    f ^= rhs.f;
+    v ^= rhs.v;
+    return (*this);
+  }
+
+  // Assumed called on same freq
+  inline FreqVal select(const Bit& sel, const FreqVal& a) const {
+    FreqVal res(*this);
+    res.f = f;
+    res.v = v.select(sel, a.v);
+    return res;
+  };
+  // Assumed called on same freq
+  inline FreqVal If(const Bit& sel, const FreqVal& rhs) const {
+    return this->select(sel, rhs);
+  }
 };
+// Assumed called on same freq
+inline FreqVal If(const Bit& sel, const FreqVal& a, const FreqVal& b) {
+  return b.If(sel, a);
+}
 
 
 // (a + b) % m, but since a, b already mod, simple check instead

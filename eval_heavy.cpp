@@ -142,31 +142,36 @@ void HeavyEval::sort_remove_dupes(const size_t K) {
   // With high enough frequency, this is very likely
   // So can now reveal everything, to de-dupe candidate values
   // If there are actually x.f = y.f, then it will leak a few past K
-  typedef std::tuple <uint64_t, uint64_t> pair;
-  std::set<pair, std::greater<pair>> pairs;
-  for (unsigned int i = 0; i < num_greater; i++) {
-    uint64_t v = freq_and_vals[i].v.reveal<uint64_t>();
-    pairs.insert({freq_and_vals[i].f, v});
-  }
+  const bool basic_version = true;
+  if (basic_version) {
+    typedef std::tuple <uint64_t, uint64_t> pair;
+    std::set<pair, std::greater<pair>> pairs;
+    for (unsigned int i = 0; i < num_greater; i++) {
+      uint64_t v = freq_and_vals[i].v.reveal<uint64_t>();
+      pairs.insert({freq_and_vals[i].f, v});
+    }
 
-  // For now, re-wrap as integer to align with later code
-  idx = 0;
-  for (auto i : pairs) {
-    // std::cout << "(" << std::get<0>(i) << ", " << std::get<1>(i) << "), ";
-    Integer v = Integer(input_bits, std::get<1>(i), PUBLIC);
-    freq_and_vals[idx] = FreqVal(std::get<0>(i), v);
-    idx++;
-    if (idx == K) break;
+    // For now, re-wrap as integer to align with later code
+    idx = 0;
+    for (auto i : pairs) {
+      // std::cout << "(" << std::get<0>(i) << ", " << std::get<1>(i) << "), ";
+      Integer v = Integer(input_bits, std::get<1>(i), PUBLIC);
+      freq_and_vals[idx] = FreqVal(std::get<0>(i), v);
+      idx++;
+      if (idx == K) break;
+    }
+    std::cout << std::endl;
+  } else {
+    /* TODO: Advanced version
+    Garble sort remaining.
+      Needed so that (a, b, a) is properly eliminated
+      Can do within frequencies, so simpler
+    Garble Remove dupes
+    Normal sort again to move dupes away
+    */
+    // Various sort(&fv[offset], num_with_that_freq)
+    sort(freq_and_vals, num_values);
   }
-  std::cout << std::endl;
-
-  /* TODO: Advanced version
-  Garble sort remaining.
-    Needed so that (a, b, a) is properly eliminated
-    Can do within frequencies, so simpler
-  Garble Remove dupes
-  Normal sort again to move dupes away
-  */
 }
 
 void HeavyEval::set_values(Integer* const inputs, const size_t num) {
