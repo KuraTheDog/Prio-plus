@@ -1353,7 +1353,8 @@ int64_t PrecomputeStore::gen_Triple_lazy(
     // Actuals
     fmpz_randm(a, lazy_seed, Int_Modulus);
     fmpz_randm(b, lazy_seed, Int_Modulus);
-    fmpz_randm(c, lazy_seed, Int_Modulus);
+    fmpz_mod_mul(c, a, b, mod_ctx);
+
     if (server_num == 0) {
       fmpz_mod_sub(triples[i]->A, a, triples[i]->A, mod_ctx);
       fmpz_mod_sub(triples[i]->B, b, triples[i]->B, mod_ctx);

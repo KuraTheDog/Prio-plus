@@ -181,6 +181,35 @@ void test_addBinaryShares(const size_t N, const size_t* const nbits,
   delete[] carry;
 }
 
+void test_mulArithmetic(const size_t N, const int server_num, const int serverfd,
+    PrecomputeStore* store) {
+  fmpz_t* x; new_fmpz_array(&x, N);
+  fmpz_t* y; new_fmpz_array(&y, N);
+
+  if (server_num == 0) {
+    fmpz_set_ui(x[0], 1); fmpz_set_ui(y[0], 2);
+    fmpz_set_ui(x[1], 4); fmpz_set_ui(y[1], 3);
+  } else {
+    fmpz_set_ui(x[0], 2); fmpz_set_ui(y[0], 3);
+    fmpz_set_ui(x[1], 3); fmpz_set_ui(y[1], 2);
+  }
+  const int expect0 = (1+2)*(2+3);
+  const int expect1 = (4+3)*(3+2);
+
+  fmpz_t* z; new_fmpz_array(&z, N);
+  store->multiply_ArithmeticShares(N, x, y, z);
+
+  reveal_fmpz_batch(serverfd, z, N);
+  if (server_num == 0) {
+    // std::cout << "got z[0] = " << fmpz_get_ui(z[0]);
+    // std::cout << ", expect: " << expect0 << std::endl;
+    // std::cout << "got z[1] = " << fmpz_get_ui(z[1]);
+    // std::cout << ", expect: " << expect1 << std::endl;
+    assert(fmpz_equal_ui(z[0], expect0));
+    assert(fmpz_equal_ui(z[1], expect1));
+  }
+}
+
 void test_b2a_single(const size_t N, const int server_num, const int serverfd,
     ShareConverter* store) {
   bool* x = new bool[N];
@@ -193,13 +222,10 @@ void test_b2a_single(const size_t N, const int server_num, const int serverfd,
   fmpz_t* xp; new_fmpz_array(&xp, N);
   store->b2a_single(N, x, xp);
 
+  reveal_fmpz_batch(serverfd, xp, N);
   if (server_num == 0) {
-    reveal_fmpz_batch(serverfd, xp, N);
-
     for (unsigned int i = 0; i < N; i++)
       assert(fmpz_equal_ui(xp[i], (i>>2) % 2));
-  } else {
-    reveal_fmpz_batch(serverfd, xp, N);
   }
 
   delete[] x;
@@ -263,6 +289,9 @@ void runServerTest(const int server_num, const int serverfd) {
 
     test_addBinaryShares(N, bits_arr, server_num, serverfd, store_pre);
     std::cout << "add bin timing : " << sec_from(start) << std::endl; start = clock_start();
+
+    test_mulArithmetic(N, server_num, serverfd, store_pre);
+    std::cout << "mul arith timing : " << sec_from(start) << std::endl; start = clock_start();
 
     test_b2a_single(N, server_num, serverfd, store_pre);
     std::cout << "b2a da single timing : " << sec_from(start) << std::endl; start = clock_start();
