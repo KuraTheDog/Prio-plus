@@ -67,7 +67,7 @@ public:
       // But it also means it doesn't impact first [cutoff] values, which is good
       // So need to distribute to not add a new heavy
       if (cutoff > 0 and i > cutoff)
-        return (uint64_t) (z * support);
+        return cutoff + (uint64_t) (z * (support - cutoff));
     }
 
     // std::cout << "returning 0" << std::endl;
