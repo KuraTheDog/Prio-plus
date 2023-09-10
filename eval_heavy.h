@@ -38,58 +38,15 @@ There may be better ways of de-duping, but this should be fine.
 Note: emp::ALICE is 1, emp::BOB is 2. (Using server_num + 1)
 */
 
-/* So that we can sort by (freq, value)
-  Comparison returns Bit, since that's what Integer does
-  And just needs geq, since that builds operators in template
-  Operators then to support sorting
+// Tuple <freq, val> for sorting purposes
+struct FreqVal {
+  uint64_t f;
+  Integer v;
 
-  So that same values are next to each other if there's shared frequency when sorting
-
-  Inherit  : public Swappable<IntegerPair>, Comparable<IntegerPair> ?
-*/
-class IntegerPair{
-public:
-  Integer x;
-  Integer y;
-
-  IntegerPair(){};
-
-  IntegerPair(Integer x, Integer y)
-  : x(x)
-  , y(y)
-  {};
-
-  IntegerPair(const IntegerPair& other) {
-    x = other.x;
-    y = other.y;
-  }
-
-  inline Bit operator>(const IntegerPair & rhs) const {
-    return (x > rhs.x) | ((x == rhs.x) & (y > rhs.y));
-  };
-
-  inline IntegerPair operator^=(const IntegerPair& rhs) {
-    x ^= rhs.x;
-    y ^= rhs.y;
-    return (*this);
-  };
-
-  inline IntegerPair select(const Bit& sel, const IntegerPair& a) const {
-    IntegerPair res(*this);
-    res.x = x.select(sel, a.x);
-    res.y = y.select(sel, a.y);
-    return res;
-  }
-
-  inline IntegerPair If(const Bit & sel, const IntegerPair& rhs) const {
-    return this->select(sel, rhs);
-  }
-
+  FreqVal(){};
+  FreqVal(uint64_t f, Integer v): f(f), v(v) {};
 };
-inline IntegerPair If(const Bit & sel, const IntegerPair& a, const IntegerPair& b) {
-  IntegerPair res = b;
-  return b.If(sel, a);
-};
+
 
 // (a + b) % m, but since a, b already mod, simple check instead
 // Somehow sum takes 4 mults, so save when possible
@@ -124,9 +81,7 @@ struct HeavyEval {
   Integer* values = nullptr;
   // if values is Integer[] from elsewhere, don't double delete
   bool values_is_new = true;
-  // Frequencies are Sized freq_bits
-  // Tuple <freq, val> for sorting purposes
-  IntegerPair* freq_and_vals = nullptr;
+  FreqVal* freq_and_vals = nullptr;
 
   // Total_count only used to determine max size of frequency values
   HeavyEval(const int party, const CountMin& count_min, const size_t total_count)
@@ -181,13 +136,22 @@ struct HeavyEval {
 
   /* Get frequency estimate of input
   input: input_bits
-  output: freq_bits
+  output: in the clear, since value still hidden
   */
-  Integer get_freq(Integer input);
+  uint64_t get_freq(Integer input);
 
   // Note: Sorted by freq increasing, so need to take from end of the list.
+  // On sorted, if a pair has the same value, zero out the first.
+  // Does only for the first N.
   void zero_out_dupes();
-  void sort_remove_dupes();
+  /* Reveals just frequencies, but not values, which is minimal leakage
+     Eliminates things < Kth largest unique freq
+     Currently, assumes that no dupes among top K (x.f == y.f)
+     For each dupe, also leaks one more past top K.
+     Can use garble sort on top ~K to hide this.
+       But ran into issues with mixed sorting
+  */
+  void sort_remove_dupes(const size_t K);
 
   // Populate values with inputs as Integers with input_bits
   // Input is Local secret shares for "party".

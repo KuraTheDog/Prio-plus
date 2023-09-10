@@ -288,7 +288,7 @@ void test_full_sort(int party, flint_rand_t hash_seed) {
   // heavy_eval.print_values(party == ALICE);
 
   // Step 4: Sort and remove dupes
-  heavy_eval.sort_remove_dupes();
+  heavy_eval.sort_remove_dupes(K);
   // std::cout << "sorted values with freqs: \n";
   // heavy_eval.print_values(party == ALICE);
 

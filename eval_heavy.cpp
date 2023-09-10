@@ -1,3 +1,5 @@
+#include <set>
+
 #include "eval_heavy.h"
 
 void HeavyEval::parse_countmin() {
@@ -68,7 +70,7 @@ Integer HeavyEval::min(Integer* array) {
   return ret;
 }
 
-Integer HeavyEval::get_freq(Integer input) {
+uint64_t HeavyEval::get_freq(Integer input) {
   Integer* const estimates = new Integer[num_hashes];
 
   for (unsigned int i = 0; i < num_hashes; i++) {
@@ -78,33 +80,93 @@ Integer HeavyEval::get_freq(Integer input) {
 
   Integer ret = min(estimates);
   delete[] estimates;
-  return ret;
+  return ret.reveal<uint64_t>();
 }
 
+/*
 void HeavyEval::zero_out_dupes() {
   if (!freq_and_vals) error_exit("frequencies not set");
-  IntegerPair zero_pair(Integer(freq_bits, 0, PUBLIC), Integer(input_bits, 0, PUBLIC));
-  Integer zero_value(input_bits, 0, PUBLIC);
-  Integer zero_frequency(freq_bits, 0, PUBLIC);
+  FreqVal zero_pair(0, Integer(input_bits, 0, PUBLIC));
 
-  /* Can be "more parallel", but not needed.
-  but same amount of mult gates, so garbled circuit doesn't care much
-  */
+  // Can be "more parallel", but not needed.
+  // but same amount of mult gates, so garbled circuit doesn't care much
 
   for (unsigned int i = 0; i < num_values - 1; i++) {
     // Since values have unique freq, just have to check if values are the same
-    Bit b = (freq_and_vals[i].y == freq_and_vals[i+1].y);
+    Bit b = (freq_and_vals[i].v == freq_and_vals[i+1].v);
     freq_and_vals[i] = If(b, zero_pair, freq_and_vals[i]);
   }
 }
+*/
 
+/*
 void HeavyEval::sort_remove_dupes() {
   if (!freq_and_vals) error_exit("frequencies not set");
   sort(freq_and_vals, num_values);
   // std::cout << "sorted values: " << std::endl; print_values();
-  zero_out_dupes();
+  zero_out_dupes(num_values);
   // std::cout << "sorted values, dupes zeroed out: " << std::endl; print_values();
   sort(freq_and_vals, num_values);
+}
+*/
+
+void HeavyEval::sort_remove_dupes(const size_t K) {
+  // Sort via freq, ignore values
+  std::sort(freq_and_vals, freq_and_vals + num_values,
+      [](FreqVal a, FreqVal b) { return a.f > b.f; });
+  // Get all freqs. Set in descending order, so can grab K easily
+  std::set<uint64_t, std::greater<uint64_t>> freqs;
+  for (unsigned int i = 0; i < num_values; i++) {
+    freqs.insert(freq_and_vals[i].f);
+  }
+  // Kth largest frequency, for cutoff.
+  // Can only under-estimate, if duplicate frequencies among top K
+  uint64_t freq_k = 0;
+  size_t idx = 0;
+  for (auto i : freqs) {
+    idx++;
+    if (idx == K) {
+      freq_k = i;
+      break;
+    }
+  }
+  // Count survivors
+  // Will ignore/not reveal items past this cutoff point
+  unsigned int num_greater;
+  for (num_greater = 0; num_greater < num_values; num_greater++) {
+    if (freq_and_vals[num_greater].f < freq_k)
+      break;
+  }
+  // Basic version:
+  // Assume that there are no two in top K with same freq, diff val
+  // With high enough frequency, this is very likely
+  // So can now reveal everything, to de-dupe candidate values
+  // If there are actually x.f = y.f, then it will leak a few past K
+  typedef std::tuple <uint64_t, uint64_t> pair;
+  std::set<pair, std::greater<pair>> pairs;
+  for (unsigned int i = 0; i < num_greater; i++) {
+    uint64_t v = freq_and_vals[i].v.reveal<uint64_t>();
+    pairs.insert({freq_and_vals[i].f, v});
+  }
+
+  // For now, re-wrap as integer to align with later code
+  idx = 0;
+  for (auto i : pairs) {
+    // std::cout << "(" << std::get<0>(i) << ", " << std::get<1>(i) << "), ";
+    Integer v = Integer(input_bits, std::get<1>(i), PUBLIC);
+    freq_and_vals[idx] = FreqVal(std::get<0>(i), v);
+    idx++;
+    if (idx == K) break;
+  }
+  std::cout << std::endl;
+
+  /* TODO: Advanced version
+  Garble sort remaining.
+    Needed so that (a, b, a) is properly eliminated
+    Can do within frequencies, so simpler
+  Garble Remove dupes
+  Normal sort again to move dupes away
+  */
 }
 
 void HeavyEval::set_values(Integer* const inputs, const size_t num) {
@@ -145,19 +207,18 @@ void HeavyEval::set_values(const uint64_t* const input_shares, const size_t num)
 
 void HeavyEval::get_frequencies() {
   if (!values) error_exit("values not set");
-  freq_and_vals = new IntegerPair[num_values];
+  freq_and_vals = new FreqVal[num_values];
   for (unsigned int i = 0; i < num_values; i++) {
-    freq_and_vals[i].y = values[i];
-    freq_and_vals[i].x = get_freq(values[i]);
+    freq_and_vals[i] = FreqVal(get_freq(values[i]), values[i]);
   }
 }
 
 void HeavyEval::return_top_K(const size_t K,
     uint64_t* const topValues, uint64_t* const topFreqs) {
   for (unsigned int i = 0; i < K; i++) {
-    IntegerPair pair = freq_and_vals[num_values - 1 - i];
-    topValues[i] = pair.y.reveal<uint64_t>();
-    topFreqs[i] = pair.x.reveal<uint64_t>();
+    FreqVal pair = freq_and_vals[i];
+    topValues[i] = pair.v.reveal<uint64_t>();
+    topFreqs[i] = pair.f;
   }
 }
 
@@ -184,8 +245,8 @@ void HeavyEval::print_values(bool print) const {
   for (unsigned int i = 0; i < num_values; i++) {
     uint64_t v, f;
     if (freq_and_vals) {
-      v = freq_and_vals[i].y.reveal<uint64_t>();
-      f = freq_and_vals[i].x.reveal<uint64_t>();
+      v = freq_and_vals[i].v.reveal<uint64_t>();
+      f = freq_and_vals[i].f;
     } else {
       v = values[i].reveal<uint64_t>();
     }
@@ -335,7 +396,7 @@ void full_heavy_extract(
 
   ev.get_frequencies();
   // std::cout << "values and freqs: " << std::endl; ev.print_values();
-  ev.sort_remove_dupes();
+  ev.sort_remove_dupes(cfg.K);
   // std::cout << "values and freqs, sort deduped: " << std::endl; ev.print_values();
   ev.return_top_K(cfg.K, top_values, top_freqs);
 }
