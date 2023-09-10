@@ -240,19 +240,19 @@ void HeavyExtract::extract_candidates() {
         // Solving over bits of value
         for (unsigned int bit = 0; bit < input_bits; bit++) {
           // Since do value % 2 at the end, just short circuit
-          Bit b = Bit(0, PUBLIC);
+          Bit parity = Bit(0, PUBLIC);
           // Over depth, inverting and adding (mod 2)
           for (unsigned int d = 0; d < D; d++) {
             const unsigned int cmp_idx = val_idx * D + d;
             // Coeffs are 0 or 1, and fixed
             // So we can reduce circuit size by conditional on public coeff
             if (store.get_inv_coeff(q, bit, d) == 1) {
-              b = If(cmp[cmp_idx], !b, b);
+              parity = If(cmp[cmp_idx], !parity, parity);
             }
           }
           // Can store powers for reuse, but probably fine since public const
           Integer pow(value_bits, 1ULL << bit, PUBLIC);
-          value = If(b, value + pow, value);
+          value = If(parity, value + pow, value);
         }
         candidates[val_idx] = value;
         val_idx++;
