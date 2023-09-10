@@ -50,15 +50,21 @@ void test_mod(int party) {
   // Old full: 449740
   // Integer res = (a + b) % m;
 
-  // V2:
-  // 16: s, if(s>m, s-m,s)
-  // 16: s, 0, s - if(s>m, m, 0)
-  // 20: s, if(s>m, s-m, a+b)
-  // 24: if(a+b>m, a+b, 0)
-  // Somehow add takes one. So save when possible
-  // New full: 65780, nearly 7x smaller
+  /*V2:
+  16: s, if(s>m, s-m,s)
+  16: s, 0, s - if(s>m, m, 0)
+  20: s, if(s>m, s-m, a+b)
+  24: if(a+b>m, a+b, 0)
+  Somehow add takes 4 (per input). So save when possible
+    Re-use of values helps
+    since bitwise representation, gets costly
+
+  a + b - m itself is 8 already, half as much
+  New full: 65780, nearly 7x smaller
+  */
   Integer s = a + b;
   Integer res = If(s > m, s-m, s);
+  // Integer res = a + b - m;
 
   std::cout << "3 + 4 = " << res.reveal<uint64_t>() << " mod 4\n";
 

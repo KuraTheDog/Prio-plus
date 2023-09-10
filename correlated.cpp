@@ -950,13 +950,25 @@ int64_t CorrelatedStore::cmp_bit(
   return sent_bytes;
 }
 
+// random r, with rb bitshares of bits, conditioned on r < p
 // Make each bit in parallel: [ri in {0,1}]p
 // check if [r < p] bitwise, retry if not
 // success odds are p/2^b, worst case ~1/2 failure.
 int64_t CorrelatedStore::gen_rand_bitshare(
     const size_t N, fmpz_t* const r, fmpz_t* const rB) {
-  int64_t sent_bytes = 0;
   const size_t b = nbits_mod;
+  if (lazy >= 2) {
+    for (unsigned int i = 0; i < N; i++)
+      fmpz_zero(r[i]);
+    for (unsigned int i = 0; i < N * b; i++)
+      fmpz_zero(rB[i]);
+    return 0;
+  }
+  if (lazy == 1) {
+    // TODO: make random on 0, send to 1.
+  }
+
+  int64_t sent_bytes = 0;
 
   // Assumed tries to succeed. (worst case 1/2 fail, so 2 avg, overestimate)
   const size_t avg_tries = 4;
@@ -1069,7 +1081,7 @@ int64_t CorrelatedStore::LSB(
   // 3: if wraparound (c < r), x0 = c0 ^ r0
   //    if no wraparound, then x0 = 1 - c0 ^ r0
   // [x0] = [c < r] + (c0 ^ r0) + 2 [c < r] (c0 ^ r0)
-  // 3.1: c0 ^ r0 = ([r0] if c0 = 0, 1 - [r0] if c0 = 1
+  // 3.1: c0 ^ r0 = ([r0] if c0 = 0, 1 - [r0] if c0 = 1)
   fmpz_t* cr; new_fmpz_array(&cr, N);
   fmpz_t adj; fmpz_init_set_ui(adj, server_num);  // "1" is just once
   for (unsigned int i = 0; i < N; i++) {
