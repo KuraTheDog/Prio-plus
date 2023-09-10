@@ -200,9 +200,11 @@ struct HeavyEval {
   // Populate frequencies using values
   void get_frequencies();
 
-  void return_top_K(const size_t K, uint64_t* const topValues, uint64_t* const topFreqs);
+  void return_top_K(const size_t K, uint64_t* const topValues,
+      uint64_t* const topFreqs);
 
-  void print_params() const {
+  void print_params(bool print = true) const {
+    if (!print) return;
     std::cout << "HeavyEval params: \n";
     std::cout << "\t Party: " << party << std::endl;
     std::cout << "\t num hashes: " << num_hashes << std::endl;
@@ -232,7 +234,9 @@ struct HeavyExtract {
   const size_t value_bits;
   // Initial shares, modulo big modulus
   const size_t share_bits;
-  // Because bucket can have negative value, need full share_bits too
+  // Base buckets are either x or m-x, so take up full share
+  // But signed (and abs) buckets are at most total count
+  const size_t freq_bits;
 
   // Split into B substreams.
   // Each gets D depth SingleHeavy
@@ -253,13 +257,14 @@ struct HeavyExtract {
   Integer* candidates;
 
   HeavyExtract(const int party, const HashStoreBit& store,
-      const size_t R, const size_t Q, const size_t B, const size_t D)
+      const size_t R, const size_t Q, const size_t B, const size_t D,
+      const size_t total_count)
   : party(party)
   , store(store)
   , input_bits(store.get_input_bits())
   , value_bits(input_bits + 1)
   , share_bits(nbits_mod + 1)
-  // , bucket_bits(LOG2(total_count) + 1)
+  , freq_bits(LOG2(total_count) + 1)
   , R(R)
   , Q(Q)
   , B(B)
@@ -290,11 +295,13 @@ struct HeavyExtract {
   void extract_candidates();
   Integer* get_candidates() const { return candidates; };
 
-  void print_params() const {
+  void print_params(bool print = true) const {
+    if (!print) return;
     std::cout << "HeavyExtract params: \n";
     std::cout << "\t input_bits: " << input_bits << "\n";
     std::cout << "\t value_bits (+1): " << value_bits << "\n";
-    std::cout << "\t share_bits (+1): " << share_bits << std::endl;
+    std::cout << "\t share_bits (+1): " << share_bits << "\n";
+    std::cout << "\t freq_bits (+1): " << freq_bits << std::endl;
   }
 
   /* DEBUG ONLY */

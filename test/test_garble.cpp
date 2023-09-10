@@ -344,10 +344,11 @@ void test_bucket_compare(int party, flint_rand_t hash_seed) {
     }
   }
 
-  HeavyExtract eval(party, store, num_copies, num_groups, num_substreams, depth);
+  HeavyExtract eval(party, store, num_copies, num_groups, num_substreams, depth, 2 * num_pairs + 2);
+  // eval.print_params(party == ALICE);
 
   eval.set_buckets(bucket0, bucket1);
-  // eval.print_buckets();
+  // eval.print_buckets(party == ALICE);
 
   eval.bucket_compare();
   eval.print_cmp();
@@ -419,7 +420,8 @@ void test_extract(int party, flint_rand_t hash_seed) {
   fmpz_clear(tmp2);
 
   // Run
-  HeavyExtract eval(party, store, num_copies, num_groups, num_substreams, depth);
+  HeavyExtract eval(party, store, num_copies, num_groups, num_substreams, depth, num_pairs + 1);
+  // eval.print_params(party == ALICE);
 
   eval.set_buckets(bucket0, bucket1);
   // eval.print_buckets(party == ALICE);

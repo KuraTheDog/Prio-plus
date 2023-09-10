@@ -218,6 +218,8 @@ void HeavyExtract::bucket_compare() {
   for (unsigned int i = 0; i < R * Q * B * D; i++) {
     Integer abs0 = If(bucket0[i] < mod_half, bucket0[i], mod - bucket0[i]);
     Integer abs1 = If(bucket1[i] < mod_half, bucket1[i], mod - bucket1[i]);
+    abs0.resize(freq_bits, false);
+    abs1.resize(freq_bits, false);
     cmp[i] = abs0 < abs1;
   }
 }
@@ -237,19 +239,20 @@ void HeavyExtract::extract_candidates() {
         Integer value(value_bits, 0, PUBLIC);
         // Solving over bits of value
         for (unsigned int bit = 0; bit < input_bits; bit++) {
-          Integer vec(value_bits, 0, PUBLIC);
+          // Since do value % 2 at the end, just short circuit
+          Bit b = Bit(0, PUBLIC);
           // Over depth, inverting and adding (mod 2)
           for (unsigned int d = 0; d < D; d++) {
             const unsigned int cmp_idx = val_idx * D + d;
             // Coeffs are 0 or 1, and fixed
             // So we can reduce circuit size by conditional on public coeff
             if (store.get_inv_coeff(q, bit, d) == 1) {
-              vec = If(cmp[cmp_idx], vec + one, vec);
+              b = If(cmp[cmp_idx], !b, b);
             }
           }
           // Can store powers for reuse, but probably fine since public const
           Integer pow(value_bits, 1ULL << bit, PUBLIC);
-          value = If(vec % two == zero, value, value + pow);
+          If(b, value + pow, value);
         }
         candidates[val_idx] = value;
         val_idx++;
@@ -309,7 +312,7 @@ void full_heavy_extract(
 
   HashStoreBit hash_split(cfg.Q, cfg.D, cfg.num_bits, 2, hash_seed_split);
 
-  HeavyExtract ex(party, hash_split, cfg.R, cfg.Q, cfg.B, cfg.D);
+  HeavyExtract ex(party, hash_split, cfg.R, cfg.Q, cfg.B, cfg.D, num_inputs);
   // ex.print_params();
 
   ex.set_buckets(bucket0, bucket1);
