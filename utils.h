@@ -14,7 +14,8 @@ inline float sec_from(time_point<high_resolution_clock> start) {
   exit(EXIT_FAILURE);
 }
 
-// Floor log, on nonnegative integers only
+// Floor log, on nonnegative integers only. Ceiling
+// Can also do math.h or cmath
 // Note Log2(0) = 1
 #define LOG2(X) ((unsigned) (8*sizeof (unsigned long long) - __builtin_clzll(((X) | 1))))
 
