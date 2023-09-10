@@ -252,7 +252,7 @@ void HeavyExtract::extract_candidates() {
           }
           // Can store powers for reuse, but probably fine since public const
           Integer pow(value_bits, 1ULL << bit, PUBLIC);
-          If(b, value + pow, value);
+          value = If(b, value + pow, value);
         }
         candidates[val_idx] = value;
         val_idx++;
