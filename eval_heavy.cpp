@@ -8,7 +8,7 @@ void HeavyEval::parse_countmin() {
     // Can skip this party conditional probably. Here also for clarity
     Integer a(share_bits, party == ALICE ? val : 0, ALICE);
     Integer b(share_bits, party == BOB ? val : 0, BOB);
-    countmin_values[i] = (a + b) % mod;
+    countmin_values[i] = AddMod(a, b, mod);
     countmin_values[i].resize(freq_bits, false);
   }
 }
@@ -123,7 +123,7 @@ void HeavyEval::set_values(const fmpz_t* const input_shares, const size_t num) {
     // Conditional is overkill, but makes it clearer
     Integer a(share_bits, party == ALICE ? val : 0, ALICE);
     Integer b(share_bits, party == BOB ? val : 0, BOB);
-    values[i] = (a + b) % mod;
+    values[i] = AddMod(a, b, mod);
     values[i].resize(input_bits, false);
   }
 }
@@ -138,7 +138,7 @@ void HeavyEval::set_values(const uint64_t* const input_shares, const size_t num)
     // Conditional is overkill, but makes it clearer
     Integer a(share_bits, party == ALICE ? val : 0, ALICE);
     Integer b(share_bits, party == BOB ? val : 0, BOB);
-    values[i] = (a + b) % mod;
+    values[i] = AddMod(a, b, mod);
     values[i].resize(input_bits, false);
   }
 }
@@ -205,7 +205,7 @@ void HeavyExtract::set_bucket(const int idx, const fmpz_t* const bucket) {
     uint64_t val = fmpz_get_ui(bucket[i]);
     Integer a(share_bits, party == ALICE ? val : 0, ALICE);
     Integer b(share_bits, party == BOB ? val : 0, BOB);
-    target[i] = (a + b) % mod;
+    target[i] = AddMod(a, b, mod);
   }
 }
 

@@ -38,7 +38,30 @@ void test_compare(int party) {
   Integer b(4, 2, BOB);
   Bit res = a > b;
 
-  std::cout << "Party " << party << ", ALICE larger?\t"<< res.reveal<bool>()<<endl;
+  std::cout << "Party " << party << ", ALICE larger?\t"<< res.reveal<bool>() << std::endl;
+}
+
+void test_mod(int party) {
+  Integer a(4, 3, ALICE);
+  Integer b(4, 2, BOB);
+  Integer m(4, 4, PUBLIC);
+
+  // V1: 40 mult gates
+  // Old full: 449740
+  // Integer res = (a + b) % m;
+
+  // V2:
+  // 16: s, if(s>m, s-m,s)
+  // 16: s, 0, s - if(s>m, m, 0)
+  // 20: s, if(s>m, s-m, a+b)
+  // 24: if(a+b>m, a+b, 0)
+  // Somehow add takes one. So save when possible
+  // New full: 65780, nearly 7x smaller
+  Integer s = a + b;
+  Integer res = If(s > m, s-m, s);
+
+  std::cout << "3 + 4 = " << res.reveal<uint64_t>() << " mod 4\n";
+
 }
 
 void test_hash(int party, flint_rand_t hash_seed) {
@@ -451,6 +474,7 @@ void run(int party, int port) {
 
   /* General Behavior */
   // test_compare(party);
+  // test_mod(party);
   // test_sort_complex(party);
   // test_index(party);
   // test_misc(party, 3);

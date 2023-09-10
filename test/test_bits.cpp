@@ -328,8 +328,7 @@ int main(int argc, char* argv[]) {
   }
 
   // random adjusting. different numbers adjust seed.
-  fmpz_t tmp;
-  fmpz_init(tmp);
+  fmpz_t tmp; fmpz_init(tmp);
   size_t rand_adjust = 5;
   for (unsigned int i = 0; i < rand_adjust; i++)
     fmpz_randm(tmp, seed, Int_Modulus);

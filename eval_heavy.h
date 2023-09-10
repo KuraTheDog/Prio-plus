@@ -91,6 +91,13 @@ inline IntegerPair If(const Bit & sel, const IntegerPair& a, const IntegerPair& 
   return b.If(sel, a);
 };
 
+// (a + b) % m, but since a, b already mod, simple check instead
+// Somehow sum takes 4 mults, so save when possible
+inline Integer AddMod(const Integer& a, const Integer& b, const Integer& m) {
+  Integer s = a + b;
+  return If(s > m, s - m, s);
+}
+
 struct HeavyEval {
   const int party;
 
