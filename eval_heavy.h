@@ -95,7 +95,7 @@ inline IntegerPair If(const Bit & sel, const IntegerPair& a, const IntegerPair& 
 // Somehow sum takes 4 mults, so save when possible
 inline Integer AddMod(const Integer& a, const Integer& b, const Integer& m) {
   Integer s = a + b;
-  return If(s > m, s - m, s);
+  return If(s >= m, s - m, s);
 }
 
 struct HeavyEval {

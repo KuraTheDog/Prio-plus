@@ -63,9 +63,10 @@ void test_mod(int party) {
   a + b - m itself is 8 already, half as much
   New full: 65780, nearly 7x smaller
   */
-  Integer s = a + b;
-  Integer res = If(s > m, s-m, s);
+  // Integer s = a + b;
+  // Integer res = If(s > m, s-m, s);
   // Integer res = a + b - m;
+  Integer res = AddMod(a, b, m);
 
   std::cout << "3 + 4 = " << res.reveal<uint64_t>() << " mod 4\n";
 
@@ -226,6 +227,7 @@ void test_full_sort(int party, flint_rand_t hash_seed) {
   CountMin count_min(cfg);
   count_min.init();
   count_min.setStore(input_bits, hash_seed);
+  const size_t K = 3;
 
   // Phase 0.1: Populate count-min
   const size_t num_diff_vals = 5;
@@ -290,7 +292,6 @@ void test_full_sort(int party, flint_rand_t hash_seed) {
   // std::cout << "sorted values with freqs: \n";
   // heavy_eval.print_values(party == ALICE);
 
-  const size_t K = 3;
   uint64_t* top_values = new uint64_t[K];
   uint64_t* top_freqs = new uint64_t[K];
 
