@@ -1801,8 +1801,7 @@ returnType top_k_op(const initMsg msg,
         const int clientfd, const int serverfd, const int server_num) {
     auto start = clock_start();
 
-    typedef std::tuple <bool*, bool*, bool*, bool*, bool*> sharetype;
-    std::unordered_map<std::string, sharetype> share_map;
+    std::unordered_map<std::string, bool*> share_map;
 
     int64_t cli_bytes = 0;
     const size_t num_bits = msg.num_bits;
@@ -1837,6 +1836,11 @@ returnType top_k_op(const initMsg msg,
     const size_t share_size_count = cfg.countmin_cfg.d * cfg.countmin_cfg.w;
     // SingleHeavy bucket pairs
     const size_t num_sh = cfg.R * cfg.Q * cfg.B * cfg.D;
+    const size_t share_sizes[5] = {share_size_sh, share_size_sh,
+            share_size_bucket, share_size_layer, share_size_count};
+    size_t total_size = 0;
+    for (unsigned int j = 0; j < 5; j++)
+        total_size += share_sizes[j];
 
     if (STORE_TYPE != ot_store) {
         ((CorrelatedStore*) correlated_store)->check_DaBits(
@@ -1856,27 +1860,15 @@ returnType top_k_op(const initMsg msg,
         cli_bytes += recv_in(clientfd, &tag_c[0], TAG_LENGTH);
         const std::string tag(tag_c, tag_c+TAG_LENGTH);
 
-        bool* const shares_sh_x = new bool[share_size_sh];
-        bool* const shares_sh_y = new bool[share_size_sh];
-        bool* const shares_bucket = new bool[share_size_bucket];
-        bool* const shares_layer = new bool[share_size_layer];
-        bool* const shares_count = new bool[share_size_count];
-        cli_bytes += recv_bool_batch(clientfd, shares_sh_x, share_size_sh);
-        cli_bytes += recv_bool_batch(clientfd, shares_sh_y, share_size_sh);
-        cli_bytes += recv_bool_batch(clientfd, shares_bucket, share_size_bucket);
-        cli_bytes += recv_bool_batch(clientfd, shares_layer, share_size_layer);
-        cli_bytes += recv_bool_batch(clientfd, shares_count, share_size_count);
+        bool* cli_buff = new bool[total_size];
+        cli_bytes += recv_bool_batch(clientfd, cli_buff, total_size);
 
         if (share_map.find(tag) != share_map.end()) {
-            delete[] shares_sh_x;
-            delete[] shares_sh_y;
-            delete[] shares_bucket;
-            delete[] shares_layer;
-            delete[] shares_count;
+            delete[] cli_buff;
             continue;
         }
 
-        share_map[tag] = {shares_sh_x, shares_sh_y, shares_bucket, shares_layer, shares_count};
+        share_map[tag] = cli_buff;
     }
 
     std::cout << "Received " << total_inputs << " total shares" << std::endl;
@@ -1910,18 +1902,18 @@ returnType top_k_op(const initMsg msg,
         for (const auto& share : share_map) {
             sent_bytes += send_tag(serverfd, share.first);
 
-            bool* a; bool* b; bool* c; bool* d; bool* e;
-            std::tie(a, b, c, d, e) = share.second;
-            memcpy(&shares_sh_x[i * share_size_sh], a, share_size_sh);
-            memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
-            memcpy(&shares_bucket[i * share_size_bucket], c, share_size_bucket);
-            memcpy(&shares_layer[i * share_size_layer], d, share_size_layer);
-            memcpy(&shares_count[i * share_size_count], e, share_size_count);
-            delete[] a;
-            delete[] b;
-            delete[] c;
-            delete[] d;
-            delete[] e;
+            bool* cli_buff = share.second;
+            memcpy(&shares_sh_x[i * share_size_sh], cli_buff, share_size_sh);
+            memcpy(&shares_sh_y[i * share_size_sh], &cli_buff[share_size_sh],
+                    share_size_sh);
+            memcpy(&shares_bucket[i * share_size_bucket], &cli_buff[2 * share_size_sh],
+                    share_size_bucket);
+            memcpy(&shares_layer[i * share_size_layer],
+                    &cli_buff[2 * share_size_sh + share_size_bucket], share_size_layer);
+            memcpy(&shares_count[i * share_size_count],
+                    &cli_buff[2 * share_size_sh + share_size_bucket + share_size_layer],
+                    share_size_count);
+            delete[] cli_buff;
 
             i++;
         }
@@ -1932,18 +1924,18 @@ returnType top_k_op(const initMsg msg,
             valid[i] &= (share_map.find(tag) != share_map.end());
             if (!valid[i]) continue;
 
-            bool* a; bool* b; bool* c; bool* d; bool* e;
-            std::tie(a, b, c, d, e) = share_map[tag];
-            memcpy(&shares_sh_x[i * share_size_sh], a, share_size_sh);
-            memcpy(&shares_sh_y[i * share_size_sh], b, share_size_sh);
-            memcpy(&shares_bucket[i * share_size_bucket], c, share_size_bucket);
-            memcpy(&shares_layer[i * share_size_layer], d, share_size_layer);
-            memcpy(&shares_count[i * share_size_count], e, share_size_count);
-            delete[] a;
-            delete[] b;
-            delete[] c;
-            delete[] d;
-            delete[] e;
+            bool* cli_buff = share_map[tag];
+            memcpy(&shares_sh_x[i * share_size_sh], cli_buff, share_size_sh);
+            memcpy(&shares_sh_y[i * share_size_sh], &cli_buff[share_size_sh],
+                    share_size_sh);
+            memcpy(&shares_bucket[i * share_size_bucket], &cli_buff[2 * share_size_sh],
+                    share_size_bucket);
+            memcpy(&shares_layer[i * share_size_layer],
+                    &cli_buff[2 * share_size_sh + share_size_bucket], share_size_layer);
+            memcpy(&shares_count[i * share_size_count],
+                    &cli_buff[2 * share_size_sh + share_size_bucket + share_size_layer],
+                    share_size_count);
+            delete[] cli_buff;
         }
     }
     std::cout << "tag time: " << sec_from(start2) << std::endl;
