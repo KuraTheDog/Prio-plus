@@ -38,7 +38,8 @@ void test_compare(int party) {
   Integer b(4, 2, BOB);
   Bit res = a > b;
 
-  std::cout << "Party " << party << ", ALICE larger?\t"<< res.reveal<bool>() << std::endl;
+  std::cout << "Party " << party << ", ALICE larger?\t";
+  std::cout << res.reveal<bool>() << std::endl;
 }
 
 void test_mod(int party) {
@@ -93,7 +94,8 @@ void test_hash(int party, flint_rand_t hash_seed) {
       // if (garble_out != hash_out) {
       //   std::cout << "failed on hash_" << j << "(" << i << ")" << std::endl;
       //   count_min.store->print_hash(j);
-      //   std::cout << "garble: " << garble_out << ", actual: " << hash_out << std::endl;
+      //   std::cout << "garble: " << garble_out;
+      //   std::cout << ", actual: " << hash_out << std::endl;
       // }
 
       assert(garble_out == hash_out);
@@ -280,11 +282,13 @@ void test_full_sort(int party, flint_rand_t hash_seed) {
 
   // Step 3: get frequencies
   heavy_eval.get_frequencies();
-  // std::cout << "parsed values with freqs: \n"; heavy_eval.print_values(party == ALICE);
+  // std::cout << "parsed values with freqs: \n";
+  // heavy_eval.print_values(party == ALICE);
 
   // Step 4: Sort and remove dupes
   heavy_eval.sort_remove_dupes();
-  // std::cout << "sorted values with freqs: \n"; heavy_eval.print_values(party == ALICE);
+  // std::cout << "sorted values with freqs: \n";
+  // heavy_eval.print_values(party == ALICE);
 
   const size_t K = 3;
   uint64_t* top_values = new uint64_t[K];
@@ -296,7 +300,8 @@ void test_full_sort(int party, flint_rand_t hash_seed) {
   // Check
   std::cout << "Top K = " << K << " values and freqs, decreasing\n";
   for (unsigned int i = 0; i < K; i++) {
-    std::cout << "Value: " << top_values[i] << ", freq: " << top_freqs[i] << std::endl;
+    std::cout << "Value: " << top_values[i];
+    std::cout << ", freq: " << top_freqs[i] << std::endl;
   }
   assert(top_values[0] == 1);
   assert(top_freqs[0] == 10);
@@ -350,7 +355,8 @@ void test_bucket_compare(int party, flint_rand_t hash_seed) {
     }
   }
 
-  HeavyExtract eval(party, store, num_copies, num_groups, num_substreams, depth, 2 * num_pairs + 2);
+  HeavyExtract eval(party, store, num_copies, num_groups, num_substreams,
+      depth, 2 * num_pairs + 2);
   // eval.print_params(party == ALICE);
 
   eval.set_buckets(bucket0, bucket1);
@@ -426,7 +432,8 @@ void test_extract(int party, flint_rand_t hash_seed) {
   fmpz_clear(tmp2);
 
   // Run
-  HeavyExtract eval(party, store, num_copies, num_groups, num_substreams, depth, num_pairs + 1);
+  HeavyExtract eval(party, store, num_copies, num_groups, num_substreams,
+      depth, num_pairs + 1);
   // eval.print_params(party == ALICE);
 
   eval.set_buckets(bucket0, bucket1);
@@ -457,7 +464,8 @@ void run(int party, int port) {
   // Somehow new io, and ot1->io dont' like to work.
   NetIO* io = ot0->io;
   std::cout << "Party " << party << " setting up io with addr ";
-  std::cout << (party==BOB ? "none" : "127.0.0.1") << " and port " << port << std::endl;
+  std::cout << (party==BOB ? "none" : "127.0.0.1");
+  std::cout << " and port " << port << std::endl;
 
   setup_semi_honest(io, party);
   std::cout << "Party " << party << " semi-honest for garble set up" << std::endl;
