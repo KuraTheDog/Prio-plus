@@ -338,16 +338,11 @@ return_top_K(size K, uint64_t* topValues, uint64_t* topFreqs)
 */
 
 void full_heavy_extract(
-    const int server_num,
-    const MultiHeavyConfig cfg,
-    const fmpz_t* const bucket0,
-    const fmpz_t* const bucket1,
-    flint_rand_t hash_seed_split,
-    flint_rand_t hash_seed_count,
+    const int server_num, const MultiHeavyConfig cfg,
+    const fmpz_t* const bucket0, const fmpz_t* const bucket1,
+    flint_rand_t hash_seed_split, flint_rand_t hash_seed_count,
     fmpz_t* const countmin_shares,
     const size_t num_inputs,
-    uint64_t* top_values,
-    uint64_t* top_freqs
-  );
+    uint64_t* top_values, uint64_t* top_freqs);
 
 #endif
