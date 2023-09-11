@@ -380,15 +380,16 @@ void test_extract(int party, flint_rand_t hash_seed) {
 
   const size_t num_copies = 2;  // R
   const size_t num_groups = 4;  // < 2^input bits. Q
-  const size_t num_substreams = 2;  // B
-  const size_t num_pairs = num_copies * num_groups * num_substreams * depth;
+  const size_t num_substreams = 3;  // B
+  const size_t num_candidates = num_copies * num_groups * num_substreams;
+  const size_t num_pairs = num_candidates * depth;
 
   // Setup
   HashStoreBit store(num_groups, depth, input_bits, output_range, hash_seed);
 
-  // figure out values
+  // figure out bits
   // For now, just replicate across copies, bits too small for split magic
-  fmpz_t* values; new_fmpz_array(&values, num_pairs);
+  fmpz_t* bits; new_fmpz_array(&bits, num_pairs);
   fmpz_t tmp; fmpz_init(tmp);
   for (unsigned int i = 0; i < num_groups; i++) {
     for (unsigned int j = 0; j < depth; j++) {
@@ -398,13 +399,13 @@ void test_extract(int party, flint_rand_t hash_seed) {
         const unsigned int idx = (i * num_substreams + k) * depth + j;
         for (unsigned int r = 0; r < num_copies; r++) {
           const unsigned int final_idx = r * num_groups * num_substreams * depth + idx;
-          fmpz_set(values[final_idx], tmp);
+          fmpz_set(bits[final_idx], tmp);
         }
       }
     }
   }
 
-  // Set up bucket values according to values
+  // Set up bucket bits according to bits
   fmpz_t* bucket0; new_fmpz_array(&bucket0, num_pairs);
   fmpz_t* bucket1; new_fmpz_array(&bucket1, num_pairs);
 
@@ -416,10 +417,12 @@ void test_extract(int party, flint_rand_t hash_seed) {
       fmpz_set(bucket0[i], tmp);
       fmpz_set(bucket1[i], tmp2);
     } else {
-      // Actual
-      int b0 = (i+1) * ((i/2)%2 ? 1 : -1);
-      int b1 = (i+1) * ((i/2)%2 ? 1 : -1);
-      (fmpz_is_one(values[i]) ? b1 : b0) *= 2;
+      // Actuals
+      // Base "random" value
+      int b0 = (i/depth+1) * ((i/2)%2 ? 1 : -1);
+      int b1 = (i/depth+1) * ((i/2)%2 ? 1 : -1);
+      // Set actual based on desired bits
+      (fmpz_is_one(bits[i]) ? b1 : b0) *= 2;
       fmpz_set_si(bucket0[i], b0);
       fmpz_set_si(bucket1[i], b1);
       fmpz_mod(bucket0[i], bucket0[i], Int_Modulus);
@@ -429,16 +432,22 @@ void test_extract(int party, flint_rand_t hash_seed) {
       fmpz_mod_sub(bucket1[i], bucket1[i], tmp2, mod_ctx);
     }
   }
-  clear_fmpz_array(values, num_pairs);
+  clear_fmpz_array(bits, num_pairs);
   fmpz_clear(tmp);
   fmpz_clear(tmp2);
 
+  // 2 on one side, 1 on the other, for +3
+  // n(n+1)/2, with i+1 stuff
+  const unsigned int total = 3 * (num_candidates + 1) * num_candidates / 2;
+
   // Run
   HeavyExtract eval(party, store, num_copies, num_groups, num_substreams,
-      depth, num_pairs + 1);
+      depth, total);
   // eval.print_params(party == ALICE);
 
   eval.set_buckets(bucket0, bucket1);
+  clear_fmpz_array(bucket0, num_pairs);
+  clear_fmpz_array(bucket1, num_pairs);
   // eval.print_buckets(party == ALICE);
 
   eval.bucket_compare();
@@ -447,8 +456,13 @@ void test_extract(int party, flint_rand_t hash_seed) {
   eval.extract_candidates();
   // eval.print_candidates(party == ALICE);
 
-  clear_fmpz_array(bucket0, num_pairs);
-  clear_fmpz_array(bucket1, num_pairs);
+
+  Integer* candidates = eval.get_candidates();
+  for (unsigned int i = 0; i < num_candidates; i++) {
+    uint64_t v = candidates[i].reveal<uint64_t>();
+    uint64_t expected = (i/num_substreams) % num_groups;
+    assert(v == expected);
+  }
 }
 
 void run(int party, int port) {
