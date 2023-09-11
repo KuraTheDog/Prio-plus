@@ -280,16 +280,17 @@ void test_full_sort(int party, flint_rand_t hash_seed) {
 
   // Step 2: add values
   heavy_eval.set_values(candidates, num_candidates);
-  // std::cout << "parsed values: \n"; heavy_eval.print_values(party == ALICE);
+  // if (party == ALICE) std::cout << "parsed values: \n";
+  // heavy_eval.print_values(party == ALICE);
 
   // Step 3: get frequencies
   heavy_eval.get_frequencies();
-  // std::cout << "parsed values with freqs: \n";
+  // if (party == ALICE) std::cout << "parsed values with freqs:\n";
   // heavy_eval.print_values(party == ALICE);
 
   // Step 4: Sort and remove dupes
   heavy_eval.sort_remove_dupes(K);
-  // std::cout << "sorted values with freqs: \n";
+  // if (party == ALICE) std::cout << "sorted values with freqs:\n";
   // heavy_eval.print_values(party == ALICE);
 
   uint64_t* top_values = new uint64_t[K];

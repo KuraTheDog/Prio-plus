@@ -38,48 +38,7 @@ There may be better ways of de-duping, but this should be fine.
 Note: emp::ALICE is 1, emp::BOB is 2. (Using server_num + 1)
 */
 
-// Tuple <freq, val> for sorting purposes
-struct FreqVal {
-  uint64_t f;
-  Integer v;
-
-  FreqVal(){};
-  FreqVal(uint64_t f, Integer v): f(f), v(v) {};
-
-  FreqVal(const FreqVal& other) {
-    f = other.f;
-    v = other.v;
-  };
-  inline Bit operator>(const FreqVal & rhs) const {
-    if (f > rhs.f)
-      return Bit(true);
-    if (f < rhs.f)
-      return Bit(false);
-    return (v > rhs.v);
-  };
-  inline FreqVal operator^=(const FreqVal& rhs) {
-    f ^= rhs.f;
-    v ^= rhs.v;
-    return (*this);
-  }
-
-  // Assumed called on same freq
-  inline FreqVal select(const Bit& sel, const FreqVal& a) const {
-    FreqVal res(*this);
-    res.f = f;
-    res.v = v.select(sel, a.v);
-    return res;
-  };
-  // Assumed called on same freq
-  inline FreqVal If(const Bit& sel, const FreqVal& rhs) const {
-    return this->select(sel, rhs);
-  }
-};
-// Assumed called on same freq
-inline FreqVal If(const Bit& sel, const FreqVal& a, const FreqVal& b) {
-  return b.If(sel, a);
-}
-
+typedef std::pair<uint64_t, Integer> FreqVal;
 
 // (a + b) % m, but since a, b already mod, simple check instead
 // Somehow sum takes 4 mults, so save when possible
@@ -115,6 +74,8 @@ struct HeavyEval {
   // if values is Integer[] from elsewhere, don't double delete
   bool values_is_new = true;
   FreqVal* freq_and_vals = nullptr;
+  typedef std::pair<uint64_t, uint64_t> pair;
+  pair* topK = nullptr;
 
   // Total_count only used to determine max size of frequency values
   HeavyEval(const int party, const CountMin& count_min, const size_t total_count)
@@ -141,6 +102,7 @@ struct HeavyEval {
     delete[] countmin_values;
     if (values_is_new) delete[] values;
     delete[] freq_and_vals;
+    delete[] topK;
   };
 
   /*
@@ -173,16 +135,11 @@ struct HeavyEval {
   */
   uint64_t get_freq(Integer input);
 
-  // Note: Sorted by freq increasing, so need to take from end of the list.
-  // On sorted, if a pair has the same value, zero out the first.
-  // Does only for the first N.
-  void zero_out_dupes();
   /* Reveals just frequencies, but not values, which is minimal leakage
-     Eliminates things < Kth largest unique freq
-     Currently, assumes that no dupes among top K (x.f == y.f)
-     For each dupe, also leaks one more past top K.
-     Can use garble sort on top ~K to hide this.
-       But ran into issues with mixed sorting
+     No gates used, since ops on revealed only
+     De-dupes via revealing valuse at freq.
+     Stops when >= K unique values found.
+     Also "leaks" values that tie Kth largest, which is fine.
   */
   void sort_remove_dupes(const size_t K);
 

@@ -83,94 +83,41 @@ uint64_t HeavyEval::get_freq(Integer input) {
   return ret.reveal<uint64_t>();
 }
 
-/*
-void HeavyEval::zero_out_dupes() {
-  if (!freq_and_vals) error_exit("frequencies not set");
-  FreqVal zero_pair(0, Integer(input_bits, 0, PUBLIC));
-
-  // Can be "more parallel", but not needed.
-  // but same amount of mult gates, so garbled circuit doesn't care much
-
-  for (unsigned int i = 0; i < num_values - 1; i++) {
-    // Since values have unique freq, just have to check if values are the same
-    Bit b = (freq_and_vals[i].v == freq_and_vals[i+1].v);
-    freq_and_vals[i] = If(b, zero_pair, freq_and_vals[i]);
-  }
-}
-*/
-
-/*
-void HeavyEval::sort_remove_dupes() {
-  if (!freq_and_vals) error_exit("frequencies not set");
-  sort(freq_and_vals, num_values);
-  // std::cout << "sorted values: " << std::endl; print_values();
-  zero_out_dupes(num_values);
-  // std::cout << "sorted values, dupes zeroed out: " << std::endl; print_values();
-  sort(freq_and_vals, num_values);
-}
-*/
-
 void HeavyEval::sort_remove_dupes(const size_t K) {
+  topK = new pair[K];
+
   // Sort via freq, ignore values
   std::sort(freq_and_vals, freq_and_vals + num_values,
-      [](FreqVal a, FreqVal b) { return a.f > b.f; });
-  // Get all freqs. Set in descending order, so can grab K easily
-  std::set<uint64_t, std::greater<uint64_t>> freqs;
-  for (unsigned int i = 0; i < num_values; i++) {
-    freqs.insert(freq_and_vals[i].f);
-  }
-  // Kth largest frequency, for cutoff.
-  // Can only under-estimate, if duplicate frequencies among top K
-  uint64_t freq_k = 0;
-  size_t idx = 0;
-  for (auto i : freqs) {
-    idx++;
-    if (idx == K) {
-      freq_k = i;
-      break;
-    }
-  }
-  // Count survivors
-  // Will ignore/not reveal items past this cutoff point
-  unsigned int num_greater;
-  for (num_greater = 0; num_greater < num_values; num_greater++) {
-    if (freq_and_vals[num_greater].f < freq_k)
-      break;
-  }
-  // Basic version:
-  // Assume that there are no two in top K with same freq, diff val
-  // With high enough frequency, this is very likely
-  // So can now reveal everything, to de-dupe candidate values
-  // If there are actually x.f = y.f, then it will leak a few past K
-  const bool basic_version = true;
-  if (basic_version) {
-    typedef std::tuple <uint64_t, uint64_t> pair;
-    std::set<pair, std::greater<pair>> pairs;
-    for (unsigned int i = 0; i < num_greater; i++) {
-      uint64_t v = freq_and_vals[i].v.reveal<uint64_t>();
-      pairs.insert({freq_and_vals[i].f, v});
+      [](FreqVal a, FreqVal b) { return a.first > b.first; });
+
+  size_t offset = 0;
+  size_t unique = 0;
+  while (unique < K) {
+    // Get curr
+    FreqVal curr = freq_and_vals[offset];
+    uint64_t curr_freq = curr.first;
+    // Get all with same freq as curr
+    size_t count = 0;
+    while (curr.first == curr_freq) {
+      count += 1;
+      curr = freq_and_vals[offset + count];
     }
 
-    // For now, re-wrap as integer to align with later code
-    idx = 0;
-    for (auto i : pairs) {
-      // std::cout << "(" << std::get<0>(i) << ", " << std::get<1>(i) << "), ";
-      Integer v = Integer(input_bits, std::get<1>(i), PUBLIC);
-      freq_and_vals[idx] = FreqVal(std::get<0>(i), v);
-      idx++;
-      if (idx == K) break;
+    // Reveal values with the freq. No leakage
+    std::set<uint64_t> vals;
+    for (unsigned int i = offset; i < offset + count; i++) {
+      vals.insert(freq_and_vals[i].second.reveal<uint64_t>());
     }
-    std::cout << std::endl;
-  } else {
-    /* TODO: Advanced version
-    Garble sort remaining.
-      Needed so that (a, b, a) is properly eliminated
-      Can do within frequencies, so simpler
-    Garble Remove dupes
-    Normal sort again to move dupes away
-    */
-    // Various sort(&fv[offset], num_with_that_freq)
-    sort(freq_and_vals, num_values);
+
+    // Add unique values to top K
+    size_t idx = unique;
+    for (auto v : vals) {
+      topK[idx] = {v, curr_freq};
+      idx++;
+    }
+
+    unique += vals.size();
+    offset += count;
   }
 }
 
@@ -220,10 +167,9 @@ void HeavyEval::get_frequencies() {
 
 void HeavyEval::return_top_K(const size_t K,
     uint64_t* const topValues, uint64_t* const topFreqs) {
+  if (!topK) error_exit("top K not found yet");
   for (unsigned int i = 0; i < K; i++) {
-    FreqVal pair = freq_and_vals[i];
-    topValues[i] = pair.v.reveal<uint64_t>();
-    topFreqs[i] = pair.f;
+    std::tie(topValues[i], topFreqs[i]) = topK[i];
   }
 }
 
@@ -250,8 +196,8 @@ void HeavyEval::print_values(bool print) const {
   for (unsigned int i = 0; i < num_values; i++) {
     uint64_t v, f;
     if (freq_and_vals) {
-      v = freq_and_vals[i].v.reveal<uint64_t>();
-      f = freq_and_vals[i].f;
+      v = freq_and_vals[i].second.reveal<uint64_t>();
+      f = freq_and_vals[i].first;
     } else {
       v = values[i].reveal<uint64_t>();
     }
@@ -402,6 +348,5 @@ void full_heavy_extract(
   ev.get_frequencies();
   // std::cout << "values and freqs: " << std::endl; ev.print_values();
   ev.sort_remove_dupes(cfg.K);
-  // std::cout << "values and freqs, sort deduped: " << std::endl; ev.print_values();
   ev.return_top_K(cfg.K, top_values, top_freqs);
 }
