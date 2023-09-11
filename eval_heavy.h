@@ -299,4 +299,25 @@ void full_heavy_extract(
     const size_t num_inputs,
     uint64_t* top_values, uint64_t* top_freqs);
 
+/*
+Possible things to toggle.
+Note that the slowest thing by far is just setting up garble for bucket
+
+Candidates:
+- full clear: reveal bucket values
+- Secure 1: use abs_cmp for compares, reveal, extract
+- Secure 2: abs_cmp, secure invert hash (TODO: figure out how)
+- Garbled: use garble (less rounds, but bigger)
+
+Count-min
+- full clear: reveal struct
+- Garble: keep struct hidden. USeful
+
+Final sort
+- clear
+- garble
+- freq in clear
+- no real other way to do efficiently
+*/
+
 #endif

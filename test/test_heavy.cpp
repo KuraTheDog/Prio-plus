@@ -9,7 +9,7 @@
 
 
 const size_t batch_size = 100; // flexible
-const int lazy = 1;
+const int lazy = 0;
 
 const bool use_ot_version = false;
 const bool use_large = false;
@@ -720,6 +720,8 @@ void runServerTest(const int server_num, const int serverfd) {
   test_HeavyConvert(server_num, serverfd, store);
   test_HeavyConvertMask_one(server_num, serverfd, store);
   test_HeavyConvertMask_two(server_num, serverfd, store);
+
+  // Lazy 1 rand bitshare doesn't work right for some reason
 
   // test_cmp_bit(server_num, serverfd, store);
   // test_rand_bitshare(server_num, serverfd, store);
