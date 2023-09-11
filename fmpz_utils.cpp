@@ -100,18 +100,16 @@ void fmpz_mod_submul_ui(fmpz_t a, const fmpz_t b, const ulong c, const fmpz_mod_
   fmpz_clear(t);
 }
 
-void to_fsigned(fmpz_t x, const fmpz_t M) {
-  fmpz_t half; fmpz_init(half);
-  fmpz_cdiv_q_ui(half, M, 2);
-  if (fmpz_cmp(x, half) > 0) {  // > N/2, negative
-    fmpz_sub(x, x, M);
-  }
+void fmpz_mod_to_signed(fmpz_t x, const fmpz_t M) {
+  fmpz_t half; fmpz_init(half); fmpz_cdiv_q_ui(half, M, 2);
+  // > M/2, negative
+  if (fmpz_cmp(x, half) > 0) fmpz_sub(x, x, M);
   fmpz_clear(half);
 }
 
-int64_t get_fsigned(const fmpz_t x, const fmpz_t M) {
+int64_t fmpz_mod_get_signed(const fmpz_t x, const fmpz_t M) {
   fmpz_t tmp; fmpz_init_set(tmp, x);
-  to_fsigned(tmp, M);
+  fmpz_mod_to_signed(tmp, M);
   int64_t ans = fmpz_get_si(tmp);
   fmpz_clear(tmp);
   return ans;

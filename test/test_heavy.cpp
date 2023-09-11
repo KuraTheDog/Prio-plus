@@ -93,13 +93,13 @@ void test_HeavyConvert(const int server_num, const int serverfd,
     fmpz_t tmp; fmpz_init(tmp);
     for (unsigned int j = 0; j < nbits; j++) {
       fmpz_mod_add(tmp, bucket0[j], bucket0_other[j], mod_ctx);
-      // std::cout << "bucket0[" << j << "] total = " << get_fsigned(tmp, Int_Modulus);
+      // std::cout << "bucket0[" << j << "] total = " << fmpz_mod_get_signed(tmp, Int_Modulus);
       // std::cout << ", \texpected = " << expected0[j] << std::endl;
-      assert(get_fsigned(tmp, Int_Modulus) == expected0[j]);
+      assert(fmpz_mod_get_signed(tmp, Int_Modulus) == expected0[j]);
       fmpz_mod_add(tmp, bucket1[j], bucket1_other[j], mod_ctx);
-      // std::cout << "bucket1[" << j << "] total = " << get_fsigned(tmp, Int_Modulus);
+      // std::cout << "bucket1[" << j << "] total = " << fmpz_mod_get_signed(tmp, Int_Modulus);
       // std::cout << ", \texpected = " << expected1[j] << std::endl;
-      assert(get_fsigned(tmp, Int_Modulus) == expected1[j]);
+      assert(fmpz_mod_get_signed(tmp, Int_Modulus) == expected1[j]);
     }
     fmpz_clear(tmp);
     clear_fmpz_array(bucket0_other, nbits);
@@ -241,13 +241,13 @@ void test_HeavyConvertMask_one(const int server_num, const int serverfd,
       fmpz_mod_add(tmp1, bucket1[i], bucket1_other[i], mod_ctx);
 
       // std::cout << "bucket[" << q << ", " << m << ", " << d << "]: ";
-      // std::cout << "0 = " << get_fsigned(tmp0, Int_Modulus);
+      // std::cout << "0 = " << fmpz_mod_get_signed(tmp0, Int_Modulus);
       // std::cout << ", expected = " << expected0[i] << ", \t";
-      // std::cout << "1 = " << get_fsigned(tmp1, Int_Modulus);
+      // std::cout << "1 = " << fmpz_mod_get_signed(tmp1, Int_Modulus);
       // std::cout << ", expected = " << expected1[i] << std::endl;
 
-      assert(get_fsigned(tmp0, Int_Modulus) == expected0[i]);
-      assert(get_fsigned(tmp1, Int_Modulus) == expected1[i]);
+      assert(fmpz_mod_get_signed(tmp0, Int_Modulus) == expected0[i]);
+      assert(fmpz_mod_get_signed(tmp1, Int_Modulus) == expected1[i]);
     }
     fmpz_clear(tmp0);
     fmpz_clear(tmp1);
@@ -398,13 +398,13 @@ void test_HeavyConvertMask_two(const int server_num, const int serverfd,
       fmpz_mod_add(tmp1, bucket1[i], bucket1_other[i], mod_ctx);
 
       // std::cout << "bucket[" << q << ", " << m1 << ", " << m2 << ", " << d << "]: ";
-      // std::cout << "0 = " << get_fsigned(tmp0, Int_Modulus);
+      // std::cout << "0 = " << fmpz_mod_get_signed(tmp0, Int_Modulus);
       // std::cout << ", expected = " << expected0[i] << ", \t";
-      // std::cout << "1 = " << get_fsigned(tmp1, Int_Modulus);
+      // std::cout << "1 = " << fmpz_mod_get_signed(tmp1, Int_Modulus);
       // std::cout << ", expected = " << expected1[i] << std::endl;
 
-      assert(get_fsigned(tmp0, Int_Modulus) == expected0[i]);
-      assert(get_fsigned(tmp1, Int_Modulus) == expected1[i]);
+      assert(fmpz_mod_get_signed(tmp0, Int_Modulus) == expected0[i]);
+      assert(fmpz_mod_get_signed(tmp1, Int_Modulus) == expected1[i]);
     }
     fmpz_clear(tmp0);
     fmpz_clear(tmp1);
@@ -485,11 +485,12 @@ void test_abs_cmp(
       }
       bool actual = fmpz_cmp(v0_tmp, v1_tmp) < 0;
 
-      std::cout << i << ": |" << get_fsigned(v0, Int_Modulus);
-      std::cout << (fmpz_is_one(larger[i]) ? "| < |" : "| > |") << get_fsigned(v1, Int_Modulus);
+      std::cout << i << ": |" << fmpz_mod_get_signed(v0, Int_Modulus);
+      std::cout << (fmpz_is_one(larger[i]) ? "| < |" : "| > |") << fmpz_mod_get_signed(v1, Int_Modulus);
       std::cout << "|, \tactual: " << (actual ? "<" : ">") << std::endl;
       // std::cout << "(" << fmpz_get_ui(val0[i]) << " + " << fmpz_get_ui(val0_other[i]) << ") = ";
-      // std::cout << get_fsigned(v0, Int_Modulus) << " vs " << get_fsigned(v1, Int_Modulus) << " = (";
+      // std::cout << fmpz_mod_get_signed(v0, Int_Modulus) << " vs ";
+      // std::cout << fmpz_mod_get_signed(v1, Int_Modulus) << " = (";
       // std::cout << fmpz_get_ui(val1[i]) << " + " << fmpz_get_ui(val1_other[i]) << ")\n";
       assert(fmpz_is_one(larger[i]) == actual);
     }
@@ -680,7 +681,7 @@ void test_sign(
       // std::cout << "val[" << i << "] = " << fmpz_get_ui(actual[i]);
       // std::cout << " has least sig bit " << fmpz_get_ui(tmp) << " = " << fmpz_get_ui(s[i]);
       // std::cout << " + " << fmpz_get_ui(other[i]) << std::endl;
-      std::cout << "val[" << i << "] = " << get_fsigned(actual[i], Int_Modulus) << " (";
+      std::cout << "val[" << i << "] = " << fmpz_mod_get_signed(actual[i], Int_Modulus) << " (";
       std::cout << fmpz_get_ui(actual[i]) << ") is ";
       std::cout << (fmpz_is_one(tmp) == 1 ? "negative" : "non-negative") << std::endl;
     }
