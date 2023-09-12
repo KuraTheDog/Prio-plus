@@ -32,7 +32,7 @@ Constants: make public value.
 
 */
 
-void test_compare(int party) {
+void test_compare(const int party) {
 
   Integer a(4, 3, ALICE);
   Integer b(4, 2, BOB);
@@ -42,7 +42,7 @@ void test_compare(int party) {
   std::cout << res.reveal<bool>() << std::endl;
 }
 
-void test_mod(int party) {
+void test_mod(const int party) {
   Integer a(4, 3, ALICE);
   Integer b(4, 2, BOB);
   Integer m(4, 4, PUBLIC);
@@ -72,7 +72,7 @@ void test_mod(int party) {
 
 }
 
-void test_hash(int party, flint_rand_t hash_seed) {
+void test_hash(const int party, flint_rand_t hash_seed) {
 
   CountMinConfig cfg(.1, .4);  // 3 hashes range 7
   const size_t input_bits = 4;  // At least >= range bits
@@ -106,7 +106,7 @@ void test_hash(int party, flint_rand_t hash_seed) {
   std::cout << "test hash passed" << std::endl;
 }
 
-void test_sort_complex(int party) {
+void test_sort_complex(const int party) {
   const unsigned int mod_val = 513;
   Integer mod(32, mod_val, PUBLIC);
 
@@ -149,7 +149,7 @@ void test_sort_complex(int party) {
   delete[] freq;
 }
 
-void test_index(int party) {
+void test_index(const int party) {
   const unsigned int mod_val = 513;
   Integer mod(32, mod_val, PUBLIC);
 
@@ -206,7 +206,7 @@ void test_index(int party) {
   std::cout << "Base index test passed" << std::endl;
 }
 
-void test_misc(int party, int num_bits = 3) {
+void test_misc(const int party, int num_bits = 3) {
 
   // Turns out ints are kind of signed.
 
@@ -220,7 +220,7 @@ void test_misc(int party, int num_bits = 3) {
   std::cout << c.reveal<int64_t>() << std::endl;
 }
 
-void test_full_sort(int party, flint_rand_t hash_seed) {
+void test_full_sort(const int party, flint_rand_t hash_seed) {
   // Phase 0: Setup
   CountMinConfig cfg(.1, .4);  // 3 hashes range 7
   const size_t input_bits = 4;  // At least >= range bits
@@ -319,7 +319,7 @@ void test_full_sort(int party, flint_rand_t hash_seed) {
   fmpz_clear(share);
 }
 
-void test_bucket_compare(int party, flint_rand_t hash_seed) {
+void test_bucket_compare(const int party, flint_rand_t hash_seed) {
   const size_t input_bits = 4;
   const size_t output_range = 2;  // must be 2
   const size_t depth = input_bits;
@@ -362,18 +362,20 @@ void test_bucket_compare(int party, flint_rand_t hash_seed) {
   // eval.print_params(party == ALICE);
 
   eval.set_buckets(bucket0, bucket1);
+  clear_fmpz_array(bucket0, num_pairs);
+  clear_fmpz_array(bucket1, num_pairs);
   // eval.print_buckets(party == ALICE);
 
   eval.bucket_compare();
-  eval.print_cmp();
+  // eval.print_cmp();
 
-  clear_fmpz_array(bucket0, num_pairs);
-  clear_fmpz_array(bucket1, num_pairs);
+  // TODO: asserts
+
   fmpz_clear(tmp);
   fmpz_clear(tmp2);
 }
 
-void test_extract(int party, flint_rand_t hash_seed) {
+void test_extract(const int party, const int sockfd, flint_rand_t hash_seed) {
   const size_t input_bits = 3;
   const size_t output_range = 2;  // test built only to support 2
   const size_t depth = input_bits;
@@ -465,12 +467,20 @@ void test_extract(int party, flint_rand_t hash_seed) {
   }
 }
 
-void run(int party, int port) {
+void run(const int party, int port) {
   init_constants();
   // Fork. Party 1, 2. same port. Not using sockets
 
   flint_rand_t hash_seed;
   flint_randinit(hash_seed);
+
+  int sockfd = 0; int tmp_sock = 0;
+  if (party == ALICE) {
+    sockfd = init_sender();
+  } else {
+    tmp_sock = init_receiver();
+    sockfd = accept_receiver(tmp_sock);
+  }
 
   OT_Wrapper* ot0 = new OT_Wrapper(party == ALICE ? nullptr : "127.0.0.1", 60051);
   OT_Wrapper* ot1 = new OT_Wrapper(party == BOB ? nullptr : "127.0.0.1", 60052);
@@ -519,7 +529,7 @@ void run(int party, int port) {
   test_full_sort(party, hash_seed);
 
   // test_bucket_compare(party, hash_seed);
-  test_extract(party, hash_seed);
+  test_extract(party, sockfd, hash_seed);
 
   io->flush();
 
@@ -529,6 +539,7 @@ void run(int party, int port) {
   // delete io;  // gets deleted with ot0
   delete ot0;
   delete ot1;
+  close(sockfd); if (party == ALICE) close(tmp_sock);
   clear_constants();
 }
 
