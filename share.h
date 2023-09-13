@@ -16,6 +16,7 @@ struct Cor {
         fmpz_init(E);
     }
 
+    // Build out of shares
     Cor(const Cor* const x, const Cor* const y);
 
     ~Cor(){
@@ -107,27 +108,7 @@ struct ClientPacket {
         delete triple;
     }
 
-    void print() const {
-        std::cout << " NMul = " << NMul << "\n";
-        std::cout << " N = " << N << "\n";
-        std::cout << " MulShares = {";
-        for (unsigned int i = 0; i < NMul; i++) {
-            if (i > 0)
-                std::cout << ", ";
-            fmpz_print(MulShares[i]);
-        }
-        std::cout << "}\n";
-        std::cout << " f0_s = " << fmpz_get_ui(f0_s) << "\n";
-        std::cout << " g0_s = " << fmpz_get_ui(g0_s) << "\n";
-        std::cout << " h0_s = " << fmpz_get_ui(h0_s) << "\n";
-        std::cout << " h_points = {";
-        for (unsigned int i = 0; i < N; i++) {
-            if (i > 0)
-                std::cout << ", ";
-            fmpz_print(h_points[i]);
-        }
-        std::cout << "}" << std::endl;
-    }
+    void print() const;
 };
 
 struct DaBit {

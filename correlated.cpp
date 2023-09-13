@@ -950,6 +950,7 @@ int64_t CorrelatedStore::cmp_bit(
   return sent_bytes;
 }
 
+// TODO: precompute. Test checks range? Other things
 // random r, with rb bitshares of bits, conditioned on r < p
 // Make each bit in parallel: [ri in {0,1}]p
 // check if [r < p] bitwise, retry if not

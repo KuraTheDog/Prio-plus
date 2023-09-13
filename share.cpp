@@ -36,6 +36,28 @@ Cor::Cor(const Cor* const x, const Cor* const y) : Cor() {
     fmpz_mod_add(E, x->E, y->E, mod_ctx);
 }
 
+void ClientPacket::print() const {
+    std::cout << " NMul = " << NMul << "\n";
+    std::cout << " N = " << N << "\n";
+    std::cout << " MulShares = {";
+    for (unsigned int i = 0; i < NMul; i++) {
+        if (i > 0)
+            std::cout << ", ";
+        fmpz_print(MulShares[i]);
+    }
+    std::cout << "}\n";
+    std::cout << " f0_s = " << fmpz_get_ui(f0_s) << "\n";
+    std::cout << " g0_s = " << fmpz_get_ui(g0_s) << "\n";
+    std::cout << " h0_s = " << fmpz_get_ui(h0_s) << "\n";
+    std::cout << " h_points = {";
+    for (unsigned int i = 0; i < N; i++) {
+        if (i > 0)
+            std::cout << ", ";
+        fmpz_print(h_points[i]);
+    }
+    std::cout << "}" << std::endl;
+}
+
 void makeLocalBoolTriple(BooleanBeaverTriple* const out0, BooleanBeaverTriple* const out1) {
     fmpz_t r; fmpz_init(r);
     fmpz_randbits(r, seed, 5);
@@ -46,7 +68,7 @@ void makeLocalBoolTriple(BooleanBeaverTriple* const out0, BooleanBeaverTriple* c
     out0->c = fmpz_tstbit(r, 4);
     fmpz_clear(r);
 
-    out1->c = out0->c ^ ((out0->a ^ out1->a) & (out0->b ^ out1->b));
+    out1->c = out0->c ^ ((out0->a ^ out1->a) && (out0->b ^ out1->b));
 }
 
 void makeLocalTriple(BeaverTriple* const out0, BeaverTriple* const out1) {
