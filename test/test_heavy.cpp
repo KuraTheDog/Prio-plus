@@ -486,7 +486,8 @@ void test_abs_cmp(
       bool actual = fmpz_cmp(v0_tmp, v1_tmp) < 0;
 
       std::cout << i << ": |" << fmpz_mod_get_signed(v0, Int_Modulus);
-      std::cout << (fmpz_is_one(larger[i]) ? "| < |" : "| > |") << fmpz_mod_get_signed(v1, Int_Modulus);
+      std::cout << (fmpz_is_one(larger[i]) ? "| < |" : "| > |");
+      std::cout << fmpz_mod_get_signed(v1, Int_Modulus);
       std::cout << "|, \tactual: " << (actual ? "<" : ">") << std::endl;
       // std::cout << "(" << fmpz_get_ui(val0[i]) << " + " << fmpz_get_ui(val0_other[i]) << ") = ";
       // std::cout << fmpz_mod_get_signed(v0, Int_Modulus) << " vs ";
@@ -590,61 +591,43 @@ void test_cmp_bit(
 void test_rand_bitshare(
     const int server_num, const int serverfd, CorrelatedStore* store) {
   const size_t N = 10;
-  const size_t b = nbits_mod;
+  fmpz_t M; fmpz_init_set(M, Int_Modulus);
+  const size_t b = fmpz_clog_ui(Int_Modulus, 2);
 
   store->check_DaBits(3 * N * b);
   store->check_Triples(4 * 3 * N * b);
-
-  std::cout << "running" << std::endl;
 
   fmpz_t* r; new_fmpz_array(&r, N);
   fmpz_t* r_B; new_fmpz_array(&r_B, N * b);
   store->gen_rand_bitshare(N, r, r_B);
   // ((PrecomputeStore*)store)->print_Sizes();
 
-  if (server_num == 0) {
-    fmpz_t* r_other; new_fmpz_array(&r_other, N);
-    fmpz_t* r_B_other; new_fmpz_array(&r_B_other, N * b);
-    recv_fmpz_batch(serverfd, r_other, N);
-    recv_fmpz_batch(serverfd, r_B_other, N * b);
+  reveal_fmpz_batch(serverfd, r, N);
+  reveal_fmpz_batch(serverfd, r_B, N * b);
 
-    fmpz_t got; fmpz_init(got);
-    fmpz_t bit; fmpz_init(bit);
+  fmpz_t bit_val; fmpz_init(bit_val);
 
-    std::cout << "P = " << fmpz_get_ui(Int_Modulus) << " (" << b << " bits)" << std::endl;
+  // std::cout << "M = " << fmpz_get_ui(M) << " (" << b << " bits)" << std::endl;
 
-    size_t keep = 0;
-
-    for (unsigned int i = 0; i < N; i++) {
-      fmpz_mod_add(got, r[i], r_other[i], mod_ctx);
-      // std::cout << "got r = " << fmpz_get_ui(got) << std::endl;
-      // std::cout << " binary: ";
-      fmpz_zero(r[i]);  // reuse as array
-      for (int j = b - 1; j >= 0; --j) {  // For printing binary
-        fmpz_mod_add(bit, r_B[i * b + j], r_B_other[i * b + j], mod_ctx);
-        // std::cout << " bit " << j << " = " << fmpz_get_ui(bit) << " (" << fmpz_get_ui(r_B[i * b + j]);
-        // std::cout << " + " << fmpz_get_ui(r_B_other[i * b + j]) << ")" << std::endl;
-        fmpz_addmul_ui(r[i], bit, 1ULL << j);
-      }
-      // std::cout << std::endl;
-      // std::cout << " bit number: " << fmpz_get_ui(r[i]) << std::endl;
-      // 0 if equal (fine), -1 if got < r[i] (not fine)
-      if (fmpz_cmp(got, r[i]) == 0) {
-        keep += 1;
-      }
+  for (unsigned int i = 0; i < N; i++) {
+    // fmpz_mod_add(val, r[i], r_other[i], mod_ctx);
+    // if (server_num == 0) std::cout << "val r = " << fmpz_get_ui(r[i]) << std::endl;
+    fmpz_zero(bit_val);
+    for (int j = 0; j < b; j++) {
+      // if (server_num == 0) std::cout << " bit " << j << " = " << fmpz_get_ui(r_B[i * b + j]) << std::endl;
+      fmpz_addmul_ui(bit_val, r_B[i * b + j], 1ULL << j);
     }
-    std::cout << "keepable: " << keep << "/" << N << " = " << ((float)keep)/N << std::endl;
-
-    fmpz_clear(got);
-    fmpz_clear(bit);
-    clear_fmpz_array(r_other, N);
-    clear_fmpz_array(r_B_other, N * b);
-  } else {
-    send_fmpz_batch(serverfd, r, N);
-    send_fmpz_batch(serverfd, r_B, N * b);
+    // if (server_num == 0) std::cout << " bit val: " << fmpz_get_ui(bit_val) << std::endl;
+    // Ensure rB represent r
+    assert(fmpz_equal(r[i], bit_val));
+    // Ensure r < M
+    assert(fmpz_cmp(r[i], M) < 0);
   }
+
+  fmpz_clear(bit_val);
   clear_fmpz_array(r, N);
   clear_fmpz_array(r_B, N * b);
+  fmpz_clear(M);
 }
 
 void test_sign(
@@ -724,7 +707,7 @@ void runServerTest(const int server_num, const int serverfd) {
   // Lazy 1 rand bitshare doesn't work right for some reason
 
   // test_cmp_bit(server_num, serverfd, store);
-  // test_rand_bitshare(server_num, serverfd, store);
+  test_rand_bitshare(server_num, serverfd, store);
   // test_sign(server_num, serverfd, store);
   test_abs_cmp(server_num, serverfd, store);
 
