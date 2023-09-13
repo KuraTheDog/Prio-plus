@@ -224,12 +224,12 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
     std::unordered_map<std::string, bool> share_map;
     auto start = clock_start();
 
-    BitShare share;
+    BoolShare share;
     const unsigned int total_inputs = msg.num_of_inputs;
 
     int cli_bytes = 0;
     for (unsigned int i = 0; i < total_inputs; i++) {
-        cli_bytes += recv_in(clientfd, &share, sizeof(BitShare));
+        cli_bytes += recv_in(clientfd, &share, sizeof(BoolShare));
         const std::string tag(share.tag, share.tag + TAG_LENGTH);
         if (share_map.find(tag) != share_map.end())
             continue;

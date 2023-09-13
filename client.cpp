@@ -187,8 +187,8 @@ int bit_sum_helper(const std::string protocol, const size_t numreqs,
     // Can't use a fixed key, or serial will have the same key every time
     emp::PRG prg;
 
-    BitShare* const bitshare0 = new BitShare[numreqs];
-    BitShare* const bitshare1 = new BitShare[numreqs];
+    BoolShare* const BoolShare0 = new BoolShare[numreqs];
+    BoolShare* const BoolShare1 = new BoolShare[numreqs];
     for (unsigned int i = 0; i < numreqs; i++) {
         prg.random_bool(&real_val, 1);
         prg.random_bool(&share0, 1);
@@ -201,23 +201,23 @@ int bit_sum_helper(const std::string protocol, const size_t numreqs,
         // std::cout << tag << ": " << std::noboolalpha << real_vals[i];
         // std::cout << " = " << shares0[i] << " ^ " << shares1[i] << std::endl;
 
-        memcpy(bitshare0[i].tag, &tag[0], TAG_LENGTH);
-        bitshare0[i].val = share0;
+        memcpy(BoolShare0[i].tag, &tag[0], TAG_LENGTH);
+        BoolShare0[i].val = share0;
 
-        memcpy(bitshare1[i].tag, &tag[0], TAG_LENGTH);
-        bitshare1[i].val = share1;
+        memcpy(BoolShare1[i].tag, &tag[0], TAG_LENGTH);
+        BoolShare1[i].val = share1;
     }
     if (numreqs > 1)
         std::cout << "batch make:\t" << sec_from(start) << std::endl;
 
     start = clock_start();
     for (unsigned int i = 0; i < numreqs; i++) {
-        sent_bytes += send_to_server(0, &bitshare0[i], sizeof(BitShare));
-        sent_bytes += send_to_server(1, &bitshare1[i], sizeof(BitShare));
+        sent_bytes += send_to_server(0, &BoolShare0[i], sizeof(BoolShare));
+        sent_bytes += send_to_server(1, &BoolShare1[i], sizeof(BoolShare));
     }
 
-    delete[] bitshare0;
-    delete[] bitshare1;
+    delete[] BoolShare0;
+    delete[] BoolShare1;
 
     if (numreqs > 1)
         std::cout << "batch send:\t" << sec_from(start) << std::endl;
@@ -272,7 +272,7 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
     int ans = 0;
     std::string tag_str = "";
     for (unsigned int i = 0; i < numreqs; i++) {
-        BitShare share0, share1;
+        BoolShare share0, share1;
         const char* prev_tag = tag_str.c_str();
         tag_str = pub_key_to_hex((uint64_t*)&b[i]);
         const char* const tag = tag_str.c_str();
@@ -299,8 +299,8 @@ void bit_sum_invalid(const std::string protocol, const size_t numreqs) {
         if (i == 4)
             memcpy(share1.tag, &prev_tag[0], TAG_LENGTH);
 
-        send_to_server(0, &share0, sizeof(BitShare));
-        send_to_server(1, &share1, sizeof(BitShare));
+        send_to_server(0, &share0, sizeof(BoolShare));
+        send_to_server(1, &share1, sizeof(BoolShare));
     }
     std::cout << "Ans : " << ans << std::endl;
 

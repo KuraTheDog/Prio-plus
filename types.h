@@ -3,7 +3,7 @@
 
 #define TAG_LENGTH 32
 
-struct BitShare {
+struct BoolShare {
     char tag[TAG_LENGTH];
     bool val;
 };
