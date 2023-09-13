@@ -22,9 +22,7 @@ const DaBit* const CorrelatedStore::get_DaBit() {
 
 const BeaverTriple* const CorrelatedStore::get_Triple() {
   if (lazy == 3) {
-    BeaverTriple* triple = new BeaverTriple();
-    fmpz_zero(triple->A); fmpz_zero(triple->B); fmpz_zero(triple->C);
-    return triple;
+    return new BeaverTriple();
   }
 
   check_Triples(1);
@@ -1317,22 +1315,6 @@ int64_t PrecomputeStore::gen_DaBits(const size_t N, DaBit** const dabit) const {
 int64_t PrecomputeStore::gen_DaBits_lazy(
     const size_t N, DaBit** const dabit) const {
   int64_t sent_bytes = 0;
-  // for (unsigned int i = 0; i < N; i++)
-  //   dabit[i] = new DaBit();
-  // if (server_num == 0) {
-  //   DaBit** const dabit_other = new DaBit*[N];
-  //   for (unsigned int i = 0; i < N; i++) {
-  //     dabit_other[i] = new DaBit();
-  //     makeLocalDaBit(dabit[i], dabit_other[i]);
-  //   }
-  //   sent_bytes += send_DaBit_batch(serverfd, dabit_other, N);
-  //   for (unsigned int i = 0; i < N; i++)
-  //     delete dabit_other[i];
-  //   delete[] dabit_other;
-  // } else {
-  //   recv_DaBit_batch(serverfd, dabit, N);
-  // }
-
   // gen_rand_bitshare uses bp, and keeps trying until it satisfies a condition.
   // So just looping through slowly causes it to take far too long.
   // Therefore, we do with common random instead.
@@ -1385,22 +1367,6 @@ int64_t PrecomputeStore::gen_Triple_lazy(
 int64_t PrecomputeStore::gen_BoolTriple_lazy(
     const size_t N, BooleanBeaverTriple** const triples) const {
   int64_t sent_bytes = 0;
-
-  // for (unsigned int i = 0; i < N; i++)
-  //   triples[i] = new BooleanBeaverTriple();
-  // if (server_num == 0) {
-  //   BooleanBeaverTriple** const triples_other = new BooleanBeaverTriple*[N];
-  //   for (unsigned int i = 0; i < N; i++) {
-  //     triples_other[i] = new BooleanBeaverTriple();
-  //     makeLocalBoolTriple(triples[i], triples_other[i]);
-  //   }
-  //   sent_bytes += send_BoolTriple_batch(serverfd, triples_other, N);
-  //   for (unsigned int i = 0; i < N; i++)
-  //     delete triples_other[i];
-  //   delete[] triples_other;
-  // } else {
-  //   recv_BoolTriple_batch(serverfd, triples, N);
-  // }
 
   if (server_num == 0) {
     for (unsigned int i = 0; i < N; i++) {

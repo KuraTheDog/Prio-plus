@@ -87,13 +87,11 @@ int recv_uint32(const int sockfd, uint32_t& x);
 
 int send_uint64(const int sockfd, const uint64_t x);
 int recv_uint64(const int sockfd, uint64_t& x);
-
 int send_uint64_batch(const int sockfd, const uint64_t* const x, const size_t n);
 int recv_uint64_batch(const int sockfd, uint64_t* const x, const size_t n);
 
 int send_ulong(const int sockfd, const ulong x);
 int recv_ulong(const int sockfd, ulong& x);
-
 int send_ulong_batch(const int sockfd, const ulong* const x, const size_t n);
 int recv_ulong_batch(const int sockfd, ulong* const x, const size_t n);
 
@@ -122,7 +120,6 @@ int recv_seed(const int sockfd, flint_rand_t x);
 
 int send_Cor(const int sockfd, const Cor* const x);
 int recv_Cor(const int sockfd, Cor* const x);
-
 int send_Cor_batch(const int sockfd, const Cor* const * const x, const size_t n);
 int recv_Cor_batch(const int sockfd, Cor* const * const x, const size_t n);
 int reveal_Cor_batch(const int sockfd, Cor* const * const x, const size_t n);
@@ -142,14 +139,11 @@ int recv_BoolTriple_batch(const int sockfd, BooleanBeaverTriple* const * const x
 
 int send_AltTriple(const int sockfd, const AltTriple* const x);
 int recv_AltTriple(const int sockfd, AltTriple* const x);
-
 int send_AltTriple_batch(const int sockfd, const AltTriple* const * const x, const size_t n);
 int recv_AltTriple_batch(const int sockfd, AltTriple* const * const x, const size_t n);
 
-// Bits stuff
 int send_DaBit(const int sockfd, const DaBit* const x);
 int recv_DaBit(const int sockfd, DaBit* const x);
-
 int send_DaBit_batch(const int sockfd, const DaBit* const * const x, const size_t n);
 int recv_DaBit_batch(const int sockfd, DaBit* const * const x, const size_t n);
 
