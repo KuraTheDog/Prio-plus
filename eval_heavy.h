@@ -319,5 +319,14 @@ Final sort
 - freq in clear
 - no real other way to do efficiently
 */
+// Full clear cmp, also reveals bucket value
+bool* bucket_compare_clear(const int serverfd, const size_t N,
+    const fmpz_t* const bucket0, const fmpz_t* const bucket1);
+
+// Given clear cmp, eval candidates
+void extract_candidates_clear(
+    const size_t R, const size_t Q, const size_t B, const size_t D,
+    const size_t input_bits, const HashStoreBit& store,
+    const bool* const cmp, uint64_t* const candidates);
 
 #endif

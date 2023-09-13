@@ -440,30 +440,49 @@ void test_extract(const int party, const int sockfd, flint_rand_t hash_seed) {
 
   // 2 on one side, 1 on the other, for +3
   // n(n+1)/2, with i+1 stuff
-  const unsigned int total = 3 * (num_candidates + 1) * num_candidates / 2;
+  [[maybe_unused]] const unsigned int total = 3 * (num_candidates + 1) * num_candidates / 2;
 
-  // Run
-  HeavyExtract eval(party, store, num_copies, num_groups, num_substreams,
-      depth, total);
-  // eval.print_params(party == ALICE);
+  const int method = 1;
 
-  eval.set_buckets(bucket0, bucket1);
-  clear_fmpz_array(bucket0, num_pairs);
-  clear_fmpz_array(bucket1, num_pairs);
-  // eval.print_buckets(party == ALICE);
+  if (method == 0) {
+    // Run
+    HeavyExtract eval(party, store, num_copies, num_groups, num_substreams,
+        depth, total);
+    // eval.print_params(party == ALICE);
 
-  eval.bucket_compare();
-  // eval.print_cmp(party == ALICE);
+    eval.set_buckets(bucket0, bucket1);
+    clear_fmpz_array(bucket0, num_pairs);
+    clear_fmpz_array(bucket1, num_pairs);
+    // eval.print_buckets(party == ALICE);
 
-  eval.extract_candidates();
-  // eval.print_candidates(party == ALICE);
+    eval.bucket_compare();
+    // eval.print_cmp(party == ALICE);
 
+    eval.extract_candidates();
+    // eval.print_candidates(party == ALICE);
 
-  Integer* candidates = eval.get_candidates();
-  for (unsigned int i = 0; i < num_candidates; i++) {
-    uint64_t v = candidates[i].reveal<uint64_t>();
-    uint64_t expected = (i/num_substreams) % num_groups;
-    assert(v == expected);
+    Integer* candidates = eval.get_candidates();
+    for (unsigned int i = 0; i < num_candidates; i++) {
+      uint64_t v = candidates[i].reveal<uint64_t>();
+      uint64_t expected = (i/num_substreams) % num_groups;
+      // std::cout << "got[" << i << "]: " << v << ", expected = " << expected << std::endl;
+      assert(v == expected);
+    }
+  } else if (method == 1) {
+    bool* cmp = bucket_compare_clear(sockfd, num_pairs, bucket0, bucket1);
+    uint64_t* candidates = new uint64_t[num_candidates];
+    extract_candidates_clear(num_copies, num_groups, num_substreams, depth,
+        input_bits, store, cmp, candidates);
+    delete[] cmp;
+
+    for (unsigned int i = 0; i < num_candidates; i++) {
+      uint64_t v = candidates[i];
+      uint64_t expected = (i/num_substreams) % num_groups;
+      // std::cout << "got[" << i << "]: " << v << ", expected = " << expected << std::endl;
+      assert(v == expected);
+    }
+
+    delete[] candidates;
   }
 }
 

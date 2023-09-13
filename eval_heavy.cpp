@@ -1,6 +1,7 @@
 #include <set>
 
 #include "eval_heavy.h"
+#include "net_share.h"
 
 void HeavyEval::parse_countmin() {
   countmin_values = new Integer[num_hashes * hash_range];
@@ -349,4 +350,75 @@ void full_heavy_extract(
   // std::cout << "values and freqs: " << std::endl; ev.print_values();
   ev.sort_remove_dupes(cfg.K);
   ev.return_top_K(cfg.K, top_values, top_freqs);
+}
+
+bool* bucket_compare_clear(
+    const int serverfd, const size_t N,
+    const fmpz_t* const bucket0, const fmpz_t* const bucket1) {
+  // const size_t N = R * Q * B * D;
+  bool* const cmp = new bool[N];
+  // Reveal buckets. Double send instead of extra copy into buff
+  fmpz_t* buff0; new_fmpz_array(&buff0, N);
+  fmpz_t* buff1; new_fmpz_array(&buff1, N);
+  std::thread t_send([serverfd, bucket0, bucket1, N]() {
+    send_fmpz_batch(serverfd, bucket0, N);
+    send_fmpz_batch(serverfd, bucket1, N);
+  });
+  std::thread t_recv([serverfd, &buff0, &buff1, N]() {
+    recv_fmpz_batch(serverfd, buff0, N);
+    recv_fmpz_batch(serverfd, buff1, N);
+  });
+  t_send.join();
+  t_recv.join();
+
+  // Not using util, to reuse half declare
+  fmpz_t half; fmpz_init(half); fmpz_cdiv_q_ui(half, Int_Modulus, 2);
+  for (unsigned int i = 0; i < N; i++) {
+    fmpz_mod_add(buff0[i], bucket0[i], buff0[i], mod_ctx);
+    fmpz_mod_add(buff1[i], bucket1[i], buff1[i], mod_ctx);
+    // Abs: if > M/2, then x = x-M < 0, so |x| = M - x
+    if (fmpz_cmp(buff0[i], half) > 0) fmpz_sub(buff0[i], Int_Modulus, buff0[i]);
+    if (fmpz_cmp(buff1[i], half) > 0) fmpz_sub(buff1[i], Int_Modulus, buff1[i]);
+    cmp[i] = (fmpz_cmp(buff0[i], buff1[i]) < 0);
+  }
+  fmpz_clear(half);
+
+  return cmp;
+}
+
+void extract_candidates_clear(
+    const size_t R, const size_t Q, const size_t B, const size_t D,
+    const size_t input_bits, const HashStoreBit& store,
+    const bool* const cmp, uint64_t* const candidates) {
+
+  // Compute candidates, size R * Q * B
+  unsigned int val_idx = 0;
+  // Global repeats R
+  for (unsigned int r = 0; r < R; r++) {
+    // Row repeat Q. Determines hash
+    for (unsigned int q = 0; q < Q; q++) {
+      // Which substream. Builds value for R*Q*B
+      for (unsigned int b = 0; b < B; b++) {
+        uint64_t value = 0;
+        // Solving over bits of value
+        for (unsigned int bit = 0; bit < input_bits; bit++) {
+          // Since do value % 2 at the end, just short circuit
+          bool parity = false;
+          // Over depth, inverting and adding (mod 2)
+          for (unsigned int d = 0; d < D; d++) {
+            const unsigned int cmp_idx = val_idx * D + d;
+            // Coeffs are 0 or 1, and fixed
+            if (cmp[cmp_idx] and store.get_inv_coeff(q, bit, d) == 1) {
+              parity ^= 1;
+            }
+          }
+          // += parity << bit
+          if (parity)
+            value += (1ULL << bit);
+        }
+        candidates[val_idx] = value;
+        val_idx++;
+      }
+    }
+  }
 }
