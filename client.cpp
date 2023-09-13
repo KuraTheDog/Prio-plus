@@ -2112,7 +2112,7 @@ void top_k_op(const std::string protocol, const size_t numreqs,
     msg.type = TOP_K_OP;
 
     // Temp
-    size_t R = num_bits;
+    size_t R = num_bits/2;
 
     MultiHeavyConfig cfg(K, delta, num_bits, eps, R);
 

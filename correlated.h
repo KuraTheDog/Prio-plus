@@ -364,7 +364,7 @@ public:
     Bit shares here are additive, while edabit bit shares are boolean.
   */
   int64_t gen_rand_bitshare(const size_t N, fmpz_t* const r, fmpz_t* const rB);
-  // Extracts shares of the least significant bit of additive secret [x]
+  // Extracts shares [x0]^A of the least significant bit of additive secret [x]
   int64_t LSB(const size_t N, const fmpz_t* const x, fmpz_t* const x0);
   // Returns share of
   //    1 if x is negative (x > p/2)

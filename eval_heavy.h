@@ -21,6 +21,8 @@ Run:
 - garbleIO->flush()
 End:
 finalize_semi_honest();
+
+Note: Seem to need to set up sockets beforehand.
 */
 
 /*
@@ -28,12 +30,7 @@ Pieces can be abstracted out
 But for now, in one struct so easier to access various attributes.
 Mostly one-time, but can call with multiple K I guess.
 Can theoretically be one big function with sub-functions.
-Currently split for clarity of use / debugging.
-
-There may be better ways of de-duping, but this should be fine.
-- Challenge is to keep it oblivious. same work if all dupes and no dupes.
-- Can't track how many distinct values seen
-- Can't pre-prune list of candidates.
+Currently split for clarity of use / debugging, and for replacements
 
 Note: emp::ALICE is 1, emp::BOB is 2. (Using server_num + 1)
 */
@@ -303,15 +300,26 @@ void full_heavy_extract(
 Possible things to toggle.
 Note that the slowest thing by far is just setting up garble for bucket
 
-Candidates:
-- full clear: reveal bucket values
-- Secure 1: use abs_cmp for compares, reveal, extract
-- Secure 2: abs_cmp, secure invert hash (TODO: figure out how)
-- Garbled: use garble (less rounds, but bigger)
+Buckets:
+- clear: reveal bucket values
+- precompute: using abs_cmp. Gives arithmetic shares of cmp
+  - TODO: figure out if can do boolean shares
+- Garble
+
+Extract:
+- clear: clear cmp in, clear value out
+- secure: [cmp] in, [value] out
+  - TODO: Requires cmp ^ parity
+  - Seems straightforward if [cmp] is bool. TODO: see if LSB can return bool
+  - if [cmp]^A, then need mult round for xor
+    - xor(list), so multiple rounds, oof
+  - Final is sum_{parity_i * 1<<i} essentially
+  - so b2A round to get final values
+- garble
 
 Count-min
 - full clear: reveal struct
-- Garble: keep struct hidden. USeful
+- Garble: keep struct hidden. Useful
 
 Final sort
 - clear
@@ -322,6 +330,9 @@ Final sort
 // Full clear cmp, also reveals bucket value
 bool* bucket_compare_clear(const int serverfd, const size_t N,
     const fmpz_t* const bucket0, const fmpz_t* const bucket1);
+
+// Abs_cmp, in correlated
+// TODO: Investigate if can have it return bool efficiently
 
 // Given clear cmp, eval candidates
 void extract_candidates_clear(
