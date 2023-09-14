@@ -274,12 +274,15 @@ void test_full_sort(const int party, flint_rand_t hash_seed) {
   // if (party == ALICE) std::cout << "parsed values: \n";
   // heavy_eval.print_values(party == ALICE);
 
-  // Step 3: get frequencies
+  // Step 3: Eval hashes
+  heavy_eval.get_hashes();
+
+  // Step 4: get frequencies
   heavy_eval.get_frequencies();
   // if (party == ALICE) std::cout << "parsed values with freqs:\n";
   // heavy_eval.print_values(party == ALICE);
 
-  // Step 4: Sort and remove dupes
+  // Step 5: Sort and remove dupes
   heavy_eval.sort_remove_dupes(K);
   // if (party == ALICE) std::cout << "sorted values with freqs:\n";
   // heavy_eval.print_values(party == ALICE);
@@ -287,7 +290,7 @@ void test_full_sort(const int party, flint_rand_t hash_seed) {
   uint64_t* top_values = new uint64_t[K];
   uint64_t* top_freqs = new uint64_t[K];
 
-  // Step 5: extract out top K, return
+  // Step 6: extract out top K, return
   heavy_eval.return_top_K(K, top_values, top_freqs);
 
   // Check
@@ -497,16 +500,16 @@ void run(const int party, int port) {
   OT_Wrapper* ot0 = new OT_Wrapper(party == ALICE ? nullptr : "127.0.0.1", 60051);
   OT_Wrapper* ot1 = new OT_Wrapper(party == BOB ? nullptr : "127.0.0.1", 60052);
 
-  std::cout << "Party " << party << " setting up semi-honest for garble" << std::endl;
+  // std::cout << "Party " << party << " setting up semi-honest for garble" << std::endl;
   // NetIO* io = new NetIO(party==BOB ? nullptr : "127.0.0.1", port);
   // Somehow new io, and ot1->io dont' like to work.
   NetIO* io = ot0->io;
-  std::cout << "Party " << party << " setting up io with addr ";
-  std::cout << (party==BOB ? "none" : "127.0.0.1");
-  std::cout << " and port " << port << std::endl;
+  // std::cout << "Party " << party << " setting up io with addr ";
+  // std::cout << (party==BOB ? "none" : "127.0.0.1");
+  // std::cout << " and port " << port << std::endl;
 
   setup_semi_honest(io, party);
-  std::cout << "Party " << party << " semi-honest for garble set up" << std::endl;
+  // std::cout << "Party " << party << " semi-honest for garble set up" << std::endl;
 
   // Use some OT, since garble shares IO with OT.
   uint64_t data0[2] = {10, 20};

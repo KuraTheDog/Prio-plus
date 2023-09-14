@@ -95,6 +95,7 @@ struct HeavyEval {
   Integer* values = nullptr;
   // if values is Integer[] from elsewhere, don't double delete
   bool values_is_new = true;
+  Integer* hashes = nullptr;
   FreqVal* freq_and_vals = nullptr;
   typedef std::pair<uint64_t, uint64_t> pair;
   pair* topK = nullptr;
@@ -123,6 +124,7 @@ struct HeavyEval {
   ~HeavyEval() {
     delete[] countmin_values;
     if (values_is_new) delete[] values;
+    delete[] hashes;
     delete[] freq_and_vals;
     delete[] topK;
   };
@@ -159,12 +161,23 @@ struct HeavyEval {
   // Gates: 2 * nbits * num_hashes
   Integer min(Integer* array);
 
-  /* Get frequency estimate of input
+  // Populate hashes
+  // Gates: num_values * num_hashes * eval_hash
+  void get_hashes();
+
+  /* Get frequency estimate of input from input.
+  Unused, replaced by populating hashes
   input: input_bits
   output: in the clear, since value still hidden
-  Gates: num_hashes * (eval + get) + min
+  Gates: num_hashes * (eval + get_at) + min
   */
   uint64_t get_freq(Integer input);
+
+  /* Populate frequencies using hashes
+  Also clears out hashes and count-min
+  Gates: num_values * (num_hashes * get_at + min)
+  */
+  void get_frequencies();
 
   /* Reveals just frequencies, but not values, which is minimal leakage
      No gates used, since ops on revealed only
@@ -177,15 +190,16 @@ struct HeavyEval {
   // Populate values with inputs as Integers with input_bits
   // Input is Local secret shares for "party".
   // Gates (non-int): (4 * share_bits - 2) * num
-  // Num (= num_values) of them.
+  // Sets num_values = Num
   void set_values(const fmpz_t* const input_shares, const size_t num);
-  // Mostly for testing
   void set_values(const uint64_t* const input_shares, const size_t num);
   // Integer candidate objects from Extract
   void set_values(Integer* inputs, const size_t num);
-  // Populate frequencies using values
-  // Gates: num_values * get_freq
-  void get_frequencies();
+
+  // Populate hashes
+  // Gates: num_values * num_hashes * AddMod
+  void set_hashes(const fmpz_t* const shares);
+  void set_hashes(const uint64_t* const shares);
 
   void return_top_K(const size_t K, uint64_t* const topValues,
       uint64_t* const topFreqs);

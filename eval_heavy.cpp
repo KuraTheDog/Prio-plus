@@ -71,6 +71,15 @@ Integer HeavyEval::min(Integer* array) {
   return ret;
 }
 
+void HeavyEval::get_hashes() {
+  if (!values) error_exit("values not set");
+  hashes = new Integer[num_values * num_hashes];
+
+  for (unsigned int i = 0; i < num_values; i++)
+    for (unsigned int j = 0; j < num_hashes; j++)
+      hashes[i * num_hashes + j] = eval_hash(values[i], j);
+}
+
 uint64_t HeavyEval::get_freq(Integer input) {
   Integer* const estimates = new Integer[num_hashes];
 
@@ -82,6 +91,27 @@ uint64_t HeavyEval::get_freq(Integer input) {
   Integer ret = min(estimates);
   delete[] estimates;
   return ret.reveal<uint64_t>();
+}
+
+void HeavyEval::get_frequencies() {
+  if (!values) error_exit("values not set");
+  if (!hashes) error_exit("hashes not set");
+  freq_and_vals = new FreqVal[num_values];
+
+  Integer* const estimates = new Integer[num_hashes];
+
+  for (unsigned int i = 0; i < num_values; i++) {
+    for (unsigned int j = 0; j < num_hashes; j++) {
+      estimates[j] = get_at_index(j, hashes[i * num_hashes + j]);
+    }
+    Integer freq = min(estimates);
+    freq_and_vals[i] = FreqVal(freq.reveal<uint64_t>(), values[i]);
+  }
+
+  delete[] estimates;
+
+  delete[] hashes; hashes = nullptr;
+  delete[] countmin_values; countmin_values = nullptr;
 }
 
 void HeavyEval::sort_remove_dupes(const size_t K) {
@@ -158,11 +188,29 @@ void HeavyEval::set_values(const uint64_t* const input_shares, const size_t num)
   }
 }
 
-void HeavyEval::get_frequencies() {
-  if (!values) error_exit("values not set");
-  freq_and_vals = new FreqVal[num_values];
-  for (unsigned int i = 0; i < num_values; i++) {
-    freq_and_vals[i] = FreqVal(get_freq(values[i]), values[i]);
+void HeavyEval::set_hashes(const fmpz_t* const shares) {
+  hashes = new Integer[num_values * num_hashes];
+
+  for (unsigned int i = 0; i < num_values * num_hashes; i++) {
+    uint64_t val = fmpz_get_ui(shares[i]);
+    // Conditional is overkill, but makes it clearer
+    Integer a(share_bits, party == ALICE ? val : 0, ALICE);
+    Integer b(share_bits, party == BOB ? val : 0, BOB);
+    hashes[i] = AddMod(a, b, mod);
+    hashes[i].resize(hash_range_bits, false);
+  }
+}
+
+void HeavyEval::set_hashes(const uint64_t* const shares) {
+  hashes = new Integer[num_values * num_hashes];
+
+  for (unsigned int i = 0; i < num_values * num_hashes; i++) {
+    uint64_t val = shares[i];
+    // Conditional is overkill, but makes it clearer
+    Integer a(share_bits, party == ALICE ? val : 0, ALICE);
+    Integer b(share_bits, party == BOB ? val : 0, BOB);
+    hashes[i] = AddMod(a, b, mod);
+    hashes[i].resize(hash_range_bits, false);
   }
 }
 
@@ -235,6 +283,9 @@ void HeavyExtract::bucket_compare() {
     abs1.resize(freq_bits, false);
     cmp[i] = abs0 < abs1;
   }
+
+  delete[] bucket0; bucket0 = nullptr;
+  delete[] bucket1; bucket1 = nullptr;
 }
 
 void HeavyExtract::extract_candidates() {
@@ -272,6 +323,8 @@ void HeavyExtract::extract_candidates() {
       }
     }
   }
+
+  delete[] cmp; cmp = nullptr;
 }
 
 void HeavyExtract::print_buckets(bool print) const {
@@ -416,6 +469,8 @@ void top_k_extract_garbled(
 
   ev.set_values(ex.get_candidates(), cfg.R * cfg.Q * cfg.B);
   // std::cout << "set values: " << std::endl; ev.print_values();
+
+  ev.get_hashes();
 
   ev.get_frequencies();
   // std::cout << "values and freqs: " << std::endl; ev.print_values();
