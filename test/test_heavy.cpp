@@ -610,7 +610,6 @@ void test_rand_bitshare(
   // std::cout << "M = " << fmpz_get_ui(M) << " (" << b << " bits)" << std::endl;
 
   for (unsigned int i = 0; i < N; i++) {
-    // fmpz_mod_add(val, r[i], r_other[i], mod_ctx);
     // if (server_num == 0) std::cout << "val r = " << fmpz_get_ui(r[i]) << std::endl;
     fmpz_zero(bit_val);
     for (int j = 0; j < b; j++) {

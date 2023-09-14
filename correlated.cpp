@@ -985,51 +985,41 @@ int64_t CorrelatedStore::gen_rand_bitshare(
   // for validation checking
   fmpz_t* rB_tocheck; new_fmpz_array(&rB_tocheck, N * b);
   size_t* const rB_idx = new size_t[N];
-  fmpz_t* r_lt_p_other; new_fmpz_array(&r_lt_p_other, N);
 
   // Track which are already set
   bool* const valid = new bool[N];
   memset(valid, false, N * sizeof(bool));
-  size_t num_invalid;
   [[maybe_unused]] size_t log_num_invalid = 0;  // Just for logging
 
   while (true) {
-    num_invalid = 0;
+    size_t num_invalid = 0;
+
+    for (unsigned int i = 0; i < N; i++) {
+      if (valid[i]) continue;
+      rB_idx[num_invalid] = i;
+      num_invalid++;
+    }
+    // All valid, so done
+    if (num_invalid == 0) break;
 
     check_DaBits(N * b);
 
     // Compute new (if not valid)
-    for (unsigned int i = 0; i < N; i++) {
-      if (valid[i])
-        continue;
+    for (unsigned int idx = 0; idx < num_invalid; idx++) {
+      const size_t i = rB_idx[idx];
 
       fmpz_zero(r[i]);
       for (unsigned int j = 0; j < b; j++) {
         // Just need 2 numbers summing to 0 or 1, so bp. b2 not needed.
         const DaBit* const dabit = get_DaBit();
-        // std::cout << "got dabit[" << j << "]_bp = ";
-        // std::cout << fmpz_get_ui(dabit->bp) << std::endl;
         fmpz_set(rB[i * b + j], dabit->bp);
         fmpz_mod_addmul_ui(r[i], dabit->bp, 1ULL << j, mod_ctx);
         // consume the dabit
         delete dabit;
 
         // add to rB_tocheck
-        // std::cout << "rB_tocheck[" << num_invalid * b + j;
-        // std::cout << "] := rB[" << i*b+j << "]";
-        // std::cout << " = " << fmpz_get_ui(rB[i*b+j]) << std::endl;
         fmpz_set(rB_tocheck[num_invalid * b + j], rB[i * b + j]);
       }
-      rB_idx[num_invalid] = i;
-
-      num_invalid++;
-    }
-
-    // log_num_invalid += num_invalid;
-
-    // std::cout << "num invalid: " << num_invalid << " / " << N << std::endl;
-    if (num_invalid == 0) {
-      break;
     }
 
     // Check [r < p], retry if not, sets "valid" where [r < p]
@@ -1047,7 +1037,6 @@ int64_t CorrelatedStore::gen_rand_bitshare(
 
   clear_fmpz_array(rB_tocheck, N * b);
   clear_fmpz_array(pB, N * b);
-  clear_fmpz_array(r_lt_p_other, N);
   delete[] rB_idx;
   delete[] valid;
 
