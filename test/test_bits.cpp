@@ -198,6 +198,8 @@ void test_mulArithmetic(const size_t N, const int server_num, const int serverfd
 
   fmpz_t* z; new_fmpz_array(&z, N);
   store->multiply_ArithmeticShares(N, x, y, z);
+  clear_fmpz_array(x, N);
+  clear_fmpz_array(y, N);
 
   reveal_fmpz_batch(serverfd, z, N);
   if (server_num == 0) {
@@ -208,6 +210,8 @@ void test_mulArithmetic(const size_t N, const int server_num, const int serverfd
     assert(fmpz_equal_ui(z[0], expect0));
     assert(fmpz_equal_ui(z[1], expect1));
   }
+
+  clear_fmpz_array(z, N);
 }
 
 void test_b2a_single(const size_t N, const int server_num, const int serverfd,
