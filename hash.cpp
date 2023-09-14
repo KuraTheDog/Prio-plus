@@ -34,7 +34,7 @@ HashStorePoly::HashStorePoly(
 , coeff(new fmpz_t*[num_hashes])
 {
   // Input [input_range], output [output_range]. What modulo can coefficients be?
-  // Final answer is always modulo output_range. Can coefficients be pre-mod output_range?
+  // Final answer is always modulo output_range. Can coeffs be pre-mod output_range?
   // e.g. (7%5)%2 = 0 != 7 % 2
   // Constants fixed, but what about when multiplied by constant?
   // Want distribution same.
@@ -43,7 +43,7 @@ HashStorePoly::HashStorePoly(
   // We also just want "good enough" distribution.
   // Also, it's not quite polynomial since shift magic.
   // std::cout << "  Poly store degree: " << degree << std::endl;
-  // Can also run into coprime issues. E.g. 3 bits in and out, 0 + 4x, always outputs 0 or 4
+  // Can also run into coprime issues. E.g. 3 bits in/out, 0 + 4x, always outputs 0 or 4
   if (output_bits == 0) return;
   for (unsigned int i = 0; i < num_hashes; i++) {
     new_fmpz_array(&coeff[i], degree + 1);

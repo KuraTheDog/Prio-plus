@@ -24,7 +24,8 @@ struct OT_Wrapper {
 
   // Communication costs (computed via monitoring network traffic)
   // Is bytes sent, since receiver also sends.
-  // There are also one-time-setup costs, which are on server startup so not part of communication
+  // There are also one-time-setup costs,
+  // which are on server startup so not part of communication
   const int64_t bytes_sender_start = 1;
   const int64_t bytes_sender_per = 32;
   const int64_t bytes_recver_per_block = 2048;
@@ -38,7 +39,8 @@ struct OT_Wrapper {
   // I.e. (data, data_1) = (datab, datab_1) for choice b
   int64_t send(const uint64_t* const data0, const uint64_t* const data1,
                const size_t length,
-               const uint64_t* const data0_1 = nullptr, const uint64_t* const data1_1 = nullptr);
+               const uint64_t* const data0_1 = nullptr,
+               const uint64_t* const data1_1 = nullptr);
   int64_t recv(uint64_t* const data, const bool* b, const size_t length,
                uint64_t* const data_1 = nullptr);
 };

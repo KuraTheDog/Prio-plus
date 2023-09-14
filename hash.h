@@ -166,8 +166,9 @@ public:
   , inconsistency_solving(group_size > input_bits)
   , dim(input_bits + ((int) inconsistency_solving))
   {
-    // std::cout << (inconsistency_solving ? "" : "not ") << "inconsistency_solving" << std::endl;
-    // std::cout << "  Bit store: " << num_groups << " groups of size " << group_size << ", ";
+    // std::cout << (inconsistency_solving ? "" : "not ");
+    // std::cout << "inconsistency_solving" << std::endl;
+    // std::cout << "  Bit store: " << num_groups << " groups size " << group_size << ", ";
     // std::cout << "  dim : " << dim << ", validate: " << group_size - dim << std::endl;
 
     if (group_size < input_bits) {
