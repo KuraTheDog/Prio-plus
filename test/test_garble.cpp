@@ -543,6 +543,7 @@ void run(const int party, int port) {
   // test_hash(party, hash_seed);
   test_full_sort(party, hash_seed);
 
+  io->flush();  // Need to flush before using sockets
   // test_bucket_compare(party, hash_seed);
   test_extract(party, sockfd, hash_seed);
 
