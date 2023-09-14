@@ -35,10 +35,35 @@ Currently split for clarity of use / debugging, and for replacements
 Note: emp::ALICE is 1, emp::BOB is 2. (Using server_num + 1)
 */
 
+/* Some mult gate costs, for n bit numbers:
+
+Delares: free
+-a: n - 1
+a +- b: n - 1 (since sign bit)
+a * b: n^2
+a / b: n^2 + 6n - 4
+a % b: n^2 + 6n - 4
+a < b: n
+a == b : n
+If(bit, a, b): n
+>>, << const: free
+a <<, >> b: 4 n
+
+Bits:
+!, ^: free
+&, |: 1
+If(, bit, bit): 1
+
+Notes:
+- Always rounds up to next mult of 4
+- No optimization, re=computes. So storing intermediates better if reused
+- Doesn't matter if values are public or individual
+*/
+
 typedef std::pair<uint64_t, Integer> FreqVal;
 
 // (a + b) % m, but since a, b already mod, simple check instead
-// Somehow sum takes 4 mults, so save when possible
+// Gate cost: 2 * (nbits-1) + 2 * nbits = 4 * nbits - 2
 inline Integer AddMod(const Integer& a, const Integer& b, const Integer& m) {
   Integer s = a + b;
   return If(s >= m, s - m, s);
@@ -105,6 +130,7 @@ struct HeavyEval {
   /*
   Turns shares of count-min to counts as circuit values
   populates countmin_count
+  Gates: 4 * (share_bits - 1)
   */
   void parse_countmin();
 
@@ -113,6 +139,11 @@ struct HeavyEval {
   Assume ax + b
   Value: input_bits
   Output: hash_range_bits
+  Gates: (mul, mod, add, mod)
+    - m = mult bits = 2 * input_bits + 1, h = hash_range
+    - m^2 + (m^2 + 6m - 4) + h-1 + h^2 + 8h + 3
+    = 2m^2 + 6m + h^2 + 9h - 2
+    = 8 inp^2 + 20 inp + hash^2 + 9 hash + 6
   */
   Integer eval_hash(Integer value, const unsigned int i);
 
@@ -120,15 +151,18 @@ struct HeavyEval {
   Gets value from hash_num{th} row of count-min, using index to pick column
   index: hash_range_bits
   output: freq_bits
+  Gates: 2 * freq_bits * hash_range
   */
   Integer get_at_index(const size_t hash_num, Integer index);
 
   // Array sized num_hashes
+  // Gates: 2 * nbits * num_hashes
   Integer min(Integer* array);
 
   /* Get frequency estimate of input
   input: input_bits
   output: in the clear, since value still hidden
+  Gates: num_hashes * (eval + get) + min
   */
   uint64_t get_freq(Integer input);
 
@@ -142,6 +176,7 @@ struct HeavyEval {
 
   // Populate values with inputs as Integers with input_bits
   // Input is Local secret shares for "party".
+  // Gates (non-int): (4 * share_bits - 2) * num
   // Num (= num_values) of them.
   void set_values(const fmpz_t* const input_shares, const size_t num);
   // Mostly for testing
@@ -149,6 +184,7 @@ struct HeavyEval {
   // Integer candidate objects from Extract
   void set_values(Integer* inputs, const size_t num);
   // Populate frequencies using values
+  // Gates: num_values * get_freq
   void get_frequencies();
 
   void return_top_K(const size_t K, uint64_t* const topValues,
@@ -235,14 +271,20 @@ struct HeavyExtract {
     delete[] candidates;
   };
 
+  // Gates: Shares, so (4 * share_bits - 2) * RQBD
   void set_bucket(const int idx, const fmpz_t* const bucket);
   void set_buckets(const fmpz_t* const bucket0, const fmpz_t* const bucket1) {
     set_bucket(0, bucket0);
     set_bucket(1, bucket1);
   }
   // cmp[i] = abs(bucket0[i]) < abs(bucket1[i])
+  // Gates: (6 * share_bits + freq_bits - 2) * RQBD
   void bucket_compare();
-  // Uses hash inverses on bucket compare values to build candidates
+  /* Uses hash inverses on bucket compare values to build candidates
+    Gates:
+      - Scales with # 1s in inverse matrix N
+      - RQB(input_bits) (D * N + value_bits)
+  */
   void extract_candidates();
   Integer* get_candidates() const { return candidates; };
 

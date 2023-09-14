@@ -29,7 +29,6 @@ Build "true" values as [(Va + Vb) % mod], and do math on those.
 There's no easy "share mult", just write it out.
 
 Constants: make public value.
-
 */
 
 void test_compare(const int party) {
@@ -151,38 +150,32 @@ void test_sort_complex(const int party) {
 
 void test_index(const int party) {
   const unsigned int mod_val = 513;
-  Integer mod(32, mod_val, PUBLIC);
+  const size_t nbits = LOG2(mod_val) + 1;  // 11
+  Integer mod(nbits, mod_val, PUBLIC);
 
   const size_t size = 10;
-  Integer* arr_A = new Integer[size];
-  Integer* arr_B = new Integer[size];
   Integer* arr = new Integer[size];
 
   const unsigned int idx = 3;
   unsigned int actual = 0;
 
   // Input
-  Integer index = Integer(32, idx, PUBLIC);
+  Integer index = Integer(nbits, idx, PUBLIC);
 
   for (unsigned int i = 0; i < size; i++) {
-    int a = rand()%mod_val;
-    int b = rand()%mod_val;
-    arr_A[i] = Integer(32, a, ALICE);
-    arr_B[i] = Integer(32, b, BOB);
-    if (i == idx) actual = (a + b) % mod_val;
+    int x = rand()%mod_val;
+    arr[i] = Integer(nbits, x, PUBLIC);
+    if (i == idx) actual = x;
   }
 
-  // Compute
-  for (unsigned int i = 0; i < size; i++) {
-    arr[i] = (arr_A[i] + arr_B[i]) % mod;
-  }
-
+  // Get_at_index logic
   // Same mult gates as if have separate zero added instead.
   // I.e. res = If(b, arr, 0)
-  Integer res(32, 0, PUBLIC);
+  Integer res(nbits, 0, PUBLIC);
   for (unsigned int i = 0; i < size; i++) {
-    Bit b = (index == Integer(32, i, PUBLIC));
-
+    // nbits per
+    Bit b = (index == Integer(nbits, i, PUBLIC));
+    // nbits per
     res = If(b, arr[i], res);
   }
 
@@ -199,8 +192,6 @@ void test_index(const int party) {
   //   }
   // }
   assert(actual == r);
-  delete[] arr_A;
-  delete[] arr_B;
   delete[] arr;
 
   std::cout << "Base index test passed" << std::endl;
@@ -361,11 +352,13 @@ void test_bucket_compare(const int party, flint_rand_t hash_seed) {
       depth, 2 * num_pairs + 2);
   // eval.print_params(party == ALICE);
 
+  // Gates: 2 * (4 * share_bits - 2) * num_pairs
   eval.set_buckets(bucket0, bucket1);
   clear_fmpz_array(bucket0, num_pairs);
   clear_fmpz_array(bucket1, num_pairs);
   // eval.print_buckets(party == ALICE);
 
+  // Gates: (6 * share_bits - 2 + freq_bits) * num_pairs
   eval.bucket_compare();
   // eval.print_cmp();
 
