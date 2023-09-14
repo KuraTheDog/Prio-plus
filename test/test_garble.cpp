@@ -275,7 +275,39 @@ void test_full_sort(const int party, flint_rand_t hash_seed) {
   // heavy_eval.print_values(party == ALICE);
 
   // Step 3: Eval hashes
-  heavy_eval.get_hashes();
+  const size_t method = 1;
+  if (method == 0) {
+    // Garble eval hashes
+    heavy_eval.get_hashes();
+  } else if (method == 1) {
+    // Given secret shared candidates, eval hashes
+    // Approximately 25% less garble
+    //  - Method 0: Set value, eval hash, query freq
+    //  - Method 1: Set value, set hash, query freq
+
+    const size_t num_hashes = count_min.cfg.d;
+    fmpz_t* hashes; new_fmpz_array(&hashes, num_candidates * num_hashes);
+    fmpz_t x; fmpz_init(x);
+
+    // Eval: count_min.store->eval(...);
+    for (unsigned int i = 0; i < num_candidates; i++) {
+      for (unsigned int j = 0; j < num_hashes; j++) {
+        const size_t idx = i * num_hashes + j;
+        count_min.store->eval(j, candidate_list[i], x);
+        // Set random
+        fmpz_randm(hashes[idx], seed, Int_Modulus);
+        // actual
+        if (party == ALICE) {
+          fmpz_mod_sub(hashes[idx], x, hashes[idx], mod_ctx);
+        }
+      }
+    }
+
+    heavy_eval.set_hashes(hashes);
+
+    clear_fmpz_array(hashes, num_candidates * num_hashes);
+    fmpz_clear(x);
+  }
 
   // Step 4: get frequencies
   heavy_eval.get_frequencies();
