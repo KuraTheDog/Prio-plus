@@ -262,41 +262,6 @@ struct HeavyExtract {
 };
 
 /*
-NOTE: countmin_shares gets copied into a count-min object
-And hence it gets freed at the end of full_heavy_extract.
-
-Standard op:
-h = HeavyEval(party, count_min, total_count)
-  - Count-min contains secret-shared values
-  - total count is # items (sum of frequencies)
-Count-min
-  parse_countmin()
-    - populate countmin_values with de-shared circuit vals
-  Can print_countmin past this point
-Values
-  set_values(int/fmpz* shares, size num_values)
-    - Shares of candidate values (potentially with dupes)
-    - populates values with actuals with circuit
-  can print_values past this point
-void get_frequencies()
-  - Compute frequency estimates with circuit, populate freq
-  - requires both count-min parsed, and values set.
-sort_remove_dupes()
-  - sort (value/freq) by freq, with dupes zero'd out
-return_top_K(size K, uint64_t* topValues, uint64_t* topFreqs)
-  - set topValues/Freqs to the top K
-  - does circuit reveal at this step
-*/
-
-void full_heavy_extract(
-    const int server_num, const MultiHeavyConfig cfg,
-    const fmpz_t* const bucket0, const fmpz_t* const bucket1,
-    flint_rand_t hash_seed_split, flint_rand_t hash_seed_count,
-    fmpz_t* const countmin_shares,
-    const size_t num_inputs,
-    uint64_t* top_values, uint64_t* top_freqs);
-
-/*
 Possible things to toggle.
 Note that the slowest thing by far is just setting up garble for bucket
 
@@ -339,5 +304,40 @@ void extract_candidates_clear(
     const size_t R, const size_t Q, const size_t B, const size_t D,
     const size_t input_bits, const HashStoreBit& store,
     const bool* const cmp, uint64_t* const candidates);
+
+/*
+NOTE: countmin_shares gets copied into a count-min object
+And hence it gets freed at the end of full_heavy_extract.
+
+Standard op:
+h = HeavyEval(party, count_min, total_count)
+  - Count-min contains secret-shared values
+  - total count is # items (sum of frequencies)
+Count-min
+  parse_countmin()
+    - populate countmin_values with de-shared circuit vals
+  Can print_countmin past this point
+Values
+  set_values(int/fmpz* shares, size num_values)
+    - Shares of candidate values (potentially with dupes)
+    - populates values with actuals with circuit
+  can print_values past this point
+void get_frequencies()
+  - Compute frequency estimates with circuit, populate freq
+  - requires both count-min parsed, and values set.
+sort_remove_dupes()
+  - sort (value/freq) by freq, with dupes zero'd out
+return_top_K(size K, uint64_t* topValues, uint64_t* topFreqs)
+  - set topValues/Freqs to the top K
+  - does circuit reveal at this step
+*/
+
+void top_k_extract_garbled(
+    const int server_num, const MultiHeavyConfig cfg,
+    const fmpz_t* const bucket0, const fmpz_t* const bucket1,
+    flint_rand_t hash_seed_split, flint_rand_t hash_seed_count,
+    fmpz_t* const countmin_shares,
+    const size_t num_inputs,
+    uint64_t* top_values, uint64_t* top_freqs);
 
 #endif

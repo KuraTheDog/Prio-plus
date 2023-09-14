@@ -309,49 +309,6 @@ void HeavyExtract::print_candidates(bool print) const {
   }
 }
 
-void full_heavy_extract(
-    const int server_num, const MultiHeavyConfig cfg,
-    const fmpz_t* const bucket0, const fmpz_t* const bucket1,
-    flint_rand_t hash_seed_split, flint_rand_t hash_seed_count,
-    fmpz_t* const countmin_shares,
-    const size_t num_inputs,
-    uint64_t* top_values, uint64_t* top_freqs) {
-  const int party = server_num + 1;
-
-  HashStoreBit hash_split(cfg.Q, cfg.D, cfg.num_bits, 2, hash_seed_split);
-
-  HeavyExtract ex(party, hash_split, cfg.R, cfg.Q, cfg.B, cfg.D, num_inputs);
-  // ex.print_params();
-
-  ex.set_buckets(bucket0, bucket1);
-  // std::cout << "buckets: " << std::endl; ex.print_buckets();
-
-  ex.bucket_compare();
-  // std::cout << "compare: " << std::endl; ex.print_cmp();
-
-  ex.extract_candidates();
-  // std::cout << "candidates: " << std::endl; ex.print_candidates();
-
-  CountMin count_min(cfg.countmin_cfg);
-  count_min.setStore(cfg.num_bits, hash_seed_count);
-  count_min.counts = countmin_shares;
-  // count_min.print();
-
-  HeavyEval ev(party, count_min, num_inputs);
-  // ev.print_params();
-
-  ev.parse_countmin();
-  // std::cout << "countmin: " << std::endl; ev.print_countmin();
-
-  ev.set_values(ex.get_candidates(), cfg.R * cfg.Q * cfg.B);
-  // std::cout << "set values: " << std::endl; ev.print_values();
-
-  ev.get_frequencies();
-  // std::cout << "values and freqs: " << std::endl; ev.print_values();
-  ev.sort_remove_dupes(cfg.K);
-  ev.return_top_K(cfg.K, top_values, top_freqs);
-}
-
 bool* bucket_compare_clear(
     const int serverfd, const size_t N,
     const fmpz_t* const bucket0, const fmpz_t* const bucket1) {
@@ -421,4 +378,47 @@ void extract_candidates_clear(
       }
     }
   }
+}
+
+void top_k_extract_garbled(
+    const int server_num, const MultiHeavyConfig cfg,
+    const fmpz_t* const bucket0, const fmpz_t* const bucket1,
+    flint_rand_t hash_seed_split, flint_rand_t hash_seed_count,
+    fmpz_t* const countmin_shares,
+    const size_t num_inputs,
+    uint64_t* top_values, uint64_t* top_freqs) {
+  const int party = server_num + 1;
+
+  HashStoreBit hash_split(cfg.Q, cfg.D, cfg.num_bits, 2, hash_seed_split);
+
+  HeavyExtract ex(party, hash_split, cfg.R, cfg.Q, cfg.B, cfg.D, num_inputs);
+  // ex.print_params();
+
+  ex.set_buckets(bucket0, bucket1);
+  // std::cout << "buckets: " << std::endl; ex.print_buckets();
+
+  ex.bucket_compare();
+  // std::cout << "compare: " << std::endl; ex.print_cmp();
+
+  ex.extract_candidates();
+  // std::cout << "candidates: " << std::endl; ex.print_candidates();
+
+  CountMin count_min(cfg.countmin_cfg);
+  count_min.setStore(cfg.num_bits, hash_seed_count);
+  count_min.counts = countmin_shares;
+  // count_min.print();
+
+  HeavyEval ev(party, count_min, num_inputs);
+  // ev.print_params();
+
+  ev.parse_countmin();
+  // std::cout << "countmin: " << std::endl; ev.print_countmin();
+
+  ev.set_values(ex.get_candidates(), cfg.R * cfg.Q * cfg.B);
+  // std::cout << "set values: " << std::endl; ev.print_values();
+
+  ev.get_frequencies();
+  // std::cout << "values and freqs: " << std::endl; ev.print_values();
+  ev.sort_remove_dupes(cfg.K);
+  ev.return_top_K(cfg.K, top_values, top_freqs);
 }
