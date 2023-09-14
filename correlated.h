@@ -137,11 +137,13 @@ protected:
   std::queue<const DaBit*> dabit_store;
   std::queue<const BooleanBeaverTriple*> btriple_store;
   std::queue<const BeaverTriple*> atriple_store;
+  std::queue<const BitShare*> bitshare_store;
 
   // Get: Return 1 (check first, which may generate)
   virtual const DaBit* const get_DaBit();
   virtual const BeaverTriple* const get_Triple();
   virtual const BooleanBeaverTriple* const get_BoolTriple();
+  virtual const BitShare* const get_BitShare();
 
   // Helper, not expected to be used outside.
   /* N inputs across m accumulators
@@ -162,6 +164,7 @@ public:
     clear_queue(dabit_store);
     clear_queue(btriple_store);
     clear_queue(atriple_store);
+    clear_queue(bitshare_store);
   }
 
   // Single bit value.
@@ -340,33 +343,22 @@ public:
   // Clear: Reveals info, not secure
   // True if [x] > c
   bool* cmp_c_clear(const size_t N, const fmpz_t* const x, const fmpz_t* const c) const;
-  // True if [x] > [y]
+  // Arithmetic shares of [x] > [y]
   int64_t cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
-  // Given [x], sets out = [|x|] via negating if [x] < 0
+  // Given [x], sets out = [|x|]^A via negating if [x] < 0
   int64_t abs(const size_t N, const fmpz_t* const x, fmpz_t* const abs_x);
   // True if [|x|] > [|y|]
-  int64_t abs_cmp(const size_t N,
-              const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
+  int64_t abs_cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y,
+      fmpz_t* const ans);
   // x, y are Nxb shares of the bits of N total b-bit numbers.
   // I.e. x[i,j] is additive share of bit j of number i.
   // Returns additive shares of [x < y] (NOTE: opposite of cmp, for convenience)
   // Uses 3 triples per bit to compare
   int64_t cmp_bit(const size_t N, const size_t b,
               const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
-  /* Generate N random b-bit numbers r, with bits rB
-    Both are additive shares
-    b is the # of bits in the int modulus
-    For each n, makes 1 share r, and b shares rB_i of the bits of r
-    r = sum_i rB_i * 2^i
-    For each gen, uses a dabit to gen and a cmp_bit (3 triple) to check
-    TODO: these can be pre-computed.
-    Similar to edabit, but not quite.
-    Bit shares here are additive, while edabit bit shares are boolean.
-  */
-  int64_t gen_rand_bitshare(const size_t N, fmpz_t* const r, fmpz_t* const rB);
   // Extracts shares [x0]^A of the least significant bit of additive secret [x]
   int64_t LSB(const size_t N, const fmpz_t* const x, fmpz_t* const x0);
-  // Returns share of
+  // Returns arithmetic share of
   //    1 if x is negative (x > p/2)
   //    0 if x is positive (x < p/2)
   // x is N b-bit numbers as additive shares
@@ -377,6 +369,7 @@ public:
   virtual int64_t check_DaBits(const size_t n = 0) = 0;
   virtual int64_t check_Triples(const size_t n = 0) = 0;
   virtual void check_BoolTriples(const size_t n = 0) = 0;
+  virtual int64_t check_BitShares(const size_t n = 0) = 0;
 
   virtual void print_Sizes() const = 0;
 };
@@ -389,17 +382,25 @@ protected:
   mutable flint_rand_t lazy_seed;  // Since seeds are modified when used
 
   // Securely create N new correlated items
-  // Pass in pointer to array. Methods make new.
-  int64_t gen_DaBits(const size_t N, DaBit** const dabit) const;
-  int64_t gen_DaBits_lazy(const size_t N, DaBit** const dabit) const;
+  // Pass in pointer to array. Methods make new items
+  int64_t gen_DaBits(const size_t N, DaBit** const dabits) const;
+  int64_t gen_DaBits_lazy(const size_t N, DaBit** const dabits) const;
   int64_t gen_BoolTriple_lazy(const size_t N, BooleanBeaverTriple** const triples) const;
   int64_t gen_Triple_lazy(const size_t N, BeaverTriple** const triples) const;
+  // Assumes Int_Modulus
+  // Avg tries to succeed, i.e. r < p
+  // Success odds p / 2^b, so worst case 1/2 failure. Expected 2. Overkill
+  const size_t avg_bitshare_tries = 3;
+  // Uses other correlated random to generate/validate.
+  int64_t gen_BitShare(const size_t N, BitShare** const shares);
+  int64_t gen_BitShare_lazy(const size_t N, BitShare** const shares) const;
 
   // Add (securely or lazy generated) N items to the store, at least batch_size many
   // TODO: return sent bytes
   int64_t add_DaBits(const size_t n = 0);
   int64_t add_Triples(const size_t n = 0);
   void add_BoolTriples(const size_t n = 0);
+  int64_t add_BitShares(const size_t n = 0);
 
 public:
 
@@ -431,6 +432,7 @@ public:
   virtual int64_t check_DaBits(const size_t n = 0);
   virtual int64_t check_Triples(const size_t n = 0);
   virtual void check_BoolTriples(const size_t n = 0);
+  virtual int64_t check_BitShares(const size_t n = 0);
 };
 
 class OTCorrelatedStore : public ShareConverter {

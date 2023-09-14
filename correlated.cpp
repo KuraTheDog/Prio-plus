@@ -42,6 +42,17 @@ const BooleanBeaverTriple* const CorrelatedStore::get_BoolTriple() {
   return ans;
 }
 
+const BitShare* const CorrelatedStore::get_BitShare() {
+  if (lazy == 3) {
+    return new BitShare(nbits_mod);
+  }
+
+  check_BitShares(1);
+  const BitShare* const ans = bitshare_store.front();
+  bitshare_store.pop();
+  return ans;
+}
+
 void CorrelatedStore::b2a_single_setup(
     const size_t N, const bool* const x, fmpz_t* const xp, bool* const v) {
   if (lazy == 3) {
@@ -948,121 +959,24 @@ int64_t CorrelatedStore::cmp_bit(
   return sent_bytes;
 }
 
-// TODO: precompute. Test checks range? Other things
-// random r, with rb bitshares of bits, conditioned on r < p
-// Make each bit in parallel: [ri in {0,1}]p
-// check if [r < p] bitwise, retry if not
-// success odds are p/2^b, worst case ~1/2 failure.
-int64_t CorrelatedStore::gen_rand_bitshare(
-    const size_t N, fmpz_t* const r, fmpz_t* const rB) {
-  const size_t b = nbits_mod;
-  if (lazy >= 2) {
-    for (unsigned int i = 0; i < N; i++)
-      fmpz_zero(r[i]);
-    for (unsigned int i = 0; i < N * b; i++)
-      fmpz_zero(rB[i]);
-    return 0;
-  }
-  if (lazy == 1) {
-    // TODO: make random on 0, send to 1.
-  }
-
-  int64_t sent_bytes = 0;
-
-  // Assumed tries to succeed. (worst case 1/2 fail, so 2 avg, overestimate)
-  const size_t avg_tries = 4;
-  check_DaBits(avg_tries * N * b);       // for gen
-  check_Triples(avg_tries * 3 * N * b);  // for cmp
-
-  // p bitwise shared, for [r < p]. All bits set on server 0, since public.
-  fmpz_t* pB; new_fmpz_array(&pB, N * b);  // Zero by default
-  if (server_num == 0)
-    for (unsigned int j = 0; j < b; j++)
-      if (fmpz_tstbit(Int_Modulus, j))
-        for (unsigned int i = 0; i < N; i++)
-          fmpz_set_si(pB[i * b + j], 1);
-
-  // for validation checking
-  fmpz_t* rB_tocheck; new_fmpz_array(&rB_tocheck, N * b);
-  size_t* const rB_idx = new size_t[N];
-
-  // Track which are already set
-  bool* const valid = new bool[N];
-  memset(valid, false, N * sizeof(bool));
-  [[maybe_unused]] size_t log_num_invalid = 0;  // Just for logging
-
-  while (true) {
-    size_t num_invalid = 0;
-
-    for (unsigned int i = 0; i < N; i++) {
-      if (valid[i]) continue;
-      rB_idx[num_invalid] = i;
-      num_invalid++;
-    }
-    // All valid, so done
-    if (num_invalid == 0) break;
-
-    check_DaBits(N * b);
-
-    // Compute new (if not valid)
-    for (unsigned int idx = 0; idx < num_invalid; idx++) {
-      const size_t i = rB_idx[idx];
-
-      fmpz_zero(r[i]);
-      for (unsigned int j = 0; j < b; j++) {
-        // Just need 2 numbers summing to 0 or 1, so bp. b2 not needed.
-        const DaBit* const dabit = get_DaBit();
-        fmpz_set(rB[i * b + j], dabit->bp);
-        fmpz_mod_addmul_ui(r[i], dabit->bp, 1ULL << j, mod_ctx);
-        // consume the dabit
-        delete dabit;
-
-        // add to rB_tocheck
-        fmpz_set(rB_tocheck[num_invalid * b + j], rB[i * b + j]);
-      }
-    }
-
-    // Check [r < p], retry if not, sets "valid" where [r < p]
-
-    // It's fine if arrays are larger, extras get ignored.
-    fmpz_t* r_lt_p; new_fmpz_array(&r_lt_p, num_invalid);
-    sent_bytes += cmp_bit(num_invalid, b, rB_tocheck, pB, r_lt_p);
-    // Get r_lt_p in clear
-    sent_bytes += reveal_fmpz_batch(serverfd, r_lt_p, num_invalid);
-    for (unsigned int i = 0; i < num_invalid; i++) {
-      valid[rB_idx[i]] = fmpz_is_one(r_lt_p[i]);
-    }
-    clear_fmpz_array(r_lt_p, num_invalid);
-  }
-
-  clear_fmpz_array(rB_tocheck, N * b);
-  clear_fmpz_array(pB, N * b);
-  delete[] rB_idx;
-  delete[] valid;
-
-  return sent_bytes;
-}
-
 // Since we are masking with random r, this should have max b (2^b > p)
 int64_t CorrelatedStore::LSB(
     const size_t N, const fmpz_t* const x, fmpz_t* const x0) {
   int64_t sent_bytes = 0;
   const size_t b = nbits_mod;
 
-  check_DaBits(4 * N * b);   // for gen_rand
-  check_Triples((4*3 + 1) * N * b);  // 12 for gen_rand
-
   // 1: Random bitwise shared r, true [r]p, bitwise [rB]
-  fmpz_t* r; new_fmpz_array(&r, N);
+  check_BitShares(N);
   fmpz_t* rB; new_fmpz_array(&rB, N * b);
-  sent_bytes += gen_rand_bitshare(N, r, rB);
 
   // 2: Compute [c]p = [x]p + [r]p
   fmpz_t* c; new_fmpz_array(&c, N);
   for (unsigned int i = 0; i < N; i++) {
-    fmpz_mod_add(c[i], x[i], r[i], mod_ctx);
+    const BitShare* const share = get_BitShare();
+    fmpz_mod_add(c[i], x[i], share->r, mod_ctx);
+    copy_fmpz_array(&rB[i * b], share->rB, b);
+    delete share;
   }
-  clear_fmpz_array(r, N);
   // 2.1: Reveal c = x + r
   sent_bytes += reveal_fmpz_batch(serverfd, c, N);
 
@@ -1158,6 +1072,12 @@ int64_t PrecomputeStore::check_Triples(const size_t n) {
   return 0;
 }
 
+int64_t PrecomputeStore::check_BitShares(const size_t n) {
+  if (bitshare_store.size() < n and lazy < 3)
+    return add_BitShares(n - bitshare_store.size());
+  return 0;
+}
+
 int64_t PrecomputeStore::add_DaBits(const size_t n) {
   auto start = clock_start();
   int64_t sent_bytes = 0;
@@ -1223,11 +1143,32 @@ void PrecomputeStore::add_BoolTriples(const size_t n) {
   if (lazy < 2) std::cout << "add_BoolTriples timing : " << sec_from(start) << std::endl;
 }
 
+int64_t PrecomputeStore::add_BitShares(const size_t n) {
+  auto start = clock_start();
+  int64_t sent_bytes = 0;
+  size_t num_to_make = fmax(n, batch_size);
+  if (lazy == 2) num_to_make = batch_size;
+  if (lazy < 2) std::cout << "adding BitShares: " << num_to_make << std::endl;
+  BitShare** const shares = new BitShare*[num_to_make];
+
+  if (lazy > 0) {
+    sent_bytes += gen_BitShare_lazy(num_to_make, shares);
+  } else {
+    sent_bytes += gen_BitShare(num_to_make, shares);
+  }
+  for (unsigned int i = 0; i < num_to_make; i++)
+    bitshare_store.push(shares[i]);
+  delete[] shares;
+  if (lazy < 2) std::cout << "add_BitShares timing : " << sec_from(start) << std::endl;
+  return sent_bytes;
+}
+
 void PrecomputeStore::print_Sizes() const {
   std::cout << "Current store sizes:\n";
   std::cout << " Dabits: " << dabit_store.size() << std::endl;
   std::cout << " Bool  Triples: " << btriple_store.size() << std::endl;
   std::cout << " Arith Triples: " << atriple_store.size() << std::endl;
+  std::cout << " Bit Shares   : " << bitshare_store.size() << std::endl;
 }
 
 void PrecomputeStore::maybe_Update() {
@@ -1237,14 +1178,26 @@ void PrecomputeStore::maybe_Update() {
   // Extra make factor, to overkill for convenience
   const size_t extra_make_factor = 2;
   // Targets.
+  const size_t bitshare_target = batch_size;
+  const size_t bitshare_cost = avg_bitshare_tries * bitshare_target * nbits_mod;
   const size_t da_target = batch_size;
-  const size_t atrip_target = batch_size;
+  const size_t atrip_target = batch_size + 3 * bitshare_cost;
   // Estimating factor of 32. based on num bits, specific use, etc.
   const size_t btrip_target = batch_size * 32;
 
   if (btriple_store.size() < btrip_target)
     add_BoolTriples(btrip_target * extra_make_factor);
 
+  if (dabit_store.size() < da_target + bitshare_cost)
+    add_DaBits((da_target + bitshare_cost) * extra_make_factor);
+
+  if (atriple_store.size() < atrip_target + 3 * bitshare_cost)
+    add_Triples((atrip_target + 3 * bitshare_cost) * extra_make_factor);
+
+  if (bitshare_store.size() < bitshare_target)
+    add_BitShares(bitshare_target * extra_make_factor);
+
+  // Double check still enough, since bitshares use a random amount
   if (dabit_store.size() < da_target)
     add_DaBits(da_target * extra_make_factor);
 
@@ -1304,7 +1257,7 @@ int64_t PrecomputeStore::gen_DaBits(const size_t N, DaBit** const dabit) const {
 int64_t PrecomputeStore::gen_DaBits_lazy(
     const size_t N, DaBit** const dabit) const {
   int64_t sent_bytes = 0;
-  // gen_rand_bitshare uses bp, and keeps trying until it satisfies a condition.
+  // gen_BitShare uses bp, and keeps trying until it satisfies a condition.
   // So just looping through slowly causes it to take far too long.
   // Therefore, we do with common random instead.
   // test_heavy seems to still not work with this, though. odd.
@@ -1373,6 +1326,120 @@ int64_t PrecomputeStore::gen_BoolTriple_lazy(
       );
     }
   }
+
+  return sent_bytes;
+}
+
+// Uses DaBits to "generate" random bits (shares of random 0 or 1).
+// Uses triples to validate r < p bitwise
+int64_t PrecomputeStore::gen_BitShare(
+    const size_t N, BitShare** const shares) {
+
+  const size_t b = nbits_mod;
+  // std::cout << "Generating " << N << " " << b << "-bit bitShares" << std::endl;
+  int64_t sent_bytes = 0;
+
+  for (unsigned int i = 0; i < N; i++)
+    shares[i] = new BitShare(b);
+
+  check_DaBits(avg_bitshare_tries * N * b);
+  check_Triples(avg_bitshare_tries * 3 * N * b);
+
+  // p bitwise shared, for [r < p]. All bits set on server 0, since public.
+  // This could be moved out, since same every run
+  fmpz_t* pB; new_fmpz_array(&pB, N * b);  // Zero by default
+  if (server_num == 0)
+    for (unsigned int j = 0; j < b; j++)
+      if (fmpz_tstbit(Int_Modulus, j))
+        for (unsigned int i = 0; i < N; i++)
+          fmpz_set_si(pB[i * b + j], 1);
+
+  // for validation checking
+  fmpz_t* rB_tocheck; new_fmpz_array(&rB_tocheck, N * b);
+  size_t* const rB_idx = new size_t[N];
+
+  // Track which are set
+  bool* const valid = new bool[N];
+  memset(valid, false, N);
+
+  while (true) {
+    size_t num_to_make = 0;
+
+    for (unsigned int i = 0; i < N; i++) {
+      if (valid[i]) continue;
+      rB_idx[num_to_make] = i;
+      num_to_make++;
+    }
+    // All valid, so done
+    if (num_to_make == 0) break;
+
+    check_DaBits(num_to_make * b);
+    check_Triples(3 * num_to_make * b);
+
+    // Compute new (if not valid)
+    for (unsigned int idx = 0; idx < num_to_make; idx++) {
+      const size_t i = rB_idx[idx];
+      // std::cout << "making idx=" << idx << ", i = " << i << std::endl;
+      fmpz_zero(shares[i]->r);
+      for (unsigned int j = 0; j < b; j++) {
+        // Get two numbers summing to either 0 or 1 randomly (bp).
+        const DaBit* const dabit = get_DaBit();
+        fmpz_set(shares[i]->rB[j], dabit->bp);
+        fmpz_mod_addmul_ui(shares[i]->r, dabit->bp, 1ULL << j, mod_ctx);
+        delete dabit;
+
+        // Add to rB check
+        fmpz_set(rB_tocheck[idx * b + j], shares[i]->rB[j]);
+      }
+    }
+
+    // Check [r < p], and get in clear
+    // TODO: Could possibly be round optimized
+    fmpz_t* r_lt_p; new_fmpz_array(&r_lt_p, num_to_make);
+    sent_bytes += cmp_bit(num_to_make, b, rB_tocheck, pB, r_lt_p);
+    sent_bytes += reveal_fmpz_batch(serverfd, r_lt_p, num_to_make);
+    for (unsigned int i = 0; i < num_to_make; i++) {
+      valid[rB_idx[i]] = fmpz_is_one(r_lt_p[i]);
+    }
+    clear_fmpz_array(r_lt_p, num_to_make);
+  }
+
+  clear_fmpz_array(rB_tocheck, N * b);
+  clear_fmpz_array(pB, N * b);
+  delete[] rB_idx;
+  delete[] valid;
+
+  return sent_bytes;
+}
+
+int64_t PrecomputeStore::gen_BitShare_lazy(
+    const size_t N, BitShare** const shares) const {
+  int64_t sent_bytes = 0;
+  const size_t b = nbits_mod;
+
+  fmpz_t r; fmpz_init(r);
+
+  for (unsigned int i = 0; i < N; i++) {
+    shares[i] = new BitShare(b);
+    // Random masks
+    fmpz_randm(shares[i]->r, lazy_seed, Int_Modulus);
+    for (unsigned int j = 0; j < b; j++)
+      fmpz_randm(shares[i]->rB[j], lazy_seed, Int_Modulus);
+    // Actual
+    fmpz_randm(r, lazy_seed, Int_Modulus);
+
+    if (server_num == 0) {
+      // fmpz_tstbit returns bool. neg, then maybe add one
+      fmpz_mod_sub(shares[i]->r, r, shares[i]->r, mod_ctx);
+      for (unsigned int j = 0; j < b; j++) {
+        fmpz_mod_neg(shares[i]->rB[j], shares[i]->rB[j], mod_ctx);
+        if (fmpz_tstbit(r, j))
+          fmpz_mod_add_ui(shares[i]->rB[j], shares[i]->rB[j], 1, mod_ctx);
+      }
+    }
+  }
+
+  fmpz_clear(r);
 
   return sent_bytes;
 }

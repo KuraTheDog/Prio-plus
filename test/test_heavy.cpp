@@ -485,10 +485,10 @@ void test_abs_cmp(
       }
       bool actual = fmpz_cmp(v0_tmp, v1_tmp) < 0;
 
-      std::cout << i << ": |" << fmpz_mod_get_signed(v0, Int_Modulus);
-      std::cout << (fmpz_is_one(larger[i]) ? "| < |" : "| > |");
-      std::cout << fmpz_mod_get_signed(v1, Int_Modulus);
-      std::cout << "|, \tactual: " << (actual ? "<" : ">") << std::endl;
+      // std::cout << i << ": |" << fmpz_mod_get_signed(v0, Int_Modulus);
+      // std::cout << (fmpz_is_one(larger[i]) ? "| < |" : "| > |");
+      // std::cout << fmpz_mod_get_signed(v1, Int_Modulus);
+      // std::cout << "|, \tactual: " << (actual ? "<" : ">") << std::endl;
       // std::cout << "(" << fmpz_get_ui(val0[i]) << " + " << fmpz_get_ui(val0_other[i]) << ") = ";
       // std::cout << fmpz_mod_get_signed(v0, Int_Modulus) << " vs ";
       // std::cout << fmpz_mod_get_signed(v1, Int_Modulus) << " = (";
@@ -594,38 +594,47 @@ void test_rand_bitshare(
   fmpz_t M; fmpz_init_set(M, Int_Modulus);
   const size_t b = fmpz_clog_ui(Int_Modulus, 2);
 
-  store->check_DaBits(3 * N * b);
-  store->check_Triples(4 * 3 * N * b);
+  // Expose get_BitShare
+  class Test : CorrelatedStore {
+  public:
+    const BitShare* test_get() {return get_BitShare();};
+  };
 
-  fmpz_t* r; new_fmpz_array(&r, N);
-  fmpz_t* r_B; new_fmpz_array(&r_B, N * b);
-  store->gen_rand_bitshare(N, r, r_B);
-  // ((PrecomputeStore*)store)->print_Sizes();
+  store->check_BitShares(N);
+  ((PrecomputeStore*)store)->print_Sizes();
 
-  reveal_fmpz_batch(serverfd, r, N);
-  reveal_fmpz_batch(serverfd, r_B, N * b);
+  fmpz_t* buff; new_fmpz_array(&buff, N * (b + 1));
+  for (unsigned int i = 0; i < N; i++) {
+    const BitShare* x = ((Test*)store)->test_get();
+    fmpz_set(buff[i * (b+1)], x->r);
+    copy_fmpz_array(&buff[i * (b+1) + 1], x->rB, b);
+    delete x;
+  }
+  reveal_fmpz_batch(serverfd, buff, N * (b + 1));
 
+  fmpz_t val; fmpz_init(val);
   fmpz_t bit_val; fmpz_init(bit_val);
 
   // std::cout << "M = " << fmpz_get_ui(M) << " (" << b << " bits)" << std::endl;
 
   for (unsigned int i = 0; i < N; i++) {
-    // if (server_num == 0) std::cout << "val r = " << fmpz_get_ui(r[i]) << std::endl;
+    const size_t offset = i * (b + 1);
+    fmpz_set(val, buff[offset]);
+    // if (server_num == 0) std::cout << "val r = " << fmpz_get_ui(val) << std::endl;
     fmpz_zero(bit_val);
     for (int j = 0; j < b; j++) {
-      // if (server_num == 0) std::cout << " bit " << j << " = " << fmpz_get_ui(r_B[i * b + j]) << std::endl;
-      fmpz_addmul_ui(bit_val, r_B[i * b + j], 1ULL << j);
+      // std::cout << " bit " << j << " = " << fmpz_get_ui(buff[offset + 1 + j]) << std::endl;
+      fmpz_addmul_ui(bit_val, buff[offset + 1 + j], 1ULL << j);
     }
     // if (server_num == 0) std::cout << " bit val: " << fmpz_get_ui(bit_val) << std::endl;
     // Ensure rB represent r
-    assert(fmpz_equal(r[i], bit_val));
+    assert(fmpz_equal(val, bit_val));
     // Ensure r < M
-    assert(fmpz_cmp(r[i], M) < 0);
+    assert(fmpz_cmp(val, M) < 0);
   }
-
+  clear_fmpz_array(buff, N  * (b + 1));
+  fmpz_clear(val);
   fmpz_clear(bit_val);
-  clear_fmpz_array(r, N);
-  clear_fmpz_array(r_B, N * b);
   fmpz_clear(M);
 }
 
@@ -660,6 +669,7 @@ void test_sign(
     fmpz_t tmp; fmpz_init(tmp);
     for (unsigned int i = 0; i < N; i++) {
       fmpz_mod_add(tmp, s[i], other[i], mod_ctx);
+      // TODO: assert
       // std::cout << "val[" << i << "] = " << fmpz_get_ui(actual[i]);
       // std::cout << " has least sig bit " << fmpz_get_ui(tmp) << " = " << fmpz_get_ui(s[i]);
       // std::cout << " + " << fmpz_get_ui(other[i]) << std::endl;

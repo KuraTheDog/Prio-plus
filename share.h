@@ -129,6 +129,25 @@ struct DaBit {
     }
 };
 
+// Random [r] such that [r] < M, for some `b`-bit modulus.
+// Has shares [rB] of the bits of r.
+// This version has arithmetic shares.
+struct BitShare {
+    const size_t b;
+    fmpz_t r;
+    fmpz_t* rB;  // Shares of the bits of r
+
+    BitShare(const size_t b) : b(b) {
+        fmpz_init(r);
+        new_fmpz_array(&rB, b);
+    }
+
+    ~BitShare() {
+        fmpz_clear(r);
+        clear_fmpz_array(rB, b);
+    }
+};
+
 // Deprecated. Multiple DaBits use less rounds
 struct [[deprecated("Multiple Dabits requires less rounds")]] EdaBit {
     fmpz_t r;        // [r]_p
