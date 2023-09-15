@@ -222,6 +222,9 @@ void test_full_sort(const int party, flint_rand_t hash_seed) {
     total_count += counts[i];
   }
 
+  // Shares in clear. Less garbled mod. About half as many gates
+  const bool clear_version = false;
+
   /*
   Phase 0.2: Share split count-min and candidates
   Randomness is synced, so shares can be made locally.
@@ -243,14 +246,14 @@ void test_full_sort(const int party, flint_rand_t hash_seed) {
   // std::cout << "Creating " << num_candidates << " candidates " << std::endl;
   fmpz_t* candidates; new_fmpz_array(&candidates, num_candidates);
   for (unsigned int i = 0; i < num_candidates; i++) {
-    fmpz_randm(share, seed, Int_Modulus);
+    // Set random. Turn off for clear
+    if (!clear_version) fmpz_randm(candidates[i], seed, Int_Modulus);
     if (party == ALICE) {
-      fmpz_set(candidates[i], share);
-    } else {
-      fmpz_set_ui(candidates[i], candidate_list[i]);
-      fmpz_mod_sub(candidates[i], candidates[i], share, mod_ctx);
+      fmpz_set_ui(share, candidate_list[i]);
+      fmpz_mod_sub(candidates[i], share, candidates[i], mod_ctx);
     }
   }
+  fmpz_clear(share);
 
   // Run
 
@@ -263,9 +266,16 @@ void test_full_sort(const int party, flint_rand_t hash_seed) {
   // heavy_eval.print_countmin(party == ALICE);
 
   // Step 2: add values
-  heavy_eval.set_values(candidates, num_candidates);
+  std::cout << "setting values..." << std::endl;
+  if (clear_version) {
+    heavy_eval.set_values_clear(candidates, num_candidates, ALICE);
+  } else {
+    heavy_eval.set_values(candidates, num_candidates);
+  }
   // if (party == ALICE) std::cout << "parsed values: \n";
   // heavy_eval.print_values(party == ALICE);
+
+  std::cout << "set values" << std::endl;
 
   // Step 3: Eval hashes
   const size_t method = 1;
@@ -287,8 +297,8 @@ void test_full_sort(const int party, flint_rand_t hash_seed) {
       for (unsigned int j = 0; j < num_hashes; j++) {
         const size_t idx = i * num_hashes + j;
         count_min.store->eval(j, candidate_list[i], x);
-        // Set random
-        fmpz_randm(hashes[idx], seed, Int_Modulus);
+        // Set random.
+        if (!clear_version) fmpz_randm(hashes[idx], seed, Int_Modulus);
         // actual
         if (party == ALICE) {
           fmpz_mod_sub(hashes[idx], x, hashes[idx], mod_ctx);
@@ -296,7 +306,11 @@ void test_full_sort(const int party, flint_rand_t hash_seed) {
       }
     }
 
-    heavy_eval.set_hashes(hashes);
+    if (clear_version) {
+      heavy_eval.set_hashes_clear(hashes, ALICE);
+    } else {
+      heavy_eval.set_hashes(hashes);
+    }
 
     clear_fmpz_array(hashes, num_candidates * num_hashes);
     fmpz_clear(x);
@@ -335,7 +349,6 @@ void test_full_sort(const int party, flint_rand_t hash_seed) {
   delete[] top_values;
   delete[] top_freqs;
   clear_fmpz_array(candidates, num_candidates);
-  fmpz_clear(share);
 }
 
 void test_bucket_compare(const int party, flint_rand_t hash_seed) {

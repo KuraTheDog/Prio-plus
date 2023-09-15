@@ -166,13 +166,13 @@ void HeavyEval::set_values(Integer* const inputs, const size_t num) {
   values_is_new = false;
 }
 
-void HeavyEval::set_values(const fmpz_t* const input_shares, const size_t num) {
+void HeavyEval::set_values(const fmpz_t* const shares, const size_t num) {
   num_values = num;
   values = new Integer[num_values];
   values_is_new = true;
 
   for (unsigned int i = 0; i < num_values; i++) {
-    uint64_t val = fmpz_get_ui(input_shares[i]);
+    uint64_t val = fmpz_get_ui(shares[i]);
     // Conditional is overkill, but makes it clearer
     Integer a(share_bits, party == ALICE ? val : 0, ALICE);
     Integer b(share_bits, party == BOB ? val : 0, BOB);
@@ -181,19 +181,39 @@ void HeavyEval::set_values(const fmpz_t* const input_shares, const size_t num) {
   }
 }
 
-void HeavyEval::set_values(const uint64_t* const input_shares, const size_t num) {
+void HeavyEval::set_values(const uint64_t* const shares, const size_t num) {
   num_values = num;
   values = new Integer[num_values];
   values_is_new = true;
 
   for (unsigned int i = 0; i < num_values; i++) {
-    uint64_t val = input_shares[i];
+    uint64_t val = shares[i];
     // Conditional is overkill, but makes it clearer
     Integer a(share_bits, party == ALICE ? val : 0, ALICE);
     Integer b(share_bits, party == BOB ? val : 0, BOB);
     values[i] = AddMod(a, b, mod);
     values[i].resize(input_bits, false);
   }
+}
+
+void HeavyEval::set_values_clear(const fmpz_t* const shares, const size_t num,
+    const int who) {
+  num_values = num;
+  values = new Integer[num_values];
+  values_is_new = true;
+
+  for (unsigned int i = 0; i < num_values; i++)
+    values[i] = Integer(input_bits, fmpz_get_ui(shares[i]), who);
+}
+
+void HeavyEval::set_values_clear(const uint64_t* const shares, const size_t num,
+    const int who) {
+  num_values = num;
+  values = new Integer[num_values];
+  values_is_new = true;
+
+  for (unsigned int i = 0; i < num_values; i++)
+    values[i] = Integer(input_bits, shares[i], who);
 }
 
 void HeavyEval::set_hashes(const fmpz_t* const shares) {
@@ -220,6 +240,18 @@ void HeavyEval::set_hashes(const uint64_t* const shares) {
     hashes[i] = AddMod(a, b, mod);
     hashes[i].resize(hash_range_bits, false);
   }
+}
+
+void HeavyEval::set_hashes_clear(const fmpz_t* const shares, const int who) {
+  hashes = new Integer[num_values * num_hashes];
+  for (unsigned int i = 0; i < num_values * num_hashes; i++)
+    hashes[i] = Integer(hash_range_bits, fmpz_get_ui(shares[i]), who);
+}
+
+void HeavyEval::set_hashes_clear(const uint64_t* const shares, const int who) {
+  hashes = new Integer[num_values * num_hashes];
+  for (unsigned int i = 0; i < num_values * num_hashes; i++)
+    hashes[i] = Integer(hash_range_bits, shares[i], who);
 }
 
 void HeavyEval::return_top_K(const size_t K,

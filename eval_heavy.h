@@ -191,15 +191,23 @@ struct HeavyEval {
   // Input is Local secret shares for "party".
   // Gates (non-int): (4 * share_bits - 2) * num
   // Sets num_values = Num
-  void set_values(const fmpz_t* const input_shares, const size_t num);
-  void set_values(const uint64_t* const input_shares, const size_t num);
+  void set_values(const fmpz_t* const shares, const size_t num);
+  void set_values(const uint64_t* const shares, const size_t num);
   // Integer candidate objects from Extract
   void set_values(Integer* inputs, const size_t num);
+  // If not shares, don't need mod. Assumes "who" has the values, other has 0
+  void set_values_clear(const fmpz_t* const shares, const size_t num,
+      const int who = ALICE);
+  void set_values_clear(const uint64_t* const shares, const size_t num,
+      const int who = ALICE);
 
   // Populate hashes
   // Gates: num_values * num_hashes * AddMod
   void set_hashes(const fmpz_t* const shares);
   void set_hashes(const uint64_t* const shares);
+  // If not shares, don't need mod. Assumes "who" has the values, other has 0
+  void set_hashes_clear(const fmpz_t* const shares, const int who = ALICE);
+  void set_hashes_clear(const uint64_t* const shares, const int who = ALICE);
 
   void return_top_K(const size_t K, uint64_t* const topValues,
       uint64_t* const topFreqs);
