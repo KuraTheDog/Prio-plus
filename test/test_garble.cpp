@@ -8,6 +8,9 @@
 #include "../heavy.h"
 #include "../ot.h"
 
+#define SERVER0_IP "127.0.0.1"
+#define SERVER1_IP "127.0.0.1"
+
 /*
 Integer(nbits, val, party):
 
@@ -514,31 +517,31 @@ void test_extract(const int party, const int sockfd, flint_rand_t hash_seed) {
   }
 }
 
-void run(const int party, int port) {
+void run(const int party) {
   init_constants();
-  // Fork. Party 1, 2. same port. Not using sockets
+  // Fork. Party 1, 2. same port
 
   flint_rand_t hash_seed;
   flint_randinit(hash_seed);
 
   int sockfd = 0; int tmp_sock = 0;
   if (party == ALICE) {
-    sockfd = init_sender();
-  } else {
+    std::cout << "ALICE" << std::endl;
     tmp_sock = init_receiver();
     sockfd = accept_receiver(tmp_sock);
+  } else {
+    std::cout << "BOB" << std::endl;
+    sockfd = init_sender(SERVER0_IP);
   }
 
-  OT_Wrapper* ot0 = new OT_Wrapper(party == ALICE ? nullptr : "127.0.0.1", 60051);
-  OT_Wrapper* ot1 = new OT_Wrapper(party == BOB ? nullptr : "127.0.0.1", 60052);
+  OT_Wrapper* ot0 = new OT_Wrapper(party == ALICE ? nullptr : SERVER0_IP, 60051);
+  OT_Wrapper* ot1 = new OT_Wrapper(party == BOB ? nullptr : SERVER1_IP, 60052);
 
   // std::cout << "Party " << party << " setting up semi-honest for garble" << std::endl;
-  // NetIO* io = new NetIO(party==BOB ? nullptr : "127.0.0.1", port);
   // Somehow new io, and ot1->io dont' like to work.
   NetIO* io = ot0->io;
   // std::cout << "Party " << party << " setting up io with addr ";
-  // std::cout << (party==BOB ? "none" : "127.0.0.1");
-  // std::cout << " and port " << port << std::endl;
+  // std::cout << (party==BOB ? "none" : "127.0.0.1") << std::endl;
 
   setup_semi_honest(io, party);
   // std::cout << "Party " << party << " semi-honest for garble set up" << std::endl;
@@ -593,19 +596,18 @@ void run(const int party, int port) {
 
 
 int main(int argc, char** argv) {
-  int port = 12345;
   if (argc == 1) {
     pid_t pid = fork();
     if (pid == 0) {
-      run(ALICE, port);
+      run(ALICE);
     } else {
-      run(BOB, port);
+      run(BOB);
     }
 
     return 0;
   }
 
-  int party = atoi(argv[1]);
+  int party = atoi(argv[1]) + 1;
   std::cout << "Party: " << party << std::endl;
-  run(party, port);
+  run(party);
 }

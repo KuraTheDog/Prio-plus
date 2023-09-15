@@ -7,6 +7,7 @@
 #include "../fmpz_utils.h"
 #include "../net_share.h"
 
+#define SERVER0_IP "127.0.0.1"
 
 const size_t batch_size = 100; // flexible
 const int lazy = 0;
@@ -773,7 +774,7 @@ int main(int argc, char* argv[]) {
     close(newsockfd);
     close(sockfd);
   } else if (server_num == 1) {
-    int cli_sockfd = init_sender();
+    int cli_sockfd = init_sender(SERVER0_IP);
     runServerTest(1, cli_sockfd);
     close(cli_sockfd);
   }
