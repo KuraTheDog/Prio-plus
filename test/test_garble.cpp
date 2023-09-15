@@ -601,6 +601,7 @@ void run(const int party) {
 
 int main(int argc, char** argv) {
   if (argc == 1) {
+    // Note: Garble doesn't work well with threading, it seems
     pid_t pid = fork();
     if (pid == 0) {
       run(ALICE);

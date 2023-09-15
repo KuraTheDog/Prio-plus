@@ -728,15 +728,15 @@ void runServerTest(const int server_num, const int serverfd) {
 
 void serverTest() {
   std::cout << "Running server test" << std::endl;
-  int sockfd = init_receiver();
 
-  pid_t pid = fork();
-  if (pid == 0) {
+  std::thread t0([&]() {
     int cli_sockfd = init_sender();
 
     runServerTest(0, cli_sockfd);
     close(cli_sockfd);
-  } else {
+  });
+  std::thread t1([&]() {
+    int sockfd = init_receiver();
     int newsockfd = accept_receiver(sockfd);
 
     // alter randomness to be different from the sender
@@ -750,9 +750,11 @@ void serverTest() {
     runServerTest(1, newsockfd);
 
     close(newsockfd);
-  }
+    close(sockfd);
+  });
 
-  close(sockfd);
+  t0.join();
+  t1.join();
 }
 
 // 00, 01 = 0, 10 = 1, 11 = 0 (-1)
