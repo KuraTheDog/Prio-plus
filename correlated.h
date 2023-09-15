@@ -354,8 +354,8 @@ public:
   // I.e. x[i,j] is additive share of bit j of number i.
   // Returns additive shares of [x < y] (NOTE: opposite of cmp, for convenience)
   // Uses 3 triples per bit to compare
-  int64_t cmp_bit(const size_t N, const size_t b,
-              const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
+  int64_t cmp_bitwise(const size_t N, const size_t b,
+      const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
   // Extracts shares [x0]^A of the least significant bit of additive secret [x]
   int64_t LSB(const size_t N, const fmpz_t* const x, fmpz_t* const x0);
   // Returns arithmetic share of

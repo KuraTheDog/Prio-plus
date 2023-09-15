@@ -512,7 +512,7 @@ void test_abs_cmp(
   clear_fmpz_array(val1, N);
 }
 
-void test_cmp_bit(
+void test_cmp_bitwise(
     const int server_num, const int serverfd, CorrelatedStore* store) {
   // Setup values
   const size_t bits = 2;
@@ -559,7 +559,7 @@ void test_cmp_bit(
   // Eval cmp
   std::cout << "running" << std::endl;
   fmpz_t* ans; new_fmpz_array(&ans, N);
-  store->cmp_bit(N, bits, x_bits, y_bits, ans);
+  store->cmp_bitwise(N, bits, x_bits, y_bits, ans);
 
   // Check values
   if (server_num == 0) {
@@ -715,7 +715,7 @@ void runServerTest(const int server_num, const int serverfd) {
 
   // Lazy 1 rand bitshare doesn't work right for some reason
 
-  // test_cmp_bit(server_num, serverfd, store);
+  // test_cmp_bitwise(server_num, serverfd, store);
   test_rand_bitshare(server_num, serverfd, store);
   // test_sign(server_num, serverfd, store);
   test_abs_cmp(server_num, serverfd, store);

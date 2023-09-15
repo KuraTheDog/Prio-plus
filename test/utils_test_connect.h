@@ -11,7 +11,7 @@
 
 #include "utils.h"
 
-int PORT = 8887;
+const int TEST_PORT = 8887;
 
 int init_sender(const char* ip = "127.0.0.1") {
   std::cout << "send: start" << std::endl;
@@ -29,7 +29,7 @@ int init_sender(const char* ip = "127.0.0.1") {
     error_exit("Sockopt failed");
 
   bzero((char *) &addr, sizeof(addr));
-  addr.sin_port = htons(PORT);
+  addr.sin_port = htons(TEST_PORT);
   addr.sin_family = AF_INET;
   inet_pton(AF_INET, ip, &addr.sin_addr);
 
@@ -57,7 +57,7 @@ int init_receiver() {
   bzero((char *) &rec_addr, sizeof(rec_addr));
   rec_addr.sin_family = AF_INET;
   rec_addr.sin_addr.s_addr = INADDR_ANY;
-  rec_addr.sin_port = htons(PORT);
+  rec_addr.sin_port = htons(TEST_PORT);
 
   if (bind(sockfd, (struct sockaddr *) &rec_addr, sizeof(rec_addr)) < 0)
     error_exit("recv: ERROR on binding");

@@ -880,7 +880,7 @@ int64_t CorrelatedStore::abs_cmp(
 
 // x, y are Nxb shares of N total b-bit numbers.
 // I.e. x[i,j] is additive share of bit j of number i.
-int64_t CorrelatedStore::cmp_bit(
+int64_t CorrelatedStore::cmp_bitwise(
     const size_t N, const size_t b,
     const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans) {
   int64_t sent_bytes = 0;
@@ -898,19 +898,21 @@ int64_t CorrelatedStore::cmp_bit(
     fmpz_mod_add(c[i], c[i], y[i], mod_ctx);
   }
 
-  // [di] = OR([cj]) from i+1 to b
-  // = [ci] OR [d(i+1)], with d_b = cb
-  // a OR b = 1-(1-a)(1-b) = a + b - ab
-  // TODO: Currently doing b-round version.
-  //  Can be constant, but lazy fine for now.
-  //  wait, can we just fold it into one large multiply?
-  //  Set ci, di1. mul = ci * di1. Then set d
+  /* [di] = OR([cj]) from i+1 to b
+  = [ci] OR [d(i+1)], with d_b = cb
+  a OR b = 1-(1-a)(1-b) = a + b - ab
+  TODO: Currently doing b-round version.
+    Exists constant-round mult of poly many non-zero shares
+      though breaks when "bitwise" probably
+    wait, can we just fold it into one large multiply? dependent, prob not
+  */
   fmpz_t* d; new_fmpz_array(&d, N * b);
   // Start: db = cb
   for (unsigned int i = 0; i < N; i++) {
     idx = i * b + (b-1);  // [i, b-1]
     fmpz_set(d[idx], c[idx]);
   }
+  // Set ci, di1. mul = ci * di1. Then set d
   fmpz_t* ci; new_fmpz_array(&ci, N);     // [ci]
   fmpz_t* di1; new_fmpz_array(&di1, N);   // [d(i+1)]
   fmpz_t* mul; new_fmpz_array(&mul, N);
@@ -1008,7 +1010,7 @@ int64_t CorrelatedStore::LSB(
     }
   }
   fmpz_t* cmp; new_fmpz_array(&cmp, N);
-  sent_bytes += cmp_bit(N, b, cB, rB, cmp);
+  sent_bytes += cmp_bitwise(N, b, cB, rB, cmp);
   clear_fmpz_array(cB, N*b);
   clear_fmpz_array(rB, N*b);
   clear_fmpz_array(c, N);
@@ -1396,7 +1398,7 @@ int64_t PrecomputeStore::gen_BitShare(
     // Check [r < p], and get in clear
     // TODO: Could possibly be round optimized
     fmpz_t* r_lt_p; new_fmpz_array(&r_lt_p, num_to_make);
-    sent_bytes += cmp_bit(num_to_make, b, rB_tocheck, pB, r_lt_p);
+    sent_bytes += cmp_bitwise(num_to_make, b, rB_tocheck, pB, r_lt_p);
     sent_bytes += reveal_fmpz_batch(serverfd, r_lt_p, num_to_make);
     for (unsigned int i = 0; i < num_to_make; i++) {
       valid[rB_idx[i]] = fmpz_is_one(r_lt_p[i]);

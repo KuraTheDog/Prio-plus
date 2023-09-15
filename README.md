@@ -70,7 +70,7 @@ Server 0 needs to be started before server 1.
 1. For the first server, run `./bin/server 0 8800 8888` to start it
 2. For the second server, run `./bin/server 1 8801 8888` to start it (in another window / instance / computer)
 3. Use e.g. `./bin/client 10 8800 8801 VAR 8` to run a meta-client that sends out client messages (in another window / instance / computer)
-3. Repeat step 4 as desired with different parameters
+4. Repeat step 3 as desired with different parameters
 
 ## Supported protocols
 
