@@ -429,10 +429,10 @@ void test_extract(const int party, const int sockfd, flint_rand_t hash_seed) {
       store.eval(i * depth + j, i, tmp);
       for (unsigned int k = 0; k < num_substreams; k++) {
         // Order group, substream, depth
-        const unsigned int idx = (i * num_substreams + k) * depth + j;
         for (unsigned int r = 0; r < num_copies; r++) {
-          const unsigned int final_idx = r * num_groups * num_substreams * depth + idx;
-          fmpz_set(bits[final_idx], tmp);
+          const unsigned int idx = ((r * num_groups + i)
+              * num_substreams + k) * depth + j;
+          fmpz_set(bits[idx], tmp);
         }
       }
     }
@@ -471,7 +471,7 @@ void test_extract(const int party, const int sockfd, flint_rand_t hash_seed) {
 
   // 2 on one side, 1 on the other, for +3
   // n(n+1)/2, with i+1 stuff
-  [[maybe_unused]] const unsigned int total = 3 * (num_candidates + 1) * num_candidates / 2;
+  const unsigned int total = 3 * (num_candidates + 1) * num_candidates / 2;
 
   const int method = 1;
 
@@ -496,7 +496,8 @@ void test_extract(const int party, const int sockfd, flint_rand_t hash_seed) {
     for (unsigned int i = 0; i < num_candidates; i++) {
       uint64_t v = candidates[i].reveal<uint64_t>();
       uint64_t expected = (i/num_substreams) % num_groups;
-      // std::cout << "got[" << i << "]: " << v << ", expected = " << expected << std::endl;
+      // std::cout << "got[" << i << "]: " << v;
+      // std::cout << ", expected = " << expected << std::endl;
       assert(v == expected);
     }
   } else if (method == 1) {
@@ -509,7 +510,8 @@ void test_extract(const int party, const int sockfd, flint_rand_t hash_seed) {
     for (unsigned int i = 0; i < num_candidates; i++) {
       uint64_t v = candidates[i];
       uint64_t expected = (i/num_substreams) % num_groups;
-      // std::cout << "got[" << i << "]: " << v << ", expected = " << expected << std::endl;
+      // std::cout << "got[" << i << "]: " << v;
+      // std:: << ", expected = " << expected << std::endl;
       assert(v == expected);
     }
 
@@ -537,16 +539,13 @@ void run(const int party) {
   OT_Wrapper* ot0 = new OT_Wrapper(party == ALICE ? nullptr : SERVER0_IP, 60051);
   OT_Wrapper* ot1 = new OT_Wrapper(party == BOB ? nullptr : SERVER1_IP, 60052);
 
-  // std::cout << "Party " << party << " setting up semi-honest for garble" << std::endl;
-  // Somehow new io, and ot1->io dont' like to work.
+  // Somehow new io, and ot1->io dont' like to work. Grab from OT
   NetIO* io = ot0->io;
-  // std::cout << "Party " << party << " setting up io with addr ";
-  // std::cout << (party==BOB ? "none" : "127.0.0.1") << std::endl;
 
   setup_semi_honest(io, party);
-  // std::cout << "Party " << party << " semi-honest for garble set up" << std::endl;
 
   // Use some OT, since garble shares IO with OT.
+  // So we ensure it still works being shared
   uint64_t data0[2] = {10, 20};
   uint64_t data0_1[2] = {11, 21};
   uint64_t data1[2] = {1000, 2000};

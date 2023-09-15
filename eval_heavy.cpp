@@ -437,9 +437,8 @@ void top_k_extract_garbled(
     const int server_num, const MultiHeavyConfig cfg,
     const fmpz_t* const bucket0, const fmpz_t* const bucket1,
     flint_rand_t hash_seed_split, flint_rand_t hash_seed_count,
-    fmpz_t* const countmin_shares,
-    const size_t num_inputs,
-    uint64_t* top_values, uint64_t* top_freqs) {
+    fmpz_t* const countmin_shares, const size_t num_inputs,
+    uint64_t* const top_values, uint64_t* const top_freqs) {
   const int party = server_num + 1;
 
   HashStoreBit hash_split(cfg.Q, cfg.D, cfg.num_bits, 2, hash_seed_split);

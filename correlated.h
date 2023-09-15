@@ -337,26 +337,40 @@ public:
     Specifically, if x < y then 1, if x >= y then 0
   Returns additive shares of the comparsion.
 
-  Currently mainly replaced by garble (eval_heavy).
+  TODOs:
+    - Bit return versions
+      - Since bit answers easier to use to invert hashes
+      - Makes some math easier (xors), some maybe harder (unlimited fan-in?)
+      - Also makes things smaller (bool shares over xor)
+      - "A2B" can also do this, but not implemented
+    - Constant round mult
+      - have prefix-OR: cn, cn|cn-1, cn|cn-1|cn-2, ..., cn|...|c0
+      - (Currently arith via x+y-xy, but will have bool too)
+      - Currently doing just linear rounds in order, one per bit.
+      - Exists constant round version, but more overhead/complexity
+        - Apparently 17 rounds for arith? Vs e.g. 48
   */
 
-  // Clear: Reveals info, not secure
-  // True if [x] > c
-  bool* cmp_c_clear(const size_t N, const fmpz_t* const x, const fmpz_t* const c) const;
-  // Arithmetic shares of [x] > [y]
+  // [ x < y ] ^A for [x]^A, [y]^A
   int64_t cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
-  // Given [x], sets out = [|x|]^A via negating if [x] < 0
+  // [ |x| ] ^A for [x]^A, [y]^A
   int64_t abs(const size_t N, const fmpz_t* const x, fmpz_t* const abs_x);
-  // True if [|x|] > [|y|]
+  // [ |x| < |y| ] ^A for [x]^A, [y]^A
   int64_t abs_cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y,
       fmpz_t* const ans);
-  // x, y are Nxb shares of the bits of N total b-bit numbers.
-  // I.e. x[i,j] is additive share of bit j of number i.
-  // Returns additive shares of [x < y] (NOTE: opposite of cmp, for convenience)
-  // Uses 3 triples per bit to compare
+  /* [x < y] for [xB]^A, [yB]^A bitwise shares of x, y
+  x, y are Nxb shares of the bits of N total b-bit numbers.
+  I.e. x[i,j] is additive share of bit j of number i.
+  Uses 3 triples per bit to compare
+  Currently uses ~b rounds. TODO: improve
+    Can be compacted to constant rounds to multiply b values
+      pre-share (x, x^-1).
+    For boolean AND/OR, apparently doable? block size sqrt
+  TODO: investigate boolean share version. Doable. Need to see how compacting works
+  */
   int64_t cmp_bitwise(const size_t N, const size_t b,
       const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
-  // Extracts shares [x0]^A of the least significant bit of additive secret [x]
+  // Extracts shares [x0]^A of the least significant bit x0 of [x]^A
   int64_t LSB(const size_t N, const fmpz_t* const x, fmpz_t* const x0);
   // Returns arithmetic share of
   //    1 if x is negative (x > p/2)

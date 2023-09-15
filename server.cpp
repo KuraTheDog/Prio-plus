@@ -1780,6 +1780,8 @@ returnType multi_heavy_op(const initMsg msg,
       countmin_accum, num_inputs, top_values, top_freqs);
   garbleIO->flush();
 
+  std::cout << "Garble Mult gates: " << CircuitExecution::circ_exec->num_and()<<endl;
+
   clear_fmpz_array(bucket0, num_sh);
   clear_fmpz_array(bucket1, num_sh);
   // Not needed, since freed within extract
@@ -2094,6 +2096,8 @@ returnType top_k_op(const initMsg msg,
   top_k_extract_garbled(server_num, cfg, bucket0, bucket1, hash_seed_split, hash_seed_count,
       countmin_accum, num_inputs, top_values, top_freqs);
   garbleIO->flush();
+
+  std::cout << "Mult gates: " << CircuitExecution::circ_exec->num_and()<<endl;
 
   clear_fmpz_array(bucket0, num_sh);
   clear_fmpz_array(bucket1, num_sh);

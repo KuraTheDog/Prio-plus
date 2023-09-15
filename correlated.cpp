@@ -771,47 +771,9 @@ int64_t CorrelatedStore::heavy_convert_mask(
   return sent_bytes;
 }
 
-
-// WARNING: Just does x in clear. Early version for debug/test
-// [x] > c for known c, shares [x]
-// Treats > N/2 as negative
-bool* CorrelatedStore::cmp_c_clear(
-    const size_t N, const fmpz_t* const x, const fmpz_t* const c) const {
-  bool* const ans = new bool[N];
-
-  fmpz_t half; fmpz_init(half); fmpz_cdiv_q_ui(half, Int_Modulus, 2);
-
-  // Done in clear
-  if (server_num == 0) {
-    fmpz_t* x2; new_fmpz_array(&x2, N);
-    fmpz_t* c2; new_fmpz_array(&c2, N);
-    recv_fmpz_batch(serverfd, x2, N);
-    for (unsigned int i = 0; i < N; i++) {
-      fmpz_mod_add(x2[i], x2[i], x[i], mod_ctx);
-      if (fmpz_cmp(x2[i], half) > 0) {  // > N/2, so negative
-        fmpz_sub(x2[i], x2[i], Int_Modulus);
-      }
-      if (fmpz_cmp(c[i], half) > 0) {
-        fmpz_sub(c2[i], c[i], Int_Modulus);
-      } else {
-        fmpz_set(c2[i], c[i]);
-      }
-      ans[i] = fmpz_cmp(x2[i], c2[i]) < 0;
-    }
-    send_bool_batch(serverfd, ans, N);
-  } else {
-    send_fmpz_batch(serverfd, x, N);
-    recv_bool_batch(serverfd, ans, N);
-  }
-
-  fmpz_clear(half);
-  return ans;
-}
-
 // Just (x < y) = (x - y < 0) = is_neg([x - y])
 int64_t CorrelatedStore::cmp(const size_t N,
-                         const fmpz_t* const x, const fmpz_t* const y,
-                         fmpz_t* const ans) {
+    const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans) {
   int64_t sent_bytes = 0;
   check_DaBits(4 * N * nbits_mod);
   check_Triples(13 * N * nbits_mod);
@@ -830,8 +792,8 @@ int64_t CorrelatedStore::cmp(const size_t N,
 // |x| = (1 - 2[x < 0]) * x
 // if hashes known, sign might reveal some info about non-heavy bucket
 // so reveal in clear is not fully secure
-int64_t CorrelatedStore::abs(
-    const size_t N, const fmpz_t* const x, fmpz_t* const abs_x) {
+int64_t CorrelatedStore::abs(const size_t N,
+    const fmpz_t* const x, fmpz_t* const abs_x) {
   int64_t sent_bytes = 0;
   check_DaBits(4 * N * nbits_mod);
   check_Triples((13 + 1) * N * nbits_mod);
@@ -848,8 +810,8 @@ int64_t CorrelatedStore::abs(
   return sent_bytes;
 }
 
-int64_t CorrelatedStore::abs_cmp(
-    const size_t N, const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans) {
+int64_t CorrelatedStore::abs_cmp(const size_t N,
+    const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans) {
   int64_t sent_bytes = 0;
   check_DaBits(3 * 4 * N * nbits_mod);  // 1 per abs, and 1 for cmp
   check_Triples((13 + 14 + 14) * N * nbits_mod);  // 13 for cmp, 14 for abs
@@ -880,8 +842,7 @@ int64_t CorrelatedStore::abs_cmp(
 
 // x, y are Nxb shares of N total b-bit numbers.
 // I.e. x[i,j] is additive share of bit j of number i.
-int64_t CorrelatedStore::cmp_bitwise(
-    const size_t N, const size_t b,
+int64_t CorrelatedStore::cmp_bitwise(const size_t N, const size_t b,
     const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans) {
   int64_t sent_bytes = 0;
   size_t idx;  // for convenience
@@ -902,9 +863,7 @@ int64_t CorrelatedStore::cmp_bitwise(
   = [ci] OR [d(i+1)], with d_b = cb
   a OR b = 1-(1-a)(1-b) = a + b - ab
   TODO: Currently doing b-round version.
-    Exists constant-round mult of poly many non-zero shares
-      though breaks when "bitwise" probably
-    wait, can we just fold it into one large multiply? dependent, prob not
+    There is constant-round mult of poly many non-zero shares
   */
   fmpz_t* d; new_fmpz_array(&d, N * b);
   // Start: db = cb
@@ -961,7 +920,7 @@ int64_t CorrelatedStore::cmp_bitwise(
   return sent_bytes;
 }
 
-// Since we are masking with random r, this should have max b (2^b > p)
+// Since everything same modulus, assumes num bits
 int64_t CorrelatedStore::LSB(
     const size_t N, const fmpz_t* const x, fmpz_t* const x0) {
   int64_t sent_bytes = 0;
