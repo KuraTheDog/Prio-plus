@@ -2189,7 +2189,7 @@ void top_k_op(const std::string protocol, const size_t numreqs,
 int main(int argc, char** argv) {
   if (argc < 4) {
     std::cout << "Usage: ./bin/client num_submissions server0_port server1_port";
-    std::cout << " PROTOCOL num_bits (other params) " << endl;
+    std::cout << " PROTOCOL num_bits (other params) " << std::endl;
     return 1;
   }
 

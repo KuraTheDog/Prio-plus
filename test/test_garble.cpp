@@ -184,16 +184,6 @@ void test_index(const int party) {
 
   // Reveal
   int64_t r = res.reveal<int64_t>();
-  // if (party == ALICE) {
-  //   std::cout << "Mult gates: " << CircuitExecution::circ_exec->num_and()<<endl;
-  //   std::cout << "result at index " << idx << " = " << r << std::endl;
-  // }
-  // for(int i = 0; i < size; ++i) {
-  //   int64_t a = arr[i].reveal<int64_t>();
-  //   if (party == ALICE) {
-  //     std::cout << "arr[" << i << "] = " << a << std::endl;
-  //   }
-  // }
   assert(actual == r);
   delete[] arr;
 
@@ -502,6 +492,8 @@ void test_extract(const int party, const int sockfd, flint_rand_t hash_seed) {
     }
   } else if (method == 1) {
     bool* cmp = bucket_compare_clear(sockfd, num_pairs, bucket0, bucket1);
+    clear_fmpz_array(bucket0, num_pairs);
+    clear_fmpz_array(bucket1, num_pairs);
     uint64_t* candidates = new uint64_t[num_candidates];
     extract_candidates_clear(num_copies, num_groups, num_substreams, depth,
         input_bits, store, cmp, candidates);
@@ -583,7 +575,7 @@ void run(const int party) {
 
   io->flush();
 
-  std::cout << "Mult gates: " << CircuitExecution::circ_exec->num_and()<<endl;
+  std::cout << "Mult gates: " << CircuitExecution::circ_exec->num_and() << std::endl;
 
   finalize_semi_honest();  // just deletes things
   // delete io;  // gets deleted with ot0

@@ -157,6 +157,13 @@ void process_unvalidated(const std::string tag, const size_t n) {
   ((ValidateCorrelatedStore*) correlated_store)->process_Unvalidated(tag);
 }
 
+uint64_t prev_gate_count = 0;
+void print_garble_gates() {
+  uint64_t new_count = CircuitExecution::circ_exec->num_and();
+  std::cout << "Garble Mult gates: " << new_count - prev_gate_count << std::endl; 
+  prev_gate_count = new_count;
+}
+
 // Batch of N (snips + num_input wire/share) validations
 // Due to the nature of the final swap, both servers get the same valid array
 // TODO: round split
@@ -1776,11 +1783,11 @@ returnType multi_heavy_op(const initMsg msg,
   uint64_t* const top_values = new uint64_t[K];
   uint64_t* const top_freqs = new uint64_t[K];
 
-  top_k_extract_garbled(server_num, cfg, bucket0, bucket1, hash_seed_split, hash_seed_count,
-      countmin_accum, num_inputs, top_values, top_freqs);
+  top_k_extract_garbled(server_num, cfg, bucket0, bucket1,
+      hash_seed_split, hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
   garbleIO->flush();
 
-  std::cout << "Garble Mult gates: " << CircuitExecution::circ_exec->num_and()<<endl;
+  print_garble_gates();
 
   clear_fmpz_array(bucket0, num_sh);
   clear_fmpz_array(bucket1, num_sh);
@@ -2093,11 +2100,11 @@ returnType top_k_op(const initMsg msg,
   uint64_t* const top_values = new uint64_t[K];
   uint64_t* const top_freqs = new uint64_t[K];
 
-  top_k_extract_garbled(server_num, cfg, bucket0, bucket1, hash_seed_split, hash_seed_count,
-      countmin_accum, num_inputs, top_values, top_freqs);
+  top_k_extract_garbled(server_num, cfg, bucket0, bucket1,
+      hash_seed_split, hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
   garbleIO->flush();
 
-  std::cout << "Mult gates: " << CircuitExecution::circ_exec->num_and()<<endl;
+  print_garble_gates();
 
   clear_fmpz_array(bucket0, num_sh);
   clear_fmpz_array(bucket1, num_sh);
@@ -2118,7 +2125,8 @@ returnType top_k_op(const initMsg msg,
 
 int main(int argc, char** argv) {
   if (argc < 4) {
-    std::cout << "Usage: ./bin/server server_num(0/1) this_client_port server0_port" << endl;
+    std::cout << "Usage: ./bin/server server_num(0/1) this_client_port server0_port";
+    std::cout << " (additional params)" << std::endl;
     return 1;
   }
 

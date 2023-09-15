@@ -127,6 +127,13 @@ void HeavyEval::sort_remove_dupes(const size_t K) {
     // Get curr
     FreqVal curr = freq_and_vals[offset];
     uint64_t curr_freq = curr.first;
+    /* Edge case: Not enough candidates have non-zero freq. Just stop early
+    Doesn't leak to reveal extra values that have 0
+    - i.e. anything with 0 freq is random values, so no leak
+    - and it would be revealed that some < K are all anyways
+    - so don't need to "stop top K early" in final return
+    */
+    if (curr_freq == 0) break;
     // Get all with same freq as curr
     size_t count = 0;
     while (curr.first == curr_freq) {
@@ -145,6 +152,7 @@ void HeavyEval::sort_remove_dupes(const size_t K) {
     for (auto v : vals) {
       topK[idx] = {v, curr_freq};
       idx++;
+      if (idx == K) break;  // Found enough, stop
     }
 
     unique += vals.size();
@@ -391,6 +399,8 @@ bool* bucket_compare_clear(
     if (fmpz_cmp(buff1[i], half) > 0) fmpz_sub(buff1[i], Int_Modulus, buff1[i]);
     cmp[i] = (fmpz_cmp(buff0[i], buff1[i]) < 0);
   }
+  clear_fmpz_array(buff0, N);
+  clear_fmpz_array(buff1, N);
   fmpz_clear(half);
 
   return cmp;
@@ -473,6 +483,7 @@ void top_k_extract_garbled(
 
   ev.get_frequencies();
   // std::cout << "values and freqs: " << std::endl; ev.print_values();
+
   ev.sort_remove_dupes(cfg.K);
   ev.return_top_K(cfg.K, top_values, top_freqs);
 }
