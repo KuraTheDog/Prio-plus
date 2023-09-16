@@ -75,15 +75,15 @@ void test_HeavyConvert(const int server_num, const int serverfd,
   }
 
   auto start = clock_start();
-  std::cout << "clock start" << std::endl;
+  // std::cout << "clock start" << std::endl;
   int sent_bytes = 0;
   if (use_ot_version) {
     sent_bytes = store->heavy_convert_ot(N, nbits, x, y, valid, bucket0, bucket1);
   } else {
     sent_bytes = store->heavy_convert(N, nbits, x, y, valid, bucket0, bucket1);
   }
-  std::cout << "heavy convert timing : " << sec_from(start) << std::endl;
-  std::cout << "sent_bytes = " << sent_bytes << std::endl;
+  // std::cout << "heavy convert timing : " << sec_from(start) << std::endl;
+  // std::cout << "sent_bytes = " << sent_bytes << std::endl;
 
   // recombine / test
   if (server_num == 0) {
@@ -204,22 +204,22 @@ void test_HeavyConvertMask_one(const int server_num, const int serverfd,
 
   // Run
   auto start = clock_start();
-  std::cout << "clock start" << std::endl;
+  // std::cout << "clock start" << std::endl;
   int64_t sent_bytes = 0;
   if (use_ot_version) {
     fmpz_t* y_p; new_fmpz_array(&y_p, N * Q * D);
     sent_bytes += store->b2a_single(N * Q * D, y, y_p);
-    std::cout << "heavy mask: b2a timing " << sec_from(start) << std::endl;
+    // std::cout << "heavy mask: b2a timing " << sec_from(start) << std::endl;
     auto start2 = clock_start();
     sent_bytes += store->heavy_convert_mask(N, Q, M, D, x, y_p, mask, valid, bucket0, bucket1);
-    std::cout << "heavy mask convert timing : " << sec_from(start2) << std::endl;
-    std::cout << "heavy mask total timing : " << sec_from(start) << std::endl;
+    // std::cout << "heavy mask convert timing : " << sec_from(start2) << std::endl;
+    // std::cout << "heavy mask total timing : " << sec_from(start) << std::endl;
     clear_fmpz_array(y_p, N * Q * D);
   } else {
     sent_bytes += store->heavy_convert_mask_one(N, Q, M, D, x, y, mask, valid, bucket0, bucket1);
-    std::cout << "heavy mask convert timing : " << sec_from(start) << std::endl;
+    // std::cout << "heavy mask convert timing : " << sec_from(start) << std::endl;
   }
-  std::cout << "sent_bytes = " << sent_bytes << std::endl;
+  // std::cout << "sent_bytes = " << sent_bytes << std::endl;
   delete[] x;
   delete[] y;
   delete[] mask;
@@ -352,21 +352,21 @@ void test_HeavyConvertMask_two(const int server_num, const int serverfd,
 
   // Run
   auto start = clock_start();
-  std::cout << "clock start" << std::endl;
+  // std::cout << "clock start" << std::endl;
   int64_t sent_bytes = 0;
   if (use_ot_version) {
     fmpz_t* y_p; new_fmpz_array(&y_p, N * Q * D);
     sent_bytes += store->b2a_single(N * Q * D, y, y_p);
-    std::cout << "heavy mask: b2a timing " << sec_from(start) << std::endl;
+    // std::cout << "heavy mask: b2a timing " << sec_from(start) << std::endl;
     auto start2 = clock_start();
     bool* const combined_mask = new bool[N * Q * M1 * M2];
     sent_bytes += store->multiply_BoolShares_cross(
         N, Q * M1, M2, mask1, mask2, combined_mask);
-    std::cout << "heavy mask: cross timing " << sec_from(start2) << std::endl;
+    // std::cout << "heavy mask: cross timing " << sec_from(start2) << std::endl;
     start2 = clock_start();
     sent_bytes += store->heavy_convert_mask(N, Q, M1 * M2, D,
         x, y_p, combined_mask, valid, bucket0, bucket1);
-    std::cout << "heavy mask: convert timing " << sec_from(start2) << std::endl;
+    // std::cout << "heavy mask: convert timing " << sec_from(start2) << std::endl;
     delete[] combined_mask;
     clear_fmpz_array(y_p, N * Q * D);
   } else {
@@ -377,9 +377,9 @@ void test_HeavyConvertMask_two(const int server_num, const int serverfd,
     sent_bytes += store->heavy_convert_mask_two(N, Q, M1, M2, D,
         x, y, mask1, mask2_ext, valid, bucket0, bucket1);
     delete[] mask2_ext;
-    std::cout << "heavy mask: convert timing " << sec_from(start) << std::endl;
+    // std::cout << "heavy mask: convert timing " << sec_from(start) << std::endl;
   }
-  std::cout << "send_bytes: " << sent_bytes << std::endl;
+  // std::cout << "send_bytes: " << sent_bytes << std::endl;
 
   // Recombine / test
   if (server_num == 0) {
@@ -589,24 +589,24 @@ void test_cmp_bitwise(
   clear_fmpz_array(y_bits, N * bits);
 }
 
+// Expose get_BitShare. Outside for AWS
+class Test_BitShare : CorrelatedStore {
+public:
+  const BitShare* const test_get() {return get_BitShare();};
+};
+
 void test_rand_bitshare(
     const int server_num, const int serverfd, CorrelatedStore* store) {
   const size_t N = 10;
   fmpz_t M; fmpz_init_set(M, Int_Modulus);
   const size_t b = fmpz_clog_ui(Int_Modulus, 2);
 
-  // Expose get_BitShare
-  class Test : CorrelatedStore {
-  public:
-    const BitShare* test_get() {return get_BitShare();};
-  };
-
   store->check_BitShares(N);
   ((PrecomputeStore*)store)->print_Sizes();
 
   fmpz_t* buff; new_fmpz_array(&buff, N * (b + 1));
   for (unsigned int i = 0; i < N; i++) {
-    const BitShare* x = ((Test*)store)->test_get();
+    const BitShare* x = ((Test_BitShare*)store)->test_get();
     fmpz_set(buff[i * (b+1)], x->r);
     copy_fmpz_array(&buff[i * (b+1) + 1], x->rB, b);
     delete x;

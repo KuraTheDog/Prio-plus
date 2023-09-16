@@ -43,15 +43,18 @@ fmpz_get_str: best for small numbers.
 
 ulong array: Always uses ulongs. 32 or 64 bits.
 gives "perfect" space efficiency, for really large numbers.
-string: best it can do is base 62, so 62/256 ~ 25% space efficiency. So needs ~4x bits compared to numbers.
+string: best it can do is base 62, so 62/256 ~ 25% space efficiency.
+    So needs ~4x bits compared to numbers.
 */
 
 // Assumes fixed size (under some constant modulus)
 // Reduces number of bits to send fmpz
 #define FIXED_FMPZ_SIZE true
 
-// We batch things together into single send/receives, to reduce rounds/overhead (mainly recv wrapper I think).
-// However, it segfaults if given too large batches. So this makes sure batches are capped
+/* We batch things together into single send/receives, to reduce rounds/overhead
+   (mainly recv wrapper I think).
+However, it segfaults if given too large batches.
+So this makes sure batches are capped */
 #define MAX_BOOL_BATCH  64000000
 #define MAX_FMPZ_BATCH  1000000
 #define MAX_DABIT_BATCH 320000
@@ -68,7 +71,8 @@ int recv_bool(const int sockfd, bool& x);
 // Versus 1 bool at a time takes up a whole byte per bool
 int send_bool_batch(const int sockfd, const bool* const x, const size_t n);
 int recv_bool_batch(const int sockfd, bool* const x, const size_t n);
-int swap_bool_batch(const int sockfd, const bool* const x, bool* const y, const size_t n);
+int swap_bool_batch(const int sockfd, const bool* const x, bool* const y,
+    const size_t n);
 int reveal_bool_batch(const int sockfd, bool* const x, const size_t n);
 
 // Unused
@@ -105,7 +109,8 @@ int reveal_fmpz(const int sockfd, fmpz_t x);
 
 int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n);
 int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n);
-int swap_fmpz_batch(const int sockfd, const fmpz_t* const x, fmpz_t* const y, const size_t n);
+int swap_fmpz_batch(const int sockfd, const fmpz_t* const x, fmpz_t* const y,
+    const size_t n);
 int reveal_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n);
 
 // Both for round collapse, for thread wrapper
@@ -113,6 +118,7 @@ int swap_bool_fmpz_batch(const int sockfd,
     const bool* const x, bool* const y, const size_t n,
     const fmpz_t* const xp, fmpz_t* yp, const size_t np);
 
+// Note: Send has "uninitialized value" warnings, but they are initialized
 int send_seed(const int sockfd, const flint_rand_t x);
 int recv_seed(const int sockfd, flint_rand_t x);
 
@@ -134,13 +140,17 @@ int recv_BeaverTriple(const int sockfd, BeaverTriple* const x);
 
 int send_BoolTriple(const int sockfd, const BooleanBeaverTriple* const x);
 int recv_BoolTriple(const int sockfd, BooleanBeaverTriple* const x);
-int send_BoolTriple_batch(const int sockfd, const BooleanBeaverTriple* const * const x, const size_t n);
-int recv_BoolTriple_batch(const int sockfd, BooleanBeaverTriple* const * const x, const size_t n);
+int send_BoolTriple_batch(const int sockfd,
+    const BooleanBeaverTriple* const * const x,const size_t n);
+int recv_BoolTriple_batch(const int sockfd,
+    BooleanBeaverTriple* const * const x, const size_t n);
 
 int send_AltTriple(const int sockfd, const AltTriple* const x);
 int recv_AltTriple(const int sockfd, AltTriple* const x);
-int send_AltTriple_batch(const int sockfd, const AltTriple* const * const x, const size_t n);
-int recv_AltTriple_batch(const int sockfd, AltTriple* const * const x, const size_t n);
+int send_AltTriple_batch(const int sockfd,
+    const AltTriple* const * const x, const size_t n);
+int recv_AltTriple_batch(const int sockfd,
+    AltTriple* const * const x, const size_t n);
 
 int send_DaBit(const int sockfd, const DaBit* const x);
 int recv_DaBit(const int sockfd, DaBit* const x);
@@ -148,10 +158,13 @@ int send_DaBit_batch(const int sockfd, const DaBit* const * const x, const size_
 int recv_DaBit_batch(const int sockfd, DaBit* const * const x, const size_t n);
 
 // Assumes n is already known.
-// [[deprecated]] int send_EdaBit(const int sockfd, const EdaBit* const x, const size_t nbits);
-// [[deprecated]] int recv_EdaBit(const int sockfd, EdaBit* const x, const size_t nbits);
+/* 
+[[deprecated]] int send_EdaBit(const int sockfd, const EdaBit* const x, const size_t nbits);
+[[deprecated]] int recv_EdaBit(const int sockfd, EdaBit* const x, const size_t nbits);
 
-// [[deprecated]] int send_EdaBit_batch(const int sockfd, const EdaBit* const * const x, const size_t nbits, const size_t n);
-// [[deprecated]] int recv_EdaBit_batch(const int sockfd, EdaBit* const * const x, const size_t nbits, const size_t n);
-
+[[deprecated]] int send_EdaBit_batch(const int sockfd, const EdaBit* const * const x,
+    const size_t nbits, const size_t n);
+[[deprecated]] int recv_EdaBit_batch(const int sockfd, EdaBit* const * const x,
+    const size_t nbits, const size_t n);
+*/
 #endif

@@ -55,7 +55,7 @@ Smaller k' may work, so differnet a may be required.
 // const std::string Int_Gen_str = "7946479F9";      // 3^(p-1 / 2^15)
 // const int twoOrder = 15;
 
-const std::string Int_Modulus_str = "800006880001";  // 48 bit modulus
+const std::string Int_Modulus_str = "800006880001";    // 48 bit modulus
 const std::string Int_Gen_str = "3503101C8855";        // 7^(p-1 / 2^19)
 const int twoOrder = 19;
 
