@@ -1783,7 +1783,9 @@ returnType multi_heavy_op(const initMsg msg,
   uint64_t* const top_values = new uint64_t[K];
   uint64_t* const top_freqs = new uint64_t[K];
 
-  top_k_extract_garbled(server_num, cfg, bucket0, bucket1,
+  // top_k_extract_garbled(server_num, cfg, bucket0, bucket1,
+  //     hash_seed_split, hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
+  top_k_extract_mixed(server_num, serverfd, cfg, bucket0, bucket1,
       hash_seed_split, hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
   garbleIO->flush();
 
@@ -2100,7 +2102,9 @@ returnType top_k_op(const initMsg msg,
   uint64_t* const top_values = new uint64_t[K];
   uint64_t* const top_freqs = new uint64_t[K];
 
-  top_k_extract_garbled(server_num, cfg, bucket0, bucket1,
+  // top_k_extract_garbled(server_num, cfg, bucket0, bucket1,
+  //     hash_seed_split, hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
+  top_k_extract_mixed(server_num, serverfd, cfg, bucket0, bucket1,
       hash_seed_split, hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
   garbleIO->flush();
 

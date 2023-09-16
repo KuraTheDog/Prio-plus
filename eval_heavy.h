@@ -404,4 +404,21 @@ void top_k_extract_garbled(
     fmpz_t* const countmin_shares, const size_t num_inputs,
     uint64_t* const top_values, uint64_t* const top_freqs);
 
+/*
+abs_cmp in clear
+  - TODO: secure with bool shares and const rounds
+extract candidates in clear
+  - (secure once cmp efficient and bool)
+De-dupe candidates
+Garbled Count-min
+Clear sort freq
+  - Also de-dupes within same freq in clear, as extra
+*/
+void top_k_extract_mixed(
+    const int server_num, const int serverfd, const MultiHeavyConfig cfg,
+    const fmpz_t* const bucket0, const fmpz_t* const bucket1,
+    flint_rand_t hash_seed_split, flint_rand_t hash_seed_count,
+    fmpz_t* const countmin_shares, const size_t num_inputs,
+    uint64_t* const top_values, uint64_t* const top_freqs);
+
 #endif

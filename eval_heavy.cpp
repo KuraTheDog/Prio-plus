@@ -517,5 +517,90 @@ void top_k_extract_garbled(
   // std::cout << "values and freqs: " << std::endl; ev.print_values();
 
   ev.sort_remove_dupes(cfg.K);
+
+  ev.return_top_K(cfg.K, top_values, top_freqs);
+}
+
+void top_k_extract_mixed(
+    const int server_num, const int serverfd, const MultiHeavyConfig cfg,
+    const fmpz_t* const bucket0, const fmpz_t* const bucket1,
+    flint_rand_t hash_seed_split, flint_rand_t hash_seed_count,
+    fmpz_t* const countmin_shares, const size_t num_inputs,
+    uint64_t* const top_values, uint64_t* const top_freqs) {
+  const int party = server_num + 1;
+  /* Currently reveals all candidates in the clear
+      - Leaks possibly popular inputs
+      - could also include random, or not popular. Freq still hidden 
+  TODO: abs_cmp get bit, eval hash on it.
+  */
+  const size_t N = cfg.R * cfg.Q * cfg.B * cfg.D;
+  const size_t total_candidates = cfg.R * cfg.Q * cfg.B;
+  const size_t input_bits = cfg.num_bits;
+
+  CountMin count_min(cfg.countmin_cfg);
+  count_min.setStore(cfg.num_bits, hash_seed_count);
+  count_min.counts = countmin_shares;
+  const size_t num_hashes = count_min.cfg.d;
+
+  HashStoreBit hash_split(cfg.Q, cfg.D, cfg.num_bits, 2, hash_seed_split);
+
+  // Candidates and bucket compares in clear. 
+  bool* const cmp = bucket_compare_clear(serverfd, N, bucket0, bucket1);
+
+  uint64_t* const candidates = new uint64_t[total_candidates];
+  extract_candidates_clear(cfg.R, cfg.Q, cfg.B, cfg.D, input_bits,
+      hash_split, cmp, candidates);
+  delete[] cmp;
+
+  // Since candidates in the clear, can de-dupe them now.
+  // Means less garbled querying
+  std::set<uint64_t> unique_candidates;
+  for (unsigned int i = 0; i < total_candidates; i++) {
+    unique_candidates.insert(candidates[i]);
+  }
+  const size_t num_unique_candidates = unique_candidates.size();
+  std::cout << "unique candidates: " << unique_candidates.size();
+  std::cout << " / " << total_candidates << std::endl;
+
+  // Since in clear, only set for server 0 to get shares
+  if (server_num == 0) {
+    size_t i = 0;
+    for (auto v : unique_candidates) {
+      candidates[i] = v;
+      i++;
+    }
+  } else {
+    memset(candidates, 0, total_candidates * sizeof(uint64_t));
+  }
+
+  // Since in clear, only do for server 0 to get shares
+  fmpz_t* hashes; new_fmpz_array(&hashes, num_unique_candidates * num_hashes);
+  if (server_num == 0) {
+    for (unsigned int i = 0; i < num_unique_candidates; i++) {
+      for (unsigned int j = 0; j < num_hashes; j++) {
+        count_min.store->eval(j, candidates[i], hashes[i * num_hashes + j]);
+      }
+    }
+  }
+
+
+  HeavyEval ev(party, count_min, num_inputs);
+  // ev.print_params();
+
+  ev.parse_countmin();
+  // std::cout << "countmin: " << std::endl; ev.print_countmin();
+
+  ev.set_values_clear(candidates, num_unique_candidates);
+  delete[] candidates;
+  // std::cout << "set values: " << std::endl; ev.print_values();
+
+  ev.set_hashes_clear(hashes);
+  clear_fmpz_array(hashes, num_unique_candidates * num_hashes);
+
+  ev.get_frequencies();
+  // std::cout << "values and freqs: " << std::endl; ev.print_values();
+
+  ev.sort_remove_dupes(cfg.K);
+
   ev.return_top_K(cfg.K, top_values, top_freqs);
 }
