@@ -48,6 +48,7 @@ a == b : n
 If(bit, a, b): n
 >>, << const: free
 a <<, >> b: 4 n
+sort m values: about n * (m^2 / 2 + 3m)
 
 Bits:
 !, ^: free
@@ -335,7 +336,7 @@ Buckets:
   - TODO: figure out if can do boolean shares
 - Garble
 
-Extract:
+Extract candidates:
 - clear: clear cmp in, clear value out
 - secure: [cmp] in, [value] out
   - TODO: Requires cmp ^ parity
@@ -346,15 +347,26 @@ Extract:
   - so b2A round to get final values
 - garble
 
+De-dupe?
+- None
+- if clear candidates
+  - do in clear
+- if candidate shares
+  - garble
+  - in clear? 
+
 Count-min
 - full clear: reveal struct
 - Garble: keep struct hidden. Useful
 
 Final sort
-- clear
-- garble
-- freq in clear
-- no real other way to do efficiently
+- with de-dupe
+  - clear
+  - garble
+  - freq in clear, de-dupe within same freq in clear
+- just sort by freq (de-dupe earlier)
+  - freq in clear
+  - garble (overkill)
 */
 // Full clear cmp, also reveals bucket value
 bool* bucket_compare_clear(const int serverfd, const size_t N,
@@ -373,30 +385,18 @@ void extract_candidates_clear(
 /*
 NOTE: countmin_shares gets copied into a count-min object
 And hence it gets freed at the end of full_heavy_extract.
-
-Standard op:
-h = HeavyEval(party, count_min, total_count)
-  - Count-min contains secret-shared values
-  - total count is # items (sum of frequencies)
-Count-min
-  parse_countmin()
-    - populate countmin_values with de-shared circuit vals
-  Can print_countmin past this point
-Values
-  set_values(int/fmpz* shares, size num_values)
-    - Shares of candidate values (potentially with dupes)
-    - populates values with actuals with circuit
-  can print_values past this point
-void get_frequencies()
-  - Compute frequency estimates with circuit, populate freq
-  - requires both count-min parsed, and values set.
-sort_remove_dupes()
-  - sort (value/freq) by freq, with dupes zero'd out
-return_top_K(size K, uint64_t* topValues, uint64_t* topFreqs)
-  - set topValues/Freqs to the top K
-  - does circuit reveal at this step
 */
 
+/*
+Garbled abs_cmp
+Garbled extract candidates
+TODO
+  - consider de-dupe candidates here (sort, find adjacent dupes)
+  - later sort_remove_dupes (2 sorts, and de-dupe pass) just becomes sort_by_freq
+  - Also reduces frequency queries
+Garbled Count-min
+Garbled sort and remove dupes
+*/
 void top_k_extract_garbled(
     const int server_num, const MultiHeavyConfig cfg,
     const fmpz_t* const bucket0, const fmpz_t* const bucket1,

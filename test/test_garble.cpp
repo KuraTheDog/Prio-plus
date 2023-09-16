@@ -266,7 +266,6 @@ void test_full_sort(const int party, flint_rand_t hash_seed) {
   // heavy_eval.print_countmin(party == ALICE);
 
   // Step 2: add values
-  std::cout << "setting values..." << std::endl;
   if (clear_version) {
     heavy_eval.set_values_clear(candidates, num_candidates, ALICE);
   } else {
@@ -274,8 +273,6 @@ void test_full_sort(const int party, flint_rand_t hash_seed) {
   }
   // if (party == ALICE) std::cout << "parsed values: \n";
   // heavy_eval.print_values(party == ALICE);
-
-  std::cout << "set values" << std::endl;
 
   // Step 3: Eval hashes
   const size_t method = 1;

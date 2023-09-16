@@ -381,8 +381,6 @@ int64_t CorrelatedStore::multiply_BoolArith(
 
   uint64_t* const received = new uint64_t[N*B];
   uint64_t* const received_inv = z_inv ? new uint64_t[N*B] : nullptr;
-  // Fork stuff ignored for now.
-  // std::cout << "\tmultBoolARith OT size: " << (N*B) << std::endl;
   if (server_num == 0) {
     sent_bytes += ot0->send(data0, data1, N*B, data0_inv, data1_inv);
     sent_bytes += ot1->recv(received, b, N*B, received_inv);
