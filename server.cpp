@@ -1970,9 +1970,10 @@ returnType top_k_op(const initMsg msg,
   const size_t len_all = num_inputs * cfg.Q * cfg.B * cfg.R * cfg.D;
   const size_t len_part = num_inputs * cfg.Q * (cfg.D + cfg.B * cfg.R);
   const size_t len_p = num_inputs * (share_size_count + share_size_bucket);
-  bool* const send_buff = new bool[6 * len_all];
-  bool* const recv_buff = new bool[6 * len_all];
-  memset(recv_buff, 0, 6 * len_all);
+  const size_t buff_len = fmax(6 * len_all, 4 * len_all + num_inputs);
+  bool* const send_buff = new bool[buff_len];
+  bool* const recv_buff = new bool[buff_len];
+  memset(recv_buff, 0, buff_len);
 
   // Setup convert stage 1: xy normal, cross B, R
   bool* const a = new bool[3 * len_all];
