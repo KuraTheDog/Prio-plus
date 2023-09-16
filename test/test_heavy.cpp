@@ -74,9 +74,9 @@ void test_HeavyConvert(const int server_num, const int serverfd,
     store->check_DaBits(3 * N * nbits);
   }
 
-  auto start = clock_start();
+  [[maybe_unused]] auto start = clock_start();
   // std::cout << "clock start" << std::endl;
-  int sent_bytes = 0;
+  [[maybe_unused]] int64_t sent_bytes = 0;
   if (use_ot_version) {
     sent_bytes = store->heavy_convert_ot(N, nbits, x, y, valid, bucket0, bucket1);
   } else {
@@ -203,14 +203,14 @@ void test_HeavyConvertMask_one(const int server_num, const int serverfd,
   }
 
   // Run
-  auto start = clock_start();
+  [[maybe_unused]] auto start = clock_start();
   // std::cout << "clock start" << std::endl;
-  int64_t sent_bytes = 0;
+  [[maybe_unused]] int64_t sent_bytes = 0;
   if (use_ot_version) {
     fmpz_t* y_p; new_fmpz_array(&y_p, N * Q * D);
     sent_bytes += store->b2a_single(N * Q * D, y, y_p);
     // std::cout << "heavy mask: b2a timing " << sec_from(start) << std::endl;
-    auto start2 = clock_start();
+    [[maybe_unused]] auto start2 = clock_start();
     sent_bytes += store->heavy_convert_mask(N, Q, M, D, x, y_p, mask, valid, bucket0, bucket1);
     // std::cout << "heavy mask convert timing : " << sec_from(start2) << std::endl;
     // std::cout << "heavy mask total timing : " << sec_from(start) << std::endl;
@@ -351,14 +351,14 @@ void test_HeavyConvertMask_two(const int server_num, const int serverfd,
   }
 
   // Run
-  auto start = clock_start();
+  [[maybe_unused]] auto start = clock_start();
   // std::cout << "clock start" << std::endl;
-  int64_t sent_bytes = 0;
+  [[maybe_unused]] int64_t sent_bytes = 0;
   if (use_ot_version) {
     fmpz_t* y_p; new_fmpz_array(&y_p, N * Q * D);
     sent_bytes += store->b2a_single(N * Q * D, y, y_p);
     // std::cout << "heavy mask: b2a timing " << sec_from(start) << std::endl;
-    auto start2 = clock_start();
+    [[maybe_unused]] auto start2 = clock_start();
     bool* const combined_mask = new bool[N * Q * M1 * M2];
     sent_bytes += store->multiply_BoolShares_cross(
         N, Q * M1, M2, mask1, mask2, combined_mask);
