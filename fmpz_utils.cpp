@@ -24,7 +24,8 @@ void init_set_fmpz_readonly(fmpz_t x, const fmpz_t in) {
 void new_fmpz_array(fmpz_t** const arr, const size_t N) {
   fmpz_t* const out = (fmpz_t*) malloc(N * sizeof(fmpz_t));
   for (unsigned int i = 0; i < N; i++)
-    fmpz_init_set_ui(out[i], 0);
+    fmpz_init(out[i]);
+    // fmpz_init_set_ui(out[i], 0);
   *arr = out;
 }
 

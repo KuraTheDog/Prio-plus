@@ -10,7 +10,7 @@
 const DaBit* const CorrelatedStore::get_DaBit() {
   if (lazy == 3) {
     DaBit* dabit = new DaBit();
-    fmpz_zero(dabit->bp); dabit->b2 = 0;
+    dabit->b2 = 0;
     return dabit;
   }
 
@@ -960,10 +960,6 @@ int64_t CorrelatedStore::LSB(
       for (unsigned int j = 0; j < b; j++) {
         fmpz_set_ui(cB[i * b + j], fmpz_tstbit(c[i], j));
       }
-    }
-  } else {
-    for (unsigned int i = 0; i < N * b; i++) {
-      fmpz_zero(cB[i]);
     }
   }
   fmpz_t* cmp; new_fmpz_array(&cmp, N);

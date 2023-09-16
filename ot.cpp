@@ -337,8 +337,8 @@ BeaverTriple* generate_beaver_triple(const int serverfd, const int server_num,
 
   // std::cout << "OT timing: " << sec_from(start) << std::endl;
 
-  fmpz_t t; fmpz_init(t); fmpz_zero(t);  // sum 2^i ti
-  fmpz_t q; fmpz_init(q); fmpz_zero(q);  // sum 2^i r0
+  fmpz_t t; fmpz_init(t);  // sum 2^i ti
+  fmpz_t q; fmpz_init(q);  // sum 2^i r0
 
   fmpz_t r0; fmpz_init(r0);  // r0_block[i]
   fmpz_t r1; fmpz_init(r1);  // r1_block[i]

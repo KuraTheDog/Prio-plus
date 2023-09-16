@@ -160,7 +160,7 @@ void process_unvalidated(const std::string tag, const size_t n) {
 uint64_t prev_gate_count = 0;
 void print_garble_gates() {
   uint64_t new_count = CircuitExecution::circ_exec->num_and();
-  std::cout << "Garble Mult gates: " << new_count - prev_gate_count << std::endl; 
+  std::cout << "Garble Mult gates: " << new_count - prev_gate_count << std::endl;
   prev_gate_count = new_count;
 }
 
@@ -938,7 +938,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
   std::cout << "receive time: " << sec_from(start) << std::endl;
 
   if (STORE_TYPE != ot_store)
-    ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * num_bits * num_dabits);
+    ((CorrelatedStore*) correlated_store)->check_DaBits(
+        total_inputs * num_bits * num_dabits);
 
   start = clock_start();
   auto start2 = clock_start();
@@ -1350,12 +1351,13 @@ returnType heavy_op(const initMsg msg,
   const size_t b = msg.num_bits;
   const unsigned int total_inputs = msg.num_of_inputs;
 
-  // B Not actually necessary for evaluation
-  // Could help for "verify" that hashes actually have right sign after finding the output,
-  // but it doesn't help evaluation.
-  // flint_rand_t hash_seed; flint_randinit(hash_seed);
-  // recv_seed(clientfd, hash_seed);
-  // HashStore hash_store(b, b, 2, hash_seed);
+  /* B Not actually necessary for evaluation
+  Could help for "verify" that hashes actually have right sign after finding the output,
+  but it doesn't help evaluation.
+  flint_rand_t hash_seed; flint_randinit(hash_seed);
+  recv_seed(clientfd, hash_seed);
+  HashStore hash_store(b, b, 2, hash_seed);
+  */
 
   fmpz_t* bucket0; new_fmpz_array(&bucket0, b);
   fmpz_t* bucket1; new_fmpz_array(&bucket1, b);
@@ -1434,7 +1436,8 @@ returnType heavy_op(const initMsg msg,
   start2 = clock_start();
 
   /* Conversion + accumulation */
-  sent_bytes += correlated_store->heavy_convert(num_inputs, b, x, y, valid, bucket0, bucket1);
+  sent_bytes += correlated_store->heavy_convert(num_inputs, b, x, y,
+      valid, bucket0, bucket1);
 
   delete[] x;
   delete[] y;
@@ -1783,8 +1786,8 @@ returnType multi_heavy_op(const initMsg msg,
   uint64_t* const top_values = new uint64_t[K];
   uint64_t* const top_freqs = new uint64_t[K];
 
-  // top_k_extract_garbled(server_num, cfg, bucket0, bucket1,
-  //     hash_seed_split, hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
+  // top_k_extract_garbled(server_num, cfg, bucket0, bucket1, hash_seed_split,
+  //     hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
   top_k_extract_mixed(server_num, serverfd, cfg, bucket0, bucket1,
       hash_seed_split, hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
   garbleIO->flush();
@@ -2102,8 +2105,8 @@ returnType top_k_op(const initMsg msg,
   uint64_t* const top_values = new uint64_t[K];
   uint64_t* const top_freqs = new uint64_t[K];
 
-  // top_k_extract_garbled(server_num, cfg, bucket0, bucket1,
-  //     hash_seed_split, hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
+  // top_k_extract_garbled(server_num, cfg, bucket0, bucket1, hash_seed_split, 
+  //     hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
   top_k_extract_mixed(server_num, serverfd, cfg, bucket0, bucket1,
       hash_seed_split, hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
   garbleIO->flush();
@@ -2348,6 +2351,7 @@ int main(int argc, char** argv) {
   RootManager(1).clearCache();
   finalize_semi_honest();
   clear_constants();
+  flint_cleanup_master();
 
   return 0;
 }

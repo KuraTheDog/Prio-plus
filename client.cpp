@@ -2396,6 +2396,7 @@ int main(int argc, char** argv) {
 
   RootManager(1).clearCache();
   clear_constants();
+  flint_cleanup_master();
 
   return 0;
 }

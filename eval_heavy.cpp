@@ -530,7 +530,7 @@ void top_k_extract_mixed(
   const int party = server_num + 1;
   /* Currently reveals all candidates in the clear
       - Leaks possibly popular inputs
-      - could also include random, or not popular. Freq still hidden 
+      - could also include random, or not popular. Freq still hidden
   TODO: abs_cmp get bit, eval hash on it.
   */
   const size_t N = cfg.R * cfg.Q * cfg.B * cfg.D;
@@ -544,7 +544,7 @@ void top_k_extract_mixed(
 
   HashStoreBit hash_split(cfg.Q, cfg.D, cfg.num_bits, 2, hash_seed_split);
 
-  // Candidates and bucket compares in clear. 
+  // Candidates and bucket compares in clear
   bool* const cmp = bucket_compare_clear(serverfd, N, bucket0, bucket1);
 
   uint64_t* const candidates = new uint64_t[total_candidates];

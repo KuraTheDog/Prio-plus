@@ -132,9 +132,6 @@ void makeLocalEdaBit(EdaBit* const ebit0, EdaBit* const ebit1, const size_t n) {
   DaBit* const bit0 = new DaBit();
   DaBit* const bit1 = new DaBit();
 
-  fmpz_zero(ebit0->r);
-  fmpz_zero(ebit1->r);
-
   fmpz_t pow;
   fmpz_init_set_si(pow, 1);  // 2^i
 

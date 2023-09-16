@@ -283,7 +283,7 @@ void runServerTest(const int server_num, const int serverfd) {
 
   auto start = clock_start();
 
-  for (int i = 0; i < 1; i++) {
+  for (unsigned int i = 0; i < 1; i++) {
     std::cout << "iteration: " << i << std::endl;
     start = clock_start();
 

@@ -353,7 +353,7 @@ De-dupe?
   - do in clear
 - if candidate shares
   - garble
-  - in clear? 
+  - in clear?
 
 Count-min
 - full clear: reveal struct
