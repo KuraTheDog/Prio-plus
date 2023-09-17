@@ -254,7 +254,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
 
   int sent_bytes = 0;
   size_t num_inputs;
-  if (server_num == 1) {
+  if (server_num == 0) {
     num_inputs = share_map.size();
     sent_bytes += send_size(serverfd, num_inputs);
   } else {
@@ -358,7 +358,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
   int sent_bytes = 0;
   size_t num_inputs;
 
-  if (server_num == 1) {
+  if (server_num == 0) {
     num_inputs = share_map.size();
     sent_bytes += send_size(serverfd, num_inputs);
   } else {
@@ -369,7 +369,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
   memset(valid, true, num_inputs * sizeof(bool));
 
   /* Share Sync */
-  if (server_num == 1) {
+  if (server_num == 0) {
     int i = 0;
     for (const auto& share : share_map) {
       sent_bytes += send_tag(serverfd, share.first);
@@ -488,7 +488,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
 
   int sent_bytes = 0;
 
-  if (server_num == 1) {
+  if (server_num == 0) {
     const size_t num_inputs = share_map.size();
     sent_bytes += send_size(serverfd, num_inputs);
     uint64_t b = 0;
@@ -594,7 +594,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
 
   int sent_bytes = 0;
 
-  if (server_num == 1) {
+  if (server_num == 0) {
     const size_t num_inputs = share_map.size();
     sent_bytes += send_size(serverfd, num_inputs);
     uint64_t b[B+1];
@@ -733,7 +733,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
   int sent_bytes = 0;
   size_t num_inputs;
 
-  if (server_num == 1) {
+  if (server_num == 0) {
     num_inputs = share_map.size();
     sent_bytes += send_size(serverfd, num_inputs);
   } else {
@@ -746,7 +746,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
   ClientPacket** const packet = new ClientPacket*[num_inputs];
   Circuit** const circuit = new Circuit*[num_inputs];
 
-  if (server_num == 1) {
+  if (server_num == 0) {
     size_t i = 0;
     for (const auto& share : share_map) {
       sent_bytes += send_tag(serverfd, share.first);
@@ -809,7 +809,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
   delete[] circuit;
   delete[] packet;
 
-  if (server_num == 1) {
+  if (server_num == 0) {
     recv_bool_batch(serverfd, valid, num_inputs);
 
     for (unsigned int i = 0; i < num_inputs; i++)
@@ -950,7 +950,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
   int sent_bytes = 0;
   size_t num_inputs;
 
-  if (server_num == 1) {
+  if (server_num == 0) {
     num_inputs = share_map.size();
     sent_bytes += send_size(serverfd, num_inputs);
   } else {
@@ -963,7 +963,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
   ClientPacket** const packet = new ClientPacket*[num_inputs];
   Circuit** const circuit = new Circuit*[num_inputs];
 
-  if (server_num == 1) {
+  if (server_num == 0) {
     size_t i = 0;
     for (const auto& share : share_map) {
       sent_bytes += send_tag(serverfd, share.first);
@@ -1065,7 +1065,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
   delete[] circuit;
   delete[] packet;
 
-  if (server_num == 1) {
+  if (server_num == 0) {
     recv_bool_batch(serverfd, valid, num_inputs);
 
     for (unsigned int i = 0; i < num_inputs; i++)
@@ -1168,7 +1168,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
   auto start2 = clock_start();
   int sent_bytes = 0;
 
-  if (server_num == 1) {
+  if (server_num == 0) {
     const size_t num_inputs = share_map.size();
     sent_bytes += send_size(serverfd, num_inputs);
     bool* const shares = new bool[num_inputs * max_inp];
@@ -1393,7 +1393,7 @@ returnType heavy_op(const initMsg msg,
   int sent_bytes = 0;
   size_t num_inputs;
 
-  if (server_num == 1) {
+  if (server_num == 0) {
     num_inputs = share_map.size();
     sent_bytes += send_size(serverfd, num_inputs);
   } else {
@@ -1406,7 +1406,7 @@ returnType heavy_op(const initMsg msg,
   memset(valid, true, num_inputs * sizeof(bool));
 
   /* Share sync */
-  if (server_num == 1) {
+  if (server_num == 0) {
     size_t idx = 0;
     for (const auto& share : share_map) {
       sent_bytes += send_tag(serverfd, share.first);
@@ -1469,7 +1469,7 @@ returnType heavy_op(const initMsg msg,
   clear_fmpz_array(bucket0, b);
   clear_fmpz_array(bucket1, b);
 
-  if (server_num == 1) {
+  if (server_num == 0) {
     sent_bytes += send_fmpz_batch(serverfd, larger, b);
     clear_fmpz_array(larger, b);
     std::cout << "evaluate time: " << sec_from(start2) << std::endl;
@@ -1581,7 +1581,7 @@ returnType multi_heavy_op(const initMsg msg,
 
   /* Sync shares */
   size_t num_inputs;
-  if (server_num == 1) {
+  if (server_num == 0) {
     num_inputs = share_map.size();
     sent_bytes += send_size(serverfd, num_inputs);
   } else {
@@ -1596,7 +1596,7 @@ returnType multi_heavy_op(const initMsg msg,
   bool* const valid = new bool[num_inputs];
   memset(valid, true, num_inputs * sizeof(bool));
 
-  if (server_num == 1) {
+  if (server_num == 0) {
     size_t i = 0;
     for (const auto& share : share_map) {
       sent_bytes += send_tag(serverfd, share.first);
@@ -1899,7 +1899,7 @@ returnType top_k_op(const initMsg msg,
 
   /* Sync shares */
   size_t num_inputs;
-  if (server_num == 1) {
+  if (server_num == 0) {
     num_inputs = share_map.size();
     sent_bytes += send_size(serverfd, num_inputs);
   } else {
@@ -1915,7 +1915,7 @@ returnType top_k_op(const initMsg msg,
   bool* const valid = new bool[num_inputs];
   memset(valid, true, num_inputs * sizeof(bool));
 
-  if (server_num == 1) {
+  if (server_num == 0) {
     size_t i = 0;
     for (const auto& share : share_map) {
       sent_bytes += send_tag(serverfd, share.first);
