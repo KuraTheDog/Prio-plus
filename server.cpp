@@ -1970,10 +1970,9 @@ returnType top_k_op(const initMsg msg,
   const size_t len_all = num_inputs * cfg.Q * cfg.B * cfg.R * cfg.D;
   const size_t len_part = num_inputs * cfg.Q * (cfg.D + cfg.B * cfg.R);
   const size_t len_p = num_inputs * (share_size_count + share_size_bucket);
-  const size_t buff_len = fmax(6 * len_all, 4 * len_all + num_inputs);
-  bool* const send_buff = new bool[buff_len];
-  bool* const recv_buff = new bool[buff_len];
-  memset(recv_buff, 0, buff_len);
+  bool* send_buff = new bool[2*len_part + len_p];
+  bool* recv_buff = new bool[2*len_part + len_p];
+  memset(recv_buff, 0, 2*len_part + len_p);
 
   // Setup convert stage 1: xy normal, cross B, R
   bool* const a = new bool[3 * len_all];
@@ -2010,6 +2009,9 @@ returnType top_k_op(const initMsg msg,
       &recv_buff[2*len_part + num_inputs * share_size_count]);
   // Finish convert stage 1, setup convert stage 2
   correlated_store->multiply_BoolShares_finish(len_part, a, b, c, send_buff, recv_buff);
+  delete[] send_buff; send_buff = new bool[6 * len_all];
+  delete[] recv_buff; recv_buff = new bool[6 * len_all];
+  memset(recv_buff, 0, 6 * len_all);
   // (x, y, xy) * m1m2
   cross_fill_bool(num_inputs * cfg.Q, cfg.B * cfg.R, cfg.D,
       &c[num_inputs * cfg.Q * cfg.D], shares_sh_x, b, a);
@@ -2039,6 +2041,9 @@ returnType top_k_op(const initMsg msg,
   // Finish convert stage 2
   correlated_store->multiply_BoolShares_finish(3 * len_all,
       a, b, &z[len_all], send_buff, recv_buff);
+  delete[] send_buff; send_buff = new bool[4 * len_all + num_inputs];
+  delete[] recv_buff; recv_buff = new bool[4 * len_all + num_inputs];
+  memset(recv_buff, 0, 4 * len_all + num_inputs);
   delete[] a;
   delete[] b;
   // Finish freq, update valid
@@ -2056,7 +2061,10 @@ returnType top_k_op(const initMsg msg,
   memcpy(send_buff, valid, num_inputs);
   // setup convert stage 3
   fmpz_t* zp; new_fmpz_array(&zp, 4 * len_all);
-  correlated_store->b2a_single_setup(4 * len_all, z, zp, &send_buff[num_inputs]);
+  std::cout << "single setup: " << 4 * len_all << " from z to send buff[" << num_inputs << "]" << std::endl;
+  // correlated_store->b2a_single_setup(4 * len_all, z, zp, &send_buff[num_inputs]);
+  memcpy(&send_buff[num_inputs], z, 4 * len_all);
+  std::cout << "single setup done" << std::endl;
   delete[] z;
 
   /* Round 3: convert stage 3, valid swap */
