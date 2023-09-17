@@ -1530,7 +1530,7 @@ int freq_helper(const std::string protocol, const size_t numreqs,
   for (unsigned int i = 0; i < numreqs; i++) {
     prg.random_data(&real_val, sizeof(uint64_t));
     real_val %= max_int;
-    counts[real_val] += 1;
+    counts[real_val]++;
 
     // std::cout << "Value " << i << " = " << real_val << std::endl;
 
@@ -1621,7 +1621,7 @@ int heavy_helper(const std::string protocol, const size_t numreqs, const double 
       real_val %= max_int;
     }
     // real_val = 3;
-    count[real_val] += 1;
+    count[real_val]++;
     // std::cout << "real_val: " << real_val << std::endl;
 
     freq_init(freqshare0[i].arr, freqshare1[i].arr, 2 * b, prg);
@@ -1766,7 +1766,7 @@ int multi_heavy_helper(const std::string protocol, const size_t numreqs,
     real_val %= max_int;
     // real_val = 3;
     if (real_val <= count_size)
-      counts[real_val] ++;
+      counts[real_val]++;
     if (print) std::cout << "real_val: " << real_val << std::endl;
 
     // sh_x, sh_y, q_mask, countmin
@@ -1989,7 +1989,7 @@ int top_k_helper(
     real_val %= max_int;
     // real_val = 1;
     if (real_val <= count_size)
-      counts[real_val] ++;
+      counts[real_val]++;
     if (print) std::cout << "real_val: " << real_val << "\n";
 
     // sh_x, sh_y, bucket_mask, layer_mask, countmin

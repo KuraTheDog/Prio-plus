@@ -267,7 +267,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
   }
   bool* const shares = new bool[num_inputs];
   bool* valid = nullptr;
-  int num_valid = 0;
+  size_t num_valid = 0;
 
   if (server_num == 0) {
     int i = 0;
@@ -415,7 +415,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
   memset(recv_buff, 0, net_buff_size);
 
   fmpz_t* accum; new_fmpz_array(&accum, 1);
-  uint64_t num_valid = 0;
+  size_t num_valid = 0;
 
   int num_done = 0;
   while (num_done < num_inputs) {
@@ -502,80 +502,82 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
   start = clock_start();
   auto start2 = clock_start();
 
+  // Here so client inputs are still flushed
+  if (msg.type != AND_OP and msg.type != OR_OP) {
+    std::cout << "Message type incorrect for xor_op" << std::endl;
+    return RET_INVALID;
+  }
+
   int sent_bytes = 0;
+  size_t num_inputs;
 
   if (server_num == 0) {
-    const size_t num_inputs = share_map.size();
+    num_inputs = share_map.size();
     sent_bytes += send_size(serverfd, num_inputs);
-    uint64_t b = 0;
-    uint64_t* const shares = new uint64_t[num_inputs];
+  } else {
+    recv_size(serverfd, num_inputs);
+  }
+
+  uint64_t* const shares = new uint64_t[num_inputs];
+  bool* const valid = new bool[num_inputs];
+  memset(valid, true, num_inputs * sizeof(bool));
+
+  if (server_num == 0) {
     size_t i = 0;
     for (const auto& share : share_map) {
       sent_bytes += send_tag(serverfd, share.first);
       shares[i] = share.second;
       i++;
     }
-    std::cout << "tag time: " << sec_from(start2) << std::endl;
-    start2 = clock_start();
-
-    bool* const other_valid = new bool[num_inputs];
-    recv_bool_batch(serverfd, other_valid, num_inputs);
-    for (unsigned int i = 0; i < num_inputs; i++) {
-      if (!other_valid[i])
-        continue;
-      b ^= shares[i];
-    }
-    delete[] other_valid;
-    delete[] shares;
-
-    send_uint64(serverfd, b);
-    std::cout << "convert time: " << sec_from(start2) << "\n";
-    std::cout << "total compute time: " << sec_from(start) << "\n";
-    std::cout << "sent server bytes: " << sent_bytes << std::endl;
-    return RET_NO_ANS;
+    // Sync valid now, since no validation needed
+    recv_bool_batch(serverfd, valid, num_inputs);
   } else {
-    size_t num_inputs, num_valid = 0;
-    recv_size(serverfd, num_inputs);
-    uint64_t a = 0;
-    bool* const valid = new bool[num_inputs];
-
     for (unsigned int i = 0; i < num_inputs; i++) {
       const std::string tag = recv_tag(serverfd);
       valid[i] = (share_map.find(tag) != share_map.end());
-      if (!valid[i])
+      if (!valid[i]) {
+        shares[i] = 0;
         continue;
-      num_valid++;
-      a ^= share_map[tag];
+      }
+      shares[i] = share_map[tag];
     }
-
-    std::cout << "tag + convert time: " << sec_from(start2) << std::endl;
-    start2 = clock_start();
-
+    // Sync valid now, since no validation needed
     sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
-
-    delete[] valid;
-
-    uint64_t b;
-    recv_uint64(serverfd, b);
-    const uint64_t aggr = a ^ b;
-
-    std::cout << "Valid count: " << num_valid << " / " << total_inputs << "\n";
-    std::cout << "total compute time: " << sec_from(start) << "\n";
-    std::cout << "sent server bytes: " << sent_bytes << std::endl;
-    if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
-      print_too_many_invalid();
-      return RET_INVALID;
-    }
-
-    if (msg.type == AND_OP) {
-      ans = (aggr == 0);
-    } else if (msg.type == OR_OP) {
-      ans = (aggr != 0);
-    } else {
-      error_exit("Message type incorrect for xor_op");
-    }
-    return RET_ANS;
   }
+  std::cout << "tag time: " << sec_from(start2) << std::endl;
+  start2 = clock_start();
+
+  uint64_t accum = 0;
+  size_t num_valid = 0;
+
+  for (unsigned int i = 0; i < num_inputs; i++) {
+    if (!valid[i]) continue;
+    accum ^= shares[i];
+    num_valid++;
+  }
+  delete[] valid;
+  delete[] shares;
+
+  std::cout << "accum time: " << sec_from(start2) << "\n";
+  std::cout << "total compute time: " << sec_from(start) << "\n";
+  std::cout << "sent server bytes: " << sent_bytes << std::endl;
+  std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
+  if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
+    print_too_many_invalid();
+    return RET_INVALID;
+  }
+
+  uint64_t accum_other = 0;
+  send_uint64(serverfd, accum);
+  recv_uint64(serverfd, accum_other);
+  accum ^= accum_other;
+
+  if (msg.type == AND_OP) {
+    ans = (accum == 0);
+  } else if (msg.type == OR_OP) {
+    ans = (accum != 0);
+  }
+  return RET_ANS;
 }
 
 // For MAX and MIN
@@ -1099,7 +1101,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
   start2 = clock_start();
 
   fmpz_t* b; new_fmpz_array(&b, num_fields);
-  size_t num_valid = accumulate(num_inputs, num_fields, shares_p, valid, b);
+  const size_t num_valid = accumulate(num_inputs, num_fields, shares_p, valid, b);
   delete[] valid;
   clear_fmpz_array(shares_p, num_inputs * num_fields);
 
@@ -2009,7 +2011,7 @@ returnType top_k_op(const initMsg msg,
   fmpz_t* bucket0; new_fmpz_array(&bucket0, num_sh);
   fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);
   fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
-  uint64_t num_valid = 0;
+  size_t num_valid = 0;
 
   int num_done = 0;
   while (num_done < num_inputs) {
