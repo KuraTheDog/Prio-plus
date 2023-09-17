@@ -436,13 +436,6 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
       for (unsigned int i = 0; i < curr_size; i++)
         valid[num_done + i] &= recv_buff[curr_size * num_bits + i];
     } else {
-      // Lazy 3 assumes it's zero, so reset for repeated runs
-      if (lazy_precompute == 3 and num_done > 0) {
-        for (unsigned int i = 0; i < batch_size * num_bits; i++) {
-          fmpz_zero(flat_xp[i]);
-        }
-      }
-
       correlated_store->b2a_multi_setup(curr_size, num_bits, &shares[num_done], flat_xp, send_buff);
       memcpy(&send_buff[curr_size * num_bits], &valid[num_done], curr_size);
 

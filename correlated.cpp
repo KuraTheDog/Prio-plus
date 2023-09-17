@@ -57,7 +57,8 @@ void CorrelatedStore::b2a_single_setup(
     const size_t N, const bool* const x, fmpz_t* const xp, bool* const v) {
   if (lazy == 3) {
     memcpy(v, x, N);
-    // xp default zero values
+    for (unsigned int i = 0; i < N; i++)
+      fmpz_zero(xp[i]);  // In case buffer is re-used
     return;
   }
   for (unsigned int i = 0; i < N; i++) {
