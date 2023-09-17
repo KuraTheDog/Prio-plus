@@ -1997,6 +1997,8 @@ returnType top_k_op(const initMsg msg,
 
   fmpz_t* bucket0; new_fmpz_array(&bucket0, num_sh);
   fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);
+  fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
+  uint64_t num_valid = 0;
 
   // Setup convert stage 1: xy normal, cross B, R
   bool* const a = new bool[3 * len_all];
@@ -2025,17 +2027,13 @@ returnType top_k_op(const initMsg msg,
   start3 = clock_start();
 
   // Finish B2A
-  correlated_store->b2a_single_finish(num_inputs * share_size_count,
+  correlated_store->b2a_single_finish(len_p,
       shares_p, &send_buff[2*len_part], &recv_buff[2*len_part]);
-  correlated_store->b2a_single_finish(num_inputs * share_size_bucket,
-      &shares_p[num_inputs * share_size_count],
-      &send_buff[2*len_part + num_inputs * share_size_count],
-      &recv_buff[2*len_part + num_inputs * share_size_count]);
   // Finish convert stage 1, setup convert stage 2
+  correlated_store->multiply_BoolShares_finish(len_part, a, b, z, send_buff, recv_buff);
   delete[] send_buff; send_buff = new bool[6 * len_all];
   delete[] recv_buff; recv_buff = new bool[6 * len_all];
   memset(recv_buff, 0, 6 * len_all);
-  correlated_store->multiply_BoolShares_finish(len_part, a, b, z, send_buff, recv_buff);
   // (x, y, xy) * m1m2
   cross_fill_bool(num_inputs * cfg.Q, cfg.B * cfg.R, cfg.D,
       &z[num_inputs * cfg.Q * cfg.D], shares_sh_x, b, a);
@@ -2065,7 +2063,6 @@ returnType top_k_op(const initMsg msg,
       a, b, &z[len_all], send_buff, recv_buff);
   delete[] send_buff; send_buff = new bool[4 * len_all + num_inputs];
   delete[] recv_buff; recv_buff = new bool[4 * len_all + num_inputs];
-  memset(recv_buff, 0, 4 * len_all + num_inputs);
   delete[] a;
   delete[] b;
   // Finish freq, update valid
@@ -2073,13 +2070,14 @@ returnType top_k_op(const initMsg msg,
   for (unsigned int j = 0; j < cfg.Q + cfg.countmin_cfg.d; j++) {
     fmpz_mod_add(sums[j], sums[j], sums_other[j], mod_ctx);
     all_valid &= fmpz_equal_ui(sums[j], num_inputs);
+    if (!all_valid) {
+      memset(valid, false, num_inputs);
+      std::cout << "Batch not valid. Individual check currently not implemented\n";
+      break;
+    }
   }
   clear_fmpz_array(sums, cfg.Q + cfg.countmin_cfg.d);
   clear_fmpz_array(sums_other, cfg.Q + cfg.countmin_cfg.d);
-  if (!all_valid) {
-    memset(valid, false, num_inputs);
-    std::cout << "Batch not valid. Individual check currently not implemented\n";
-  }
   memcpy(send_buff, valid, num_inputs);
   // setup convert stage 3
   fmpz_t* zp; new_fmpz_array(&zp, 4 * len_all);
@@ -2107,8 +2105,7 @@ returnType top_k_op(const initMsg msg,
       cfg.Q * cfg.B * cfg.R * cfg.D, zp, valid, bucket0, bucket1);
   clear_fmpz_array(zp, 4 * len_all);
   // Count-min accum
-  fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
-  uint64_t num_valid = accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
+  num_valid += accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
   clear_fmpz_array(shares_p, len_p);
 
   std::cout << "accum time: " << sec_from(start3) << std::endl;
