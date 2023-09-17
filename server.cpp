@@ -1830,7 +1830,6 @@ returnType multi_heavy_op(const initMsg msg,
 returnType top_k_op(const initMsg msg,
     const int clientfd, const int serverfd, const int server_num) {
   auto start = clock_start();
-
   std::unordered_map<std::string, bool*> share_map;
 
   int64_t cli_bytes = 0;
@@ -1879,9 +1878,6 @@ returnType top_k_op(const initMsg msg,
         total_inputs * (3 * num_sh + share_size_sh
                 + share_size_bucket * share_size_layer));
   }
-
-  fmpz_t* bucket0; new_fmpz_array(&bucket0, num_sh);
-  fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);
 
   // Get client
   auto start2 = clock_start();
@@ -1990,16 +1986,19 @@ returnType top_k_op(const initMsg msg,
   bool* recv_buff = new bool[2*len_part + len_p];
   memset(recv_buff, 0, 2*len_part + len_p);
 
+  fmpz_t* bucket0; new_fmpz_array(&bucket0, num_sh);
+  fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);
+
   // Setup convert stage 1: xy normal, cross B, R
   bool* const a = new bool[3 * len_all];
   bool* const b = new bool[3 * len_all];
-  bool* const c = new bool[len_part];
+  bool* const z = new bool[4 * len_all];  // Re-used as c
   memcpy(a, shares_sh_x, num_inputs * cfg.Q * cfg.D);
   memcpy(b, shares_sh_y, num_inputs * cfg.Q * cfg.D);
   cross_fill_bool(num_inputs, cfg.Q * cfg.B, cfg.R, shares_bucket, shares_layer,
       &a[num_inputs * cfg.Q * cfg.D], &b[num_inputs * cfg.Q * cfg.D]);
   delete[] shares_layer;
-  correlated_store->multiply_BoolShares_setup(len_part, a, b, c, send_buff);
+  correlated_store->multiply_BoolShares_setup(len_part, a, b, z, send_buff);
   // 2 * len_part into send buff
   fmpz_t* shares_p; new_fmpz_array(&shares_p, len_p);
   correlated_store->b2a_single_setup(num_inputs * share_size_count,
@@ -2024,21 +2023,19 @@ returnType top_k_op(const initMsg msg,
       &send_buff[2*len_part + num_inputs * share_size_count],
       &recv_buff[2*len_part + num_inputs * share_size_count]);
   // Finish convert stage 1, setup convert stage 2
-  correlated_store->multiply_BoolShares_finish(len_part, a, b, c, send_buff, recv_buff);
   delete[] send_buff; send_buff = new bool[6 * len_all];
   delete[] recv_buff; recv_buff = new bool[6 * len_all];
   memset(recv_buff, 0, 6 * len_all);
+  correlated_store->multiply_BoolShares_finish(len_part, a, b, z, send_buff, recv_buff);
   // (x, y, xy) * m1m2
   cross_fill_bool(num_inputs * cfg.Q, cfg.B * cfg.R, cfg.D,
-      &c[num_inputs * cfg.Q * cfg.D], shares_sh_x, b, a);
+      &z[num_inputs * cfg.Q * cfg.D], shares_sh_x, b, a);
   delete[] shares_sh_x;
   cross_fill_bool(num_inputs * cfg.Q, cfg.B * cfg.R, cfg.D,
-      &c[num_inputs * cfg.Q * cfg.D], shares_sh_y, &b[len_all], &a[len_all]);
+      &z[num_inputs * cfg.Q * cfg.D], shares_sh_y, &b[len_all], &a[len_all]);
   delete[] shares_sh_y;
   cross_fill_bool(num_inputs * cfg.Q, cfg.B * cfg.R, cfg.D,
-      &c[num_inputs * cfg.Q * cfg.D], c, &b[2*len_all], &a[2*len_all]);
-  delete[] c;
-  bool* const z = new bool[4 * len_all];
+      &z[num_inputs * cfg.Q * cfg.D], z, &b[2*len_all], &a[2*len_all]);
   memcpy(z, b, len_all);
   correlated_store->multiply_BoolShares_setup(3 * len_all, a, b, &z[len_all], send_buff);
   fmpz_t* sums; new_fmpz_array(&sums, cfg.Q + cfg.countmin_cfg.d);
@@ -2077,10 +2074,8 @@ returnType top_k_op(const initMsg msg,
   memcpy(send_buff, valid, num_inputs);
   // setup convert stage 3
   fmpz_t* zp; new_fmpz_array(&zp, 4 * len_all);
-  std::cout << "single setup: " << 4 * len_all << " from z to send buff[" << num_inputs << "]" << std::endl;
-  // correlated_store->b2a_single_setup(4 * len_all, z, zp, &send_buff[num_inputs]);
-  memcpy(&send_buff[num_inputs], z, 4 * len_all);
-  std::cout << "single setup done" << std::endl;
+  correlated_store->b2a_single_setup(4 * len_all, z, zp, &send_buff[num_inputs]);
+  // memcpy(&send_buff[num_inputs], z, 4 * len_all);
   delete[] z;
 
   /* Round 3: convert stage 3, valid swap */
@@ -2104,7 +2099,7 @@ returnType top_k_op(const initMsg msg,
   clear_fmpz_array(zp, 4 * len_all);
   // Count-min accum
   fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
-  accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
+  uint64_t num_valid = accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
   clear_fmpz_array(shares_p, len_p);
 
   std::cout << "accum time: " << sec_from(start3) << std::endl;
@@ -2114,9 +2109,6 @@ returnType top_k_op(const initMsg msg,
   start2 = clock_start();
 
   /* Evaluation */
-  size_t num_valid = 0;
-  for (unsigned int i = 0; i < num_inputs; i++)
-    num_valid += valid[i];
   std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
   delete[] valid;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
