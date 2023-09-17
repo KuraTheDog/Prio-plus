@@ -63,7 +63,7 @@ Gate* const DivByConst(Gate* const gate, const uint64_t c) {
 struct Circuit {
   std::vector<Gate*> gates;    // All gates
   // std::vector<Gate*> outputs;    // only used by unused
-  std::vector<Gate*> result_zero;  // Gates that must be zero for eval to pass.
+  std::vector<Gate*> result_zero;  // Gates that must be zero for eval to pass
   // const size_t max_bits;       // Unused?
 
   std::vector<Gate*> mul_gates;
@@ -98,7 +98,7 @@ struct Circuit {
     return gates.size() - 1;
   }
 
-  // Evals circuit on the input, returns if all result_zero gates are zero.
+  // Evals circuit on the input, returns if all result_zero gates are zero
   bool Eval(const fmpz_t* const inps) {
     int inp_count = 0;
     for (unsigned int i = 0; i < gates.size(); i++) {
@@ -148,7 +148,7 @@ struct Circuit {
       }
     }
 
-    // all result_zero should be zero.
+    // all result_zero should be zero
     for (Gate* zero_gate : this->result_zero)
       if (not fmpz_is_zero(zero_gate->WireValue))
         return false;
@@ -243,10 +243,10 @@ Circuit* AndCircuits(std::vector<Circuit*>& circuits) {
 */
 
 /*
-Various VALID(*) circuits.
+Various VALID(*) circuits
 */
 
-// Returns circuit for x^2 == y. For Varience and StdDev.
+// Returns circuit for x^2 == y. For Varience and StdDev
 Circuit* const CheckVar() {
   Circuit* const out = new Circuit(2);
 

@@ -75,7 +75,7 @@ void CorrelatedStore::b2a_single_finish(
     const size_t N, fmpz_t* const xp,
     const bool* const v, const bool* const v_other) const {
   for (unsigned int i = 0; i < N; i++) {
-    // [x]_p = v + [b]_p - 2 v [b]_p. Note v only added for one server.
+    // [x]_p = v + [b]_p - 2 v [b]_p. Note v only added for one server
     // So since server_num in {0, 1}, we add it when v = 1
     // Currently, [x]_p is holding [b]_p, which is what we want for v = 0
     if (v[i] ^ v_other[i]) {  // If v = 1, then [x]_p = (0/1) - [b]_p
@@ -339,12 +339,11 @@ int64_t CorrelatedStore::add_BinaryShares(
 // Pure OT, no correlated used
 int64_t CorrelatedStore::multiply_BoolArith(
     const size_t N, const size_t B, const bool* const b, const fmpz_t* const x,
-    fmpz_t* const z, fmpz_t* const z_inv, const bool* const valid
-) {
+    fmpz_t* const z, fmpz_t* const z_inv, const bool* const valid) {
   int64_t sent_bytes = 0;
   /* b0, b1 bits. x0, x1 values
   want z0 + z1 = (b0 ^ b1) * (x0 + x1)
-  Send (r, r + x), flip order on b0, select with b1.
+  Send (r, r + x), flip order on b0, select with b1
   So receive r if b0 = b1, r + x if b0 != b1. => r + (b0 ^ b1) x
   */
   uint64_t* const data0 = new uint64_t[N * B];
@@ -411,9 +410,9 @@ int64_t CorrelatedStore::multiply_BoolArith(
 }
 
 int64_t CorrelatedStore::multiply_BoolArithFlat(
-    const size_t N, const size_t B, const bool* const b_flat, const fmpz_t* const x,
-    fmpz_t* const z, fmpz_t* const z_inv, const bool* const valid
-) {
+    const size_t N, const size_t B, const bool* const b_flat,
+    const fmpz_t* const x, fmpz_t* const z, fmpz_t* const z_inv,
+    const bool* const valid) {
   bool* b = new bool[N * B];
   for (unsigned int j = 0; j < B; j++)
     for (unsigned int i = 0; i < N; i++)
@@ -424,7 +423,8 @@ int64_t CorrelatedStore::multiply_BoolArithFlat(
 }
 
 void CorrelatedStore::heavy_accumulate(
-    const size_t N, const size_t M, const fmpz_t* const values, const bool* const valid,
+    const size_t N, const size_t M, const fmpz_t* const values,
+    const bool* const valid,
     fmpz_t* const bucket0, fmpz_t* const bucket1, const bool use_mask) const {
   // Branch prediction should make this fine
   size_t offset = use_mask ? N * M : 0;
@@ -448,7 +448,7 @@ void CorrelatedStore::heavy_accumulate(
   fmpz_clear(c);
 }
 
-// Note: N, b difference only for accumulate.
+// Note: N, b difference only for accumulate
 // But comes into play more with masks later and lines up with OT
 // so left in for matching/comparison
 int64_t CorrelatedStore::heavy_convert(
@@ -547,7 +547,7 @@ int64_t CorrelatedStore::heavy_convert_mask_one(
   Mult 2: xym = x (ym)
   While x * y is "smaller", it doesn't save work since intermediate not needed
 
-  Of note: just need m, xm, ym, xym.
+  Of note: just need m, xm, ym, xym
   x, y, (and xy) not needed
   */
   int64_t sent_bytes = 0;
@@ -606,8 +606,8 @@ int64_t CorrelatedStore::heavy_convert_mask_one(
     intermediate N (Q (M (D)))
 */
 int64_t CorrelatedStore::heavy_convert_mask_two(
-    const size_t N, const size_t Q, const size_t M1, const size_t M2, const size_t D,
-    const bool* const x, const bool* const y,
+    const size_t N, const size_t Q, const size_t M1, const size_t M2,
+    const size_t D, const bool* const x, const bool* const y,
     const bool* const mask1, const bool* const mask2,
     const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1) {
   int sent_bytes = 0;
@@ -748,11 +748,12 @@ int64_t CorrelatedStore::heavy_convert_mask(
       nullptr, valid);
   delete[] mask_extended;
   clear_fmpz_array(z_base, N * Q * M * D);
-  // std::cout << "  mask mul time: " << sec_from(start) << "\n"; start = clock_start();
+  // std::cout << "  mask mul time: " << sec_from(start) << "\n";
+  // start = clock_start();
 
   // Round 2: x * z
   // Uses tricks for second buff, to implicitly map x to (x, 1-x)
-  // By assuming second one is always "inverted".
+  // By assuming second one is always "inverted"
   // Would require extra to allow for "both 0" case with mask
   fmpz_t* buff0; new_fmpz_array(&buff0, N * Q * M * D);
   fmpz_t* buff1; new_fmpz_array(&buff1, N * Q * M * D);
@@ -760,7 +761,8 @@ int64_t CorrelatedStore::heavy_convert_mask(
       buff1, buff0, valid);
   delete[] x_extended;
   clear_fmpz_array(z_masked, N * Q * M * D);
-  // std::cout << "  xz mul time: " << sec_from(start) << "\n"; start = clock_start();
+  // std::cout << "  xz mul time: " << sec_from(start) << "\n";
+  // start = clock_start();
 
   accumulate(N, Q * M * D, buff0, valid, bucket0);
   accumulate(N, Q * M * D, buff1, valid, bucket1);
@@ -839,8 +841,8 @@ int64_t CorrelatedStore::abs_cmp(const size_t N,
   return sent_bytes;
 }
 
-// x, y are Nxb shares of N total b-bit numbers.
-// I.e. x[i,j] is additive share of bit j of number i.
+// x, y are Nxb shares of N total b-bit numbers
+// I.e. x[i,j] is additive share of bit j of number i
 int64_t CorrelatedStore::cmp_bitwise(const size_t N, const size_t b,
     const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans) {
   int64_t sent_bytes = 0;
@@ -861,7 +863,7 @@ int64_t CorrelatedStore::cmp_bitwise(const size_t N, const size_t b,
   /* [di] = OR([cj]) from i+1 to b
   = [ci] OR [d(i+1)], with d_b = cb
   a OR b = 1-(1-a)(1-b) = a + b - ab
-  TODO: Currently doing b-round version.
+  TODO: Currently doing b-round version
     There is constant-round mult of poly many non-zero shares
   */
   fmpz_t* d; new_fmpz_array(&d, N * b);
@@ -1051,7 +1053,8 @@ int64_t PrecomputeStore::add_DaBits(const size_t n) {
   for (unsigned int i = 0; i < num_to_make; i++)
     dabit_store.push(dabits[i]);
   delete[] dabits;
-  if (lazy < 2) std::cout << "add_DaBits timing : " << sec_from(start) << std::endl;
+  if (lazy < 2)
+    std::cout << "add_DaBits timing : " << sec_from(start) << std::endl;
   return sent_bytes;
 }
 
@@ -1064,7 +1067,8 @@ int64_t PrecomputeStore::add_Triples(const size_t n) {
   BeaverTriple** const triples = new BeaverTriple*[num_to_make];
   /*
   if (triple_gen) {  // not null pointer
-    std::vector<BeaverTriple*> new_triples = triple_gen->generateTriples(num_to_make);
+    std::vector<BeaverTriple*> new_triples = triple_gen->generateTriples(
+        num_to_make);
     for (unsigned int i = 0; i < num_to_make; i++)
       atriple_store.push(new_triples[i]);
   } else {
@@ -1075,7 +1079,8 @@ int64_t PrecomputeStore::add_Triples(const size_t n) {
     atriple_store.push(triples[i]);
   }
   delete[] triples;
-  if (lazy < 2) std::cout << "add_Triples timing : " << sec_from(start) << std::endl;
+  if (lazy < 2)
+      std::cout << "add_Triples timing : " << sec_from(start) << std::endl;
   return sent_bytes;
 }
 
@@ -1117,7 +1122,8 @@ int64_t PrecomputeStore::add_BitShares(const size_t n) {
   for (unsigned int i = 0; i < num_to_make; i++)
     bitshare_store.push(shares[i]);
   delete[] shares;
-  if (lazy < 2) std::cout << "add_BitShares timing : " << sec_from(start) << std::endl;
+  if (lazy < 2)
+      std::cout << "add_BitShares timing : " << sec_from(start) << std::endl;
   return sent_bytes;
 }
 
@@ -1135,12 +1141,12 @@ void PrecomputeStore::maybe_Update() {
 
   // Extra make factor, to overkill for convenience
   const size_t extra_make_factor = 2;
-  // Targets.
+  // Targets
   const size_t bitshare_target = batch_size;
   const size_t bitshare_cost = avg_bitshare_tries * bitshare_target * nbits_mod;
   const size_t da_target = batch_size;
   const size_t atrip_target = batch_size + 3 * bitshare_cost;
-  // Estimating factor of 32. based on num bits, specific use, etc.
+  // Estimating factor of 32. based on num bits, specific use, etc
   const size_t btrip_target = batch_size * 32;
 
   if (btriple_store.size() < btrip_target)
@@ -1170,7 +1176,7 @@ void PrecomputeStore::maybe_Update() {
 // Use b2A via OT on random bit
 // Nearly COT, except delta is changing
 // random choice and random base, but also random delta matters
-// TODO: Work on larger values. Currently assumes mod is uint64_t.
+// TODO: Work on larger values. Currently assumes mod is uint64_t
 int64_t PrecomputeStore::gen_DaBits(const size_t N, DaBit** const dabit) const {
   int64_t sent_bytes = 0;
   emp::PRG prg;
@@ -1215,10 +1221,10 @@ int64_t PrecomputeStore::gen_DaBits(const size_t N, DaBit** const dabit) const {
 int64_t PrecomputeStore::gen_DaBits_lazy(
     const size_t N, DaBit** const dabit) const {
   int64_t sent_bytes = 0;
-  // gen_BitShare uses bp, and keeps trying until it satisfies a condition.
-  // So just looping through slowly causes it to take far too long.
-  // Therefore, we do with common random instead.
-  // test_heavy seems to still not work with this, though. odd.
+  // gen_BitShare uses bp, and keeps trying until it satisfies a condition
+  // So just looping through slowly causes it to take far too long
+  // Therefore, we do with common random instead
+  // test_heavy seems to still not work with this, though. odd
   fmpz_t bit; fmpz_init(bit);
   for (unsigned int i = 0; i < N; i++) {
     dabit[i] = new DaBit();
@@ -1288,7 +1294,7 @@ int64_t PrecomputeStore::gen_BoolTriple_lazy(
   return sent_bytes;
 }
 
-// Uses DaBits to "generate" random bits (shares of random 0 or 1).
+// Uses DaBits to "generate" random bits (shares of random 0 or 1)
 // Uses triples to validate r < p bitwise
 int64_t PrecomputeStore::gen_BitShare(
     const size_t N, BitShare** const shares) {
@@ -1303,7 +1309,7 @@ int64_t PrecomputeStore::gen_BitShare(
   check_DaBits(avg_bitshare_tries * N * b);
   check_Triples(avg_bitshare_tries * 3 * N * b);
 
-  // p bitwise shared, for [r < p]. All bits set on server 0, since public.
+  // p bitwise shared, for [r < p]. All bits set on server 0, since public
   // This could be moved out, since same every run
   fmpz_t* pB; new_fmpz_array(&pB, N * b);  // Zero by default
   if (server_num == 0)
@@ -1340,7 +1346,7 @@ int64_t PrecomputeStore::gen_BitShare(
       // std::cout << "making idx=" << idx << ", i = " << i << std::endl;
       fmpz_zero(shares[i]->r);
       for (unsigned int j = 0; j < b; j++) {
-        // Get two numbers summing to either 0 or 1 randomly (bp).
+        // Get two numbers summing to either 0 or 1 randomly (bp)
         const DaBit* const dabit = get_DaBit();
         fmpz_set(shares[i]->rB[j], dabit->bp);
         fmpz_mod_addmul_ui(shares[i]->r, dabit->bp, 1ULL << j, mod_ctx);
@@ -1396,7 +1402,6 @@ int64_t PrecomputeStore::gen_BitShare_lazy(
       }
     }
   }
-
   fmpz_clear(r);
 
   return sent_bytes;
@@ -1407,8 +1412,7 @@ int64_t PrecomputeStore::gen_BitShare_lazy(
 ////////////////
 
 
-int64_t OTCorrelatedStore::b2a_multi(
-    const size_t N, const size_t num_bits,
+int64_t OTCorrelatedStore::b2a_multi(const size_t N, const size_t num_bits,
     const uint64_t* const x, fmpz_t* const xp) {
   size_t bit_arr[N];
   for (unsigned int i = 0; i < N; i++)
@@ -1427,8 +1431,8 @@ int64_t OTCorrelatedStore::b2a_single(
 }
 
 // Using intsum_ot, multiple bits
-int64_t OTCorrelatedStore::b2a_ot(
-    const size_t num_shares, const size_t num_values, const size_t* const num_bits,
+int64_t OTCorrelatedStore::b2a_ot(const size_t num_shares,
+    const size_t num_values, const size_t* const num_bits,
     const uint64_t* const x, fmpz_t* const xp_out, const size_t mod) {
   int64_t sent_bytes = 0;
 

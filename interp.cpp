@@ -27,9 +27,9 @@ void RootManager::addRoots(const size_t N){
   fmpz_t ghalf_; fmpz_init(ghalf_);  // g_^(step/2), for 2N roots
 
   /*
-    N = 2^k, so stepsize = 2^(Ord - k).
-    g_ = gen^stepsize.
-    So g_^N = gen^(2^ord) = 1, by fermat little.
+    N = 2^k, so stepsize = 2^(Ord - k)
+    g_ = gen^stepsize
+    So g_^N = gen^(2^ord) = 1, by fermat little
   */
   fmpz_powm_ui(g_, Int_Gen, step_size, Int_Modulus);
   fmpz_powm_ui(ghalf_, Int_Gen, step_size / 2, Int_Modulus);

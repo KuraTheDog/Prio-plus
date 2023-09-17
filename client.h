@@ -15,31 +15,31 @@ void share_polynomials(const Circuit* const circuit,
   const unsigned int n = circuit->NumMulGates();
   const unsigned int N = NextPowerOfTwo(n);
 
-  // u_t, v_t = left and right wires of mul gates.
+  // u_t, v_t = left and right wires of mul gates
   // want f(t) = u_t, g(t) = v(t)
   fmpz_t* pointsF; new_fmpz_array(&pointsF, N);
   fmpz_t* pointsG; new_fmpz_array(&pointsG, N);
 
   fmpz_t h0; fmpz_init(h0);
 
-  // Random f(0) = u_0, g(0) = v_0.
+  // Random f(0) = u_0, g(0) = v_0
   fmpz_randm(pointsF[0], seed, Int_Modulus);
   fmpz_randm(pointsG[0], seed, Int_Modulus);
   // h(0) = f(0) * g(0)
   fmpz_mod_mul(h0, pointsF[0], pointsG[0], mod_ctx);
 
-  // u_i, v_i = left, right of i^th mult gate.
+  // u_i, v_i = left, right of i^th mult gate
   for (unsigned int i = 0; i < n; i++) {
     fmpz_set(pointsF[i + 1], mulgates[i]->ParentL->WireValue);
     fmpz_set(pointsG[i + 1], mulgates[i]->ParentR->WireValue);
   }
 
-  // Build f, g that goes through pointsF, pointsG.
+  // Build f, g that goes through pointsF, pointsG
   // Interpolate through the Nth roots of unity
   fmpz_t* const polyF = interpolate_N_inv(N, pointsF);
   fmpz_t* const polyG = interpolate_N_inv(N, pointsG);
 
-  // Pad to length 2N, to ensure it fits h.
+  // Pad to length 2N, to ensure it fits h
   fmpz_t* paddedF; new_fmpz_array(&paddedF, 2*N);
   fmpz_t* paddedG; new_fmpz_array(&paddedG, 2*N);
 
@@ -49,7 +49,7 @@ void share_polynomials(const Circuit* const circuit,
   clear_fmpz_array(polyF, N);
   clear_fmpz_array(polyG, N);
 
-  // Evaluate at all 2Nth roots of unity.
+  // Evaluate at all 2Nth roots of unity
   fmpz_t* const evalsF = interpolate_2N(N, paddedF);
   fmpz_t* const evalsG = interpolate_2N(N, paddedG);
 
@@ -63,12 +63,12 @@ void share_polynomials(const Circuit* const circuit,
     SplitShare(h_val, p0->h_points[j], p1->h_points[j]);
   }
 
-  // split f(0), g(0), h(0) into shares.
+  // split f(0), g(0), h(0) into shares
   SplitShare(pointsF[0], p0->f0_s, p1->f0_s);
   SplitShare(pointsG[0], p0->g0_s, p1->g0_s);
   SplitShare(h0, p0->h0_s, p1->h0_s);
 
-  // Split outputs of input/mult gate shares.
+  // Split outputs of input/mult gate shares
   circuit->GetMulShares(&p0->MulShares, &p1->MulShares);
 
   makeLocalTriple(p0->triple, p1->triple);

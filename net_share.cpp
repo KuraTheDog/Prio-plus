@@ -11,8 +11,8 @@
 # define htonll(x) (x)
 # define ntohll(x) (x)
 #else
-# define htonll(x) (((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
-# define ntohll(x) (((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
+# define htonll(x) (((uint64_t)htonl((x)&0xFFFFFFFF)<<32) | htonl((x)>>32))
+# define ntohll(x) (((uint64_t)ntohl((x)&0xFFFFFFFF)<<32) | ntohl((x)>>32))
 #endif
 #endif
 
@@ -171,7 +171,8 @@ int recv_uint64(const int sockfd, uint64_t& x) {
   return ret;
 }
 
-int send_uint64_batch(const int sockfd, const uint64_t* const x, const size_t n) {
+int send_uint64_batch(const int sockfd, const uint64_t* const x,
+    const size_t n) {
   return send(sockfd, x, n * sizeof(uint64_t), 0);
 }
 
@@ -433,7 +434,8 @@ int recv_Cor(const int sockfd, Cor* const x) {
   return total;
 }
 
-int send_Cor_batch(const int sockfd, const Cor* const * const x, const size_t n) {
+int send_Cor_batch(const int sockfd, const Cor* const * const x,
+    const size_t n) {
   int total = 0, ret;
   fmpz_t* buff; new_fmpz_array(&buff, 2 * n);
 
@@ -695,7 +697,8 @@ int send_DaBit_batch(const int sockfd,
   return total;
 }
 
-int recv_DaBit_batch(const int sockfd, DaBit* const * const x, const size_t n) {
+int recv_DaBit_batch(const int sockfd, DaBit* const * const x,
+    const size_t n) {
   int total = 0, ret;
 
   if (n > MAX_DABIT_BATCH) {

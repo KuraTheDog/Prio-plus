@@ -1,15 +1,15 @@
 /*
-Simulates a group of num_submission clients that communicate with the servers.
+Simulates a group of num_submission clients that communicate with the servers
 
 General layout:
 
 X_helper: Makes then sends a batch of client requests
 X_op: Sends init msg, then sends either one batch or a bunch in serial
-x_op_invalid: For testing/debugging, does a basic run with invalid inputs.
+x_op_invalid: For testing/debugging, does a basic run with invalid inputs
 */
 
-// TODO: Eventually htonl/ntohl wrappers on shares.
-//   Fine when client/server on same machine.
+// TODO: Eventually htonl/ntohl wrappers on shares
+//   Fine when client/server on same machine
 
 #include "client.h"
 
@@ -114,7 +114,7 @@ int send_linregshare(const int server_num, const LinRegShare& share,
   return ret;
 }
 
-// Wrapper around send, with error catching.
+// Wrapper around send, with error catching
 int send_to_server(const int server, const void* const buffer, const size_t n,
     const int flags = 0) {
   const int socket = (server == 0 ? sockfd0 : sockfd1);
@@ -129,14 +129,14 @@ int send_seeds(const flint_rand_t hash_seed) {
   return ret;
 }
 
-// Send n unvalidated dabits + alt triples to each server.
+// Send n unvalidated dabits + alt triples to each server
 int send_unvalidated(const size_t n) {
   if (STORE_TYPE != validate_store) {
     return 0;
   }
 
-  // TODO: Normalize, or figure out the best way.
-  // Need a power of 2 final size, but if e.g. n = 3, hard to do.
+  // TODO: Normalize, or figure out the best way
+  // Need a power of 2 final size, but if e.g. n = 3, hard to do
   // For now, just scale to next power of 2. Overkills. -1 since exclusive
   const size_t N = NextPowerOfTwo(n-1);
 
@@ -587,7 +587,7 @@ void xor_op_invalid(const std::string protocol, const size_t numreqs) {
       ans |= values[i];
   }
 
-  // encode step. set to all 0's for values that don't force the ans.
+  // encode step. set to all 0's for values that don't force the ans
   if (protocol == "AND")
     for (unsigned int i = 0; i < numreqs; i++)
       if (values[i])
@@ -1442,7 +1442,7 @@ void linreg_op_invalid(const std::string protocol, const size_t numreqs) {
     if (i == 8)
       fmpz_add_si(packet1[i]->triple->A, packet1[i]->triple->A, 1);
 
-    // 10 vs 11, 12 vs 13 can be non-deterministic which ends up being right.
+    // 10 vs 11, 12 vs 13 can be non-deterministic which ends up being right
     if (i <= 9 or i == 11 or i == 13) {
       // std::cout << " (invalid)" << std::endl;
     } else {
@@ -1630,7 +1630,7 @@ int heavy_helper(const std::string protocol, const size_t numreqs, const double 
       bool bucket = (real_val >> j) % 2;
       // get bucket value (0/1 rather than +- 1)
       hash_store.eval(j, real_val, hashed);
-      // instead test if hashed is 1 using fmpz.
+      // instead test if hashed is 1 using fmpz
       bool h = fmpz_is_one(hashed);
       // std::cout << "number " << i << " = " << real_val << ", bit " << j;
       // std::cout << " bucket " << bucket << " with value " << h << " (";
@@ -1693,7 +1693,7 @@ void heavy_op(const std::string protocol, const size_t numreqs, const double f) 
   uint64_t* count = new uint64_t[max_int];
   memset(count, 0, max_int * sizeof(uint64_t));
 
-  // seed for consistent hashes.
+  // seed for consistent hashes
   flint_rand_t hash_seed; flint_randinit(hash_seed);
   // TODO: 4-wise independent hashes? Need to double check they're needed
   HashStorePoly hash_store(num_bits, num_bits, 2, hash_seed);
@@ -1705,8 +1705,8 @@ void heavy_op(const std::string protocol, const size_t numreqs, const double f) 
   sent_bytes += send_to_server(1, &msg, sizeof(initMsg));
 
   // Send seed
-  // Will need to send seeds if use various bucket splitting.
-  // Currently per-bit splitting.
+  // Will need to send seeds if use various bucket splitting
+  // Currently per-bit splitting
   // sent_bytes += send_seeds(hash_seed);
 
   if (CLIENT_BATCH) {
@@ -1888,7 +1888,7 @@ void multi_heavy_op(const std::string protocol, const size_t numreqs,
   // Which of the B SH subtreams it gets classified as
   HashStorePoly hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
   // Split: each SH breakdown into the pairs, bucket 0 or 1. (original was by bits)
-  // Base Q*B*depth, but can repeat across B. Invertable.
+  // Base Q*B*depth, but can repeat across B. Invertable
   HashStoreBit hash_split(cfg.Q, cfg.D, num_bits, 2, hash_seed_split, false);
   // SingleHeavy +-1 values. 4-wize independent
   // Base Q*B*depth, but can repeat across B
@@ -1954,10 +1954,10 @@ int top_k_helper(
   const size_t count_size = fmax(2 * cfg.K, 10);
 
   /* TODO: Can we "reuse" masks across R?
-    I.e. do full (share, Q). Then delete half, reuse randomness, etc.
-    don't actually need independent across R / "redistribute".
+    I.e. do full (share, Q). Then delete half, reuse randomness, etc
+    don't actually need independent across R / "redistribute"
     So can just use r_mask as extra multiplier
-    Otherwise need to expand share/Q by factor of R too.
+    Otherwise need to expand share/Q by factor of R too
   */
   // sh_x, sh_y, bucket_mask, layer_mask, countmin
   MultiFreqShare* const share0 = new MultiFreqShare[numreqs];
@@ -2024,7 +2024,7 @@ int top_k_helper(
         share1[i].arr[1][offset + d] ^= h;
       }
     }
-    // R.
+    // R
     // TODO: 0 always lives, so skipped
     for (unsigned int r = 0; r < cfg.R; r++) {
       const bool b = hash_half.survives(r, real_val);
@@ -2119,7 +2119,7 @@ void top_k_op(const std::string protocol, const size_t numreqs,
   msg.type = TOP_K_OP;
 
   // Temp
-  size_t R = num_bits;
+  size_t R = num_bits / 2;
 
   MultiHeavyConfig cfg(K, delta, num_bits, eps, R);
 
@@ -2135,7 +2135,7 @@ void top_k_op(const std::string protocol, const size_t numreqs,
   // Which of the B SH subtreams it gets classified as
   HashStorePoly hash_classify(cfg.Q, num_bits, cfg.B, hash_seed_classify);
   // Split: each SH breakdown into the pairs, bucket 0 or 1. (original was by bits)
-  // Base Q*B*depth, but can repeat across B. Invertable.
+  // Base Q*B*depth, but can repeat across B. Invertable
   HashStoreBit hash_split(cfg.Q, cfg.D, num_bits, 2, hash_seed_split, false);
   // SingleHeavy +-1 values. 4-wize independent
   // Base Q*B*depth, but can repeat across B
@@ -2143,7 +2143,7 @@ void top_k_op(const std::string protocol, const size_t numreqs,
   // CountMin
   CountMin count_min(cfg.countmin_cfg);
   count_min.setStore(num_bits, hash_seed_count);
-  // Halving.
+  // Halving
   HashStoreHalf hash_half(num_bits, hash_seed_half);
 
   send_to_server(0, &msg, sizeof(initMsg));

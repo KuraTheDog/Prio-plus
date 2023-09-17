@@ -40,17 +40,18 @@ OT_Wrapper* ot0;
 OT_Wrapper* ot1;
 NetIO* garbleIO;
 
-// Store wrapper for share conversion.
+// Store wrapper for share conversion
 CorrelatedStore* correlated_store;
 #define CACHE_SIZE 8192
 // #define CACHE_SIZE 65536
 // #define CACHE_SIZE 262144
 // #define CACHE_SIZE 2097152
-// If set, does fast but insecure offline precompute.
+
+// If set, does fast but insecure offline precompute
 const int lazy_precompute = 0;
 
-// Note: Currently does it in a single batch.
-// I.e. receive and store all, then process all.
+// Note: Currently does it in a single batch
+// I.e. receive and store all, then process all
 // TODO: Set up batching. Either every N inputs (based on space consumed),
 // or every S seconds (figure out timer)
 
@@ -92,7 +93,7 @@ void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port,
     error_exit("Listen failed");
 }
 
-// Asymmetric: 1 connects to 0, 0 listens to 1.
+// Asymmetric: 1 connects to 0, 0 listens to 1
 void server0_listen(int& sockfd, int& newsockfd, const int port,
     const int reuse = 0) {
   sockaddr_in addr;
@@ -130,7 +131,7 @@ int recv_unvalidated(const int clientfd, const std::string tag, const size_t n) 
   if (STORE_TYPE != validate_store)
     return 0;
 
-  // Overkill? Can be more efficient in the future. See client for more.
+  // Overkill? Can be more efficient in the future. See client for more
   const size_t N = NextPowerOfTwo(n-1);
 
   int cli_bytes = 0;
@@ -147,8 +148,6 @@ int recv_unvalidated(const int clientfd, const std::string tag, const size_t n) 
 
   ((ValidateCorrelatedStore*) correlated_store)->queue_Unvalidated(
       bits, trips, tag, N);
-
-  // std::cout << "got " << N << " unval in " << cli_bytes << " bytes" << std::endl;
 
   return cli_bytes;
 }
@@ -228,7 +227,7 @@ void sum_accum(
     fmpz_mod_add(accum[(i/L)%M], accum[(i/L)%M], x[i], mod_ctx);
 }
 
-// Note: since bits, uses specific bitsum_ot, rather than normal store stuff.
+// Note: since bits, uses specific bitsum_ot, rather than normal store stuff
 returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
            const int server_num, uint64_t& ans) {
   std::unordered_map<std::string, bool> share_map;
@@ -319,7 +318,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
   } else {
     uint64_t b;
     recv_uint64(serverfd, b);
-    std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
+    std::cout << "Num Valid: " << num_valid << " / " << total_inputs << std::endl;
     if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
       print_too_many_invalid();
       return RET_INVALID;
@@ -464,7 +463,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
   std::cout << "total compute time: " << sec_from(start) << "\n";
   std::cout << "sent server bytes: " << sent_bytes << std::endl;
 
-  std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
+  std::cout << "Num Valid: " << num_valid << " / " << total_inputs << std::endl;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
     print_too_many_invalid();
     clear_fmpz_array(accum, 1);
@@ -561,7 +560,7 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
   std::cout << "accum time: " << sec_from(start2) << "\n";
   std::cout << "total compute time: " << sec_from(start) << "\n";
   std::cout << "sent server bytes: " << sent_bytes << std::endl;
-  std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
+  std::cout << "Num Valid: " << num_valid << " / " << total_inputs << std::endl;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
     print_too_many_invalid();
     return RET_INVALID;
@@ -589,7 +588,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
   MaxShare share;
   const unsigned int total_inputs = msg.num_of_inputs;
   const unsigned int B = msg.max_inp;
-  // Need this to have all share arrays stay in memory, for server1 later.
+  // Need this to have all share arrays stay in memory, for server1 later
   uint64_t* const shares = new uint64_t[total_inputs * (B + 1)];
 
   int cli_bytes = 0;
@@ -672,7 +671,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
     uint64_t b[B+1];
     recv_uint64_batch(serverfd, b, B+1);
 
-    std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
+    std::cout << "Num Valid: " << num_valid << " / " << total_inputs << std::endl;
     if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
       print_too_many_invalid();
       return RET_INVALID;
@@ -691,7 +690,7 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
         return RET_ANS;
       }
     }
-    // Shouldn't reach.
+    // Shouldn't reach
     return RET_INVALID;
   }
 
@@ -854,7 +853,7 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
   std::cout << "sent non-snip server bytes: " << sent_bytes << std::endl;
   start2 = clock_start();
 
-  std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
+  std::cout << "Num Valid: " << num_valid << " / " << total_inputs << std::endl;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
     print_too_many_invalid();
     clear_fmpz_array(b, 2);
@@ -951,7 +950,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
       continue;
     }
 
-    share_map[tag] = {share.x_vals, share.y, share.x2_vals, share.xy_vals, packet};
+    share_map[tag] = {share.x_vals, share.y, share.x2_vals, share.xy_vals,
+        packet};
 
     cli_bytes += recv_unvalidated(clientfd, tag, num_bits * num_dabits);
   }
@@ -1050,7 +1050,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
   bool* const v = new bool[num_inputs * total];
   correlated_store->b2a_multi_setup(num_inputs * num_1, num_bits,
       shares_transposed, flat_xp_1, v);
-  fmpz_t* flat_xp_2; new_fmpz_array(&flat_xp_2, num_inputs * num_2 * 2 * num_bits);
+  fmpz_t* flat_xp_2; new_fmpz_array(&flat_xp_2, num_inputs * num_2 * 2*num_bits);
   correlated_store->b2a_multi_setup(num_inputs * num_2, 2 * num_bits,
     &shares_transposed[num_inputs * num_1], flat_xp_2,
     &v[num_inputs * num_1 * num_bits]);
@@ -1110,7 +1110,7 @@ returnType linreg_op(const initMsg msg, const int clientfd,
   std::cout << "sent non-snip server bytes: " << sent_bytes << std::endl;
   start2 = clock_start();
 
-  std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
+  std::cout << "Num Valid: " << num_valid << " / " << total_inputs << std::endl;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
     print_too_many_invalid();
     clear_fmpz_array(b, num_fields);
@@ -1222,7 +1222,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
       }
       fmpz_mod_add(sum, sum, sums[i], mod_ctx);
     }
-    // Batch check.
+    // Batch check
     fmpz_t sum_other; fmpz_init(sum_other);
     sent_bytes += send_fmpz(serverfd, sum);
     recv_fmpz(serverfd, sum_other);
@@ -1281,20 +1281,20 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     start2 = clock_start();
 
     /* N freq vectors, each length M
-       Check that arithmetic shares  sum to 1
+    Check that arithmetic shares  sum to 1
 
-       Originally:
-      - Also check that boolean shares have odd parity
-      - not actually be needed, as long as M < Int_modulus
-      - just stops one wraparound.
+    Originally:
+    - Also check that boolean shares have odd parity
+    - not actually be needed, as long as M < Int_modulus
+    - just stops one wraparound
 
-       Here: two layer check
-       if usually valid, check 1 is global agg.
-       Check 2 is individual
-       check 2 can also be binary search, but a lot more rounds, and bad worst case
-       Becomes harder to integrate into round overlap (conditional rounds)
-       worse if any bad expected
-       Requires N * M < Int_modulus, to avoid rollover
+    Here: two layer check
+    if usually valid, check 1 is global agg
+    Check 2 is individual
+    check 2 can also be binary search, but a lot more rounds, and bad worst case
+    Becomes harder to integrate into round overlap (conditional rounds)
+    worse if any bad expected
+    Requires N * M < Int_modulus, to avoid rollover
     */
     // Validity check
     fmpz_t* sums; new_fmpz_array(&sums, num_inputs);
@@ -1315,7 +1315,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     bool all_valid = fmpz_equal_ui(sum, total_inputs);
     fmpz_clear(sum);
     if (!all_valid) {
-      // Batch check fails. Test single.
+      // Batch check fails. Test single
       // Binary search is more rounds but (possibly) less bytes)
       fmpz_t* sums_other; new_fmpz_array(&sums_other, num_inputs);
       recv_fmpz_batch(serverfd, sums_other, num_inputs);
@@ -1344,7 +1344,7 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     fmpz_t* b; new_fmpz_array(&b, max_inp);
     recv_fmpz_batch(serverfd, b, max_inp);
 
-    std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
+    std::cout << "Num Valid: " << num_valid << " / " << total_inputs << std::endl;
     if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
       print_too_many_invalid();
       clear_fmpz_array(b, max_inp);
@@ -1379,8 +1379,8 @@ returnType heavy_op(const initMsg msg,
   const unsigned int total_inputs = msg.num_of_inputs;
 
   /* B is ot actually necessary for evaluation
-  Could help "verify" that hashes actually have right sign after finding the output,
-  but it doesn't help evaluation.
+  Could help verify that hashes have right sign after finding the output
+  but it doesn't help evaluation
   flint_rand_t hash_seed; flint_randinit(hash_seed);
   recv_seed(clientfd, hash_seed);
   HashStore hash_store(b, b, 2, hash_seed);
@@ -1478,7 +1478,7 @@ returnType heavy_op(const initMsg msg,
   for (unsigned int i = 0; i < num_inputs; i++)
     num_valid += valid[i];
   delete[] valid;
-  std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
+  std::cout << "Num Valid: " << num_valid << " / " << total_inputs << std::endl;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
     print_too_many_invalid();
     clear_fmpz_array(bucket0, b);
@@ -1667,8 +1667,8 @@ returnType multi_heavy_op(const initMsg msg,
   (joint share validity)
   Update Countmin with shares_count (and freq check in parallel)
   For each (q, b):
-    final mask = shares_sh & R_mask.
-    SH update, except OT multiply [z] by mask.
+    final mask = shares_sh & R_mask
+    SH update, except OT multiply [z] by mask
 
   Round 1: B2A count (use+valid), mask (valid), first convert mult
   Round 2: freq valid values, second convert mult
@@ -1751,13 +1751,14 @@ returnType multi_heavy_op(const initMsg msg,
   for (unsigned int j = 0; j < cfg.Q + cfg.countmin_cfg.d; j++) {
     fmpz_mod_add(sums[j], sums[j], sums_other[j], mod_ctx);
     all_valid &= fmpz_equal_ui(sums[j], num_inputs);
+    if (!all_valid) {
+      memset(valid, false, num_inputs);
+      std::cout << "Batch not valid. Marked all invalid for now\n";
+      break;
+    }
   }
   clear_fmpz_array(sums, cfg.Q + cfg.countmin_cfg.d);
   clear_fmpz_array(sums_other, cfg.Q + cfg.countmin_cfg.d);
-  if (!all_valid) {
-    memset(valid, false, num_inputs);
-    std::cout << "Batch not valid. Individual check currently not implemented\n";
-  }
   memcpy(send_buff, valid, num_inputs);
   // setup convert stage 3
   fmpz_t* zp; new_fmpz_array(&zp, 4 * len_all);
@@ -1800,7 +1801,7 @@ returnType multi_heavy_op(const initMsg msg,
   size_t num_valid = 0;
   for (unsigned int i = 0; i < num_inputs; i++)
     num_valid += valid[i];
-  std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
+  std::cout << "Num Valid: " << num_valid << " / " << total_inputs << std::endl;
   delete[] valid;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
     print_too_many_invalid();
@@ -1871,7 +1872,7 @@ returnType top_k_op(const initMsg msg,
   const size_t share_size_sh = cfg.Q * cfg.D;
   // For each Q, identify b (first hash)
   const size_t share_size_bucket = cfg.Q * cfg.B;
-  // Layer selector.
+  // Layer selector
   const size_t share_size_layer = cfg.R;
   // Count-min
   const size_t share_size_count = cfg.countmin_cfg.d * cfg.countmin_cfg.w;
@@ -2054,7 +2055,8 @@ returnType top_k_op(const initMsg msg,
         send_buff, recv_buff);
     // (x, y, xy) * m1m2
     cross_fill_bool(curr_size * cfg.Q, cfg.B * cfg.R, cfg.D,
-        &z[curr_size * cfg.Q * cfg.D], &shares_sh_x[num_done * share_size_sh], b, a);
+        &z[curr_size * cfg.Q * cfg.D], &shares_sh_x[num_done * share_size_sh],
+        b, a);
     cross_fill_bool(curr_size * cfg.Q, cfg.B * cfg.R, cfg.D,
         &z[curr_size * cfg.Q * cfg.D], &shares_sh_y[num_done * share_size_sh],
         &b[len_all], &a[len_all]);
@@ -2084,7 +2086,7 @@ returnType top_k_op(const initMsg msg,
       all_valid &= fmpz_equal_ui(sums[j], curr_size);
       if (!all_valid) {
         memset(&valid[num_done], false, curr_size);
-        std::cout << "Batch not valid. Individual check currently not implemented\n";
+        std::cout << "Batch not valid. Marked all invalid for now\n";
         break;
       }
     }
@@ -2136,7 +2138,7 @@ returnType top_k_op(const initMsg msg,
   start2 = clock_start();
 
   /* Evaluation */
-  std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
+  std::cout << "Num Valid: " << num_valid << " / " << total_inputs << std::endl;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
     print_too_many_invalid();
     clear_fmpz_array(bucket0, num_sh);
@@ -2176,7 +2178,8 @@ returnType top_k_op(const initMsg msg,
 
 int main(int argc, char** argv) {
   if (argc < 4) {
-    std::cout << "Usage: ./bin/server server_num(0/1) this_client_port server0_port";
+    std::cout << "Usage: ./bin/server server_num(0/1)";
+    std::cout << " this_client_port server0_port";
     std::cout << " (additional params)" << std::endl;
     return 1;
   }
@@ -2212,7 +2215,7 @@ int main(int argc, char** argv) {
   ot0 = new OT_Wrapper(server_num == 0 ? nullptr : SERVER0_IP, 60051);
   ot1 = new OT_Wrapper(server_num == 1 ? nullptr : SERVER1_IP, 60052);
 
-  // TODO: OT disabled/not supported for now.
+  // TODO: OT disabled/not supported for now
   if (STORE_TYPE == precompute_store) {
     correlated_store = new PrecomputeStore(
         serverfd, server_num, ot0, ot1, CACHE_SIZE, lazy_precompute);
