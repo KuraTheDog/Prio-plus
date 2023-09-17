@@ -163,7 +163,7 @@ void test_zipf() {
 
   for (unsigned int i = 0; i < N; i++) {
     int val = distribution.sample(5 * K);
-    if (val < K) count[val] += 1;
+    if (val < K) count[val]++;
   }
   for (unsigned int i = 0; i < K; i++) {
     std::cout << "Zipf[" << i << "] = " << count[i];

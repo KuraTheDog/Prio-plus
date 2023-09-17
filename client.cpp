@@ -1990,7 +1990,7 @@ int top_k_helper(
     // real_val = 1;
     if (real_val <= count_size)
       counts[real_val] ++;
-    if (print) std::cout << "real_val: " << real_val << std::endl;
+    if (print) std::cout << "real_val: " << real_val << "\n";
 
     // sh_x, sh_y, bucket_mask, layer_mask, countmin
     share0[i].arr = new bool*[num_pieces];
@@ -2005,7 +2005,7 @@ int top_k_helper(
       // Bucket
       share1[i].arr[2][q * cfg.B + b_val] ^= 1;
 
-      if (print) std::cout << "substream[" << q << "] = " << b_val << std::endl;
+      if (print) std::cout << "substream[" << q << "] = " << b_val << "\n";
 
       int offset = q * cfg.D;
       for (unsigned int d = 0; d < cfg.D; d++) {
@@ -2016,7 +2016,7 @@ int top_k_helper(
         const bool h = fmpz_is_one(hashed);
         if (print) {
           std::cout << "  depth " << d << " bucket " << bucket << " value " << h;
-          std::cout << " (" << 1-2*h << ")" << std::endl;
+          std::cout << " (" << 1-2*h << ")" << "\n";
         }
 
         // x, y
@@ -2028,7 +2028,7 @@ int top_k_helper(
     // TODO: 0 always lives, so skipped
     for (unsigned int r = 0; r < cfg.R; r++) {
       const bool b = hash_half.survives(r, real_val);
-      if (print) std::cout << "  layer " << r << (b?" lives":" gone") << std::endl;
+      if (print) std::cout << "  layer " << r << (b?" lives":" gone") << "\n";
       share1[i].arr[3][r] ^= b;
     }
     // TODO: R validation
@@ -2049,7 +2049,7 @@ int top_k_helper(
   fmpz_clear(hashed);
 
   if (numreqs > 1)
-    std::cout << "batch make:\t" << sec_from(start) << std::endl;
+    std::cout << "batch make:\t" << sec_from(start) << "\n";
 
   // Send
   bool* const buff0 = new bool[total_size];
@@ -2069,7 +2069,7 @@ int top_k_helper(
         for (unsigned int k = 0; k < sizes[j]; k++) {
           std::cout << share0[i].arr[j][k] << share1[i].arr[j][k] << " ";
         }
-        std::cout << std::endl;
+        std::cout << "\n";
       }
 
       delete[] share0[i].arr[j];
@@ -2180,7 +2180,7 @@ void top_k_op(const std::string protocol, const size_t numreqs,
 
   for (unsigned int j = 0; j <= count_size; j++) {
     if (j >= max_int) break;
-    std::cout << " Freq(" << j << ") \t= " << count[j] << std::endl;
+    std::cout << " Freq(" << j << ") \t= " << count[j] << "\n";
   }
   delete[] count;
   std::cout << "Total sent bytes: " << sent_bytes << std::endl;

@@ -137,7 +137,7 @@ void HeavyEval::sort_remove_dupes(const size_t K) {
     // Get all with same freq as curr
     size_t count = 0;
     while (curr.first == curr_freq) {
-      count += 1;
+      count++;
       curr = freq_and_vals[offset + count];
     }
 

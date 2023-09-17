@@ -145,9 +145,10 @@ int recv_unvalidated(const int clientfd, const std::string tag, const size_t n) 
   cli_bytes += recv_DaBit_batch(clientfd, bits, N);
   cli_bytes += recv_AltTriple_batch(clientfd, trips, N);
 
-  ((ValidateCorrelatedStore*) correlated_store)->queue_Unvalidated(bits, trips, tag, N);
+  ((ValidateCorrelatedStore*) correlated_store)->queue_Unvalidated(
+      bits, trips, tag, N);
 
-  // std::cout << "got " << N << " unvalidated in " << cli_bytes << " bytes" << std::endl;
+  // std::cout << "got " << N << " unval in " << cli_bytes << " bytes" << std::endl;
 
   return cli_bytes;
 }
@@ -247,8 +248,8 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
     share_map[tag] = share.val;
   }
 
-  std::cout << "Received " << total_inputs << " total shares" << std::endl;
-  std::cout << "bytes from client: " << cli_bytes << std::endl;
+  std::cout << "Received " << total_inputs << " total shares\n";
+  std::cout << "bytes from client: " << cli_bytes << "\n";
   std::cout << "receive time: " << sec_from(start) << std::endl;
   start = clock_start();
   auto start2 = clock_start();
@@ -280,12 +281,11 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
     for (unsigned int i = 0; i < num_inputs; i++) {
       const std::string tag = recv_tag(serverfd);
 
-      const bool is_valid = (share_map.find(tag) != share_map.end());
-      valid[i] = is_valid;
-      if (!is_valid)
+      valid[i] = (share_map.find(tag) != share_map.end());
+      if (!valid[i])
         continue;
       shares[i] = share_map[tag];
-      num_valid += 1;
+      num_valid++;
     }
   }
   std::cout << "tag time: " << sec_from(start2) << std::endl;
@@ -300,17 +300,17 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
     if (server_num == 0)  {
       a += bitsum_ot_receiver(ot0, &shares[num_done], curr_size);
     } else {
-      a += bitsum_ot_sender(ot0, &shares[num_done], &valid[num_done], curr_size); 
+      a += bitsum_ot_sender(ot0, &shares[num_done], &valid[num_done], curr_size);
     }
 
     num_done += curr_size;
   }
-  
+
   delete[] valid;
   delete[] shares;
 
-  std::cout << "convert time: " << sec_from(start2) << std::endl;
-  std::cout << "total compute time: " << sec_from(start) << std::endl;
+  std::cout << "convert time: " << sec_from(start2) << "\n";
+  std::cout << "total compute time: " << sec_from(start) << "\n";
   std::cout << "sent server bytes: " << sent_bytes << std::endl;
 
   if (server_num == 0) {
@@ -319,9 +319,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
   } else {
     uint64_t b;
     recv_uint64(serverfd, b);
-    std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-    std::cout << "convert time: " << sec_from(start2) << std::endl;
-    std::cout << "total compute time: " << sec_from(start) << std::endl;
+    std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
     if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
       print_too_many_invalid();
       return RET_INVALID;
@@ -358,14 +356,14 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     cli_bytes += recv_unvalidated(clientfd, tag, num_bits);
   }
 
-  std::cout << "Received " << total_inputs << " total shares" << std::endl;
-  std::cout << "bytes from client: " << cli_bytes << std::endl;
+  std::cout << "Received " << total_inputs << " total shares\n";
+  std::cout << "bytes from client: " << cli_bytes << "\n";
   std::cout << "receive time: " << sec_from(start) << std::endl;
 
   if (STORE_TYPE == precompute_store)
     ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * num_bits);
 
-  std::cout << "Sizes after recv:" << std::endl;
+  std::cout << "Sizes after check/recv:" << std::endl;
   correlated_store->print_Sizes();
 
   start = clock_start();
@@ -385,7 +383,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
 
   /* Share Sync */
   if (server_num == 0) {
-    int i = 0;
+    size_t i = 0;
     for (const auto& share : share_map) {
       sent_bytes += send_tag(serverfd, share.first);
       shares[i] = share.second;
@@ -397,9 +395,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
     for (unsigned int i = 0; i < num_inputs; i++) {
       const std::string tag = recv_tag(serverfd);
 
-      bool is_valid = (share_map.find(tag) != share_map.end());
-      valid[i] = is_valid;
-      if (!is_valid)
+      valid[i] = (share_map.find(tag) != share_map.end());
+      if (!valid[i])
         continue;
       shares[i] = share_map[tag];
 
@@ -426,7 +423,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
 
     if (STORE_TYPE == validate_store) {
       // TODO: batch validation in parallel with conversion
-      ((ValidateCorrelatedStore*) correlated_store)->batch_Validate(curr_size * num_bits);
+      ((ValidateCorrelatedStore*) correlated_store)->batch_Validate(
+          curr_size * num_bits);
 
       correlated_store->b2a_multi_setup(curr_size, num_bits,
           &shares[num_done], flat_xp, send_buff);
@@ -462,11 +460,11 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
   delete[] recv_buff;
   delete[] shares;
   delete[] valid;
-  std::cout << "accumulate time: " << sec_from(start2) << std::endl;
-
-  std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-  std::cout << "total compute time: " << sec_from(start) << std::endl;
+  std::cout << "accumulate time: " << sec_from(start2) << "\n";
+  std::cout << "total compute time: " << sec_from(start) << "\n";
   std::cout << "sent server bytes: " << sent_bytes << std::endl;
+
+  std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
     print_too_many_invalid();
     clear_fmpz_array(accum, 1);
@@ -498,8 +496,8 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
     share_map[tag] = share.val;
   }
 
-  std::cout << "Received " << total_inputs << " total shares" << std::endl;
-  std::cout << "bytes from client: " << cli_bytes << std::endl;
+  std::cout << "Received " << total_inputs << " total shares\n";
+  std::cout << "bytes from client: " << cli_bytes << "\n";
   std::cout << "receive time: " << sec_from(start) << std::endl;
   start = clock_start();
   auto start2 = clock_start();
@@ -511,11 +509,11 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
     sent_bytes += send_size(serverfd, num_inputs);
     uint64_t b = 0;
     uint64_t* const shares = new uint64_t[num_inputs];
-    size_t idx = 0;
+    size_t i = 0;
     for (const auto& share : share_map) {
       sent_bytes += send_tag(serverfd, share.first);
-      shares[idx] = share.second;
-      idx++;
+      shares[i] = share.second;
+      i++;
     }
     std::cout << "tag time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
@@ -531,8 +529,8 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
     delete[] shares;
 
     send_uint64(serverfd, b);
-    std::cout << "convert time: " << sec_from(start2) << std::endl;
-    std::cout << "total compute time: " << sec_from(start) << std::endl;
+    std::cout << "convert time: " << sec_from(start2) << "\n";
+    std::cout << "total compute time: " << sec_from(start) << "\n";
     std::cout << "sent server bytes: " << sent_bytes << std::endl;
     return RET_NO_ANS;
   } else {
@@ -561,8 +559,8 @@ returnType xor_op(const initMsg msg, const int clientfd, const int serverfd,
     recv_uint64(serverfd, b);
     const uint64_t aggr = a ^ b;
 
-    std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-    std::cout << "total compute time: " << sec_from(start) << std::endl;
+    std::cout << "Valid count: " << num_valid << " / " << total_inputs << "\n";
+    std::cout << "total compute time: " << sec_from(start) << "\n";
     std::cout << "sent server bytes: " << sent_bytes << std::endl;
     if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
       print_too_many_invalid();
@@ -604,8 +602,8 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
     share_map[tag] = &shares[i*(B+1)];
   }
 
-  std::cout << "Received " << total_inputs << " total shares" << std::endl;
-  std::cout << "bytes from client: " << cli_bytes << std::endl;
+  std::cout << "Received " << total_inputs << " total shares\n";
+  std::cout << "bytes from client: " << cli_bytes << "\n";
   std::cout << "receive time: " << sec_from(start) << std::endl;
   start = clock_start();
   auto start2 = clock_start();
@@ -618,11 +616,11 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
     uint64_t b[B+1];
     memset(b, 0, sizeof(b));
     uint64_t** const ordered_shares = new uint64_t*[num_inputs];
-    size_t idx = 0;
+    size_t i = 0;
     for (const auto& share : share_map) {
       sent_bytes += send_tag(serverfd, share.first);
-      ordered_shares[idx] = share.second;
-      idx++;
+      ordered_shares[i] = share.second;
+      i++;
     }
     std::cout << "tag time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
@@ -639,8 +637,8 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
     delete[] ordered_shares;
     send_uint64_batch(serverfd, b, B+1);
 
-    std::cout << "convert time: " << sec_from(start2) << std::endl;
-    std::cout << "total compute time: " << sec_from(start) << std::endl;
+    std::cout << "convert time: " << sec_from(start2) << "\n";
+    std::cout << "total compute time: " << sec_from(start) << "\n";
     std::cout << "sent server bytes: " << sent_bytes << std::endl;
     return RET_NO_ANS;
   } else {
@@ -661,18 +659,18 @@ returnType max_op(const initMsg msg, const int clientfd, const int serverfd,
     }
 
     std::cout << "tag+convert time: " << sec_from(start2) << std::endl;
-    start2 = clock_start();
 
     sent_bytes += send_bool_batch(serverfd, valid, num_inputs);
+
+    std::cout << "total compute time: " << sec_from(start) << "\n";
+    std::cout << "sent server bytes: " << sent_bytes << std::endl;
 
     delete[] shares;
     delete[] valid;
     uint64_t b[B+1];
     recv_uint64_batch(serverfd, b, B+1);
 
-    std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-    std::cout << "total compute time: " << sec_from(start) << std::endl;
-    std::cout << "sent server bytes: " << sent_bytes << std::endl;
+    std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
     if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
       print_too_many_invalid();
       return RET_INVALID;
@@ -739,8 +737,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
     cli_bytes += recv_unvalidated(clientfd, tag, num_bits * num_dabits);
   }
 
-  std::cout << "Received " << total_inputs << " total shares" << std::endl;
-  std::cout << "bytes from client: " << cli_bytes << std::endl;
+  std::cout << "Received " << total_inputs << " total shares\n";
+  std::cout << "bytes from client: " << cli_bytes << "\n";
   std::cout << "receive time: " << sec_from(start) << std::endl;
 
   if (STORE_TYPE != ot_store)
@@ -810,8 +808,9 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
   correlated_store->b2a_multi_finish(num_inputs, num_bits,
       shares_p, flat_xp_1, v, v_other);
   clear_fmpz_array(flat_xp_1, num_inputs * num_bits);
-  correlated_store->b2a_multi_finish(num_inputs, 2 * num_bits, &shares_p[num_inputs],
-      flat_xp_2, &v[num_inputs * num_bits], &v_other[num_inputs * num_bits]);
+  correlated_store->b2a_multi_finish(num_inputs, 2 * num_bits,
+      &shares_p[num_inputs], flat_xp_2,
+      &v[num_inputs * num_bits], &v_other[num_inputs * num_bits]);
   clear_fmpz_array(flat_xp_2, num_inputs * num_bits * 2);
   delete[] v;
   delete[] v_other;
@@ -848,12 +847,12 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
   const size_t num_valid = accumulate(num_inputs, 2, shares_p, valid, b);
   delete[] valid;
   clear_fmpz_array(shares_p, num_inputs * 2);
-  std::cout << "accumulate time: " << sec_from(start2) << std::endl;
+  std::cout << "accumulate time: " << sec_from(start2) << "\n";
+  std::cout << "total compute time: " << sec_from(start) << "\n";
+  std::cout << "sent non-snip server bytes: " << sent_bytes << std::endl;
   start2 = clock_start();
 
-  std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-  std::cout << "total compute time: " << sec_from(start) << std::endl;
-  std::cout << "sent non-snip server bytes: " << sent_bytes << std::endl;
+  std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
     print_too_many_invalid();
     clear_fmpz_array(b, 2);
@@ -866,11 +865,11 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
   const double ex2 = fmpz_get_d(b[1]) / num_valid;
   ans = ex2 - (ex * ex);
   if (msg.type == VAR_OP) {
-    std::cout << "Ans: " << ex2 << " - (" << ex << ")^2 = " << ans << std::endl;
+    std::cout << "Ans: " << ex2 << " - (" << ex << ")^2 = " << ans << "\n";
   }
   if (msg.type == STDDEV_OP) {
     ans = sqrt(ans);
-    std::cout << "Ans: sqrt(" << ex2 << " - (" << ex << ")^2) = " << ans << std::endl;
+    std::cout << "Ans: sqrt(" << ex2 << " - (" << ex << ")^2) = " << ans << "\n";
   }
   clear_fmpz_array(b, 2);
   std::cout << "eval time: " << sec_from(start2) << std::endl;
@@ -890,13 +889,11 @@ returnType linreg_op(const initMsg msg, const int clientfd,
   const size_t num_x = degree - 1;
   const size_t num_quad = num_x * (num_x + 1) / 2;
   const size_t num_fields = 2 * num_x + 1 + num_quad;
-  // std::cout << "num_x: " << num_x << std::endl;
-  // std::cout << "num_quad: " << num_quad << std::endl;
-  // std::cout << "num_fields: " << num_fields << std::endl;
   const int num_dabits = degree * (degree + 2) - 2;
 
   // [x], y, [x2], [xy]
-  typedef std::tuple <uint64_t*, uint64_t, uint64_t*, uint64_t*, ClientPacket*> sharetype;
+  typedef std::tuple <uint64_t*, uint64_t, uint64_t*, uint64_t*,
+      ClientPacket*> sharetype;
   std::unordered_map<std::string, sharetype> share_map;
 
   const size_t num_bits = msg.num_bits;
@@ -957,8 +954,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
     cli_bytes += recv_unvalidated(clientfd, tag, num_bits * num_dabits);
   }
 
-  std::cout << "Received " << total_inputs << " total shares" << std::endl;
-  std::cout << "bytes from client: " << cli_bytes << std::endl;
+  std::cout << "Received " << total_inputs << " total shares\n";
+  std::cout << "bytes from client: " << cli_bytes << "\n";
   std::cout << "receive time: " << sec_from(start) << std::endl;
 
   if (STORE_TYPE != ot_store)
@@ -1053,7 +1050,8 @@ returnType linreg_op(const initMsg msg, const int clientfd,
       shares_transposed, flat_xp_1, v);
   fmpz_t* flat_xp_2; new_fmpz_array(&flat_xp_2, num_inputs * num_2 * 2 * num_bits);
   correlated_store->b2a_multi_setup(num_inputs * num_2, 2 * num_bits,
-    &shares_transposed[num_inputs * num_1], flat_xp_2, &v[num_inputs * num_1 * num_bits]);
+    &shares_transposed[num_inputs * num_1], flat_xp_2,
+    &v[num_inputs * num_1 * num_bits]);
   // delete[] shares_transposed;
   bool* const v_other = new bool[num_inputs * total];
 
@@ -1104,12 +1102,13 @@ returnType linreg_op(const initMsg msg, const int clientfd,
   size_t num_valid = accumulate(num_inputs, num_fields, shares_p, valid, b);
   delete[] valid;
   clear_fmpz_array(shares_p, num_inputs * num_fields);
-  std::cout << "accumulate time: " << sec_from(start2) << std::endl;
+
+  std::cout << "accumulate time: " << sec_from(start2) << "\n";
+  std::cout << "total compute time: " << sec_from(start) << "\n";
+  std::cout << "sent non-snip server bytes: " << sent_bytes << std::endl;
   start2 = clock_start();
 
-  std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-  std::cout << "total compute time: " << sec_from(start) << std::endl;
-  std::cout << "sent non-snip server bytes: " << sent_bytes << std::endl;
+  std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
     print_too_many_invalid();
     clear_fmpz_array(b, num_fields);
@@ -1173,12 +1172,13 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     share_map[tag] = share.arr;
 
     // for (unsigned int j = 0; j < max_inp; j++) {
-    //   std::cout << "share[" << i << ", " << j << "] = " << share.arr[j] << std::endl;
+    //   std::cout << "share[" << i << ", " << j << "] = ";
+    //   std::cout << share.arr[j] << std::endl;
     // }
   }
 
-  std::cout << "Received " << total_inputs << " total shares" << std::endl;
-  std::cout << "bytes from client: " << cli_bytes << std::endl;
+  std::cout << "Received " << total_inputs << " total shares\n";
+  std::cout << "bytes from client: " << cli_bytes << "\n";
   std::cout << "receive time: " << sec_from(start) << std::endl;
 
   if (STORE_TYPE != ot_store)
@@ -1193,20 +1193,21 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     sent_bytes += send_size(serverfd, num_inputs);
     bool* const shares = new bool[num_inputs * max_inp];
 
-    size_t idx = 0;
+    size_t i = 0;
     for (const auto& share : share_map) {
       sent_bytes += send_tag(serverfd, share.first);
-      memcpy(&shares[idx * max_inp], share.second, max_inp);
+      memcpy(&shares[i * max_inp], share.second, max_inp);
       delete[] share.second;
-      idx++;
+      i++;
     }
     std::cout << "tag time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
 
     fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * max_inp);
-    sent_bytes += correlated_store->b2a_single(num_inputs * max_inp, shares, shares_p);
-    std::cout << "convert time: " << sec_from(start2) << std::endl;
+    sent_bytes += correlated_store->b2a_single(num_inputs * max_inp,
+        shares, shares_p);
     delete[] shares;
+    std::cout << "convert time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
 
     bool* const valid = new bool[num_inputs];
@@ -1238,8 +1239,9 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
 
     fmpz_t* b; new_fmpz_array(&b, max_inp);
     accumulate(num_inputs, max_inp, shares_p, valid, b);
-    std::cout << "accumulate time: " << sec_from(start2) << std::endl;
-    std::cout << "total compute time: " << sec_from(start) << std::endl;
+    std::cout << "accumulate time: " << sec_from(start2) << "\n";
+    std::cout << "total compute time: " << sec_from(start) << "\n";
+    std::cout << "sent server bytes: " << sent_bytes << std::endl;
 
     delete[] valid;
     clear_fmpz_array(shares_p, num_inputs * max_inp);
@@ -1247,7 +1249,6 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     send_fmpz_batch(serverfd, b, max_inp);
     clear_fmpz_array(b, max_inp);
 
-    std::cout << "sent server bytes: " << sent_bytes << std::endl;
     return RET_NO_ANS;
   } else {
     size_t num_inputs;
@@ -1271,11 +1272,11 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     start2 = clock_start();
 
     fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * max_inp);
-    sent_bytes += correlated_store->b2a_single(num_inputs * max_inp, shares, shares_p);
-    std::cout << "convert time: " << sec_from(start2) << std::endl;
+    sent_bytes += correlated_store->b2a_single(num_inputs * max_inp,
+        shares, shares_p);
     delete[] shares;
+    std::cout << "convert time: " << sec_from(start2) << std::endl;
     start2 = clock_start();
-
 
     /* N freq vectors, each length M
        Check that arithmetic shares  sum to 1
@@ -1332,16 +1333,16 @@ returnType freq_op(const initMsg msg, const int clientfd, const int serverfd,
     size_t num_valid = accumulate(num_inputs, max_inp, shares_p, valid, a);
     delete[] valid;
     clear_fmpz_array(shares_p, num_inputs * max_inp);
-    std::cout << "accumulate time: " << sec_from(start2) << std::endl;
-    std::cout << "total compute time: " << sec_from(start) << std::endl;
+    std::cout << "accumulate time: " << sec_from(start2) << "\n";
+    std::cout << "total compute time: " << sec_from(start) << "\n";
+    std::cout << "sent server bytes: " << sent_bytes << std::endl;
     start2 = clock_start();
 
     // receive b
     fmpz_t* b; new_fmpz_array(&b, max_inp);
     recv_fmpz_batch(serverfd, b, max_inp);
 
-    std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-    std::cout << "sent server bytes: " << sent_bytes << std::endl;
+    std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
     if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
       print_too_many_invalid();
       clear_fmpz_array(b, max_inp);
@@ -1375,8 +1376,8 @@ returnType heavy_op(const initMsg msg,
   const size_t b = msg.num_bits;
   const unsigned int total_inputs = msg.num_of_inputs;
 
-  /* B Not actually necessary for evaluation
-  Could help for "verify" that hashes actually have right sign after finding the output,
+  /* B is ot actually necessary for evaluation
+  Could help "verify" that hashes actually have right sign after finding the output,
   but it doesn't help evaluation.
   flint_rand_t hash_seed; flint_randinit(hash_seed);
   recv_seed(clientfd, hash_seed);
@@ -1402,8 +1403,8 @@ returnType heavy_op(const initMsg msg,
     share_map[tag] = buff;
   }
 
-  std::cout << "Received " << total_inputs << " total shares" << std::endl;
-  std::cout << "bytes from client: " << cli_bytes << std::endl;
+  std::cout << "Received " << total_inputs << " total shares\n";
+  std::cout << "bytes from client: " << cli_bytes << "\n";
   std::cout << "receive time: " << sec_from(start) << std::endl;
 
   correlated_store->check_DaBits(total_inputs * 2 * b);
@@ -1427,13 +1428,13 @@ returnType heavy_op(const initMsg msg,
 
   /* Share sync */
   if (server_num == 0) {
-    size_t idx = 0;
+    size_t i = 0;
     for (const auto& share : share_map) {
       sent_bytes += send_tag(serverfd, share.first);
 
-      memcpy(&x[idx*b], share.second, b);
-      memcpy(&y[idx*b], &(share.second[b]), b);
-      idx++;
+      memcpy(&x[i*b], share.second, b);
+      memcpy(&y[i*b], &(share.second[b]), b);
+      i++;
       delete[] share.second;
     }
     // Sync valid now, since no validation needed
@@ -1465,8 +1466,8 @@ returnType heavy_op(const initMsg msg,
 
   delete[] x;
   delete[] y;
-  std::cout << "convert+accum time: " << sec_from(start2) << std::endl;
-  std::cout << "total compute time: " << sec_from(start) << std::endl;
+  std::cout << "convert+accum time: " << sec_from(start2) << "\n";
+  std::cout << "total compute time: " << sec_from(start) << "\n";
   std::cout << "compute bytes sent: " << sent_bytes << std::endl;
   start2 = clock_start();
 
@@ -1475,7 +1476,7 @@ returnType heavy_op(const initMsg msg,
   for (unsigned int i = 0; i < num_inputs; i++)
     num_valid += valid[i];
   delete[] valid;
-  std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+  std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
     print_too_many_invalid();
     clear_fmpz_array(bucket0, b);
@@ -1492,8 +1493,8 @@ returnType heavy_op(const initMsg msg,
   if (server_num == 0) {
     sent_bytes += send_fmpz_batch(serverfd, larger, b);
     clear_fmpz_array(larger, b);
-    std::cout << "evaluate time: " << sec_from(start2) << std::endl;
-    std::cout << "evaluate bytes sent: " << sent_bytes << std::endl;
+    std::cout << "eval time: " << sec_from(start2) << "\n";
+    std::cout << "eval bytes sent: " << sent_bytes << std::endl;
 
     return RET_NO_ANS;
   } else {
@@ -1513,8 +1514,8 @@ returnType heavy_op(const initMsg msg,
     clear_fmpz_array(larger, b);
     clear_fmpz_array(larger_other, b);
 
-    std::cout << "evaluate time: " << sec_from(start2) << std::endl;
-    std::cout << "evaluate bytes sent: " << sent_bytes << std::endl;
+    std::cout << "eval time: " << sec_from(start2) << "\n";
+    std::cout << "eval bytes sent: " << sent_bytes << std::endl;
 
     return RET_ANS;
   }
@@ -1591,8 +1592,8 @@ returnType multi_heavy_op(const initMsg msg,
     share_map[tag] = {shares_sh_x, shares_sh_y, shares_mask, shares_count};
   }
 
-  std::cout << "Received " << total_inputs << " total shares" << std::endl;
-  std::cout << "bytes from client: " << cli_bytes << std::endl;
+  std::cout << "Received " << total_inputs << " total shares\n";
+  std::cout << "bytes from client: " << cli_bytes << "\n";
   std::cout << "receive time: " << sec_from(start2) << std::endl;
 
   start = clock_start();
@@ -1787,9 +1788,9 @@ returnType multi_heavy_op(const initMsg msg,
   accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
   clear_fmpz_array(shares_p, len_p);
 
-  std::cout << "accum time: " << sec_from(start3) << std::endl;
-  std::cout << "total accum time: " << sec_from(start2) << std::endl;
-  std::cout << "total compute time: " << sec_from(start) << std::endl;
+  std::cout << "accum time: " << sec_from(start3) << "\n";
+  std::cout << "total accum time: " << sec_from(start2) << "\n";
+  std::cout << "total compute time: " << sec_from(start) << "\n";
   std::cout << "compute bytes sent: " << sent_bytes << std::endl;
   start2 = clock_start();
 
@@ -1797,7 +1798,7 @@ returnType multi_heavy_op(const initMsg msg,
   size_t num_valid = 0;
   for (unsigned int i = 0; i < num_inputs; i++)
     num_valid += valid[i];
-  std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+  std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
   delete[] valid;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
     print_too_many_invalid();
@@ -1826,9 +1827,9 @@ returnType multi_heavy_op(const initMsg msg,
 
   std::cout << "Top K = " << K << " values and freqs, decreasing\n";
   for (unsigned int i = 0; i < K; i++) {
-    std::cout << "Value: " << top_values[i] << ", freq: " << top_freqs[i] << std::endl;
+    std::cout << "Value: " << top_values[i] << ", freq: " << top_freqs[i] << "\n";
   }
-  std::cout << "evaluate time: " << sec_from(start2) << std::endl;
+  std::cout << "eval time: " << sec_from(start2) << std::endl;
 
   delete[] top_values;
   delete[] top_freqs;
@@ -1906,8 +1907,8 @@ returnType top_k_op(const initMsg msg,
     share_map[tag] = cli_buff;
   }
 
-  std::cout << "Received " << total_inputs << " total shares" << std::endl;
-  std::cout << "bytes from client: " << cli_bytes << std::endl;
+  std::cout << "Received " << total_inputs << " total shares\n";
+  std::cout << "bytes from client: " << cli_bytes << "\n";
   std::cout << "receive time: " << sec_from(start2) << std::endl;
 
   start = clock_start();
@@ -2032,7 +2033,8 @@ returnType top_k_op(const initMsg msg,
     correlated_store->multiply_BoolShares_setup(len_part, a, b, z, send_buff);
     // 2 * len_part into send buff
     correlated_store->b2a_single_setup(curr_size * share_size_count,
-        &shares_count[num_done * share_size_count], shares_p, &send_buff[2*len_part]);
+        &shares_count[num_done * share_size_count],
+        shares_p, &send_buff[2*len_part]);
     correlated_store->b2a_single_setup(curr_size * share_size_bucket,
         &shares_bucket[num_done * share_size_bucket],
         &shares_p[curr_size * share_size_count],
@@ -2046,7 +2048,8 @@ returnType top_k_op(const initMsg msg,
     correlated_store->b2a_single_finish(len_p,
         shares_p, &send_buff[2*len_part], &recv_buff[2*len_part]);
     // Finish convert stage 1, setup convert stage 2
-    correlated_store->multiply_BoolShares_finish(len_part, a, b, z, send_buff, recv_buff);
+    correlated_store->multiply_BoolShares_finish(len_part, a, b, z,
+        send_buff, recv_buff);
     // (x, y, xy) * m1m2
     cross_fill_bool(curr_size * cfg.Q, cfg.B * cfg.R, cfg.D,
         &z[curr_size * cfg.Q * cfg.D], &shares_sh_x[num_done * share_size_sh], b, a);
@@ -2124,14 +2127,14 @@ returnType top_k_op(const initMsg msg,
   clear_fmpz_array(sums, len_sums);
   clear_fmpz_array(sums_other, len_sums);
 
-  std::cout << "accum time: " << sec_from(start3) << std::endl;
-  std::cout << "total accum time: " << sec_from(start2) << std::endl;
-  std::cout << "total compute time: " << sec_from(start) << std::endl;
+  std::cout << "accum time: " << sec_from(start3) << "\n";
+  std::cout << "total accum time: " << sec_from(start2) << "\n";
+  std::cout << "total compute time: " << sec_from(start) << "\n";
   std::cout << "compute bytes sent: " << sent_bytes << std::endl;
   start2 = clock_start();
 
   /* Evaluation */
-  std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
+  std::cout << "Valid count: " << num_valid << " / " << total_inputs << std::endl;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
     print_too_many_invalid();
     clear_fmpz_array(bucket0, num_sh);
@@ -2143,7 +2146,7 @@ returnType top_k_op(const initMsg msg,
   uint64_t* const top_values = new uint64_t[K];
   uint64_t* const top_freqs = new uint64_t[K];
 
-  // top_k_extract_garbled(server_num, cfg, bucket0, bucket1, hash_seed_split, 
+  // top_k_extract_garbled(server_num, cfg, bucket0, bucket1, hash_seed_split,
   //     hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
   top_k_extract_mixed(server_num, serverfd, cfg, bucket0, bucket1,
       hash_seed_split, hash_seed_count, countmin_accum,
@@ -2159,9 +2162,9 @@ returnType top_k_op(const initMsg msg,
 
   std::cout << "Top K = " << K << " values and freqs, decreasing\n";
   for (unsigned int i = 0; i < K; i++) {
-    std::cout << "Value: " << top_values[i] << ", freq: " << top_freqs[i] << std::endl;
+    std::cout << "Value: " << top_values[i] << ", freq: " << top_freqs[i] << "\n";
   }
-  std::cout << "evaluate time: " << sec_from(start2) << std::endl;
+  std::cout << "eval time: " << sec_from(start2) << std::endl;
 
   delete[] top_values;
   delete[] top_freqs;
@@ -2176,13 +2179,13 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  const int server_num = atoi(argv[1]);  // Server # 1 or # 2
-  const int client_port = atoi(argv[2]); // port of this server, for the client
-  const int server_port = atoi(argv[3]); // port of this server, for the other server
+  const int server_num = atoi(argv[1]);  // Server # 0 or # 1
+  const int client_port = atoi(argv[2]); // port of this server, for client
+  const int server_port = atoi(argv[3]); // port of this server, for other server
 
-  std::cout << "This server is server # " << server_num << std::endl;
-  std::cout << "  Listening for client on " << client_port << std::endl;
-  std::cout << "  Listening for server on " << server_port << std::endl;
+  std::cout << "This server is server # " << server_num << "\n";
+  std::cout << "  Listening for client on " << client_port << "\n";
+  std::cout << "  Listening for server on " << server_port << "\n";
 
   init_constants();
 
