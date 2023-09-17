@@ -253,54 +253,59 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
   //   ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs);
 
   int sent_bytes = 0;
-
+  size_t num_inputs;
   if (server_num == 1) {
-    const size_t num_inputs = share_map.size();
+    num_inputs = share_map.size();
     sent_bytes += send_size(serverfd, num_inputs);
-    bool* const shares = new bool[num_inputs];
+  } else {
+    recv_size(serverfd, num_inputs);
+  }
+  bool* const shares = new bool[num_inputs];
+  bool* valid = nullptr;
+  int num_valid = 0;
+
+  if (server_num == 0) {
     int i = 0;
     for (const auto& share : share_map) {
       sent_bytes += send_tag(serverfd, share.first);
       shares[i] = share.second;
       i++;
     }
-    std::cout << "tag time: " << sec_from(start2) << std::endl;
-    start2 = clock_start();
-
-    const uint64_t b = bitsum_ot_receiver(ot0, shares, num_inputs);
-    delete[] shares;
-
-    send_uint64(serverfd, b);
-    std::cout << "convert time: " << sec_from(start2) << std::endl;
-    std::cout << "total compute time: " << sec_from(start) << std::endl;
-    std::cout << "sent server bytes: " << sent_bytes << std::endl;
-    return RET_NO_ANS;
   } else {
-    size_t num_inputs, num_valid = 0;
-    recv_size(serverfd, num_inputs);
-    bool* const shares = new bool[num_inputs];
-    bool* const valid = new bool[num_inputs];
-
+    valid = new bool[num_inputs];
     for (unsigned int i = 0; i < num_inputs; i++) {
       const std::string tag = recv_tag(serverfd);
 
-      bool is_valid = (share_map.find(tag) != share_map.end());
+      const bool is_valid = (share_map.find(tag) != share_map.end());
       valid[i] = is_valid;
       if (!is_valid)
         continue;
-      num_valid++;
       shares[i] = share_map[tag];
+      num_valid += 1;
     }
-    std::cout << "tag time: " << sec_from(start2) << std::endl;
-    start2 = clock_start();
+  }
+  std::cout << "tag time: " << sec_from(start2) << std::endl;
+  start2 = clock_start();
 
-    const uint64_t a = bitsum_ot_sender(ot0, shares, valid, num_inputs);
-    delete[] shares;
+  uint64_t a;
+  if (server_num == 0)  {
+    a = bitsum_ot_receiver(ot0, shares, num_inputs);
+  } else {
+    a = bitsum_ot_sender(ot0, shares, valid, num_inputs); 
     delete[] valid;
+  }
+  delete[] shares;
 
+  std::cout << "convert time: " << sec_from(start2) << std::endl;
+  std::cout << "total compute time: " << sec_from(start) << std::endl;
+  std::cout << "sent server bytes: " << sent_bytes << std::endl;
+
+  if (server_num == 0) {
+    send_uint64(serverfd, a);
+    return RET_NO_ANS;
+  } else {
     uint64_t b;
     recv_uint64(serverfd, b);
-
     std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
     std::cout << "convert time: " << sec_from(start2) << std::endl;
     std::cout << "total compute time: " << sec_from(start) << std::endl;
@@ -308,7 +313,6 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
       print_too_many_invalid();
       return RET_INVALID;
     }
-
     ans = a + b;
     return RET_ANS;
   }
