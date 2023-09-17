@@ -30,7 +30,7 @@
 // Fail if more than this fraction of clients provide invalid inputs
 #define INVALID_THRESHOLD 0.5
 void print_too_many_invalid() {
-std::cout << "Failing, This is less than the invalid threshold of ";
+  std::cout << "Failing, This is less than the invalid threshold of ";
   std::cout << INVALID_THRESHOLD << std::endl;
 }
 
@@ -1987,126 +1987,142 @@ returnType top_k_op(const initMsg msg,
   count: B2A for validation and accumulation
   */
 
-  // Length declares
-  const size_t len_all = num_inputs * cfg.Q * cfg.B * cfg.R * cfg.D;
-  const size_t len_part = num_inputs * cfg.Q * (cfg.D + cfg.B * cfg.R);
-  const size_t len_p = num_inputs * (share_size_count + share_size_bucket);
-  bool* send_buff = new bool[2*len_part + len_p];
-  bool* recv_buff = new bool[2*len_part + len_p];
-  memset(recv_buff, 0, 2*len_part + len_p);
+  const size_t BATCH_SIZE = 10000;  // 0 to do 1 batch
+
+  // Length and buffers
+  const size_t batch_size = BATCH_SIZE == 0 ? num_inputs : BATCH_SIZE;
+  const size_t buff_len_all = batch_size * cfg.Q * cfg.B * cfg.R * cfg.D;
+  const size_t buff_len_p = batch_size * (share_size_count + share_size_bucket);
+  const size_t len_sums = cfg.Q + cfg.countmin_cfg.d;
+  bool* const send_buff = new bool[6 * buff_len_all];
+  bool* const recv_buff = new bool[6 * buff_len_all];
+  memset(recv_buff, 0, 6 * buff_len_all);
+  bool* const a = new bool[3 * buff_len_all];
+  bool* const b = new bool[3 * buff_len_all];
+  bool* const z = new bool[4 * buff_len_all];  // Re-used as c
+  fmpz_t* shares_p; new_fmpz_array(&shares_p, buff_len_p);
+  fmpz_t* zp; new_fmpz_array(&zp, 4 * buff_len_all);
+  fmpz_t* sums; new_fmpz_array(&sums, len_sums);
+  fmpz_t* sums_other; new_fmpz_array(&sums_other, len_sums);
 
   fmpz_t* bucket0; new_fmpz_array(&bucket0, num_sh);
   fmpz_t* bucket1; new_fmpz_array(&bucket1, num_sh);
   fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
   uint64_t num_valid = 0;
 
-  // Setup convert stage 1: xy normal, cross B, R
-  bool* const a = new bool[3 * len_all];
-  bool* const b = new bool[3 * len_all];
-  bool* const z = new bool[4 * len_all];  // Re-used as c
-  memcpy(a, shares_sh_x, num_inputs * cfg.Q * cfg.D);
-  memcpy(b, shares_sh_y, num_inputs * cfg.Q * cfg.D);
-  cross_fill_bool(num_inputs, cfg.Q * cfg.B, cfg.R, shares_bucket, shares_layer,
-      &a[num_inputs * cfg.Q * cfg.D], &b[num_inputs * cfg.Q * cfg.D]);
-  delete[] shares_layer;
-  correlated_store->multiply_BoolShares_setup(len_part, a, b, z, send_buff);
-  // 2 * len_part into send buff
-  fmpz_t* shares_p; new_fmpz_array(&shares_p, len_p);
-  correlated_store->b2a_single_setup(num_inputs * share_size_count,
-      shares_count, shares_p, &send_buff[2*len_part]);
-  delete[] shares_count;
-  correlated_store->b2a_single_setup(num_inputs * share_size_bucket,
-      shares_bucket, &shares_p[num_inputs * share_size_count],
-      &send_buff[2*len_part + num_inputs * share_size_count]);
-  delete[] shares_bucket;
+  int num_done = 0;
+  while (num_done < num_inputs) {
+    const size_t curr_size = fmin(batch_size, num_inputs - num_done);
+    const size_t len_all = curr_size * cfg.Q * cfg.B * cfg.R * cfg.D;
+    const size_t len_part = curr_size * cfg.Q * (cfg.D + cfg.B * cfg.R);
+    const size_t len_p = curr_size * (share_size_count + share_size_bucket);
 
-  /* Round 1: convert mult 1, B2A count, B2A mask */
-  sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff,
-      2*len_part + len_p);
-  std::cout << "Round 1 time: " << sec_from(start3) << std::endl;
-  start3 = clock_start();
+    for (unsigned int i = 0; i < len_sums; i++) {
+      fmpz_zero(sums[i]);
+      // fmpz_zero(sums_other[i]);
+    }
 
-  // Finish B2A
-  correlated_store->b2a_single_finish(len_p,
-      shares_p, &send_buff[2*len_part], &recv_buff[2*len_part]);
-  // Finish convert stage 1, setup convert stage 2
-  correlated_store->multiply_BoolShares_finish(len_part, a, b, z, send_buff, recv_buff);
-  delete[] send_buff; send_buff = new bool[6 * len_all];
-  delete[] recv_buff; recv_buff = new bool[6 * len_all];
-  memset(recv_buff, 0, 6 * len_all);
-  // (x, y, xy) * m1m2
-  cross_fill_bool(num_inputs * cfg.Q, cfg.B * cfg.R, cfg.D,
-      &z[num_inputs * cfg.Q * cfg.D], shares_sh_x, b, a);
+    // Setup convert stage 1: xy normal, cross B, R
+    memcpy(a, &shares_sh_x[num_done * share_size_sh], curr_size * cfg.Q * cfg.D);
+    memcpy(b, &shares_sh_y[num_done * share_size_sh], curr_size * cfg.Q * cfg.D);
+    cross_fill_bool(curr_size, cfg.Q * cfg.B, cfg.R,
+        &shares_bucket[num_done * share_size_bucket],
+        &shares_layer[num_done * share_size_layer],
+        &a[curr_size * cfg.Q * cfg.D], &b[curr_size * cfg.Q * cfg.D]);
+    correlated_store->multiply_BoolShares_setup(len_part, a, b, z, send_buff);
+    // 2 * len_part into send buff
+    correlated_store->b2a_single_setup(curr_size * share_size_count,
+        &shares_count[num_done * share_size_count], shares_p, &send_buff[2*len_part]);
+    correlated_store->b2a_single_setup(curr_size * share_size_bucket,
+        &shares_bucket[num_done * share_size_bucket],
+        &shares_p[curr_size * share_size_count],
+        &send_buff[2*len_part + curr_size * share_size_count]);
+
+    /* Round 1: convert mult 1, B2A count, B2A mask */
+    sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff,
+        2*len_part + len_p);
+
+    // Finish B2A
+    correlated_store->b2a_single_finish(len_p,
+        shares_p, &send_buff[2*len_part], &recv_buff[2*len_part]);
+    // Finish convert stage 1, setup convert stage 2
+    correlated_store->multiply_BoolShares_finish(len_part, a, b, z, send_buff, recv_buff);
+    // (x, y, xy) * m1m2
+    cross_fill_bool(curr_size * cfg.Q, cfg.B * cfg.R, cfg.D,
+        &z[curr_size * cfg.Q * cfg.D], &shares_sh_x[num_done * share_size_sh], b, a);
+    cross_fill_bool(curr_size * cfg.Q, cfg.B * cfg.R, cfg.D,
+        &z[curr_size * cfg.Q * cfg.D], &shares_sh_y[num_done * share_size_sh],
+        &b[len_all], &a[len_all]);
+    cross_fill_bool(curr_size * cfg.Q, cfg.B * cfg.R, cfg.D,
+        &z[curr_size * cfg.Q * cfg.D], z, &b[2*len_all], &a[2*len_all]);
+    memcpy(z, b, len_all);
+    correlated_store->multiply_BoolShares_setup(3 * len_all,
+        a, b, &z[len_all], send_buff);
+    for (unsigned int i = 0; i < len_sums; i++)
+      fmpz_zero(sums[i]);
+    sum_accum(curr_size, cfg.countmin_cfg.d, cfg.countmin_cfg.w, shares_p, sums);
+    sum_accum(curr_size, cfg.Q, cfg.B,
+        &shares_p[curr_size * share_size_count], &sums[cfg.countmin_cfg.d]);
+
+    /* Round 2: Freq valid values, second convert mult */
+    sent_bytes += swap_bool_fmpz_batch(serverfd,
+        send_buff, recv_buff, 2 * 3 * len_all,
+        sums, sums_other, len_sums);
+
+    // Finish convert stage 2
+    correlated_store->multiply_BoolShares_finish(3 * len_all,
+        a, b, &z[len_all], send_buff, recv_buff);
+    // Finish freq, update valid
+    bool all_valid = true;
+    for (unsigned int j = 0; j < len_sums; j++) {
+      fmpz_mod_add(sums[j], sums[j], sums_other[j], mod_ctx);
+      all_valid &= fmpz_equal_ui(sums[j], curr_size);
+      if (!all_valid) {
+        memset(&valid[num_done], false, curr_size);
+        std::cout << "Batch not valid. Individual check currently not implemented\n";
+        break;
+      }
+    }
+    memcpy(send_buff, &valid[num_done], curr_size);
+    // setup convert stage 3
+    correlated_store->b2a_single_setup(4 * len_all, z, zp, &send_buff[curr_size]);
+    // memcpy(&send_buff[curr_size], z, 4 * len_all);
+
+    /* Round 3: convert stage 3, valid swap */
+    sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff,
+        curr_size + 4 * len_all);
+
+    // Finish heavy convert
+    correlated_store->b2a_single_finish(4 * len_all, zp,
+        &send_buff[curr_size], &recv_buff[curr_size]);
+    // Merge valid
+    for (unsigned int i = 0; i < curr_size; i++) {
+      valid[num_done + i] &= recv_buff[i];
+    }
+    // Heavy accum
+    correlated_store->heavy_accumulate(curr_size,
+        cfg.Q * cfg.B * cfg.R * cfg.D, zp, &valid[num_done], bucket0, bucket1);
+    // Count-min accum
+    num_valid += accumulate(curr_size, share_size_count, shares_p,
+        &valid[num_done], countmin_accum);
+
+    num_done += curr_size;
+  }
   delete[] shares_sh_x;
-  cross_fill_bool(num_inputs * cfg.Q, cfg.B * cfg.R, cfg.D,
-      &z[num_inputs * cfg.Q * cfg.D], shares_sh_y, &b[len_all], &a[len_all]);
   delete[] shares_sh_y;
-  cross_fill_bool(num_inputs * cfg.Q, cfg.B * cfg.R, cfg.D,
-      &z[num_inputs * cfg.Q * cfg.D], z, &b[2*len_all], &a[2*len_all]);
-  memcpy(z, b, len_all);
-  correlated_store->multiply_BoolShares_setup(3 * len_all, a, b, &z[len_all], send_buff);
-  fmpz_t* sums; new_fmpz_array(&sums, cfg.Q + cfg.countmin_cfg.d);
-  sum_accum(num_inputs, cfg.countmin_cfg.d, cfg.countmin_cfg.w, shares_p, sums);
-  sum_accum(num_inputs, cfg.Q, cfg.B,
-      &shares_p[num_inputs * share_size_count], &sums[cfg.countmin_cfg.d]);
-  fmpz_t* sums_other; new_fmpz_array(&sums_other, cfg.Q + cfg.countmin_cfg.d);
-
-  /* Round 2: Freq valid values, second convert mult */
-  sent_bytes += swap_bool_fmpz_batch(serverfd,
-      send_buff, recv_buff, 2 * 3 * len_all,
-      sums, sums_other, cfg.Q + cfg.countmin_cfg.d);
-  std::cout << "Round 2 time: " << sec_from(start3) << std::endl;
-  start3 = clock_start();
-
-  // Finish convert stage 2
-  correlated_store->multiply_BoolShares_finish(3 * len_all,
-      a, b, &z[len_all], send_buff, recv_buff);
-  delete[] send_buff; send_buff = new bool[4 * len_all + num_inputs];
-  delete[] recv_buff; recv_buff = new bool[4 * len_all + num_inputs];
+  delete[] shares_bucket;
+  delete[] shares_layer;
+  delete[] shares_count;
+  delete[] valid;
+  delete[] send_buff;
+  delete[] recv_buff;
   delete[] a;
   delete[] b;
-  // Finish freq, update valid
-  bool all_valid = true;
-  for (unsigned int j = 0; j < cfg.Q + cfg.countmin_cfg.d; j++) {
-    fmpz_mod_add(sums[j], sums[j], sums_other[j], mod_ctx);
-    all_valid &= fmpz_equal_ui(sums[j], num_inputs);
-    if (!all_valid) {
-      memset(valid, false, num_inputs);
-      std::cout << "Batch not valid. Individual check currently not implemented\n";
-      break;
-    }
-  }
-  clear_fmpz_array(sums, cfg.Q + cfg.countmin_cfg.d);
-  clear_fmpz_array(sums_other, cfg.Q + cfg.countmin_cfg.d);
-  memcpy(send_buff, valid, num_inputs);
-  // setup convert stage 3
-  fmpz_t* zp; new_fmpz_array(&zp, 4 * len_all);
-  correlated_store->b2a_single_setup(4 * len_all, z, zp, &send_buff[num_inputs]);
-  // memcpy(&send_buff[num_inputs], z, 4 * len_all);
   delete[] z;
-
-  /* Round 3: convert stage 3, valid swap */
-  sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff,
-      num_inputs + 4 * len_all);
-  std::cout << "Round 3 time: " << sec_from(start3) << std::endl;
-  start3 = clock_start();
-
-  // Finish heavy convert
-  correlated_store->b2a_single_finish(4 * len_all, zp,
-      &send_buff[num_inputs], &recv_buff[num_inputs]);
-  delete[] send_buff;
-  // Merge valid
-  for (unsigned int i = 0; i < num_inputs; i++) {
-    valid[i] &= recv_buff[i];
-  }
-  delete[] recv_buff;
-  // Heavy accum
-  correlated_store->heavy_accumulate(num_inputs,
-      cfg.Q * cfg.B * cfg.R * cfg.D, zp, valid, bucket0, bucket1);
-  clear_fmpz_array(zp, 4 * len_all);
-  // Count-min accum
-  num_valid += accumulate(num_inputs, share_size_count, shares_p, valid, countmin_accum);
-  clear_fmpz_array(shares_p, len_p);
+  clear_fmpz_array(shares_p, buff_len_p);
+  clear_fmpz_array(zp, 4 * buff_len_all);
+  clear_fmpz_array(sums, len_sums);
+  clear_fmpz_array(sums_other, len_sums);
 
   std::cout << "accum time: " << sec_from(start3) << std::endl;
   std::cout << "total accum time: " << sec_from(start2) << std::endl;
@@ -2116,7 +2132,6 @@ returnType top_k_op(const initMsg msg,
 
   /* Evaluation */
   std::cout << "Final valid count: " << num_valid << " / " << total_inputs << std::endl;
-  delete[] valid;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
     print_too_many_invalid();
     clear_fmpz_array(bucket0, num_sh);
