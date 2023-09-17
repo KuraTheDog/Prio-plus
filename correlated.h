@@ -64,7 +64,7 @@ n) delete vars. could fit into finish, but clearer outside
 
 /* Lazy levels: Speedups for debugging/testing via skipping some work
 0 (default): Standard security
-1: Locally generate correlated randomness (use shared seed, or iterate over possible values)
+1: Locally gen correlated randomness (use shared seed, or iterate over possible values)
 2: Doesn't precompute, locally make a small amount at a time when requested (save space)
 3: give zero/simplest when requested. Skips queue entirely
 
@@ -327,7 +327,8 @@ public:
   */
   int64_t heavy_convert_mask_two(
       const size_t N, const size_t Q, const size_t M1, const size_t M2, const size_t D,
-      const bool* const x, const bool* const y, const bool* const mask1, const bool* const mask2,
+      const bool* const x, const bool* const y,
+      const bool* const mask1, const bool* const mask2,
       const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1);
 
   /* Comparisons.
@@ -352,7 +353,8 @@ public:
   */
 
   // [ x < y ] ^A for [x]^A, [y]^A
-  int64_t cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y, fmpz_t* const ans);
+  int64_t cmp(const size_t N, const fmpz_t* const x, const fmpz_t* const y,
+      fmpz_t* const ans);
   // [ |x| ] ^A for [x]^A, [y]^A
   int64_t abs(const size_t N, const fmpz_t* const x, fmpz_t* const abs_x);
   // [ |x| < |y| ] ^A for [x]^A, [y]^A

@@ -43,7 +43,7 @@ protected:
 
   const DaBit* const get_DaBit() override;
 
-// Batch size must be power of two. NextPowerOfTwo is not inclusive, so -1 to make it so.
+// Batch size must be power of two. NextPowerOfTwo is not inclusive, so -1 to make it so
 public:
   ValidateCorrelatedStore(const int serverfd, const int server_num,
       OT_Wrapper* const ot0, OT_Wrapper* const ot1,
@@ -96,7 +96,7 @@ public:
   // Arrays of pointers each length n.
   void queue_Unvalidated(const DaBit* const * dabits, const AltTriple* const * trips,
                          const std::string tag, const size_t n);
-  // add in all n unvalidated corresponding to tag, where n is the size of the lists queued
+  // add in all n unvalidated for tag, where n is the size of the lists queued
   // For use when generally iterating over (synced) tags.
   void process_Unvalidated(const std::string tag);
   // Add unvalidated correlated to queue
@@ -129,11 +129,14 @@ public:
   */
   // N: num to make, power of 2, including dummies, num_val: how many to validate
   void batch_Validate_param(const size_t target, size_t& N, size_t& num_val);
-  void batch_Validate_setup(const size_t N, const size_t num_val, fmpz_t* const pointsMult,
-      fmpz_t* const delta, fmpz_t* const a, const DaBit** const candidates);
-  void batch_Validate_process(const size_t N, const size_t num_val, fmpz_t* const pointsMult,
-      const fmpz_t* const delta_other, const fmpz_t* const a, const DaBit** const candidates, fmpz_t diff);
-  void batch_Validate_finish(const size_t num_val, fmpz_t diff, const DaBit** const candidates);
+  void batch_Validate_setup(const size_t N, const size_t num_val,
+      fmpz_t* const pointsMult, fmpz_t* const delta, fmpz_t* const a,
+      const DaBit** const candidates);
+  void batch_Validate_process(const size_t N, const size_t num_val,
+      fmpz_t* const pointsMult, const fmpz_t* const delta_other, const fmpz_t* const a,
+      const DaBit** const candidates, fmpz_t diff);
+  void batch_Validate_finish(const size_t num_val, fmpz_t diff,
+      const DaBit** const candidates);
   int64_t batch_Validate(const size_t N);
   int64_t batch_Validate() {
     return batch_Validate(min_batch_size);

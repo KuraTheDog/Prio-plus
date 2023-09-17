@@ -158,7 +158,8 @@ public:
 
   HashStoreBit(
     const size_t num_groups, const size_t group_size, const size_t input_bits,
-    const size_t hash_range, flint_rand_t hash_seed_arg, const bool is_solving = true)
+    const size_t hash_range, flint_rand_t hash_seed_arg,
+    const bool is_solving = true)
   : HashStore(num_groups * group_size, input_bits, hash_range, hash_seed_arg)
   , num_groups(num_groups)
   , group_size(group_size)
@@ -166,11 +167,6 @@ public:
   , inconsistency_solving(group_size > input_bits)
   , dim(input_bits + ((int) inconsistency_solving))
   {
-    // std::cout << (inconsistency_solving ? "" : "not ");
-    // std::cout << "inconsistency_solving" << std::endl;
-    // std::cout << "  Bit store: " << num_groups << " groups size " << group_size << ", ";
-    // std::cout << "  dim : " << dim << ", validate: " << group_size - dim << std::endl;
-
     if (group_size < input_bits) {
       std::cout << "Warning: Group size " << group_size;
       std::cout << " is smaller than input bits " << input_bits << std::endl;
@@ -211,7 +207,8 @@ public:
   // Uses inverse first [dim] of the hashes and values to solve X=A^-1 B
   // Uses extras [dim -> group size] for validation.
   //   Returns number of INVALID checks. 0 is best
-  int solve(const unsigned int group_num, const fmpz_t* const values, uint64_t& ans) const;
+  int solve(const unsigned int group_num, const fmpz_t* const values,
+      uint64_t& ans) const;
   // Finds ans, in the corresponding vector form.
   void solve_shares(const unsigned int group_num,
       const fmpz_t* const values, fmpz_t* const ans) const;

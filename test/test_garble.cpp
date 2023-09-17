@@ -585,7 +585,8 @@ void run(const int party) {
 
   io->flush();
 
-  std::cout << "Mult gates: " << CircuitExecution::circ_exec->num_and() << std::endl;
+  uint64_t num_gates = CircuitExecution::circ_exec->num_and();
+  std::cout << "Mult gates: " << num_gates << std::endl;
 
   finalize_semi_honest();  // just deletes things
   // delete io;  // gets deleted with ot0

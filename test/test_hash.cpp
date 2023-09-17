@@ -85,7 +85,8 @@ void test_inverse(size_t group_size) {
     for (unsigned int j = 0; j < group_size; j++) {
       store.eval(i * group_size + j, x, values[j]);
       // store.print_hash(j);
-      // std::cout << "eval_" << j << "(" << x << ") = " << fmpz_get_ui(values[j]) << std::endl;
+      // std::cout << "eval_" << j << "(" << x << ") = ";
+      // std::cout << fmpz_get_ui(values[j]) << std::endl;
     }
 
     uint64_t ans;
@@ -123,7 +124,8 @@ void test_countmin() {
 
   for (unsigned int i = 0; i < 3; i++) {
     unsigned int ans = count.query(vals[i]);
-    // std::cout << "query(" << vals[i] << ") = " << ans << ", vs acutal " << counts[i] << std::endl;
+    // std::cout << "query(" << vals[i] << ") = " << ans;
+    // std::cout  << ", vs actual " << counts[i] << std::endl;
     assert(ans == counts[i]);
   }
 }
@@ -164,7 +166,8 @@ void test_zipf() {
     if (val < K) count[val] += 1;
   }
   for (unsigned int i = 0; i < K; i++) {
-    std::cout << "Zipf[" << i << "] = " << count[i] << " -> " << 1. * count[i] / N << "\n";
+    std::cout << "Zipf[" << i << "] = " << count[i];
+    std::cout << " -> " << 1. * count[i] / N << "\n";
   }
 }
 

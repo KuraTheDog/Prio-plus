@@ -98,7 +98,7 @@ void test_batchValidate(const int server_num, const int serverfd,
   OT_Wrapper* ot0 = new OT_Wrapper(server_num == 0 ? nullptr : "127.0.0.1", 60051);
   OT_Wrapper* ot1 = new OT_Wrapper(server_num == 1 ? nullptr : "127.0.0.1", 60052);
 
-  if (server_num == 0) std::cout << "Testing batch validate size: " << N << std::endl;
+  if (server_num == 0) std::cout << "Testing batch val size: " << N << std::endl;
   ValidateCorrelatedStore store(serverfd, server_num, ot0, ot1, N_make, lazy);
 
   setup(server_num, serverfd, N, store);
@@ -132,10 +132,14 @@ void test_pairs(const int server_num, const int serverfd) {
     AltTriple* trips0[2];
     AltTriple* trips1[2];
 
-    bits0[0] = new DaBit(); bits1[0] = new DaBit(); makeLocalDaBit(bits0[0], bits1[0]);
-    bits0[1] = new DaBit(); bits1[1] = new DaBit(); makeLocalDaBit(bits0[1], bits1[1]);
-    trips0[0] = new AltTriple(); trips1[0] = new AltTriple(); makeLocalAltTriple(trips0[0], trips1[0]);
-    trips0[1] = new AltTriple(); trips1[1] = new AltTriple(); makeLocalAltTriple(trips0[1], trips1[1]);
+    bits0[0] = new DaBit(); bits1[0] = new DaBit();
+    bits0[1] = new DaBit(); bits1[1] = new DaBit();
+    trips0[0] = new AltTriple(); trips1[0] = new AltTriple();
+    trips0[1] = new AltTriple(); trips1[1] = new AltTriple();
+    makeLocalDaBit(bits0[0], bits1[0]);
+    makeLocalDaBit(bits0[1], bits1[1]);
+    makeLocalAltTriple(trips0[0], trips1[0]);
+    makeLocalAltTriple(trips0[1], trips1[1]);
 
     send_DaBit_batch(serverfd, bits1, 2);
     send_AltTriple_batch(serverfd, trips1, 2);

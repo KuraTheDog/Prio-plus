@@ -159,8 +159,10 @@ int recv_DaBit_batch(const int sockfd, DaBit* const * const x, const size_t n);
 
 // Assumes n is already known.
 /* 
-[[deprecated]] int send_EdaBit(const int sockfd, const EdaBit* const x, const size_t nbits);
-[[deprecated]] int recv_EdaBit(const int sockfd, EdaBit* const x, const size_t nbits);
+[[deprecated]] int send_EdaBit(const int sockfd, const EdaBit* const x,
+    const size_t nbits);
+[[deprecated]] int recv_EdaBit(const int sockfd, EdaBit* const x,
+    const size_t nbits);
 
 [[deprecated]] int send_EdaBit_batch(const int sockfd, const EdaBit* const * const x,
     const size_t nbits, const size_t n);

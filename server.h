@@ -47,7 +47,7 @@ struct Checker {
   fmpz_t evalG;  // [r * g(r)]
   fmpz_t evalH;  // [r * h(r)]
 
-  // if both servers on same runtime/execution (e.g. test files), use fixed randomness instead
+  // if both on same runtime/execution (e.g. test files), use fixed rand instead
   const bool same_runtime = false;
 
   Checker(Circuit* const c, const int idx, const ClientPacket* const req,
@@ -61,7 +61,7 @@ struct Checker {
   , same_runtime(same_runtime)
   {
     if (same_runtime) {
-      std::cout << "DEBUG: using fixed checker randomness since same runtime" << std::endl;
+      std::cout << "DEBUG: using fixed checker randomness since same runtime\n";
     }
 
     new_fmpz_array(&pointsF, N + 1);

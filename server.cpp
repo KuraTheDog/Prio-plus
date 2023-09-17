@@ -67,7 +67,8 @@ std::string recv_tag(const int serverfd) {
   return tag;
 }
 
-void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port, const int reuse = 1) {
+void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port,
+    const int reuse = 1) {
   sockfd = socket(AF_INET, SOCK_STREAM, 0);
 
   if (sockfd < 0) error_exit("Socket creation failed");
@@ -92,7 +93,8 @@ void bind_and_listen(sockaddr_in& addr, int& sockfd, const int port, const int r
 }
 
 // Asymmetric: 1 connects to 0, 0 listens to 1.
-void server0_listen(int& sockfd, int& newsockfd, const int port, const int reuse = 0) {
+void server0_listen(int& sockfd, int& newsockfd, const int port,
+    const int reuse = 0) {
   sockaddr_in addr;
   bind_and_listen(addr, sockfd, port, reuse);
 
@@ -426,20 +428,24 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
       // TODO: batch validation in parallel with conversion
       ((ValidateCorrelatedStore*) correlated_store)->batch_Validate(curr_size * num_bits);
 
-      correlated_store->b2a_multi_setup(curr_size, num_bits, &shares[num_done], flat_xp, send_buff);
+      correlated_store->b2a_multi_setup(curr_size, num_bits,
+          &shares[num_done], flat_xp, send_buff);
       memcpy(&send_buff[curr_size * num_bits], &valid[num_done], curr_size);
 
-      sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff, curr_size * (num_bits + 1));
+      sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff,
+          curr_size * (num_bits + 1));
 
       correlated_store->b2a_multi_finish(curr_size, num_bits,
           shares_p, flat_xp, send_buff, recv_buff);
       for (unsigned int i = 0; i < curr_size; i++)
         valid[num_done + i] &= recv_buff[curr_size * num_bits + i];
     } else {
-      correlated_store->b2a_multi_setup(curr_size, num_bits, &shares[num_done], flat_xp, send_buff);
+      correlated_store->b2a_multi_setup(curr_size, num_bits,
+          &shares[num_done], flat_xp, send_buff);
       memcpy(&send_buff[curr_size * num_bits], &valid[num_done], curr_size);
 
-      sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff, curr_size * (num_bits + 1));
+      sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff,
+          curr_size * (num_bits + 1));
 
       correlated_store->b2a_multi_finish(curr_size, num_bits,
           shares_p, flat_xp, send_buff, recv_buff);
@@ -738,7 +744,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
   std::cout << "receive time: " << sec_from(start) << std::endl;
 
   if (STORE_TYPE != ot_store)
-    ((CorrelatedStore*) correlated_store)->check_DaBits(total_inputs * num_bits * num_dabits);
+    ((CorrelatedStore*) correlated_store)->check_DaBits(
+        total_inputs * num_bits * num_dabits);
 
   start = clock_start();
   auto start2 = clock_start();
@@ -800,7 +807,8 @@ returnType var_op(const initMsg msg, const int clientfd, const int serverfd,
   sent_bytes += swap_bool_batch(serverfd, v, v_other, num_inputs * num_bits * 3);
 
   fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs * 2);
-  correlated_store->b2a_multi_finish(num_inputs, num_bits, shares_p, flat_xp_1, v, v_other);
+  correlated_store->b2a_multi_finish(num_inputs, num_bits,
+      shares_p, flat_xp_1, v, v_other);
   clear_fmpz_array(flat_xp_1, num_inputs * num_bits);
   correlated_store->b2a_multi_finish(num_inputs, 2 * num_bits, &shares_p[num_inputs],
       flat_xp_2, &v[num_inputs * num_bits], &v_other[num_inputs * num_bits]);
@@ -1805,7 +1813,8 @@ returnType multi_heavy_op(const initMsg msg,
   // top_k_extract_garbled(server_num, cfg, bucket0, bucket1, hash_seed_split,
   //     hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
   top_k_extract_mixed(server_num, serverfd, cfg, bucket0, bucket1,
-      hash_seed_split, hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
+      hash_seed_split, hash_seed_count, countmin_accum,
+      num_inputs, top_values, top_freqs);
   garbleIO->flush();
 
   print_garble_gates();
@@ -2125,7 +2134,8 @@ returnType top_k_op(const initMsg msg,
   // top_k_extract_garbled(server_num, cfg, bucket0, bucket1, hash_seed_split, 
   //     hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
   top_k_extract_mixed(server_num, serverfd, cfg, bucket0, bucket1,
-      hash_seed_split, hash_seed_count, countmin_accum, num_inputs, top_values, top_freqs);
+      hash_seed_split, hash_seed_count, countmin_accum,
+      num_inputs, top_values, top_freqs);
   garbleIO->flush();
 
   print_garble_gates();

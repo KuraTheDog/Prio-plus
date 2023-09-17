@@ -264,11 +264,13 @@ void ValidateCorrelatedStore::batch_Validate_finish(
       validated_dabit_store.push(candidates[i]);
     }
   } else {
-    std::cout << "batch validate is invalid, diff check is " << fmpz_get_si(diff) << std::endl;
+    std::cout << "batch validate is invalid, diff check is ";
+    std::cout << fmpz_get_si(diff) << std::endl;
     for (unsigned int i = 0; i < num_val; i++) {
       delete candidates[i];
     }
-    // Assuming called through check_DaBits, it will then proceed to use precomputed daBits instead.
+    // Assuming called through check_DaBits,
+    // it will then proceed to use precomputed daBits instead.
   }
 }
 
@@ -315,7 +317,8 @@ int64_t ValidateCorrelatedStore::batch_Validate(const size_t target) {
 
 int64_t ValidateCorrelatedStore::check_DaBits(const size_t n) {
   int64_t sent_bytes = 0;
-  // std::cout << "validated check_DaBits(" << n << ") vs " << num_validated_dabits() << std::endl;
+  // std::cout << "validated check_DaBits(" << n << ");
+  // std::cout << " vs " << num_validated_dabits() << std::endl;
   // If not enough validated, validate everything
   if (num_validated_dabits() < n) {
     // std::cout << "batch validating: " << n - num_validated_dabits() << std::endl;
@@ -325,7 +328,8 @@ int64_t ValidateCorrelatedStore::check_DaBits(const size_t n) {
   if (num_validated_dabits() < n) {
     int num_to_make = n - num_validated_dabits();
     // std::cout << "precompute checking: " << n - num_validated_dabits() << std::endl;
-    // std::cout << "check_da(" << n << "), not enough validated. to_make = " << num_to_make << "\n";
+    // std::cout << "check_da(" << n << "), not enough validated.";
+    // std::cout << " to_make = " << num_to_make << "\n";
     sent_bytes += PrecomputeStore::check_DaBits(num_to_make);
     check_AltTriple(num_to_make, true);
   }
@@ -336,7 +340,7 @@ int64_t ValidateCorrelatedStore::check_DaBits(const size_t n) {
 const DaBit* const ValidateCorrelatedStore::get_DaBit() {
   check_DaBits(1);
   // Default to precomputed if not enough valids
-  // std::cout << "getting a " << (num_validated_dabits() > 1 ? "validated" : "precomputed");
+  // std::cout << "getting " << (num_validated_dabits() > 1 ? "validated" : "precomputed");
   // std::cout << " dabit" << std::endl;
   std::queue<const DaBit*>& q = (
     (num_validated_dabits() > 0) ? validated_dabit_store : dabit_store);

@@ -16,7 +16,7 @@ HashStore::HashStore(
   fmpz_init_set_ui(input_range, 1ULL << input_bits);
   hash_seed[0] = hash_seed_arg[0];
 
-  // std::cout << "Made hash store num_hashes: " << num_hashes << ", input_range: 2^";
+  // std::cout << "Made hash num_hashes: " << num_hashes << ", input_range: 2^";
   // std::cout << input_bits << " -> output_range: " << hash_range;
   // std::cout << " (" << output_bits << " bits)" << std::endl;
 }
@@ -43,7 +43,7 @@ HashStorePoly::HashStorePoly(
   // We also just want "good enough" distribution.
   // Also, it's not quite polynomial since shift magic.
   // std::cout << "  Poly store degree: " << degree << std::endl;
-  // Can also run into coprime issues. E.g. 3 bits in/out, 0 + 4x, always outputs 0 or 4
+  // Can also run into coprime issues. E.g. 3 bits in/out, 0 + 4x, outputs 0 or 4
   if (output_bits == 0) return;
   for (unsigned int i = 0; i < num_hashes; i++) {
     new_fmpz_array(&coeff[i], degree + 1);
@@ -180,8 +180,8 @@ void HashStoreBit::solve_shares(const unsigned int group_num,
   fmpz_mod_mat_clear(X);
 }
 
-int HashStoreBit::solve_extract(const unsigned int group_num, const fmpz_t* const values,
-    const fmpz_t* const vec, uint64_t& ans) const {
+int HashStoreBit::solve_extract(const unsigned int group_num,
+    const fmpz_t* const values, const fmpz_t* const vec, uint64_t& ans) const {
   ans = 0;
   // Extract answer
   for (unsigned int i = 0; i < input_bits; i++) {
