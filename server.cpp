@@ -334,6 +334,8 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
   std::unordered_map<std::string, uint64_t> share_map;
   auto start = clock_start();
 
+  const size_t BATCH_SIZE = 0;  // 0 to do 1 batch
+
   IntShare share;
   const size_t num_bits = msg.num_bits;
   const uint64_t max_val = 1ULL << num_bits;
@@ -405,47 +407,60 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
   std::cout << "tag time: " << sec_from(start2) << std::endl;
   start2 = clock_start();
 
-  fmpz_t* shares_p; new_fmpz_array(&shares_p, num_inputs);
-  fmpz_t* flat_xp; new_fmpz_array(&flat_xp, num_inputs * num_bits);
-  const size_t net_buff_size = num_inputs * (num_bits + 1);
+  const size_t batch_size = BATCH_SIZE == 0 ? num_inputs : BATCH_SIZE;
+  fmpz_t* shares_p; new_fmpz_array(&shares_p, batch_size);
+  fmpz_t* flat_xp; new_fmpz_array(&flat_xp, batch_size * num_bits);
+  const size_t net_buff_size = batch_size * (num_bits + 1);
   bool* const send_buff = new bool[net_buff_size];
   bool* const recv_buff = new bool[net_buff_size];
   memset(recv_buff, 0, net_buff_size);
 
-  if (STORE_TYPE == validate_store) {
-    // TODO: batch validation in parallel with conversion
-    ((ValidateCorrelatedStore*) correlated_store)->batch_Validate(num_inputs * num_bits);
+  fmpz_t* accum; new_fmpz_array(&accum, 1);
+  uint64_t num_valid = 0;
 
-    correlated_store->b2a_multi_setup(num_inputs, num_bits, shares, flat_xp, send_buff);
-    memcpy(&send_buff[num_inputs * num_bits], valid, num_inputs);
+  int num_done = 0;
+  while (num_done < num_inputs) {
+    const size_t curr_size = fmin(batch_size, num_inputs - num_done);
 
-    sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff, net_buff_size);
+    if (STORE_TYPE == validate_store) {
+      // TODO: batch validation in parallel with conversion
+      ((ValidateCorrelatedStore*) correlated_store)->batch_Validate(curr_size * num_bits);
 
-    correlated_store->b2a_multi_finish(num_inputs, num_bits,
-        shares_p, flat_xp, send_buff, recv_buff);
-    delete[] send_buff;
-    clear_fmpz_array(flat_xp, num_inputs * num_bits);
-    for (unsigned int i = 0; i < num_inputs; i++)
-      valid[i] &= recv_buff[num_inputs * num_bits + i];
-    delete[] recv_buff;
-  } else {
-    correlated_store->b2a_multi_setup(num_inputs, num_bits, shares, flat_xp, send_buff);
-    memcpy(&send_buff[num_inputs * num_bits], valid, num_inputs);
+      correlated_store->b2a_multi_setup(curr_size, num_bits, &shares[num_done], flat_xp, send_buff);
+      memcpy(&send_buff[curr_size * num_bits], &valid[num_done], curr_size);
 
-    sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff, net_buff_size);
+      sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff, curr_size * (num_bits + 1));
 
-    correlated_store->b2a_multi_finish(num_inputs, num_bits,
-        shares_p, flat_xp, send_buff, recv_buff);
-    delete[] send_buff;
-    clear_fmpz_array(flat_xp, num_inputs * num_bits);
-    for (unsigned int i = 0; i < num_inputs; i++)
-      valid[i] &= recv_buff[num_inputs * num_bits + i];
-    delete[] recv_buff;
+      correlated_store->b2a_multi_finish(curr_size, num_bits,
+          shares_p, flat_xp, send_buff, recv_buff);
+      for (unsigned int i = 0; i < curr_size; i++)
+        valid[num_done + i] &= recv_buff[curr_size * num_bits + i];
+    } else {
+      // Lazy 3 assumes it's zero, so reset for repeated runs
+      if (lazy_precompute == 3 and num_done > 0) {
+        for (unsigned int i = 0; i < batch_size * num_bits; i++) {
+          fmpz_zero(flat_xp[i]);
+        }
+      }
+
+      correlated_store->b2a_multi_setup(curr_size, num_bits, &shares[num_done], flat_xp, send_buff);
+      memcpy(&send_buff[curr_size * num_bits], &valid[num_done], curr_size);
+
+      sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff, curr_size * (num_bits + 1));
+
+      correlated_store->b2a_multi_finish(curr_size, num_bits,
+          shares_p, flat_xp, send_buff, recv_buff);
+      for (unsigned int i = 0; i < curr_size; i++)
+        valid[num_done + i] &= recv_buff[curr_size * num_bits + i];
+    }
+
+    num_valid += accumulate(curr_size, 1, shares_p, &valid[num_done], accum);
+    num_done += curr_size;
   }
-
-  fmpz_t* b; new_fmpz_array(&b, 1);
-  int num_valid = accumulate(num_inputs, 1, shares_p, valid, b);
-  clear_fmpz_array(shares_p, num_inputs);
+  clear_fmpz_array(shares_p, batch_size);
+  clear_fmpz_array(flat_xp, batch_size * num_bits);
+  delete[] send_buff;
+  delete[] recv_buff;
   delete[] shares;
   delete[] valid;
   std::cout << "accumulate time: " << sec_from(start2) << std::endl;
@@ -455,13 +470,13 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
   std::cout << "sent server bytes: " << sent_bytes << std::endl;
   if (num_valid < total_inputs * (1 - INVALID_THRESHOLD)) {
     print_too_many_invalid();
-    clear_fmpz_array(b, 1);
+    clear_fmpz_array(accum, 1);
     return RET_INVALID;
   }
 
-  reveal_fmpz_batch(serverfd, b, 1);
-  ans = fmpz_get_ui(b[0]);
-  clear_fmpz_array(b, 1);
+  reveal_fmpz_batch(serverfd, accum, 1);
+  ans = fmpz_get_ui(accum[0]);
+  clear_fmpz_array(accum, 1);
   return RET_ANS;
 }
 
