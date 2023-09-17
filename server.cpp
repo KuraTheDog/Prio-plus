@@ -2015,6 +2015,7 @@ returnType top_k_op(const initMsg msg,
   size_t num_valid = 0;
 
   int num_done = 0;
+  auto start4 = clock_start();
   while (num_done < num_inputs) {
     const size_t curr_size = fmin(batch_size, num_inputs - num_done);
     const size_t len_all = curr_size * cfg.Q * cfg.B * cfg.R * cfg.D;
@@ -2114,6 +2115,11 @@ returnType top_k_op(const initMsg msg,
         &valid[num_done], countmin_accum);
 
     num_done += curr_size;
+    if (batch_size < num_inputs) {
+      std::cout << "Batched " << curr_size << " in " << sec_from(start4);
+      std::cout << ", done " << num_done << "/" << num_inputs << std::endl;
+      start4 = clock_start();
+    }
   }
   delete[] shares_sh_x;
   delete[] shares_sh_y;
