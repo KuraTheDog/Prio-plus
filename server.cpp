@@ -231,6 +231,8 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
   std::unordered_map<std::string, bool> share_map;
   auto start = clock_start();
 
+  const size_t BATCH_SIZE = 0;  // 0 to do 1 batch
+
   BoolShare share;
   const unsigned int total_inputs = msg.num_of_inputs;
 
@@ -287,13 +289,22 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
   std::cout << "tag time: " << sec_from(start2) << std::endl;
   start2 = clock_start();
 
-  uint64_t a;
-  if (server_num == 0)  {
-    a = bitsum_ot_receiver(ot0, shares, num_inputs);
-  } else {
-    a = bitsum_ot_sender(ot0, shares, valid, num_inputs); 
-    delete[] valid;
+
+  uint64_t a = 0;
+  int num_done = 0;
+  const size_t batch_size = BATCH_SIZE == 0 ? num_inputs : BATCH_SIZE;
+  while (num_done < num_inputs) {
+    const size_t curr_size = fmin(batch_size, num_inputs - num_done);
+    if (server_num == 0)  {
+      a += bitsum_ot_receiver(ot0, &shares[num_done], curr_size);
+    } else {
+      a += bitsum_ot_sender(ot0, &shares[num_done], &valid[num_done], curr_size); 
+    }
+
+    num_done += curr_size;
   }
+  
+  delete[] valid;
   delete[] shares;
 
   std::cout << "convert time: " << sec_from(start2) << std::endl;
