@@ -238,9 +238,14 @@ public:
       const bool* const * const x, const bool* const * const y,
       bool* const * const z, bool* const carry);
 
+  // values is [m, mx, my, mxy]
   void heavy_accumulate(const size_t N, const size_t M,
       const fmpz_t* const values, const bool* const valid,
-      fmpz_t* const bucket0, fmpz_t* const bucket1, const bool use_mask = true) const;
+      fmpz_t* const bucket0, fmpz_t* const bucket1) const;
+  // No mask version, values is [x, y, xy]
+  void heavy_accumulate_basic(const size_t N, const size_t M,
+      const fmpz_t* const values, const bool* const valid,
+      fmpz_t* const bucket0, fmpz_t* const bucket1) const;
 
   /* N inputs (each may be valid or not) of b values
     [xy]: x = which bucket is nonzero, nonzero is -1 if y = 1

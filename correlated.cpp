@@ -80,7 +80,8 @@ void CorrelatedStore::b2a_single_finish(
     // Currently, [x]_p is holding [b]_p, which is what we want for v = 0
     if (v[i] ^ v_other[i]) {  // If v = 1, then [x]_p = (0/1) - [b]_p
       fmpz_mod_neg(xp[i], xp[i], mod_ctx);
-      fmpz_mod_add_ui(xp[i], xp[i], server_num, mod_ctx);
+      if (server_num == 0)
+        fmpz_mod_add_ui(xp[i], xp[i], 1, mod_ctx);
     }
   }
 }
@@ -131,8 +132,9 @@ void CorrelatedStore::b2a_multi_finish(
   for (unsigned int i = 0; i < N; i++) {
     fmpz_set_ui(xp[i], 0);
     for (unsigned int j = 0; j < num_bits; j++) {
-      fmpz_mod_addmul_ui(xp[i], flat_xp[j + offset], (1ULL << j), mod_ctx);
+      fmpz_addmul_ui(xp[i], flat_xp[j + offset], (1ULL << j));
     }
+    fmpz_mod(xp[i], xp[i], Int_Modulus);
     offset += num_bits;
   }
 }
@@ -424,28 +426,54 @@ int64_t CorrelatedStore::multiply_BoolArithFlat(
 
 void CorrelatedStore::heavy_accumulate(
     const size_t N, const size_t M, const fmpz_t* const values,
-    const bool* const valid,
-    fmpz_t* const bucket0, fmpz_t* const bucket1, const bool use_mask) const {
-  // Branch prediction should make this fine
-  size_t offset = use_mask ? N * M : 0;
-  // If no mask, use constant 1
-  fmpz_t c; fmpz_init_set_si(c, server_num);
+    const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1) const {
   for (unsigned int i = 0; i < N; i++) {
     if (!valid[i])
       continue;
     for (unsigned int j = 0; j < M; j++) {
       const size_t idx = i * M + j;
       // (1-2y)(1-x)m = m - xm - 2ym + 2xym
-      fmpz_mod_add(bucket0[j], bucket0[j], use_mask ? values[idx] : c, mod_ctx);
-      fmpz_mod_sub(bucket0[j], bucket0[j], values[offset + idx], mod_ctx);
-      fmpz_mod_submul_ui(bucket0[j], values[offset + N*M + idx], 2, mod_ctx);
-      fmpz_mod_addmul_ui(bucket0[j], values[offset + 2*N*M + idx], 2, mod_ctx);
+      // Note: doing tmp = (xm - 2xym) doesn't seem to help
+      fmpz_add(bucket0[j], bucket0[j], values[idx]);
+      fmpz_sub(bucket0[j], bucket0[j], values[N*M + idx]);
+      fmpz_submul_ui(bucket0[j], values[2*N*M + idx], 2);
+      fmpz_addmul_ui(bucket0[j], values[3*N*M + idx], 2);
       // (1-2y)xm = xm - 2xym
-      fmpz_mod_add(bucket1[j], bucket1[j], values[offset + idx], mod_ctx);
-      fmpz_mod_submul_ui(bucket1[j], values[offset + 2*N*M + idx], 2, mod_ctx);
+      fmpz_add(bucket1[j], bucket1[j], values[N*M + idx]);
+      fmpz_submul_ui(bucket1[j], values[3*N*M + idx], 2);
     }
   }
-  fmpz_clear(c);
+  for (unsigned int j = 0; j < M; j++) {
+    fmpz_mod(bucket0[j], bucket0[j], Int_Modulus);
+    fmpz_mod(bucket1[j], bucket1[j], Int_Modulus);
+  }
+}
+
+void CorrelatedStore::heavy_accumulate_basic(
+    const size_t N, const size_t M, const fmpz_t* const values,
+    const bool* const valid, fmpz_t* const bucket0, fmpz_t* const bucket1) const {
+  size_t num_valid = 0;
+  for (unsigned int i = 0; i < N; i++) {
+    if (!valid[i])
+      continue;
+    num_valid++;
+    for (unsigned int j = 0; j < M; j++) {
+      const size_t idx = i * M + j;
+      // (1-2y)(1-x) = 1 - x - 2y + 2xy
+      fmpz_sub(bucket0[j], bucket0[j], values[idx]);
+      fmpz_submul_ui(bucket0[j], values[N*M + idx], 2);
+      fmpz_addmul_ui(bucket0[j], values[2*N*M + idx], 2);
+      // (1-2y)x = x - 2xy
+      fmpz_add(bucket1[j], bucket1[j], values[idx]);
+      fmpz_submul_ui(bucket1[j], values[2*N*M + idx], 2);
+    }
+  }
+  for (unsigned int j = 0; j < M; j++) {
+    if (server_num == 0)
+      fmpz_add_ui(bucket0[j], bucket0[j], num_valid);
+    fmpz_mod(bucket0[j], bucket0[j], Int_Modulus);
+    fmpz_mod(bucket1[j], bucket1[j], Int_Modulus);
+  }
 }
 
 // Note: N, b difference only for accumulate
@@ -482,7 +510,7 @@ int64_t CorrelatedStore::heavy_convert(
   b2a_single_finish(3 * N * b, zp, buff, buff_other);
   delete[] buff;
   delete[] buff_other;
-  heavy_accumulate(N, b, zp, valid, bucket0, bucket1, false);
+  heavy_accumulate_basic(N, b, zp, valid, bucket0, bucket1);
   clear_fmpz_array(zp, 3 * N * b);
 
   return sent_bytes;
@@ -855,9 +883,10 @@ int64_t CorrelatedStore::cmp_bitwise(const size_t N, const size_t b,
   fmpz_t* c; new_fmpz_array(&c, N * b);
   sent_bytes += multiply_ArithmeticShares(N * b, x, y, c);
   for (unsigned int i = 0; i < N * b; i++) {
-    fmpz_mod_mul_si(c[i], c[i], -2, mod_ctx);
-    fmpz_mod_add(c[i], c[i], x[i], mod_ctx);
-    fmpz_mod_add(c[i], c[i], y[i], mod_ctx);
+    fmpz_mul_si(c[i], c[i], -2);
+    fmpz_add(c[i], c[i], x[i]);
+    fmpz_add(c[i], c[i], y[i]);
+    fmpz_mod(c[i], c[i], Int_Modulus);
   }
 
   /* [di] = OR([cj]) from i+1 to b
@@ -913,8 +942,9 @@ int64_t CorrelatedStore::cmp_bitwise(const size_t N, const size_t b,
   for (unsigned int i = 0; i < N; i++) {
     fmpz_zero(ans[i]);
     for (unsigned int j = 0; j < b; j++) {
-      fmpz_mod_add(ans[i], ans[i], ey[i * b + j], mod_ctx);
+      fmpz_add(ans[i], ans[i], ey[i * b + j]);
     }
+    fmpz_mod(ans[i], ans[i], Int_Modulus);
   }
   clear_fmpz_array(ey, N * b);
 
