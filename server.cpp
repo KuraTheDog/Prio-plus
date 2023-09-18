@@ -292,7 +292,7 @@ returnType bit_sum(const initMsg msg, const int clientfd, const int serverfd,
 
 
   uint64_t a = 0;
-  int num_done = 0;
+  uint64_t num_done = 0;
   const size_t batch_size = BATCH_SIZE == 0 ? num_inputs : BATCH_SIZE;
   while (num_done < num_inputs) {
     const size_t curr_size = fmin(batch_size, num_inputs - num_done);
@@ -416,7 +416,7 @@ returnType int_sum(const initMsg msg, const int clientfd, const int serverfd,
   fmpz_t* accum; new_fmpz_array(&accum, 1);
   size_t num_valid = 0;
 
-  int num_done = 0;
+  uint64_t num_done = 0;
   while (num_done < num_inputs) {
     const size_t curr_size = fmin(batch_size, num_inputs - num_done);
 
@@ -2014,7 +2014,7 @@ returnType top_k_op(const initMsg msg,
   fmpz_t* countmin_accum; new_fmpz_array(&countmin_accum, share_size_count);
   size_t num_valid = 0;
 
-  int num_done = 0;
+  uint64_t num_done = 0;
   auto start4 = clock_start();
   while (num_done < num_inputs) {
     const size_t curr_size = fmin(batch_size, num_inputs - num_done);
