@@ -39,7 +39,7 @@ int recv_bool(const int sockfd, bool& x) {
 int send_bool_batch(const int sockfd, const bool* const x, const size_t n) {
   int total = 0, ret;
 
-  if (n > MAX_BOOL_BATCH) {
+  if (MAX_BOOL_BATCH > 0 and n > MAX_BOOL_BATCH) {
     total += send_bool_batch(sockfd, x, MAX_BOOL_BATCH);
     auto new_x = &x[MAX_BOOL_BATCH];
     total += send_bool_batch(sockfd, new_x, n - MAX_BOOL_BATCH);
@@ -63,6 +63,13 @@ int send_bool_batch(const int sockfd, const bool* const x, const size_t n) {
 }
 
 int recv_bool_batch(const int sockfd, bool* const x, const size_t n) {
+  if (MAX_BOOL_BATCH > 0 and n > MAX_BOOL_BATCH) {
+    int total = recv_bool_batch(sockfd, x, MAX_BOOL_BATCH);
+    auto new_x = &x[MAX_BOOL_BATCH];
+    total += recv_bool_batch(sockfd, new_x, n - MAX_BOOL_BATCH);
+    return total;
+  }
+
   const size_t len = (n+7) / 8;
   char* const buff = new char[len];
 
@@ -234,9 +241,10 @@ int send_fmpz(const int sockfd, const fmpz_t x) {
     if (ret <= 0) return ret; else total += ret;
   }
 
-  ulong buff[len];
+  ulong* buff = new ulong[len];
   fmpz_get_ui_array(buff, len, x);
   ret = send_ulong_batch(sockfd, buff, len);
+  delete[] buff;
   if (ret <= 0) return ret; else total += ret;
 
   return total;
@@ -257,11 +265,12 @@ int recv_fmpz(const int sockfd, fmpz_t x) {
     fmpz_set_ui(x, 0);
     return total;
   }
-  ulong buff[len];
+  ulong* buff = new ulong[len];
   ret = recv_ulong_batch(sockfd, buff, len);
   if (ret <= 0) return ret; else total += ret;
 
   fmpz_set_ui_array(x, buff, len);
+  delete[] buff;
 
   return total;
 }
@@ -295,7 +304,7 @@ int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n) {
     return total;
   }
 
-  if (n > MAX_FMPZ_BATCH) {
+  if (MAX_FMPZ_BATCH > 0 and n > MAX_FMPZ_BATCH) {
     total += send_fmpz_batch(sockfd, x, MAX_FMPZ_BATCH);
     auto new_x = &x[MAX_FMPZ_BATCH];
     total += send_fmpz_batch(sockfd, new_x, n - MAX_FMPZ_BATCH);
@@ -303,11 +312,12 @@ int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n) {
   }
 
   size_t len = mod_size;
-  ulong buff[len * n];
+  ulong* buff = new ulong[len * n];
   for (unsigned int i = 0; i < n; i++)
     fmpz_get_ui_array(&buff[i * len], len, x[i]);
 
   ret = send_ulong_batch(sockfd, buff, len * n);
+  delete[] buff;
   if (ret <= 0) return ret; else total += ret;
   return total;
 }
@@ -323,7 +333,7 @@ int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n) {
     return total;
   }
 
-  if (n > MAX_FMPZ_BATCH) {
+  if (MAX_FMPZ_BATCH > 0 and n > MAX_FMPZ_BATCH) {
     total += recv_fmpz_batch(sockfd, x, MAX_FMPZ_BATCH);
     auto new_x = &x[MAX_FMPZ_BATCH];
     total += recv_fmpz_batch(sockfd, new_x, n - MAX_FMPZ_BATCH);
@@ -331,12 +341,13 @@ int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n) {
   }
 
   size_t len = mod_size;
-  ulong buff[len * n];
+  ulong* buff = new ulong[len * n];
   ret = recv_ulong_batch(sockfd, buff, len * n);
   if (ret <= 0) return ret; else total += ret;
 
   for (unsigned int i = 0; i < n; i++)
     fmpz_set_ui_array(x[i], &buff[i * len], len);
+  delete[] buff;
   return total;
 }
 
@@ -670,7 +681,7 @@ int send_DaBit_batch(const int sockfd,
     const DaBit* const * const x, const size_t n) {
   int total = 0, ret;
 
-  if (n > MAX_DABIT_BATCH) {
+  if (MAX_DABIT_BATCH > 0 and n > MAX_DABIT_BATCH) {
     total += send_DaBit_batch(sockfd, x, MAX_DABIT_BATCH);
     auto new_x = &x[MAX_DABIT_BATCH];
     total += send_DaBit_batch(sockfd, new_x, n - MAX_DABIT_BATCH);
@@ -701,7 +712,7 @@ int recv_DaBit_batch(const int sockfd, DaBit* const * const x,
     const size_t n) {
   int total = 0, ret;
 
-  if (n > MAX_DABIT_BATCH) {
+  if (MAX_DABIT_BATCH > 0 and n > MAX_DABIT_BATCH) {
     total += recv_DaBit_batch(sockfd, x, MAX_DABIT_BATCH);
     auto new_x = &x[MAX_DABIT_BATCH];
     total += recv_DaBit_batch(sockfd, new_x, n - MAX_DABIT_BATCH);

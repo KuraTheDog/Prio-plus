@@ -51,10 +51,12 @@ string: best it can do is base 62, so 62/256 ~ 25% space efficiency.
 // Reduces number of bits to send fmpz
 #define FIXED_FMPZ_SIZE true
 
-/* We batch things together into single send/receives, to reduce rounds/overhead
-   (mainly recv wrapper I think).
-However, it segfaults if given too large batches.
-So this makes sure batches are capped */
+/* We batch things together into single send/receives, to reduce rounds
+To reduce buffer sizes, send/recv in series.
+- e.g. send_all = send, send, send, then recv_all = recv, recv, recv
+- so doesn't add more rounds
+0 to skip batching and do all at once
+*/
 #define MAX_BOOL_BATCH  64000000
 #define MAX_FMPZ_BATCH  1000000
 #define MAX_DABIT_BATCH 320000
