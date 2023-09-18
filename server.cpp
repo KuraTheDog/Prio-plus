@@ -1979,7 +1979,6 @@ returnType top_k_op(const initMsg msg,
   }
   std::cout << "tag time: " << sec_from(start2) << std::endl;
   start2 = clock_start();
-  auto start3 = clock_start();
 
   /*
   Round 1: B2A count (use+valid), mask (valid), first convert mult
@@ -2137,7 +2136,6 @@ returnType top_k_op(const initMsg msg,
   clear_fmpz_array(sums, len_sums);
   clear_fmpz_array(sums_other, len_sums);
 
-  std::cout << "accum time: " << sec_from(start3) << "\n";
   std::cout << "total accum time: " << sec_from(start2) << "\n";
   std::cout << "total compute time: " << sec_from(start) << "\n";
   std::cout << "compute bytes sent: " << sent_bytes << std::endl;
