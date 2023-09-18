@@ -434,6 +434,7 @@ void CorrelatedStore::heavy_accumulate(
       const size_t idx = i * M + j;
       // (1-2y)(1-x)m = m - xm - 2ym + 2xym
       // Note: doing tmp = (xm - 2xym) doesn't seem to help
+      // TODO: pre-multiply 2 * xym? slight save work
       fmpz_add(bucket0[j], bucket0[j], values[idx]);
       fmpz_sub(bucket0[j], bucket0[j], values[N*M + idx]);
       fmpz_submul_ui(bucket0[j], values[2*N*M + idx], 2);

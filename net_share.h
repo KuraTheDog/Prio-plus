@@ -56,10 +56,14 @@ To reduce buffer sizes, send/recv in series.
 - e.g. send_all = send, send, send, then recv_all = recv, recv, recv
 - so doesn't add more rounds
 0 to skip batching and do all at once
+TODO: base "max", and then scale based on which
+- e.g. 8 mil char
+- then 8 bool per char, or 8 char per fmpz
+- Also dabit batching just match fmpz?
 */
-#define MAX_BOOL_BATCH  64000000
-#define MAX_FMPZ_BATCH  1000000
-#define MAX_DABIT_BATCH 320000
+#define MAX_BOOL_BATCH  6400000
+#define MAX_FMPZ_BATCH  100000
+#define MAX_DABIT_BATCH 100000
 
 /* Core functions */
 
