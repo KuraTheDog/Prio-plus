@@ -2096,11 +2096,8 @@ int top_k_helper(
 
 void top_k_op(const std::string protocol, const size_t numreqs,
               const double delta, const double eps, const size_t K) {
-  if (fmpz_cmp_ui(Int_Modulus, (1ULL << (2 * num_bits)) * numreqs) < 0 ) {
-    std::cout << "Modulus bits should be at least ";
-    std::cout << (2 * num_bits + LOG2(numreqs)) << "\n";
-    throw std::invalid_argument("Int Modulus too small");
-  }
+  // No need for bit checks, since accum don't scale with num_bits
+
   if (delta <= 0 or delta > 1)
     throw std::invalid_argument("Need delta in (0, 1]");
   if (eps <= 0 or eps > 1)
