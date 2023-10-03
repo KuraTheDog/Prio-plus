@@ -2054,6 +2054,7 @@ int top_k_helper(
   // Send
   bool* const buff0 = new bool[total_size];
   bool* const buff1 = new bool[total_size];
+  char* const bool_buff = gen_bool_buffer(total_size);
   for (unsigned int i = 0; i < numreqs; i++) {
     sent_bytes += send_tag(sockfd0, share0[i].tag);
     sent_bytes += send_tag(sockfd1, share1[i].tag);
@@ -2078,13 +2079,14 @@ int top_k_helper(
     delete[] share0[i].arr;
     delete[] share1[i].arr;
 
-    sent_bytes += send_bool_batch(sockfd0, buff0, total_size);
-    sent_bytes += send_bool_batch(sockfd1, buff1, total_size);
+    sent_bytes += send_bool_batch(sockfd0, buff0, total_size, bool_buff);
+    sent_bytes += send_bool_batch(sockfd1, buff1, total_size, bool_buff);
 
   }
 
   delete[] buff0;
   delete[] buff1;
+  delete[] bool_buff;
   delete[] share0;
   delete[] share1;
 

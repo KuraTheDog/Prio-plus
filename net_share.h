@@ -59,7 +59,9 @@ To reduce buffer sizes, send/recv in series.
 TODO: base "max", and then scale based on which
 - e.g. 8 mil char
 - then 8 bool per char, or 8 char per fmpz
-- Also dabit batching just match fmpz?
+- Also dabit batching just uses others, so less useful as different
+TODO: Reuse buffer? Same objects, so global pre-declare
+- though at that point, why not pool?
 */
 #define MAX_BOOL_BATCH  6400000
 #define MAX_FMPZ_BATCH  100000
@@ -75,10 +77,14 @@ int recv_bool(const int sockfd, bool& x);
 
 // Batch send bools compacted into char array
 // Versus 1 bool at a time takes up a whole byte per bool
-int send_bool_batch(const int sockfd, const bool* const x, const size_t n);
-int recv_bool_batch(const int sockfd, bool* const x, const size_t n);
+// If multiple in sequence, can gen fixed buffer for reuse
+char* const gen_bool_buffer(const size_t n);
+int send_bool_batch(const int sockfd, const bool* const x, const size_t n,
+    char* const buff = nullptr);
+int recv_bool_batch(const int sockfd, bool* const x, const size_t n,
+    char* const buff = nullptr);
 int swap_bool_batch(const int sockfd, const bool* const x, bool* const y,
-    const size_t n);
+    const size_t n, char* const buff1 = nullptr, char* const buff2 = nullptr);
 int reveal_bool_batch(const int sockfd, bool* const x, const size_t n);
 
 // Unused
@@ -113,16 +119,21 @@ int send_fmpz(const int sockfd, const fmpz_t x);
 int recv_fmpz(const int sockfd, fmpz_t x);
 int reveal_fmpz(const int sockfd, fmpz_t x);
 
-int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n);
-int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n);
+ulong* const gen_fmpz_buffer(const size_t n);
+int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n,
+    ulong* const buff = nullptr);
+int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n,
+    ulong* const buff = nullptr);
 int swap_fmpz_batch(const int sockfd, const fmpz_t* const x, fmpz_t* const y,
-    const size_t n);
+    const size_t n, ulong* const buff_1 = nullptr, ulong* const buff_2 = nullptr);
 int reveal_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n);
 
 // Both for round collapse, for thread wrapper
 int swap_bool_fmpz_batch(const int sockfd,
     const bool* const x, bool* const y, const size_t n,
-    const fmpz_t* const xp, fmpz_t* yp, const size_t np);
+    const fmpz_t* const xp, fmpz_t* yp, const size_t np,
+    char* const bool_buff1 = nullptr, char* const bool_buff2 = nullptr,
+    ulong* const fmpz_buff1 = nullptr, ulong* const fmpz_buff2 = nullptr);
 
 // Note: Send has "uninitialized value" warnings, but they are initialized
 int send_seed(const int sockfd, const flint_rand_t x);

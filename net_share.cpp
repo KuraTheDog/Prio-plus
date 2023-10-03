@@ -36,63 +36,87 @@ int recv_bool(const int sockfd, bool& x) {
   return recv_in(sockfd, &x, sizeof(bool));
 }
 
-int send_bool_batch(const int sockfd, const bool* const x, const size_t n) {
-  int total = 0, ret;
-
+char* const gen_bool_buffer(const size_t n) {
+  size_t max_to_do = n;
   if (MAX_BOOL_BATCH > 0 and n > MAX_BOOL_BATCH) {
-    total += send_bool_batch(sockfd, x, MAX_BOOL_BATCH);
-    auto new_x = &x[MAX_BOOL_BATCH];
-    total += send_bool_batch(sockfd, new_x, n - MAX_BOOL_BATCH);
-    return total;
+    max_to_do = MAX_BOOL_BATCH;
   }
-
-  const size_t len = (n+7) / 8;  // Number of bytes to hold n, aka ceil(n/8)
+  const size_t len = (max_to_do+7) / 8;  // Number of bytes to hold n, aka ceil(n/8)
   char* const buff = new char[len];
-  memset(buff, 0, sizeof(char) * len);
 
-  for (unsigned int i = 0; i < n; i++)
-    if (x[i])
-      buff[i / 8] ^= (1ULL << (i % 8));
-
-  ret = send(sockfd, buff, len, 0);
-  if (ret <= 0) return ret; else total += ret;
-
-  delete[] buff;
-
-  return ret;
+  return buff;
 }
 
-int recv_bool_batch(const int sockfd, bool* const x, const size_t n) {
-  if (MAX_BOOL_BATCH > 0 and n > MAX_BOOL_BATCH) {
-    int total = recv_bool_batch(sockfd, x, MAX_BOOL_BATCH);
-    auto new_x = &x[MAX_BOOL_BATCH];
-    total += recv_bool_batch(sockfd, new_x, n - MAX_BOOL_BATCH);
-    return total;
+int send_bool_batch(const int sockfd, const bool* const x, const size_t n,
+    char* const buff_arg) {
+  int total = 0, ret;
+
+  char* const buff = (buff_arg == nullptr) ? gen_bool_buffer(n) : buff_arg;
+
+  size_t num_done = 0;
+  while (num_done < n) {
+    size_t num_to_do = n - num_done;
+    if (MAX_BOOL_BATCH > 0 and num_to_do > MAX_BOOL_BATCH) {
+      num_to_do = MAX_BOOL_BATCH;
+    }
+    const int this_len = (num_to_do+7) / 8;
+
+    memset(buff, 0, sizeof(char) * this_len);
+    for (unsigned int i = 0; i < num_to_do; i++)
+      if (x[num_done + i])
+        buff[i / 8] ^= (1ULL << (i % 8));
+
+    ret = send(sockfd, buff, this_len, 0);
+    if (ret <= 0) return ret; else total += ret;
+
+    num_done += num_to_do;
   }
 
-  const size_t len = (n+7) / 8;
-  char* const buff = new char[len];
+  if (buff_arg == nullptr)
+    delete[] buff;
 
-  int ret = recv_in(sockfd, buff, len);
+  return total;
+}
 
-  for (unsigned int i = 0; i < n; i++)
-    x[i] = (buff[i/8] & (1ULL << (i % 8)));
+int recv_bool_batch(const int sockfd, bool* const x, const size_t n,
+    char* const buff_arg) {
+  int total = 0, ret;
 
-  delete[] buff;
+  char* const buff = (buff_arg == nullptr) ? gen_bool_buffer(n) : buff_arg;
 
-  return ret;
+  size_t num_done = 0;
+  while (num_done < n) {
+    size_t num_to_do = n - num_done;
+    if (MAX_BOOL_BATCH > 0 and num_to_do > MAX_BOOL_BATCH) {
+      num_to_do = MAX_BOOL_BATCH;
+    }
+    const int this_len = (num_to_do+7) / 8;
+
+    ret = recv_in(sockfd, buff, this_len);
+    if (ret <= 0) return ret; else total += ret;
+
+    for (unsigned int i = 0; i < num_to_do; i++)
+      x[num_done + i] = (buff[i/8] & (1ULL << (i % 8)));
+
+    num_done += num_to_do;
+  }
+
+  if (buff_arg == nullptr)
+    delete[] buff;
+
+  return total;
 }
 
 int swap_bool_batch(const int sockfd, const bool* const x, bool* const y,
-    const size_t n) {
+    const size_t n, char* const buff_arg_1, char* const buff_arg_2) {
   int sent_bytes = 0;
   int recv_bytes = 0;
 
-  std::thread t_send([sockfd, x, n, &sent_bytes]() {
-    sent_bytes += send_bool_batch(sockfd, x, n);
+  std::thread t_send([sockfd, x, n, buff_arg_1, &sent_bytes]() {
+    sent_bytes += send_bool_batch(sockfd, x, n, buff_arg_1);
   });
-  std::thread t_recv([sockfd, &y, n, &recv_bytes]() {
-    recv_bytes += recv_bool_batch(sockfd, y, n);
+  std::thread t_recv([sockfd, &y, n, buff_arg_2, &recv_bytes]() {
+    recv_bytes += recv_bool_batch(sockfd, y, n, buff_arg_2);
   });
   t_send.join();
   t_recv.join();
@@ -294,7 +318,17 @@ int reveal_fmpz(const int sockfd, fmpz_t x) {
   return sent_bytes;
 }
 
-int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n) {
+ulong* const gen_fmpz_buffer(const size_t n) {
+  size_t max_to_do = n;
+  if (MAX_FMPZ_BATCH > 0 and n > MAX_FMPZ_BATCH) {
+    max_to_do = MAX_FMPZ_BATCH;
+  }
+  ulong* const buff = new ulong[mod_size * max_to_do];
+  return buff;
+}
+
+int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n,
+    ulong* const buff_arg) {
   int total = 0, ret;
   if (!FIXED_FMPZ_SIZE) {
     for (unsigned int i = 0; i < n; i++) {
@@ -304,25 +338,32 @@ int send_fmpz_batch(const int sockfd, const fmpz_t* const x, const size_t n) {
     return total;
   }
 
-  if (MAX_FMPZ_BATCH > 0 and n > MAX_FMPZ_BATCH) {
-    total += send_fmpz_batch(sockfd, x, MAX_FMPZ_BATCH);
-    auto new_x = &x[MAX_FMPZ_BATCH];
-    total += send_fmpz_batch(sockfd, new_x, n - MAX_FMPZ_BATCH);
-    return total;
+  const size_t len = mod_size;
+  ulong* const buff = (buff_arg == nullptr) ? gen_fmpz_buffer(n) : buff_arg;
+
+  size_t num_done = 0;
+  while (num_done < n) {
+    size_t num_to_do = n - num_done;
+    if (MAX_FMPZ_BATCH > 0 and num_to_do > MAX_FMPZ_BATCH) {
+      num_to_do = MAX_FMPZ_BATCH;
+    }
+    for (unsigned int i = 0; i < num_to_do; i++)
+      fmpz_get_ui_array(&buff[i * len], len, x[num_done + i]);
+
+    ret = send_ulong_batch(sockfd, buff, len * num_to_do);
+    if (ret <= 0) return ret; else total += ret;
+
+    num_done += num_to_do;
   }
 
-  size_t len = mod_size;
-  ulong* buff = new ulong[len * n];
-  for (unsigned int i = 0; i < n; i++)
-    fmpz_get_ui_array(&buff[i * len], len, x[i]);
+  if (buff_arg == nullptr)
+    delete[] buff;
 
-  ret = send_ulong_batch(sockfd, buff, len * n);
-  delete[] buff;
-  if (ret <= 0) return ret; else total += ret;
   return total;
 }
 
-int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n) {
+int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n,
+    ulong* const buff_arg) {
   int total = 0, ret;
 
   if (!FIXED_FMPZ_SIZE) {
@@ -333,34 +374,41 @@ int recv_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n) {
     return total;
   }
 
-  if (MAX_FMPZ_BATCH > 0 and n > MAX_FMPZ_BATCH) {
-    total += recv_fmpz_batch(sockfd, x, MAX_FMPZ_BATCH);
-    auto new_x = &x[MAX_FMPZ_BATCH];
-    total += recv_fmpz_batch(sockfd, new_x, n - MAX_FMPZ_BATCH);
-    return total;
+  const size_t len = mod_size;
+  ulong* const buff = (buff_arg == nullptr) ? gen_fmpz_buffer(n) : buff_arg;
+
+  size_t num_done = 0;
+  while (num_done < n) {
+    size_t num_to_do = n - num_done;
+    if (MAX_FMPZ_BATCH > 0 and num_to_do > MAX_FMPZ_BATCH) {
+      num_to_do = MAX_FMPZ_BATCH;
+    }
+
+    ret = recv_ulong_batch(sockfd, buff, len * n);
+    if (ret <= 0) return ret; else total += ret;
+
+    for (unsigned int i = 0; i < num_to_do; i++)
+      fmpz_set_ui_array(x[num_done + i], &buff[i * len], len);
+
+    num_done += num_to_do;
   }
 
-  size_t len = mod_size;
-  ulong* buff = new ulong[len * n];
-  ret = recv_ulong_batch(sockfd, buff, len * n);
-  if (ret <= 0) return ret; else total += ret;
+  if (buff_arg == nullptr)
+    delete[] buff;
 
-  for (unsigned int i = 0; i < n; i++)
-    fmpz_set_ui_array(x[i], &buff[i * len], len);
-  delete[] buff;
   return total;
 }
 
 int swap_fmpz_batch(const int sockfd, const fmpz_t* const x, fmpz_t* const y,
-    const size_t n) {
+    const size_t n, ulong* const buff_1, ulong* const buff_2) {
   int sent_bytes = 0;
   int recv_bytes = 0;
 
-  std::thread t_send([sockfd, x, n, &sent_bytes]() {
-    sent_bytes += send_fmpz_batch(sockfd, x, n);
+  std::thread t_send([sockfd, x, n, buff_1, &sent_bytes]() {
+    sent_bytes += send_fmpz_batch(sockfd, x, n, buff_1);
   });
-  std::thread t_recv([sockfd, &y, n, &recv_bytes]() {
-    recv_bytes += recv_fmpz_batch(sockfd, y, n);
+  std::thread t_recv([sockfd, &y, n, buff_2, &recv_bytes]() {
+    recv_bytes += recv_fmpz_batch(sockfd, y, n, buff_2);
   });
   t_send.join();
   t_recv.join();
@@ -389,17 +437,19 @@ int reveal_fmpz_batch(const int sockfd, fmpz_t* const x, const size_t n) {
 
 int swap_bool_fmpz_batch(const int sockfd,
     const bool* const x, bool* const y, const size_t n,
-    const fmpz_t* const xp, fmpz_t* yp, const size_t np) {
+    const fmpz_t* const xp, fmpz_t* yp, const size_t np,
+    char* const bool_buff_1, char* const bool_buff_2,
+    ulong* const fmpz_buff_1, ulong* const fmpz_buff_2) {
   int sent_bytes = 0;
   int recv_bytes = 0;
 
-  std::thread t_send([sockfd, x, n, xp, np, &sent_bytes]() {
-    sent_bytes += send_bool_batch(sockfd, x, n);
-    sent_bytes += send_fmpz_batch(sockfd, xp, np);
+  std::thread t_send([sockfd, x, n, xp, np, bool_buff_1, fmpz_buff_1, &sent_bytes]() {
+    sent_bytes += send_bool_batch(sockfd, x, n, bool_buff_1);
+    sent_bytes += send_fmpz_batch(sockfd, xp, np, fmpz_buff_1);
   });
-  std::thread t_recv([sockfd, y, n, yp, np, &recv_bytes]() {
-    recv_bytes += recv_bool_batch(sockfd, y, n);
-    recv_bytes += recv_fmpz_batch(sockfd, yp, np);
+  std::thread t_recv([sockfd, y, n, yp, np, bool_buff_2, fmpz_buff_2, &recv_bytes]() {
+    recv_bytes += recv_bool_batch(sockfd, y, n, bool_buff_2);
+    recv_bytes += recv_fmpz_batch(sockfd, yp, np, fmpz_buff_2);
   });
   t_send.join();
   t_recv.join();

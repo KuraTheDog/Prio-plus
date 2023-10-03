@@ -2000,6 +2000,10 @@ returnType top_k_op(const initMsg msg,
   bool* const send_buff = new bool[6 * buff_len_all];
   bool* const recv_buff = new bool[6 * buff_len_all];
   memset(recv_buff, 0, 6 * buff_len_all);
+  char* const send_tmp_buff = gen_bool_buffer(6 * buff_len_all);
+  char* const recv_tmp_buff = gen_bool_buffer(6 * buff_len_all);
+  ulong* const send_fmpz_buff = gen_fmpz_buffer(len_sums);
+  ulong* const recv_fmpz_buff = gen_fmpz_buffer(len_sums);
   bool* const a = new bool[3 * buff_len_all];
   bool* const b = new bool[3 * buff_len_all];
   bool* const z = new bool[4 * buff_len_all];  // Re-used as c
@@ -2045,7 +2049,7 @@ returnType top_k_op(const initMsg msg,
 
     /* Round 1: convert mult 1, B2A count, B2A mask */
     sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff,
-        2*len_part + len_p);
+        2*len_part + len_p, send_tmp_buff, recv_tmp_buff);
 
     // Finish B2A
     correlated_store->b2a_single_finish(len_p,
@@ -2074,7 +2078,8 @@ returnType top_k_op(const initMsg msg,
     /* Round 2: Freq valid values, second convert mult */
     sent_bytes += swap_bool_fmpz_batch(serverfd,
         send_buff, recv_buff, 2 * 3 * len_all,
-        sums, sums_other, len_sums);
+        sums, sums_other, len_sums,
+        send_tmp_buff, recv_tmp_buff, send_fmpz_buff, recv_fmpz_buff);
 
     // Finish convert stage 2
     correlated_store->multiply_BoolShares_finish(3 * len_all,
@@ -2097,7 +2102,7 @@ returnType top_k_op(const initMsg msg,
 
     /* Round 3: convert stage 3, valid swap */
     sent_bytes += swap_bool_batch(serverfd, send_buff, recv_buff,
-        curr_size + 4 * len_all);
+        curr_size + 4 * len_all, send_tmp_buff, recv_tmp_buff);
 
     // Finish heavy convert
     correlated_store->b2a_single_finish(4 * len_all, zp,
@@ -2128,6 +2133,10 @@ returnType top_k_op(const initMsg msg,
   delete[] valid;
   delete[] send_buff;
   delete[] recv_buff;
+  delete[] send_tmp_buff;
+  delete[] recv_tmp_buff;
+  delete[] send_fmpz_buff;
+  delete[] recv_fmpz_buff;
   delete[] a;
   delete[] b;
   delete[] z;
