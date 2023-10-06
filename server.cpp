@@ -1747,11 +1747,9 @@ returnType multi_heavy_op(const initMsg msg,
       &z[2*len_all], &z[3*len_all], send_buff, recv_buff);
   delete[] xy_ext;
   // Finish freq, update valid
-  bool all_valid = true;
   for (unsigned int j = 0; j < cfg.Q + cfg.countmin_cfg.d; j++) {
     fmpz_mod_add(sums[j], sums[j], sums_other[j], mod_ctx);
-    all_valid &= fmpz_equal_ui(sums[j], num_inputs);
-    if (!all_valid) {
+    if (!fmpz_equal_ui(sums[j], num_inputs)) {
       memset(valid, false, num_inputs);
       std::cout << "Batch not valid. Marked all invalid for now\n";
       break;
@@ -2069,8 +2067,6 @@ returnType top_k_op(const initMsg msg,
     memcpy(z, b, len_all);
     correlated_store->multiply_BoolShares_setup(3 * len_all,
         a, b, &z[len_all], send_buff);
-    for (unsigned int i = 0; i < len_sums; i++)
-      fmpz_zero(sums[i]);
     sum_accum(curr_size, cfg.countmin_cfg.d, cfg.countmin_cfg.w, shares_p, sums);
     sum_accum(curr_size, cfg.Q, cfg.B,
         &shares_p[curr_size * share_size_count], &sums[cfg.countmin_cfg.d]);
@@ -2085,11 +2081,9 @@ returnType top_k_op(const initMsg msg,
     correlated_store->multiply_BoolShares_finish(3 * len_all,
         a, b, &z[len_all], send_buff, recv_buff);
     // Finish freq, update valid
-    bool all_valid = true;
     for (unsigned int j = 0; j < len_sums; j++) {
       fmpz_mod_add(sums[j], sums[j], sums_other[j], mod_ctx);
-      all_valid &= fmpz_equal_ui(sums[j], curr_size);
-      if (!all_valid) {
+      if (!fmpz_equal_ui(sums[j], curr_size)) {
         memset(&valid[num_done], false, curr_size);
         std::cout << "Batch not valid. Marked all invalid for now\n";
         break;
