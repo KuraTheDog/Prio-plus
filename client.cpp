@@ -1953,11 +1953,12 @@ int top_k_helper(
 
   const size_t count_size = fmax(2 * cfg.K, 10);
 
-  /* TODO: Can we "reuse" masks across R?
-    I.e. do full (share, Q). Then delete half, reuse randomness, etc
-    don't actually need independent across R / "redistribute"
-    So can just use r_mask as extra multiplier
-    Otherwise need to expand share/Q by factor of R too
+  /* 
+  TODO: Share rework
+  Send x + bits of x
+  Server can do combination of bits to get share_x and share_y
+  B, R, and count-min still needs to be sent
+  - Since larger ranges
   */
   // sh_x, sh_y, bucket_mask, layer_mask, countmin
   MultiFreqShare* const share0 = new MultiFreqShare[numreqs];

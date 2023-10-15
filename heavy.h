@@ -75,7 +75,7 @@ struct MultiHeavyConfig {
   , delta(delta)
   , eps(eps_arg)
   , delta_inv((unsigned int) floor(1/delta))
-  , Q(ceil(log2(K) * log2(delta_inv)))
+  , Q(floor(log2(K) * log2(delta_inv)))
   , B(K * K)
   , R(layers ? layers : num_bits)
   , num_bits(num_bits)

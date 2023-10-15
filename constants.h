@@ -55,15 +55,23 @@ Smaller k' may work, so differnet a may be required.
 // const std::string Int_Gen_str = "7946479F9";      // 3^(p-1 / 2^15)
 // const int twoOrder = 15;
 
-const std::string Int_Modulus_str = "800006880001";    // 48 bit modulus
-const std::string Int_Gen_str = "3503101C8855";        // 7^(p-1 / 2^19)
-const int twoOrder = 19;
+// const std::string Int_Modulus_str = "800006880001";    // 48 bit modulus
+// const std::string Int_Gen_str = "3503101C8855";        // 7^(p-1 / 2^19)
+// const int twoOrder = 19;
 
 // Below here doesn't work with PALISADE triples
 
 // const std::string Int_Modulus_str = "80000000080001";  // 56 bit modulus
 // const std::string Int_Gen_str = "4359077260C2D6";      // 3^(p-1 / 2^19)
 // const int twoOrder = 19;
+
+// const std::string Int_Modulus_str = "800000088400001";   // 60 bit modulus
+// const std::string Int_Gen_str = "7188a4708665245";       // 3^(p-1 / 2^22)
+// const int twoOrder = 22;
+
+const std::string Int_Modulus_str = "2000000044000001";   // 62 bit modulus
+const std::string Int_Gen_str = "1b95b1e0a77cf434";       // 3^(p-1 / 2^26)
+const int twoOrder = 26;
 
 // Below, garble starts breaking down.
 // At the very least, revealing things starts getting harder, since it needs bits+1
