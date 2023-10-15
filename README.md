@@ -1,12 +1,15 @@
 # Background
 
+This is the software prototype based on Prio+ (below), which adds functionality for identifying the most frequent heavy hitters.
+
+## Original background
+
 This is the software prototype that accompanies the research paper
 
 Prio+ https://eprint.iacr.org/2021/576.pdf
 By Surya Addanki, Kevin Garbe, Eli Jaffe, Rafail Ostrovsky, and Antigoni Polychroniadou
 
 This is an improvement of the original Prio code by Henry Corrigan-Gibs and Dan Boneh, which can be found [here](https://github.com/henrycg/prio), detailed in ["Prio: Private, Robust, and Scalable Computation of Aggregate Statistics"](https://crypto.stanford.edu/prio/paper.pdf)
-
 Some of this code, such as the fast polynomial operations, is directly based on their code.
 
 
