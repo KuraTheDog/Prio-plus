@@ -21,8 +21,8 @@ For degree 1, efficient enough as is
 Note that the fed in hash seed is freed automatically on destruction.
 */
 
-#ifndef PRIO_HASH_H
-#define PRIO_HASH_H
+#ifndef HASH_H
+#define HASH_H
 
 #include <iostream>
 

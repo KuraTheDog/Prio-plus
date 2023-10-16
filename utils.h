@@ -1,5 +1,5 @@
-#ifndef PRIOBASEUTILS_H
-#define PRIOBASEUTILS_H
+#ifndef BASEUTILS_H
+#define BASEUTILS_H
 
 #include <emp-tool/emp-tool.h>  // for timing
 
