@@ -1537,8 +1537,7 @@ returnType multi_heavy_op(const initMsg msg,
   // Get other params
   size_t K; recv_size(clientfd, K);
   double delta; recv_double(clientfd, delta);
-  double eps; recv_double(clientfd, eps);
-  MultiHeavyConfig cfg(K, delta, num_bits, eps, 1);
+  MultiHeavyConfig cfg(K, delta, num_bits, delta, 1);
   cfg.print();
 
   flint_rand_t hash_seed_classify; flint_randinit(hash_seed_classify);

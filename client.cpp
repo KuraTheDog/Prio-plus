@@ -2098,13 +2098,11 @@ int top_k_helper(
 }
 
 void top_k_op(const std::string protocol, const size_t numreqs,
-              const double delta, const double eps, const size_t K) {
+              const double delta, const size_t K) {
   // No need for bit checks, since accum don't scale with num_bits
 
   if (delta <= 0 or delta > 1)
     throw std::invalid_argument("Need delta in (0, 1]");
-  if (eps <= 0 or eps > 1)
-    throw std::invalid_argument("Need eps in (0, 1]");
 
   int sent_bytes = 0;
   // For display: how many to print out (max(2K, 10))
@@ -2121,7 +2119,7 @@ void top_k_op(const std::string protocol, const size_t numreqs,
   // Temp
   size_t R = num_bits / 2;
 
-  MultiHeavyConfig cfg(K, delta, num_bits, eps, R);
+  MultiHeavyConfig cfg(K, delta, num_bits, delta, R);
 
   cfg.print();
 
@@ -2154,8 +2152,6 @@ void top_k_op(const std::string protocol, const size_t numreqs,
   send_size(sockfd1, K);
   send_double(sockfd0, delta);
   send_double(sockfd1, delta);
-  send_double(sockfd0, eps);
-  send_double(sockfd1, eps);
 
   // Temp: Send R
   send_size(sockfd0, R);
@@ -2373,13 +2369,12 @@ int main(int argc, char** argv) {
 
   else if (protocol == "TOPK") {
     parse_num_bits(argc, argv);
-    if (argc < 9)
-      throw std::invalid_argument("Need parameters [delta, eps, K]");
+    if (argc < 8)
+      throw std::invalid_argument("Need parameters [delta, K]");
     double delta = atof(argv[6]);
-    double eps = atof(argv[7]);
-    int K = atoi(argv[8]);
+    int K = atoi(argv[7]);
     std::cout << "Uploading all Top K shares: " << numreqs << std::endl;
-    top_k_op(protocol, numreqs, delta, eps, K);
+    top_k_op(protocol, numreqs, delta, K);
     std::cout << "Total time:\t" << sec_from(start) << std::endl;
   }
 
