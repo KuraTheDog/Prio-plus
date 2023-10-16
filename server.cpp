@@ -1537,7 +1537,8 @@ returnType multi_heavy_op(const initMsg msg,
   // Get other params
   size_t K; recv_size(clientfd, K);
   double delta; recv_double(clientfd, delta);
-  MultiHeavyConfig cfg(K, delta, num_bits, delta, 1);
+  double eps; recv_double(clientfd, eps);
+  MultiHeavyConfig cfg(K, delta, num_bits, eps, 1);
   cfg.print();
 
   flint_rand_t hash_seed_classify; flint_randinit(hash_seed_classify);
@@ -1849,9 +1850,8 @@ returnType top_k_op(const initMsg msg,
   // Get other params
   size_t K; recv_size(clientfd, K);
   double delta; recv_double(clientfd, delta);
-  double eps; recv_double(clientfd, eps);
   size_t R; recv_size(clientfd, R);
-  MultiHeavyConfig cfg(K, delta, num_bits, eps, R);
+  MultiHeavyConfig cfg(K, delta, num_bits, delta, R);
   cfg.print();
 
   flint_rand_t hash_seed_classify; flint_randinit(hash_seed_classify);
