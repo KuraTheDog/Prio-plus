@@ -2,6 +2,7 @@
 #define _POLY_BATCH__H
 
 #include <flint/fmpz_mod_poly.h>
+#include <flint/fmpz_mod.h>
 
 /*
 Most things disabled.

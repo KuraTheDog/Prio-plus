@@ -12,7 +12,7 @@ Some of this code, such as the fast polynomial operations, is directly based on 
 
 ## Dependencies
 
-1. [Flint 2.7.0+](https://flintlib.org)
+1. [Flint 3.1.0+](https://flintlib.org)
 2. [emp-ot](https://github.com/emp-toolkit/emp-ot)
 
 # Getting Started

@@ -9,6 +9,7 @@
 
 extern "C" {
     #include "flint/fmpq_mat.h"  // for LinReg solving
+    #include "flint/fmpq.h"
     #include "poly/fft.h"
 }
 
