@@ -13,12 +13,10 @@ Returns total bytes sent on success, or first fail return of an internal step (t
 
 #include <string>
 
-#include "share.h"
+#include <flint/flint.h>
+#include <flint/fmpz.h>
 
-extern "C" {
-  #include "flint/flint.h"
-  #include "flint/fmpz.h"
-};
+#include "share.h"
 
 /*
 Other ideas for fmpz sending:

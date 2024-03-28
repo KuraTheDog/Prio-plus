@@ -1,12 +1,10 @@
 #include "share.h"
 
+#include <flint/flint.h>
+#include <flint/fmpz.h>
+
 #include "constants.h"
 #include "fmpz_utils.h"
-
-extern "C" {
-  #include "flint/flint.h"
-  #include "flint/fmpz.h"
-};
 
 unsigned int NextPowerOfTwo(const unsigned int n) {
     unsigned int ans = 1;

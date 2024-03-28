@@ -2,12 +2,9 @@
 #define FMPZ_UTILS_H
 
 #include <emp-tool/emp-tool.h>
+#include <flint/flint.h>
+#include <flint/fmpz.h>
 #include <gmpxx.h>
-
-extern "C" {
-  #include "flint/flint.h"
-  #include "flint/fmpz.h"
-};
 
 void new_fmpz_array(fmpz_t** arr, const size_t N);
 

@@ -8,10 +8,8 @@
 #include "../client.h"
 #include "../server.h"
 
-extern "C" {
-  #include "flint/flint.h"
-  #include "flint/fmpz.h"
-};
+#include <flint/flint.h>
+#include <flint/fmpz.h>
 
 void test_CheckVar() {
   std::cout << "Testing CheckVar Eval and share_polynomials" << std::endl;

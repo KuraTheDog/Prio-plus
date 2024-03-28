@@ -1,11 +1,8 @@
 #include "fmpz_utils.h"
 
+#include <flint/flint.h>
+#include <flint/fmpz.h>
 #include <gmpxx.h>
-
-extern "C" {
-  #include "flint/flint.h"
-  #include "flint/fmpz.h"
-};
 
 void new_fmpz_array(fmpz_t** arr, const size_t N) {
     fmpz_t* out = (fmpz_t*) malloc(N * sizeof(fmpz_t));

@@ -1,14 +1,11 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-#include <gmpxx.h>
-
 #include <string>
 
-extern "C" {
-  #include "flint/flint.h"
-  #include "flint/fmpz.h"
-};
+#include <flint/flint.h>
+#include <flint/fmpz.h>
+#include <gmpxx.h>
 
 /*
 Int_Gen ^ (2 ^ twoOrder) = 1 mod IntModulus.

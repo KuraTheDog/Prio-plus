@@ -4,12 +4,13 @@
 #include <iostream>
 #include <vector>
 
+#include <flint/fmpq.h>
+#include <flint/fmpq_mat.h>
+
 #include "constants.h"
 #include "share.h"
 
 extern "C" {
-    #include "flint/fmpq_mat.h"  // for LinReg solving
-    #include "flint/fmpq.h"
     #include "poly/fft.h"
 }
 

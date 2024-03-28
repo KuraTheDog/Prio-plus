@@ -1,11 +1,8 @@
 #include <iostream>
 
+#include <flint/flint.h>
+#include <flint/fmpz.h>
 #include <gmpxx.h>
-
-extern "C" {
-  #include "flint/flint.h"
-  #include "flint/fmpz.h"
-};
 
 #include "../circuit.h"
 #include "../share.h"
