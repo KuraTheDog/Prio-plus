@@ -1,12 +1,29 @@
 cmake_minimum_required(VERSION 3.5.1)
 
 project(AggrProject C CXX)
+set(CMAKE_CXX_STANDARD 11)
 
-if(NOT MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-else()
-  add_definitions(-D_WIN32_WINNT=0x600)
+# Needed to get openmp to work
+if(APPLE)
+  # set(CMAKE_C_COMPILER "/opt/homebrew/Cellar/gcc/12.2.0/bin/g-12")
+  # set(CMAKE_CXX_COMPILER "/opt/homebrew/Cellar/gcc/12.2.0/bin/g++-12")
+  # set(CMAKE_C_COMPILER "/usr/local/bin/gcc-11")
+  # set(CMAKE_CXX_COMPILER "/usr/local/bin/g++-11")
+  # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Xpreprocessor")
+  # include_directories("/usr/local/include" "/usr/local/opt/llvm/include")
+  # link_directories("/usr/local/lib" "/usr/local/opt/llvm/lib")
+  include_directories("/opt/homebrew/include")
 endif()
+link_directories("/usr/local/lib")
+
+find_path(CMAKE_FOLDER NAMES cmake/emp-base.cmake)
+message(STATUS "CMAKE_FOLDER: ${CMAKE_FOLDER}")
+
+# if(NOT MSVC)
+#   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+# else()
+#   add_definitions(-D_WIN32_WINNT=0x600)
+# endif()
 
 # Find flint
 if(FLINT_INCLUDE_DIR AND FLINT_LIBRARIES)
@@ -19,9 +36,21 @@ include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(FLINT DEFAULT_MSG FLINT_INCLUDE_DIR FLINT_LIBRARIES)
 mark_as_advanced(FLINT_INCLUDE_DIR FLINT_LIBRARIES)
 
-include(cmake/common.cmake)
-find_package(EMP-TOOL REQUIRED)
-include_directories(${EMP-TOOL_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
+include(cmake/FindGMP.cmake)
+include(${CMAKE_FOLDER}/cmake/FindGMP.cmake)
+
+find_package(emp-tool REQUIRED)
+include(${CMAKE_FOLDER}/cmake/emp-base.cmake)
+include_directories(${EMP-TOOL_INCLUDE_DIRS})
+
+# # For debugging
+set(VALGRIND_TEST FALSE)
+if(VALGRIND_TEST)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -g")
+  message(STATUS "DEBUG: Running with debug flags for valgrind testing")
+endif()
+
 
 foreach(_target
   server client
@@ -32,7 +61,6 @@ foreach(_target
                  )
   target_link_libraries(${_target}
     ${OPENSSL_LIBRARIES}
-    ${Boost_LIBRARIES}
     ${GMP_LIBRARIES}
     ${EMP-TOOL_LIBRARIES}
     ${FLINT_LIBRARIES}
@@ -71,7 +99,6 @@ foreach(_target
   add_executable(${_target} ${test_SOURCE_FILES})
   target_link_libraries(${_target}
     ${OPENSSL_LIBRARIES}
-    ${Boost_LIBRARIES}
     ${GMP_LIBRARIES}
     ${EMP-TOOL_LIBRARIES}
     ${FLINT_LIBRARIES}
