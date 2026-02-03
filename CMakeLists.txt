@@ -42,21 +42,6 @@ include(${CMAKE_FOLDER}/cmake/emp-ot-config.cmake)
 include(${CMAKE_FOLDER}/cmake/emp-sh2pc-config.cmake)
 include_directories(${EMP-SH2PC_INCLUDE_DIRS})
 
-# Palisade
-# find_package(Palisade)
-# set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PALISADE_CXX_FLAGS}" )
-# message("PALISADE_INCLUDE: ${PALISADE_INCLUDE}")
-# include_directories( ${OPENMP_INCLUDES} )
-# include_directories( ${PALISADE_INCLUDE} )
-# include_directories( ${PALISADE_INCLUDE}/third-party/include )
-# include_directories( ${PALISADE_INCLUDE}/core )
-# include_directories( ${PALISADE_INCLUDE}/pke )
-# link_directories( ${PALISADE_LIBDIR} )
-# link_directories( ${OPENMP_LIBRARIES} )
-# # Non-static
-# set( CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${PALISADE_EXE_LINKER_FLAGS}" )
-# link_libraries( ${PALISADE_SHARED_LIBRARIES} )
-
 # # For debugging
 set(VALGRIND_TEST FALSE)
 if(VALGRIND_TEST)
@@ -90,9 +75,8 @@ set(test_correlated "test_bits" "test_heavy" ${test_correlated_validated})
 set(test_garble "test_garble")
 set(test_ot "test_ot" ${test_correlated} ${test_garble})
 set(test_hash "test_hash" ${test_garble})
-set(test_he_triples "test_he_triples" ${test_correlated})
 # stuff that sends shares
-set(test_net_share "test_net_share" ${test_poly} ${test_ot} ${test_he_triples})
+set(test_net_share "test_net_share" ${test_poly} ${test_ot})
 set(test_share "test_share" ${test_net_share})
 foreach(_target
   test_share
@@ -102,7 +86,6 @@ foreach(_target
   test_ot
   test_bits
   test_hash
-  # test_he_triples
   test_heavy
   test_garble
   test_interp
@@ -131,9 +114,6 @@ foreach(_target
   endif()
   if (_target IN_LIST test_hash)
     set (test_SOURCE_FILES ${test_SOURCE_FILES} "hash.cpp")
-  endif()
-  if (_target IN_LIST test_he_triples)
-    # set (test_SOURCE_FILES ${test_SOURCE_FILES} "he_triples.cpp")
   endif()
   if (_target IN_LIST test_garble)
     set (test_SOURCE_FILES ${test_SOURCE_FILES} "eval_heavy.cpp")

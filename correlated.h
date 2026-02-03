@@ -57,7 +57,6 @@ n) delete vars. could fit into finish, but clearer outside
 #include <queue>
 
 #include "constants.h"
-// #include "he_triples.h"
 #include "net_share.h"
 #include "ot.h"
 #include "share.h"
