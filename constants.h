@@ -59,8 +59,6 @@ Smaller k' may work, so differnet a may be required.
 // const std::string Int_Gen_str = "3503101C8855";        // 7^(p-1 / 2^19)
 // const int twoOrder = 19;
 
-// Below here doesn't work with PALISADE triples
-
 // const std::string Int_Modulus_str = "80000000080001";  // 56 bit modulus
 // const std::string Int_Gen_str = "4359077260C2D6";      // 3^(p-1 / 2^19)
 // const int twoOrder = 19;
